@@ -14,7 +14,20 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
-      '/api/dt': 'http://localhost:3002',
+      '/api/dt': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+      },
+      '/api/kip': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/kip/, '/api'),
+      },
+      '/api/tyagachi': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/tyagachi/, '/api'),
+      },
     },
   },
   build: {

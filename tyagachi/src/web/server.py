@@ -1283,6 +1283,36 @@ async def get_request_report(request_number: int):
     return HTMLResponse(content=html_content)
 
 
+@app.get("/api/request/{request_number}/data")
+async def get_request_data(request_number: int):
+    """Return hierarchical JSON data for a request for React frontend viewer."""
+    from src.web.models import TrackedRequest as TR
+    from src.output.html_generator_v2 import build_hierarchy
+
+    session = db.get_session()
+    try:
+        tr = session.query(TR).filter_by(request_number=request_number).first()
+        if not tr:
+            raise HTTPException(status_code=404, detail="Request not found")
+        if not tr.matched_data_json:
+            raise HTTPException(
+                status_code=404,
+                detail="No cached data for this request. Run sync first."
+            )
+        matched_records = json.loads(tr.matched_data_json)
+        request_info = tr.to_dict()
+    finally:
+        session.close()
+
+    hierarchy = build_hierarchy(matched_records, [])
+
+    return {
+        "request_number": request_number,
+        "request_info": request_info,
+        "hierarchy": hierarchy,
+    }
+
+
 # ============================================================
 # Background sync pipeline
 # ============================================================

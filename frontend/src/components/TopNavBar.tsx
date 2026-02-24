@@ -1,33 +1,33 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Home, Monitor, Truck, Tractor, Sun, Moon, Map } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 const navItems = [
-  { id: 'home', label: 'ГЛАВНАЯ', icon: Home },
-  { id: 'kip', label: 'КИП ТЕХНИКИ', icon: Monitor },
-  { id: 'tractors', label: 'ТЯГАЧИ', icon: Tractor },
-  { id: 'dump', label: 'САМОСВАЛЫ', icon: Truck },
+  { id: 'home',     path: '/',          label: 'ГЛАВНАЯ',     icon: Home },
+  { id: 'kip',      path: '/kip',       label: 'КИП ТЕХНИКИ', icon: Monitor },
+  { id: 'tractors', path: '/tyagachi',  label: 'ТЯГАЧИ',      icon: Tractor },
+  { id: 'dump',     path: '/samosvaly', label: 'САМОСВАЛЫ',   icon: Truck },
 ];
 
-interface Props {
-  activeNav: string;
-  onNavChange: (id: string) => void;
-}
-
-const TopNavBar: React.FC<Props> = ({ activeNav, onNavChange }) => {
+const TopNavBar: React.FC = () => {
   const { theme, setTheme } = useTheme();
+  const { pathname } = useLocation();
 
   return (
     <nav className="flex items-center justify-between px-3 h-10 glass-card shrink-0">
       <div className="flex items-center gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeNav === item.id;
+          const isActive =
+            item.path === '/'
+              ? pathname === '/'
+              : pathname === item.path || pathname.startsWith(item.path + '/');
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => onNavChange(item.id)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium transition-all cursor-pointer border-none ${
+              to={item.path}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium transition-all no-underline border-none ${
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground bg-transparent'
@@ -36,11 +36,12 @@ const TopNavBar: React.FC<Props> = ({ activeNav, onNavChange }) => {
                 fontSize: '11px',
                 boxShadow: isActive ? '0 0 20px rgba(249, 115, 22, 0.15)' : 'none',
                 transition: 'box-shadow 200ms ease',
+                textDecoration: 'none',
               }}
             >
               <Icon className="size-4 shrink-0" />
               <span>{item.label}</span>
-            </button>
+            </Link>
           );
         })}
       </div>
