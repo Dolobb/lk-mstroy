@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import TopNavBar from './components/TopNavBar';
 import { Dashboard } from './components/dashboard/dashboard';
+import { DumpTrucksPage } from './features/samosvaly';
 
 const App: React.FC = () => {
   const [activeNav, setActiveNav] = useState('home');
@@ -41,14 +42,10 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Самосвалы — референс v6 */}
+      {/* Самосвалы */}
       {activeNav === 'dump' && (
         <div className="flex-1 min-h-0">
-          <iframe
-            src="/samosvaly-v6.html"
-            className="w-full h-full border-0"
-            title="Самосвалы"
-          />
+          <DumpTrucksPage />
         </div>
       )}
     </div>

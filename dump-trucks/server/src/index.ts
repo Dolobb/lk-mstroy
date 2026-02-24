@@ -127,6 +127,136 @@ app.get('/api/dt/zone-events', async (req, res) => {
 });
 
 // ========================
+// Заявки (orders) — только те, по которым были самосвалы в указанный период
+// ========================
+// GET /api/dt/orders?dateFrom=2026-02-17&dateTo=2026-02-19
+app.get('/api/dt/orders', async (req, res) => {
+  try {
+    const pool = getPool();
+    const { dateFrom, dateTo } = req.query as Record<string, string>;
+    const result = await pool.query(`
+      SELECT
+        r.number,
+        r.status,
+        r.raw_json,
+        MIN(sr.report_date)                                                         AS first_date,
+        MAX(sr.report_date)                                                         AS last_date,
+        COALESCE(SUM(sr.trips_count), 0)                                            AS actual_trips,
+        COUNT(DISTINCT sr.vehicle_id)                                               AS vehicle_count,
+        ARRAY_AGG(DISTINCT sr.reg_number) FILTER (WHERE sr.reg_number IS NOT NULL)  AS vehicles,
+        ARRAY_AGG(DISTINCT sr.name_mo)    FILTER (WHERE sr.name_mo    IS NOT NULL)  AS vehicle_names,
+        ARRAY_AGG(DISTINCT sr.object_name)FILTER (WHERE sr.object_name IS NOT NULL) AS object_names,
+        COUNT(DISTINCT sr.pl_id)          FILTER (WHERE sr.pl_id IS NOT NULL)       AS pl_count
+      FROM dump_trucks.requests r
+      -- INNER JOIN: берём только заявки с реальной активностью ТС в указанный период
+      INNER JOIN dump_trucks.shift_records sr
+        ON sr.request_numbers @> ARRAY[r.number]
+        AND ($1::date IS NULL OR sr.report_date >= $1)
+        AND ($2::date IS NULL OR sr.report_date <= $2)
+      GROUP BY r.request_id, r.number, r.status, r.raw_json
+      HAVING SUM(sr.trips_count) > 0
+      ORDER BY r.number DESC
+    `, [dateFrom || null, dateTo || null]);
+    res.json({ data: result.rows });
+  } catch (err) {
+    logger.error('GET /api/dt/orders error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ========================
+// Гантт для конкретной заявки
+// ========================
+// GET /api/dt/orders/:number/gantt
+app.get('/api/dt/orders/:number/gantt', async (req, res) => {
+  try {
+    const pool = getPool();
+    const num = parseInt(req.params['number'] ?? '0', 10);
+    if (!num) { res.status(400).json({ error: 'invalid order number' }); return; }
+    const result = await pool.query(`
+      SELECT
+        id,
+        reg_number,
+        name_mo,
+        TO_CHAR(report_date, 'YYYY-MM-DD') AS report_date,
+        shift_type,
+        trips_count
+      FROM dump_trucks.shift_records
+      WHERE request_numbers @> ARRAY[$1::int]
+      ORDER BY reg_number, report_date, shift_type
+    `, [num]);
+    res.json({ data: result.rows });
+  } catch (err) {
+    logger.error('GET /api/dt/orders/:number/gantt error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ========================
+// Ремонты ТС
+// ========================
+// GET /api/dt/repairs?objectName=...&dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD
+app.get('/api/dt/repairs', async (req, res) => {
+  try {
+    const pool = getPool();
+    const { objectName, dateFrom, dateTo } = req.query as Record<string, string>;
+    const result = await pool.query(`
+      SELECT *
+      FROM dump_trucks.repairs
+      WHERE ($1::text IS NULL OR object_name = $1)
+        AND ($2::date IS NULL OR date_from  <= $2::date)
+        AND ($3::date IS NULL OR (date_to IS NULL OR date_to >= $3::date))
+      ORDER BY date_from DESC
+    `, [objectName || null, dateTo || null, dateFrom || null]);
+    res.json({ data: result.rows });
+  } catch (err) {
+    logger.error('GET /api/dt/repairs error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ========================
+// Детализация смены: рейсы + события зон
+// ========================
+// GET /api/dt/shift-detail?shiftRecordId=N
+app.get('/api/dt/shift-detail', async (req, res) => {
+  try {
+    const pool = getPool();
+    const id = req.query['shiftRecordId'];
+    if (!id) { res.status(400).json({ error: 'shiftRecordId required' }); return; }
+
+    const [tripsResult, srResult] = await Promise.all([
+      pool.query(`
+        SELECT * FROM dump_trucks.trips
+        WHERE shift_record_id = $1
+        ORDER BY trip_number
+      `, [id]),
+      pool.query(`
+        SELECT vehicle_id, report_date, shift_type
+        FROM dump_trucks.shift_records
+        WHERE id = $1
+      `, [id]),
+    ]);
+
+    if (srResult.rows.length === 0) {
+      res.status(404).json({ error: 'shift record not found' }); return;
+    }
+
+    const sr = srResult.rows[0];
+    const zeResult = await pool.query(`
+      SELECT * FROM dump_trucks.zone_events
+      WHERE vehicle_id = $1 AND report_date = $2 AND shift_type = $3
+      ORDER BY entered_at
+    `, [sr.vehicle_id, sr.report_date, sr.shift_type]);
+
+    res.json({ trips: tripsResult.rows, zoneEvents: zeResult.rows });
+  } catch (err) {
+    logger.error('GET /api/dt/shift-detail error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ========================
 // CSV экспорт — сводная таблица
 // ========================
 // GET /api/dt/export/summary.csv?dateFrom=2026-02-16&dateTo=2026-02-17&objectUid=tobolsk-osnova

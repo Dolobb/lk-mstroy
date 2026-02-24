@@ -11,6 +11,8 @@ export interface ShiftRecord {
   objectUid: string;
   objectName: string | null;
   workType: string;
+  shiftStart: Date | null;
+  shiftEnd: Date | null;
   engineTimeSec: number;
   movingTimeSec: number;
   distanceKm: number;
@@ -19,6 +21,10 @@ export interface ShiftRecord {
   factVolumeM3: number;
   kipPct: number;
   movementPct: number;
+  plId: number | null;
+  requestNumbers: number[];
+  avgLoadingDwellSec: number | null;
+  avgUnloadingDwellSec: number | null;
 }
 
 /**
@@ -139,6 +145,8 @@ export async function queryShiftRecords(
     object_uid: string;
     object_name: string | null;
     work_type: string;
+    shift_start: Date | null;
+    shift_end: Date | null;
     engine_time_sec: string;
     moving_time_sec: string;
     distance_km: string;
@@ -147,16 +155,33 @@ export async function queryShiftRecords(
     fact_volume_m3: string;
     kip_pct: string;
     movement_pct: string;
+    pl_id: string | null;
+    request_numbers: number[] | null;
+    avg_loading_dwell_sec: string | null;
+    avg_unloading_dwell_sec: string | null;
   }>(`
     SELECT
       sr.id, sr.report_date, sr.shift_type,
       sr.vehicle_id, sr.reg_number, sr.name_mo,
       sr.object_uid, sr.object_name, sr.work_type,
+      sr.shift_start, sr.shift_end,
       sr.engine_time_sec, sr.moving_time_sec,
       sr.distance_km, sr.onsite_min,
       sr.trips_count, sr.fact_volume_m3,
-      sr.kip_pct, sr.movement_pct
+      sr.kip_pct, sr.movement_pct,
+      sr.pl_id, sr.request_numbers,
+      dwell.avg_loading_dwell_sec,
+      dwell.avg_unloading_dwell_sec
     FROM dump_trucks.shift_records sr
+    LEFT JOIN LATERAL (
+      SELECT
+        AVG(duration_sec) FILTER (WHERE zone_tag = 'dt_loading'  AND duration_sec >= 180) AS avg_loading_dwell_sec,
+        AVG(duration_sec) FILTER (WHERE zone_tag = 'dt_unloading' AND duration_sec >= 180) AS avg_unloading_dwell_sec
+      FROM dump_trucks.zone_events ze
+      WHERE ze.vehicle_id  = sr.vehicle_id
+        AND ze.report_date = sr.report_date
+        AND ze.shift_type  = sr.shift_type
+    ) dwell ON true
     ${where}
     ORDER BY sr.report_date DESC, sr.shift_type, sr.vehicle_id
   `, params);
@@ -171,6 +196,8 @@ export async function queryShiftRecords(
     objectUid:     r.object_uid,
     objectName:    r.object_name,
     workType:      r.work_type,
+    shiftStart:    r.shift_start,
+    shiftEnd:      r.shift_end,
     engineTimeSec: Number(r.engine_time_sec),
     movingTimeSec: Number(r.moving_time_sec),
     distanceKm:    Number(r.distance_km),
@@ -179,5 +206,9 @@ export async function queryShiftRecords(
     factVolumeM3:  Number(r.fact_volume_m3),
     kipPct:        Number(r.kip_pct),
     movementPct:   Number(r.movement_pct),
+    plId:          r.pl_id ? Number(r.pl_id) : null,
+    requestNumbers: r.request_numbers ?? [],
+    avgLoadingDwellSec:   r.avg_loading_dwell_sec   ? Number(r.avg_loading_dwell_sec)   : null,
+    avgUnloadingDwellSec: r.avg_unloading_dwell_sec ? Number(r.avg_unloading_dwell_sec) : null,
   }));
 }

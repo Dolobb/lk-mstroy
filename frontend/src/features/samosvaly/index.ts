@@ -1,0 +1,1 @@
+export { DumpTrucksPage } from './DumpTrucksPage';

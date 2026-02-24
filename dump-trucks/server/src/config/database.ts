@@ -1,6 +1,10 @@
-import { Pool } from 'pg';
+import pg, { Pool } from 'pg';
 import { getEnvConfig } from './env';
 import { logger } from '../utils/logger';
+
+// Return DATE columns as plain strings ("YYYY-MM-DD"), not JS Date objects.
+// Without this pg converts DATE to midnight local time, shifting dates by UTC offset.
+pg.types.setTypeParser(1082, (val: string) => val);
 
 let pool: Pool | null = null;
 
