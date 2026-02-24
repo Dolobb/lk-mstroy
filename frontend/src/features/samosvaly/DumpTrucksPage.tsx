@@ -1068,7 +1068,7 @@ export function DumpTrucksPage() {
   });
 
   return (
-    <div className="sv-root">
+    <div className="sv-root flex-1 min-h-0">
       <div className="sv-amb sv-amb-o" />
       <div className="sv-amb sv-amb-b" />
 

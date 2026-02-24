@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, ChevronDown, ChevronRight, ExternalLink, Truck, FileText } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronRight, ExternalLink, Truck, FileText, Plus } from 'lucide-react';
 import type { TyagachiVehicle, TyagachiRequest, DashboardSummary, SyncStatus, LegacyReport } from './types';
 import {
   getDashboardSummary,
@@ -10,6 +10,8 @@ import {
   getSyncStatus,
   getLegacyReports,
   getLegacyReportUrl,
+  createReport,
+  getFetchStatus,
 } from './api';
 import { fmtRuDT, fmtRequestStatus, fmtStability, fmtIsoDateTime } from './utils';
 
@@ -20,15 +22,17 @@ interface SyncPanelProps {
   onSyncDone: () => void;
 }
 
+const daysFromMonthStart = new Date().getDate();
+
 const PERIOD_OPTIONS = [
   { label: '1д', days: 1 },
   { label: '3д', days: 3 },
   { label: '1н', days: 7 },
-  { label: '2н', days: 14 },
+  { label: '1м', days: daysFromMonthStart },
 ];
 
 const SyncPanel: React.FC<SyncPanelProps> = ({ summary, onSyncDone }) => {
-  const [period, setPeriod] = useState(7);
+  const [period, setPeriod] = useState(daysFromMonthStart);
   const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -196,10 +200,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
   };
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-card overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl">
       <button
         onClick={handleExpand}
-        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer border-none bg-transparent"
+        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer border-none bg-transparent"
       >
         <Truck className="size-4 text-primary shrink-0" />
         <div className="flex-1 text-left min-w-0">
@@ -248,10 +252,24 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
 
 // ===================== LegacyReportsSection =====================
 
+const toRuDate = (iso: string) => {
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+};
+
 const LegacyReportsSection: React.FC = () => {
   const [reports, setReports] = useState<LegacyReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  // Create report form
+  const [showForm, setShowForm] = useState(false);
+  const [fromPL, setFromPL] = useState('');
+  const [toPL, setToPL] = useState('');
+  const [reportTitle, setReportTitle] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createProgress, setCreateProgress] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -269,6 +287,50 @@ const LegacyReportsSection: React.FC = () => {
     if (!expanded && reports.length === 0) load();
     setExpanded((v) => !v);
   };
+
+  const handleCreateReport = async () => {
+    if (!fromPL || !toPL) return;
+    setCreating(true);
+    setCreateError(null);
+    setCreateProgress('Запуск генерации отчёта...');
+    try {
+      await createReport({
+        from_pl: toRuDate(fromPL),
+        to_pl: toRuDate(toPL),
+        from_requests: toRuDate(fromPL),
+        to_requests: toRuDate(toPL),
+        title: reportTitle || undefined,
+      });
+    } catch (e) {
+      setCreateError(String(e));
+      setCreating(false);
+      return;
+    }
+  };
+
+  useEffect(() => {
+    if (!creating) return;
+    const interval = setInterval(async () => {
+      try {
+        const status = await getFetchStatus();
+        setCreateProgress(status.progress || 'Генерация...');
+        if (!status.running) {
+          setCreating(false);
+          clearInterval(interval);
+          if (status.error) {
+            setCreateError(status.error);
+          } else {
+            setCreateProgress('');
+            setShowForm(false);
+            load();
+          }
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [creating, load]);
 
   return (
     <div className="glass-card overflow-hidden">
@@ -288,42 +350,102 @@ const LegacyReportsSection: React.FC = () => {
       </button>
 
       {expanded && (
-        <div className="border-t border-border/50 max-h-80 overflow-y-auto">
-          {loading ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground">Загрузка...</div>
-          ) : reports.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground">Нет сохранённых отчётов</div>
-          ) : (
-            <div className="py-1">
-              {reports.map((rep) => (
-                <div
-                  key={rep.id}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-muted/40 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-foreground truncate">
-                      {rep.title ?? `Отчёт #${rep.id}`}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {fmtIsoDateTime(rep.created_at)}
-                      {rep.requests_count != null && ` · ${rep.requests_count} заявок`}
-                      {rep.matched_count != null && ` · ${rep.matched_count} совпадений`}
-                    </div>
+        <div className="border-t border-border/50">
+          {/* Create report form */}
+          <div className="px-3 py-2 border-b border-border/30">
+            <button
+              onClick={() => setShowForm((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer border-none bg-transparent"
+            >
+              <Plus className="size-3.5" />
+              {showForm ? 'Скрыть форму' : 'Создать новый отчёт'}
+            </button>
+
+            {showForm && (
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-0.5">От (ПЛ)</label>
+                    <input
+                      type="date"
+                      value={fromPL}
+                      onChange={(e) => setFromPL(e.target.value)}
+                      className="w-full px-2 py-1 rounded text-xs bg-muted border border-border/50 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                   </div>
-                  <a
-                    href={getLegacyReportUrl(rep.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors shrink-0"
-                    style={{ textDecoration: 'none' }}
-                  >
-                    <ExternalLink className="size-3" />
-                    Открыть
-                  </a>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-0.5">До (ПЛ)</label>
+                    <input
+                      type="date"
+                      value={toPL}
+                      onChange={(e) => setToPL(e.target.value)}
+                      className="w-full px-2 py-1 rounded text-xs bg-muted border border-border/50 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+                <input
+                  type="text"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  placeholder="Название (необязательно)"
+                  className="w-full px-2 py-1 rounded text-xs bg-muted border border-border/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={handleCreateReport}
+                  disabled={creating || !fromPL || !toPL}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer border-none disabled:opacity-60 self-start"
+                >
+                  <RefreshCw className={`size-3 ${creating ? 'animate-spin' : ''}`} />
+                  {creating ? 'Генерация...' : 'Создать отчёт'}
+                </button>
+                {creating && createProgress && (
+                  <div className="text-[10px] text-muted-foreground">{createProgress}</div>
+                )}
+                {createError && (
+                  <div className="text-[10px] text-red-500">{createError}</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Reports list */}
+          <div className="max-h-72 overflow-y-auto">
+            {loading ? (
+              <div className="px-3 py-2 text-xs text-muted-foreground">Загрузка...</div>
+            ) : reports.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-muted-foreground">Нет сохранённых отчётов</div>
+            ) : (
+              <div className="py-1">
+                {reports.map((rep) => (
+                  <div
+                    key={rep.id}
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-foreground truncate">
+                        {rep.title ?? `Отчёт #${rep.id}`}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {fmtIsoDateTime(rep.created_at)}
+                        {rep.requests_count != null && ` · ${rep.requests_count} заявок`}
+                        {rep.matched_count != null && ` · ${rep.matched_count} совпадений`}
+                      </div>
+                    </div>
+                    <a
+                      href={getLegacyReportUrl(rep.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors shrink-0"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <ExternalLink className="size-3" />
+                      Открыть
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -364,7 +486,7 @@ const TyagachiDashboard: React.FC = () => {
         <div className="glass-card px-4 py-3 text-sm text-red-400">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Vehicles column */}
         <div className="flex flex-col gap-2">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">

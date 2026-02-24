@@ -20,7 +20,7 @@ export interface GeoEnvConfig {
 export function getEnvConfig(): GeoEnvConfig {
   return {
     dbHost:     optionalEnv('DB_HOST', 'localhost'),
-    dbPort:     parseInt(optionalEnv('DB_PORT', '5432'), 10),
+    dbPort:     parseInt(optionalEnv('DB_PORT', '5433'), 10),
     dbName:     optionalEnv('DB_NAME', 'mstroy'),
     dbUser:     optionalEnv('DB_USER', 'postgres'),
     dbPassword: optionalEnv('DB_PASSWORD', ''),

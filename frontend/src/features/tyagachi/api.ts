@@ -56,3 +56,19 @@ export const getLegacyReports = (): Promise<LegacyReport[]> =>
 
 export const getLegacyReportUrl = (reportId: number): string =>
   `${BASE}/reports/${reportId}/v2`;
+
+export const createReport = (body: {
+  from_pl: string;
+  to_pl: string;
+  from_requests: string;
+  to_requests: string;
+  title?: string;
+}): Promise<{ report_id?: number; message?: string; error?: string }> =>
+  fetch(`${BASE}/reports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then((r) => r.json());
+
+export const getFetchStatus = (): Promise<{ running: boolean; progress: string; error: string | null }> =>
+  get(`${BASE}/status`);

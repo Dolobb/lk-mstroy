@@ -183,10 +183,20 @@ interface LeftPanelProps {
   hierarchy: RequestHierarchy;
   selectedKey: string | null;
   onSelectVehicle: (key: string, pl: PLEntry, vehicle: VehicleMonitoring) => void;
+  defaultExpandedPLId?: string | null;
 }
 
-const LeftPanel: React.FC<LeftPanelProps> = ({ hierarchy, selectedKey, onSelectVehicle }) => {
+const LeftPanel: React.FC<LeftPanelProps> = ({ hierarchy, selectedKey, onSelectVehicle, defaultExpandedPLId }) => {
   const [expandedPLs, setExpandedPLs] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (defaultExpandedPLId) {
+      setExpandedPLs((prev) => {
+        if (prev.has(defaultExpandedPLId)) return prev;
+        return new Set([...prev, defaultExpandedPLId]);
+      });
+    }
+  }, [defaultExpandedPLId]);
 
   const togglePL = (plId: string) => {
     setExpandedPLs((prev) => {
@@ -299,9 +309,14 @@ const TyagachiReportView: React.FC = () => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleMonitoring | null>(null);
   const [selectedPL, setSelectedPL] = useState<PLEntry | null>(null);
+  const [defaultExpandedPLId, setDefaultExpandedPLId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!requestNumber) return;
+    if (!requestNumber || isNaN(Number(requestNumber))) {
+      setError('Некорректный номер заявки');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     getRequestData(Number(requestNumber))
@@ -320,7 +335,22 @@ const TyagachiReportView: React.FC = () => {
   );
 
   // Get first hierarchy entry (usually one entry keyed by request number)
-  const hierarchy = data ? Object.values(data.hierarchy)[0] : null;
+  const hierarchy = data?.hierarchy ? (Object.values(data.hierarchy)[0] ?? null) : null;
+
+  // Auto-select first vehicle with track data
+  useEffect(() => {
+    if (!hierarchy || selectedKey) return;
+    for (const pl of hierarchy.pl_list) {
+      const v = pl.vehicles.find((v) => (v.mon_track?.length ?? 0) > 0);
+      if (v) {
+        const key = `${pl.pl_id}_${v.ts_id_mo ?? 0}`;
+        setDefaultExpandedPLId(pl.pl_id);
+        handleSelectVehicle(key, pl, v);
+        break;
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hierarchy]);
 
   if (loading) {
     return (
@@ -376,6 +406,7 @@ const TyagachiReportView: React.FC = () => {
             hierarchy={hierarchy}
             selectedKey={selectedKey}
             onSelectVehicle={handleSelectVehicle}
+            defaultExpandedPLId={defaultExpandedPLId}
           />
         </div>
 

@@ -26,7 +26,7 @@ const App: React.FC = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/kip" element={<KipPage />} />
         <Route path="/tyagachi/*" element={<TyagachiPage />} />
-        <Route path="/samosvaly" element={<div className="flex-1 min-h-0"><DumpTrucksPage /></div>} />
+        <Route path="/samosvaly" element={<DumpTrucksPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

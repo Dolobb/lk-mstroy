@@ -1,34 +1,24 @@
 import { useState, useEffect } from "react"
-import { Calendar } from "lucide-react"
+import { Calendar, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { VehicleTypeSlider, TYPE_COLORS, type VehicleType } from "./vehicle-type-slider"
 
-const reportHistory = [
-  {
-    title: "ПЛ 01.02.2026 — 12.02.2026",
-    created: "2026-02-12 07:51",
-    viewed: 0,
-    orders: 637,
-    pl: 4469,
-    plNoOrders: 339,
-  },
-  {
-    title: "ПЛ 01.02.2026 — 12.02.2026",
-    created: "2026-02-12 07:16",
-    viewed: 0,
-    orders: 3977,
-    pl: 4469,
-    plNoOrders: 61,
-  },
-  {
-    title: "ПЛ 26.01.2026 — 11.02.2026",
-    created: "2026-02-09 05:41",
-    viewed: 0,
-    orders: 4418,
-    pl: 6097,
-    plNoOrders: 78,
-  },
-]
+interface LegacyReport {
+  id: number;
+  title: string | null;
+  created_at: string;
+  requests_count: number | null;
+  matched_count: number | null;
+  from_pl: string | null;
+  to_pl: string | null;
+}
+
+interface TyagachiSummary {
+  vehicles_count: number;
+  requests_total: number;
+  requests_stable: number;
+  requests_in_progress: number;
+}
 
 function MultiSelectStub({ label }: { label: string }) {
   const [selected] = useState<string[]>([])
@@ -90,10 +80,22 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport }: Rep
   const [orderStart, setOrderStart] = useState("01.12.2025")
   const [orderEnd, setOrderEnd] = useState("16.02.2026")
   const [showSkeleton, setShowSkeleton] = useState(true)
+  const [summary, setSummary] = useState<TyagachiSummary | null>(null)
+  const [reports, setReports] = useState<LegacyReport[]>([])
 
   useEffect(() => {
     const t = setTimeout(() => setShowSkeleton(false), 300)
     return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/tyagachi/dashboard/summary').then((r) => r.ok ? r.json() : null),
+      fetch('/api/tyagachi/reports').then((r) => r.ok ? r.json() : { reports: [] }),
+    ]).then(([s, r]) => {
+      setSummary(s)
+      setReports(r?.reports ?? [])
+    }).catch(() => {})
   }, [])
 
   return (
@@ -205,37 +207,57 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport }: Rep
         </div>
       </div>
 
+      {/* Tyagachi summary */}
+      {summary && (
+        <div className="text-[11px] text-text-muted mb-3 px-1">
+          Тягачи:{" "}
+          <span className="text-text-primary font-semibold">{summary.vehicles_count}</span> машин
+          {" · "}
+          <span className="text-text-primary font-semibold">{summary.requests_total}</span> заявок
+          {" ("}
+          <span className="text-green-400">{summary.requests_stable} стаб.</span>
+          {")"}
+        </div>
+      )}
+
       {/* Report History */}
-      <h3 className="text-base font-bold text-text-primary mb-3">История отчётов</h3>
+      <h3 className="text-base font-bold text-text-primary mb-3">История отчётов (Тягачи)</h3>
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-3">
         {showSkeleton ? (
           Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="skeleton-shimmer h-24 rounded-xl" />
           ))
+        ) : reports.length === 0 ? (
+          <div className="text-[12px] text-text-muted px-1">
+            Нет отчётов. Запустите тягачи-сервер и создайте отчёт.
+          </div>
         ) : (
-          reportHistory.map((report, i) => (
+          reports.map((report) => (
             <div
-              key={i}
+              key={report.id}
               className="bg-card-inner rounded-xl border border-border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <h4 className="text-sm font-bold text-text-primary mb-1">{report.title}</h4>
-              <div className="text-[11px] text-text-muted mb-1">
-                Создан: {report.created} | Просмотрено: {report.viewed}
-              </div>
-              <div className="text-[11px] text-text-secondary mb-3">
-                Заявок: {report.orders} | ПЛ: {report.pl} | ПЛ без заявок:{" "}
-                {report.plNoOrders}
+              <h4 className="text-sm font-bold text-text-primary mb-1">
+                {report.title ?? (report.from_pl && report.to_pl
+                  ? `ПЛ ${report.from_pl} — ${report.to_pl}`
+                  : `Отчёт #${report.id}`)}
+              </h4>
+              <div className="text-[11px] text-text-muted mb-3">
+                Создан: {report.created_at ? new Date(report.created_at).toLocaleString('ru') : '—'}
+                {report.requests_count != null && ` · ${report.requests_count} заявок`}
+                {report.matched_count != null && ` · ${report.matched_count} совп.`}
               </div>
               <div className="flex items-center gap-2">
-                <button className="px-3 py-1 rounded-lg bg-[#22C55E] text-white text-xs font-semibold hover:bg-[#22C55E]/90 transition-colors">
+                <a
+                  href={`/api/tyagachi/reports/${report.id}/v2`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#22C55E] text-white text-xs font-semibold hover:bg-[#22C55E]/90 transition-colors"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <ExternalLink className="w-3 h-3" />
                   Открыть
-                </button>
-                <button className="px-3 py-1 rounded-lg border border-border text-text-secondary text-xs font-medium hover:bg-card-inner transition-colors">
-                  V2
-                </button>
-                <button className="px-3 py-1 rounded-lg border border-destructive text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors">
-                  Удалить
-                </button>
+                </a>
               </div>
             </div>
           ))
