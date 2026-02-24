@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransportAnalytics</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white; padding: 30px 20px; text-align: center; }
+        .header h1 { font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+        .header p { opacity: 0.8; font-size: 14px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .card-title { font-size: 18px; font-weight: 600; color: #2d3748; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 1000px) { .two-col { grid-template-columns: 1fr; } }
+        .form-row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 140px; }
+        .form-group label { display: block; font-size: 13px; color: #4a5568; margin-bottom: 6px; font-weight: 500; }
+        .form-group input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; }
+        .form-group input:focus { outline: none; border-color: #4299e1; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15); }
+        .form-section-title { font-size: 13px; font-weight: 600; color: #718096; margin-bottom: 12px; text-transform: uppercase; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #edf2f7; color: #4a5568; }
+        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .btn-danger { background: #fed7d7; color: #c53030; }
+        .btn-danger:hover { background: #feb2b2; }
+        .btn-success { background: #c6f6d5; color: #22543d; }
+        .btn-success:hover { background: #9ae6b4; }
+        .status-panel { background: #f7fafc; border-radius: 8px; padding: 16px; margin-top: 16px; display: none; }
+        .status-panel.active { display: block; }
+        .status-text { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #4a5568; }
+        .spinner { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #4299e1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .report-item { background: #f7fafc; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; transition: background 0.2s; }
+        .report-item:hover { background: #edf2f7; }
+        .report-item-info { flex: 1; min-width: 200px; }
+        .report-item-title { font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 4px; }
+        .report-item-meta { font-size: 13px; color: #718096; }
+        .report-item-actions { display: flex; gap: 8px; }
+        .empty-state { text-align: center; padding: 40px; color: #a0aec0; }
+        .footer { text-align: center; padding: 20px; color: #a0aec0; font-size: 12px; }
+
+        /* Sync panel */
+        .sync-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .sync-bar .period-btns { display: flex; gap: 6px; }
+        .period-btn { padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; cursor: pointer; background: white; color: #4a5568; transition: all 0.15s; }
+        .period-btn:hover { border-color: #4299e1; color: #3182ce; }
+        .period-btn.active { background: #4299e1; color: white; border-color: #4299e1; }
+        .sync-summary { font-size: 13px; color: #718096; margin-top: 12px; }
+        .sync-summary span { font-weight: 600; color: #2d3748; }
+
+        /* Vehicle cards */
+        .vehicle-card { background: #f7fafc; border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #4299e1; transition: background 0.2s; }
+        .vehicle-card:hover { background: #edf2f7; }
+        .vehicle-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .vehicle-name { font-weight: 600; color: #2d3748; font-size: 15px; }
+        .vehicle-stats { font-size: 13px; color: #718096; margin-top: 4px; }
+        .vehicle-stats .stable { color: #38a169; font-weight: 500; }
+        .vehicle-stats .in-prog { color: #d69e2e; font-weight: 500; }
+        .vehicle-expand { font-size: 12px; color: #a0aec0; cursor: pointer; user-select: none; }
+        .vehicle-requests { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+        .vehicle-requests.open { display: block; }
+        .req-row { padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.15s; }
+        .req-row:hover { background: #e2e8f0; }
+        .req-row.stable { background: #f0fff4; border-left: 3px solid #48bb78; }
+        .req-row.in-progress { background: #fffff0; border-left: 3px solid #ecc94b; }
+        .req-route { color: #4a5568; }
+        .req-status-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .req-status-badge.stable { background: #c6f6d5; color: #22543d; }
+        .req-status-badge.in-progress { background: #fefcbf; color: #744210; }
+        .req-pl-info { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+
+        /* Timeline */
+        .timeline-container { margin-bottom: 14px; }
+        .timeline-header { font-size: 12px; font-weight: 600; color: #718096; margin-bottom: 6px; text-transform: uppercase; }
+        .timeline-dates { display: flex; justify-content: space-between; font-size: 10px; color: #a0aec0; margin-bottom: 2px; }
+        .timeline-track { position: relative; height: 32px; background: #edf2f7; border-radius: 6px; overflow: hidden; }
+        .timeline-seg { position: absolute; top: 2px; height: 28px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: white; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 4px; transition: opacity 0.15s, transform 0.15s; min-width: 4px; }
+        .timeline-seg:hover { opacity: 0.85; transform: scaleY(1.1); z-index: 2; }
+        .timeline-seg.stable { background: linear-gradient(135deg, #48bb78, #38a169); }
+        .timeline-seg.in-progress { background: linear-gradient(135deg, #ecc94b, #d69e2e); }
+        .timeline-seg.unknown { background: linear-gradient(135deg, #a0aec0, #718096); }
+        .timeline-gap { position: absolute; top: 10px; height: 12px; background: repeating-linear-gradient(45deg, #fed7d7, #fed7d7 4px, transparent 4px, transparent 8px); border-radius: 3px; opacity: 0.6; }
+        .timeline-tooltip { position: fixed; background: #2d3748; color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; pointer-events: none; z-index: 100; max-width: 300px; line-height: 1.4; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .timeline-legend { display: flex; gap: 14px; margin-top: 6px; font-size: 11px; color: #718096; }
+        .timeline-legend-item { display: flex; align-items: center; gap: 4px; }
+        .timeline-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TransportAnalytics</h1>
+        <p>Веб-интерфейс для анализа заявок и путевых листов</p>
+    </div>
+    <div class="container">
+        <!-- Sync panel (full width) -->
+        <div class="card">
+            <div class="card-title">Синхронизация данных</div>
+            <div class="sync-bar">
+                <div class="period-btns">
+                    <button class="period-btn" data-days="1" onclick="selectPeriod(this)">1 день</button>
+                    <button class="period-btn" data-days="3" onclick="selectPeriod(this)">3 дня</button>
+                    <button class="period-btn" data-days="7" onclick="selectPeriod(this)">1 нед</button>
+                    <button class="period-btn active" data-days="14" onclick="selectPeriod(this)">2 нед</button>
+                </div>
+                <button class="btn btn-primary" id="syncBtn" onclick="startSync()">Синхронизировать</button>
+            </div>
+            <div class="status-panel" id="syncStatusPanel">
+                <div class="status-text"><div class="spinner"></div><span id="syncStatusText">...</span></div>
+            </div>
+            <div class="sync-summary" id="syncSummary">Последняя синхронизация: <span>2026-02-08 13:12</span> | Период ПЛ: <span>01.02.2026 — 08.02.2026</span> | <span>60</span> машин | <span>132</span> заявок (<span class='stable' style='color:#38a169'>61 стаб.</span>, <span class='in-prog' style='color:#d69e2e'>71 в работе</span>)</div>
+        </div>
+
+        <div class="two-col">
+            <!-- Left: Vehicle overview -->
+            <div>
+                <div class="card">
+                    <div class="card-title">Обзор машин</div>
+                    <div id="vehicleList">
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(24)">
+                        <div>
+                            <div class="vehicle-name">P739OC186 — седельный тягач Shacman SX42586V385</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-24">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-24"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(60)">
+                        <div>
+                            <div class="vehicle-name">А070ВУ172 — С/Тягач MAN 6*4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-60">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-60"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(4)">
+                        <div>
+                            <div class="vehicle-name">А252ВВ172 — С/Тягач MAN 6*4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 3
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-4">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-4"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(13)">
+                        <div>
+                            <div class="vehicle-name">А471ВК172 — С/Тягач MAN 6*6</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-13">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-13"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(53)">
+                        <div>
+                            <div class="vehicle-name">А531АР172 — С/Тягач MAN 6*6</div>
+                            <div class="vehicle-stats">
+                                Заявок: 14
+                                (<span class="stable">9 стаб.</span>,
+                                 <span class="in-prog">5 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-53">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-53"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(23)">
+                        <div>
+                            <div class="vehicle-name">А585ВТ172 — С/Тягач MAN 6*4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-23">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-23"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(29)">
+                        <div>
+                            <div class="vehicle-name">А762МН172 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 5
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">4 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-29">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-29"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(31)">
+                        <div>
+                            <div class="vehicle-name">А775ВК172 — С/Тягач MAN 6*4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-31">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-31"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(51)">
+                        <div>
+                            <div class="vehicle-name">А868ВК172 — С/Тягач MAN 6*4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-51">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-51"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(7)">
+                        <div>
+                            <div class="vehicle-name">А870ВК172 — С/Тягач MAN 6*6</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-7">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-7"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(10)">
+                        <div>
+                            <div class="vehicle-name">В614СО89 — С/тягач КамАЗ 44108-24</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-10">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-10"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(59)">
+                        <div>
+                            <div class="vehicle-name">В654ХН86 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-59">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-59"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(15)">
+                        <div>
+                            <div class="vehicle-name">Е538КУ186 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-15">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-15"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(27)">
+                        <div>
+                            <div class="vehicle-name">К392ТЕ72 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 3
+                                (<span class="stable">3 стаб.</span>,
+                                 <span class="in-prog">0 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-27">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-27"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(8)">
+                        <div>
+                            <div class="vehicle-name">К399ТЕ72 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 4
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">3 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-8">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-8"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(57)">
+                        <div>
+                            <div class="vehicle-name">К409АН186 — С/тягач КамАЗ 44108-24</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-57">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-57"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(16)">
+                        <div>
+                            <div class="vehicle-name">К518АН186 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-16">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-16"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(55)">
+                        <div>
+                            <div class="vehicle-name">К539АА186 — С/тягач КамАЗ 44108-24</div>
+                            <div class="vehicle-stats">
+                                Заявок: 14
+                                (<span class="stable">9 стаб.</span>,
+                                 <span class="in-prog">5 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-55">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-55"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(40)">
+                        <div>
+                            <div class="vehicle-name">К648АА186 — С/тягач VOLVO FM-Truck6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-40">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-40"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(47)">
+                        <div>
+                            <div class="vehicle-name">М118УН72 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-47">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-47"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(20)">
+                        <div>
+                            <div class="vehicle-name">М589ХС86 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-20">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-20"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(17)">
+                        <div>
+                            <div class="vehicle-name">М735АА186 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-17">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-17"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(25)">
+                        <div>
+                            <div class="vehicle-name">О143ЕК72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-25">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-25"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(43)">
+                        <div>
+                            <div class="vehicle-name">О144ЕК72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-43">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-43"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(38)">
+                        <div>
+                            <div class="vehicle-name">О195РВ72 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-38">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-38"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(33)">
+                        <div>
+                            <div class="vehicle-name">О445НХ72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 4
+                                (<span class="stable">2 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-33">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-33"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(3)">
+                        <div>
+                            <div class="vehicle-name">О459КТ72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-3">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-3"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(46)">
+                        <div>
+                            <div class="vehicle-name">О526МВ72 — С/тягач Камаз 54105</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-46">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-46"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(49)">
+                        <div>
+                            <div class="vehicle-name">О614МН72 — С/тягач МАЗ 6422А-330</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-49">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-49"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(52)">
+                        <div>
+                            <div class="vehicle-name">О856МЕ72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 7
+                                (<span class="stable">4 стаб.</span>,
+                                 <span class="in-prog">3 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-52">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-52"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(26)">
+                        <div>
+                            <div class="vehicle-name">Р045МН72 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">0 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-26">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-26"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(35)">
+                        <div>
+                            <div class="vehicle-name">Р046АА186 — С/тягач КамАЗ 44108-24</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-35">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-35"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(54)">
+                        <div>
+                            <div class="vehicle-name">Р054МО186 — С/Тягач MAN 6*6</div>
+                            <div class="vehicle-stats">
+                                Заявок: 7
+                                (<span class="stable">4 стаб.</span>,
+                                 <span class="in-prog">3 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-54">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-54"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(22)">
+                        <div>
+                            <div class="vehicle-name">Р128АА186 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-22">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-22"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(58)">
+                        <div>
+                            <div class="vehicle-name">Р152НК186 — С/тягач MAN 6*4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-58">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-58"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(41)">
+                        <div>
+                            <div class="vehicle-name">Р184УС86 — С/тягач КамАЗ 65221</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-41">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-41"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(56)">
+                        <div>
+                            <div class="vehicle-name">Р338ХС72 — С/Тягач MAN TGS 33.480 6х6 BB</div>
+                            <div class="vehicle-stats">
+                                Заявок: 10
+                                (<span class="stable">5 стаб.</span>,
+                                 <span class="in-prog">5 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-56">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-56"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(5)">
+                        <div>
+                            <div class="vehicle-name">Р390ХС72 — С/Тягач MAN TGS 33.480 6х6 BB</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-5">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-5"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(6)">
+                        <div>
+                            <div class="vehicle-name">Р759РО186 — С/тягач SHACMAN SX42586V385 6x6</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-6">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-6"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(2)">
+                        <div>
+                            <div class="vehicle-name">Р804КМ72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 5
+                                (<span class="stable">3 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-2">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-2"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(44)">
+                        <div>
+                            <div class="vehicle-name">С283ОА72 — С/тягач Mercedes-Benz Actros 3346S</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-44">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-44"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(28)">
+                        <div>
+                            <div class="vehicle-name">С299ОА72 — С/тягач Mercedes-Benz Actros 3346S</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-28">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-28"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(45)">
+                        <div>
+                            <div class="vehicle-name">С335РН72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">2 стаб.</span>,
+                                 <span class="in-prog">0 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-45">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-45"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(18)">
+                        <div>
+                            <div class="vehicle-name">С429ХУ86 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-18">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-18"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(11)">
+                        <div>
+                            <div class="vehicle-name">С639ТВ86 — С/тягач Scania P420-CA 6х6 EHZ</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-11">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-11"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(30)">
+                        <div>
+                            <div class="vehicle-name">С716РН72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 3
+                                (<span class="stable">2 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-30">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-30"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(14)">
+                        <div>
+                            <div class="vehicle-name">С725РН72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 5
+                                (<span class="stable">2 стаб.</span>,
+                                 <span class="in-prog">3 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-14">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-14"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(9)">
+                        <div>
+                            <div class="vehicle-name">С727РО72 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-9">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-9"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(1)">
+                        <div>
+                            <div class="vehicle-name">С744РН72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 3
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-1">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-1"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(50)">
+                        <div>
+                            <div class="vehicle-name">С751РН72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 3
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-50">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-50"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(37)">
+                        <div>
+                            <div class="vehicle-name">С769РН72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 3
+                                (<span class="stable">2 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-37">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-37"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(19)">
+                        <div>
+                            <div class="vehicle-name">С774РН72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-19">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-19"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(42)">
+                        <div>
+                            <div class="vehicle-name">У061СК72 — С/тягач МАН TGS 19.390 4X2 BLS-W</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">1 стаб.</span>,
+                                 <span class="in-prog">0 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-42">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-42"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(12)">
+                        <div>
+                            <div class="vehicle-name">У519ХУ72 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-12">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-12"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(32)">
+                        <div>
+                            <div class="vehicle-name">У526ХУ72 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 2
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">2 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-32">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-32"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(21)">
+                        <div>
+                            <div class="vehicle-name">У912ХТ86 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-21">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-21"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(34)">
+                        <div>
+                            <div class="vehicle-name">У945ТХ72 — С/тягач КамАЗ 53504-50</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-34">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-34"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(48)">
+                        <div>
+                            <div class="vehicle-name">Х185МХ72 — С/тягач МАЗ</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-48">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-48"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(36)">
+                        <div>
+                            <div class="vehicle-name">Х206УС86 — С/тягач Volvo FM Truck 6х4 12.8</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-36">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-36"></div>
+                </div>
+                <div class="vehicle-card">
+                    <div class="vehicle-header" onclick="toggleVehicle(39)">
+                        <div>
+                            <div class="vehicle-name">Х998ТА86 — С/тягач Volvo FM Truck 6х4</div>
+                            <div class="vehicle-stats">
+                                Заявок: 1
+                                (<span class="stable">0 стаб.</span>,
+                                 <span class="in-prog">1 в работе</span>)
+                            </div>
+                        </div>
+                        <span class="vehicle-expand" id="varrow-39">Развернуть</span>
+                    </div>
+                    <div class="vehicle-requests" id="vreqs-39"></div>
+                </div></div>
+                </div>
+            </div>
+
+            <!-- Right: Report creation + History -->
+            <div>
+                <div class="card">
+                    <div class="card-title">Создать новый отчёт</div>
+                    <form id="fetchForm" onsubmit="startFetch(event)">
+                        <div class="form-section-title">Период заявок</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="from_requests">Дата начала</label>
+                                <input type="text" id="from_requests" placeholder="ДД.ММ.ГГГГ" value="01.12.2025" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="to_requests">Дата окончания</label>
+                                <input type="text" id="to_requests" placeholder="ДД.ММ.ГГГГ" value="08.02.2026" required>
+                            </div>
+                        </div>
+                        <div class="form-section-title">Период путевых листов</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="from_pl">Дата начала</label>
+                                <input type="text" id="from_pl" placeholder="ДД.ММ.ГГГГ" value="" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="to_pl">Дата окончания</label>
+                                <input type="text" id="to_pl" placeholder="ДД.ММ.ГГГГ" value="08.02.2026" required>
+                            </div>
+                        </div>
+                        <div class="form-row" style="align-items: center; margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a5568; cursor: pointer;">
+                                <input type="checkbox" id="useLegacyMethod" style="width: auto; cursor: pointer;">
+                                <span>Старый метод (по дате закрытия ПЛ)</span>
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <button type="submit" class="btn btn-primary" id="fetchBtn">Создать отчёт</button>
+                            <button type="button" class="btn btn-secondary" onclick="fillSameDate()">= даты</button>
+                        </div>
+                    </form>
+                    <div class="status-panel" id="statusPanel">
+                        <div class="status-text"><div class="spinner"></div><span id="statusText">Загрузка...</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">История отчётов</div>
+                    <div id="reportList">
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 01.02.2026 — 08.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-08 13:18 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 08.02.2026 | Заявок: 4385 | ПЛ: 2824 | <span style='color:#e53e3e'>ПЛ без заявок: 27</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(22)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(22)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(22)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 04.02.2026 — 05.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-08 10:14 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 08.02.2026 | Заявок: 4385 | ПЛ: 307 | <span style='color:#e53e3e'>ПЛ без заявок: 5</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(21)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(21)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(21)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 02.02.2026 — 03.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-06 15:42 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 06.02.2026 | Заявок: 4292 | ПЛ: 313 | <span style='color:#e53e3e'>ПЛ без заявок: 5</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(20)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(20)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(20)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 03.02.2026 — 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-06 09:35 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 06.02.2026 | Заявок: 4292 | ПЛ: 308 | <span style='color:#e53e3e'>ПЛ без заявок: 3</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(19)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(19)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(19)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 01.02.2026 — 02.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-06 09:16 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 06.02.2026 | Заявок: 4292 | ПЛ: 700 | <span style='color:#e53e3e'>ПЛ без заявок: 5</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(18)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(18)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(18)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 03.02.2026 — 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-06 04:51 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 06.02.2026 | Заявок: 4290 | ПЛ: 308 | <span style='color:#e53e3e'>ПЛ без заявок: 3</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(17)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(17)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(17)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 03.02.2026 — 03.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-06 04:50 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 06.02.2026 | Заявок: 4290 | ПЛ: 0</div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(16)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(16)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(16)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 04.02.2026 — 05.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-06 03:40 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 06.02.2026 | Заявок: 4289 | ПЛ: 306 | <span style='color:#e53e3e'>ПЛ без заявок: 3</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(15)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(15)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(15)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 03.02.2026 — 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-05 13:07 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 05.02.2026 | Заявок: 4242 | ПЛ: 307 | <span style='color:#e53e3e'>ПЛ без заявок: 2</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(14)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(14)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(14)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 03.02.2026 — 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-05 07:12 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 05.02.2026 | Заявок: 4239 | ПЛ: 307 | <span style='color:#e53e3e'>ПЛ без заявок: 2</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(13)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(13)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(13)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 01.02.2026 — 03.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-04 14:30 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 04.02.2026 | Заявок: 4170 | ПЛ: 679 | <span style='color:#e53e3e'>ПЛ без заявок: 18</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(12)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(12)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(12)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 01.02.2026 — 02.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-04 13:41 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 04.02.2026 | Заявок: 4170 | ПЛ: 60</div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(11)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(11)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(11)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 03.02.2026 — 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-04 13:27 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 04.02.2026 | Заявок: 4170 | ПЛ: 123 | <span style='color:#e53e3e'>ПЛ без заявок: 1</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(10)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(10)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(10)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 01.02.2026 — 02.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-04 13:16 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 04.02.2026 | Заявок: 4170 | ПЛ: 60</div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(9)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(9)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(9)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 03.02.2026 — 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-04 11:43 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 04.02.2026 | Заявок: 4170 | ПЛ: 123 | <span style='color:#e53e3e'>ПЛ без заявок: 1</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(8)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(8)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(8)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 02.02.2026 — 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-04 11:32 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 04.02.2026 | Заявок: 4170 | ПЛ: 742 | <span style='color:#e53e3e'>ПЛ без заявок: 19</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(7)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(7)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(7)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 01.02.2026 — 03.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-03 09:40 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 03.02.2026 | Заявок: 4104 | ПЛ: 665 | <span style='color:#e53e3e'>ПЛ без заявок: 18</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(6)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(6)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(6)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 01.02.2026 — 02.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-03 09:29 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 03.02.2026 | Заявок: 4103 | ПЛ: 44</div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(5)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(5)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(5)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">ПЛ 29.01.2026 — 03.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-03 09:04 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 01.12.2025 — 03.02.2026 | Заявок: 4103 | ПЛ: 1421 | <span style='color:#e53e3e'>ПЛ без заявок: 31</span></div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(4)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(4)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(4)">Удалить</button>
+                    </div>
+                </div>
+                <div class="report-item">
+                    <div class="report-item-info">
+                        <div class="report-item-title">Отчёт 25.12.2025 - 04.02.2026</div>
+                        <div class="report-item-meta">Создан: 2026-02-03 03:30 | Просмотрено: 0</div>
+                        <div class="report-item-stats" style="font-size:11px;color:#718096;margin-top:2px;">Заявки: 25.12.2025 — 04.02.2026</div>
+                    </div>
+                    <div class="report-item-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openReport(3)">Открыть</button>
+                        <button class="btn btn-sm btn-success" onclick="openReportV2(3)" title="3-колоночный layout (тест)">V2</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport(3)">Удалить</button>
+                    </div>
+                </div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="footer">TransportAnalytics v2.0</div>
+    <script>
+        let selectedPeriodDays = 14;
+
+        function selectPeriod(btn) {
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedPeriodDays = parseInt(btn.dataset.days);
+        }
+
+        async function startSync() {
+            const btn = document.getElementById('syncBtn');
+            const panel = document.getElementById('syncStatusPanel');
+            const text = document.getElementById('syncStatusText');
+            btn.disabled = true;
+            panel.classList.add('active');
+            text.textContent = 'Запуск синхронизации...';
+            try {
+                const resp = await fetch('/api/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ period_days: selectedPeriodDays })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.detail || 'Ошибка');
+                pollSyncStatus();
+            } catch(e) {
+                text.textContent = 'Ошибка: ' + e.message;
+                btn.disabled = false;
+            }
+        }
+
+        async function pollSyncStatus() {
+            const text = document.getElementById('syncStatusText');
+            const btn = document.getElementById('syncBtn');
+            try {
+                const resp = await fetch('/api/sync/status');
+                const data = await resp.json();
+                text.textContent = data.progress || 'Обработка...';
+                if (data.running) {
+                    setTimeout(pollSyncStatus, 1500);
+                } else {
+                    btn.disabled = false;
+                    if (data.error) {
+                        text.textContent = 'Ошибка: ' + data.error;
+                    } else {
+                        text.textContent = 'Синхронизация завершена!';
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                }
+            } catch(e) {
+                text.textContent = 'Ошибка проверки';
+                btn.disabled = false;
+            }
+        }
+
+        function toggleVehicle(vehicleId) {
+            const el = document.getElementById('vreqs-' + vehicleId);
+            const arrow = document.getElementById('varrow-' + vehicleId);
+            if (el.classList.contains('open')) {
+                el.classList.remove('open');
+                arrow.textContent = 'Развернуть';
+            } else {
+                el.classList.add('open');
+                arrow.textContent = 'Свернуть';
+                // Load requests if not loaded yet
+                if (!el.dataset.loaded) {
+                    loadVehicleRequests(vehicleId, el);
+                }
+            }
+        }
+
+        async function loadVehicleRequests(vehicleId, container) {
+            try {
+                // Load both requests and timeline in parallel
+                const [reqResp, tlResp] = await Promise.all([
+                    fetch('/api/vehicles/' + vehicleId + '/requests'),
+                    fetch('/api/vehicles/' + vehicleId + '/timeline')
+                ]);
+                const reqData = await reqResp.json();
+                const tlData = await tlResp.json();
+
+                let html = '';
+
+                // Timeline
+                html += renderTimeline(tlData.segments || []);
+
+                // Request list
+                for (const req of reqData.requests) {
+                    const cls = req.stability_status === 'stable' ? 'stable' : 'in-progress';
+                    const badge = req.stability_status === 'stable' ? 'стабильная' : 'в работе';
+                    const route = (req.route_start_address || '?') + ' &rarr; ' + (req.route_end_address || '?');
+                    let plInfo = '';
+                    if (req.pl_records && req.pl_records.length > 0) {
+                        const plStatuses = req.pl_records.map(p => p.pl_status || '?').join(', ');
+                        plInfo = '<div class="req-pl-info">ПЛ: ' + plStatuses + '</div>';
+                    }
+                    html += '<div class="req-row ' + cls + '" onclick="openRequestReport(' + req.request_number + ')">' +
+                        '<div><span class="req-route">#' + req.request_number + ' — ' + route + '</span>' + plInfo + '</div>' +
+                        '<span class="req-status-badge ' + cls + '">' + badge + '</span></div>';
+                }
+                if (reqData.requests.length === 0 && (!tlData.segments || tlData.segments.length === 0)) {
+                    html += '<div style="color:#a0aec0;font-size:13px;padding:8px;">Нет данных</div>';
+                }
+                container.innerHTML = html;
+                container.dataset.loaded = '1';
+            } catch(e) {
+                container.innerHTML = '<div style="color:#e53e3e;font-size:13px;">Ошибка загрузки</div>';
+            }
+        }
+
+        function parseRuDate(s) {
+            // Parse "DD.MM.YYYY HH:MM" or "DD.MM.YYYY" to timestamp
+            if (!s) return null;
+            const parts = s.split(' ');
+            const dmy = parts[0].split('.');
+            if (dmy.length < 3) return null;
+            const hm = parts[1] ? parts[1].split(':') : ['0','0'];
+            return new Date(parseInt(dmy[2]), parseInt(dmy[1])-1, parseInt(dmy[0]),
+                            parseInt(hm[0]||0), parseInt(hm[1]||0)).getTime();
+        }
+
+        function fmtDate(ts) {
+            const d = new Date(ts);
+            return String(d.getDate()).padStart(2,'0') + '.' +
+                   String(d.getMonth()+1).padStart(2,'0');
+        }
+
+        function fmtDateFull(ts) {
+            const d = new Date(ts);
+            return String(d.getDate()).padStart(2,'0') + '.' +
+                   String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear() + ' ' +
+                   String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+        }
+
+        function renderTimeline(segments) {
+            if (!segments || segments.length === 0) return '';
+
+            // Parse all dates and find global range
+            const parsed = [];
+            for (const seg of segments) {
+                const t0 = parseRuDate(seg.pl_date_out_plan);
+                const t1 = parseRuDate(seg.pl_date_in_plan);
+                if (t0 && t1 && t1 > t0) {
+                    parsed.push({ ...seg, t0, t1 });
+                }
+            }
+            if (parsed.length === 0) return '';
+
+            parsed.sort((a, b) => a.t0 - b.t0);
+            const globalStart = parsed[0].t0;
+            const globalEnd = Math.max(...parsed.map(s => s.t1));
+            const totalMs = globalEnd - globalStart;
+            if (totalMs <= 0) return '';
+
+            const pct = (ts) => ((ts - globalStart) / totalMs * 100);
+
+            let html = '<div class="timeline-container">';
+            html += '<div class="timeline-header">Таймлайн</div>';
+            html += '<div class="timeline-dates"><span>' + fmtDate(globalStart) + '</span><span>' + fmtDate(globalEnd) + '</span></div>';
+            html += '<div class="timeline-track">';
+
+            // Render gaps (between consecutive segments)
+            for (let i = 0; i < parsed.length - 1; i++) {
+                const gapStart = parsed[i].t1;
+                const gapEnd = parsed[i+1].t0;
+                if (gapEnd > gapStart) {
+                    const left = pct(gapStart);
+                    const width = pct(gapEnd) - left;
+                    if (width > 0.3) {
+                        html += '<div class="timeline-gap" style="left:' + left + '%;width:' + width + '%" title="Пробел"></div>';
+                    }
+                }
+            }
+
+            // Render segments
+            for (const seg of parsed) {
+                const left = pct(seg.t0);
+                const width = Math.max(pct(seg.t1) - left, 0.5);
+                const cls = seg.stability_status === 'stable' ? 'stable' : (seg.stability_status === 'in_progress' ? 'in-progress' : 'unknown');
+                const reqNum = seg.request_number || '?';
+                const label = width > 6 ? '#' + reqNum : '';
+                const tipData = encodeURIComponent(JSON.stringify({
+                    req: reqNum,
+                    from: seg.pl_date_out_plan,
+                    to: seg.pl_date_in_plan,
+                    status: seg.pl_status || '?',
+                    stability: seg.stability_status || '?',
+                    route_from: seg.route_start_address || '',
+                    route_to: seg.route_end_address || ''
+                }));
+                html += '<div class="timeline-seg ' + cls + '" style="left:' + left + '%;width:' + width + '%"' +
+                    ' data-tip="' + tipData + '"' +
+                    ' onmouseenter="showTimelineTip(event,this)" onmouseleave="hideTimelineTip()"' +
+                    ' onclick="openRequestReport(' + reqNum + ')">' + label + '</div>';
+            }
+
+            html += '</div>'; // track
+            html += '<div class="timeline-legend">';
+            html += '<div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#48bb78"></div> Стабильная</div>';
+            html += '<div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#ecc94b"></div> В работе</div>';
+            html += '<div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:repeating-linear-gradient(45deg,#fed7d7,#fed7d7 2px,transparent 2px,transparent 4px)"></div> Пробел</div>';
+            html += '</div>';
+            html += '</div>'; // container
+            return html;
+        }
+
+        let tipEl = null;
+        function showTimelineTip(event, el) {
+            const data = JSON.parse(decodeURIComponent(el.dataset.tip));
+            if (!tipEl) {
+                tipEl = document.createElement('div');
+                tipEl.className = 'timeline-tooltip';
+                document.body.appendChild(tipEl);
+            }
+            let lines = ['<b>Заявка #' + data.req + '</b>'];
+            if (data.route_from || data.route_to) lines.push(data.route_from + ' → ' + data.route_to);
+            lines.push(data.from + ' — ' + data.to);
+            lines.push('ПЛ: ' + data.status + ' | ' + (data.stability === 'stable' ? 'Стабильная' : 'В работе'));
+            tipEl.innerHTML = lines.join('<br>');
+            tipEl.style.display = 'block';
+            tipEl.style.left = (event.clientX + 12) + 'px';
+            tipEl.style.top = (event.clientY - 10) + 'px';
+        }
+        function hideTimelineTip() {
+            if (tipEl) tipEl.style.display = 'none';
+        }
+        document.addEventListener('mousemove', function(e) {
+            if (tipEl && tipEl.style.display === 'block') {
+                tipEl.style.left = (e.clientX + 12) + 'px';
+                tipEl.style.top = (e.clientY - 10) + 'px';
+            }
+        });
+
+        function openRequestReport(reqNumber) {
+            // For now, just alert; in future could open V2 report filtered by request
+            alert('Заявка #' + reqNumber + '\nДетальный отчёт будет доступен в следующей итерации.');
+        }
+
+        function fillSameDate() {
+            document.getElementById('from_pl').value = document.getElementById('from_requests').value;
+            document.getElementById('to_pl').value = document.getElementById('to_requests').value;
+        }
+
+        async function startFetch(event) {
+            event.preventDefault();
+            const btn = document.getElementById('fetchBtn');
+            const statusPanel = document.getElementById('statusPanel');
+            const statusText = document.getElementById('statusText');
+            btn.disabled = true;
+            statusPanel.classList.add('active');
+            statusText.textContent = 'Запуск загрузки...';
+            const formData = {
+                from_requests: document.getElementById('from_requests').value,
+                to_requests: document.getElementById('to_requests').value,
+                from_pl: document.getElementById('from_pl').value,
+                to_pl: document.getElementById('to_pl').value,
+                use_legacy_pl_method: document.getElementById('useLegacyMethod').checked
+            };
+            try {
+                const response = await fetch('/api/reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Ошибка запуска');
+                pollStatus(data.report_id);
+            } catch (error) {
+                statusText.textContent = 'Ошибка: ' + error.message;
+                btn.disabled = false;
+            }
+        }
+
+        async function pollStatus(reportId) {
+            const statusText = document.getElementById('statusText');
+            const btn = document.getElementById('fetchBtn');
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                statusText.textContent = data.progress || 'Обработка...';
+                if (data.running) {
+                    setTimeout(() => pollStatus(reportId), 1000);
+                } else {
+                    btn.disabled = false;
+                    if (data.error) {
+                        statusText.textContent = 'Ошибка: ' + data.error;
+                    } else {
+                        statusText.textContent = 'Готово! Открываю отчёт...';
+                        setTimeout(() => {
+                            window.open('/api/reports/' + reportId, '_blank');
+                            location.reload();
+                        }, 1000);
+                    }
+                }
+            } catch (error) {
+                statusText.textContent = 'Ошибка проверки статуса';
+                btn.disabled = false;
+            }
+        }
+
+        function openReport(reportId) { window.open('/api/reports/' + reportId, '_blank'); }
+        function openReportV2(reportId) { window.open('/api/reports/' + reportId + '/v2', '_blank'); }
+        async function deleteReport(reportId) {
+            if (!confirm('Удалить отчёт из истории?')) return;
+            try {
+                const response = await fetch('/api/reports/' + reportId, { method: 'DELETE' });
+                if (response.ok) location.reload();
+                else alert('Ошибка удаления');
+            } catch (error) { alert('Ошибка: ' + error.message); }
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check if fetch is running
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                if (data.running) {
+                    document.getElementById('fetchBtn').disabled = true;
+                    document.getElementById('statusPanel').classList.add('active');
+                    pollStatus(data.report_id || 0);
+                }
+            } catch (e) {}
+            // Check if sync is running
+            try {
+                const resp = await fetch('/api/sync/status');
+                const data = await resp.json();
+                if (data.running) {
+                    document.getElementById('syncBtn').disabled = true;
+                    document.getElementById('syncStatusPanel').classList.add('active');
+                    pollSyncStatus();
+                }
+            } catch(e) {}
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "geo-admin",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/leaflet": "^1.9.14",
+    "typescript": "^5.4.0"
+  }
+}

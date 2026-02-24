@@ -1,0 +1,10 @@
+{
+  "_comment": "Справочник типов ТС: id, label для UI, keywords для фильтрации по nameMO из API",
+  "types": [
+    {
+      "id": "crane",
+      "label": "Автокраны",
+      "keywords": ["кран", "автокран"]
+    }
+  ]
+}

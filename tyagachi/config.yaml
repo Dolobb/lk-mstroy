@@ -1,0 +1,74 @@
+# ============================================================
+# Transport Analytics Configuration
+# ============================================================
+
+# API настройки (TIS Online)
+api:
+  base_url: "https://tt.tis-online.com/tt/api/v3"
+  token: "6C72DAA5076B"  # Основной токен
+  # Дополнительные токены для параллельных запросов (опционально)
+  # Если rate-limit привязан к токену, это ускорит загрузку
+  tokens:
+    - "6C72DAA5076B"
+    - "8FE4AB7FA54C"
+    - "79206427B583"
+    - "333825C3820A"
+    - "16B1EF2678AD"
+    - "C47F3BB6DE85"
+    - "8ABFA559284D"
+    - "A84D5398F74E"
+    - "0505CB134904"
+    - "5F28AB5DB6CD"
+    - "C8564A44FD67"
+    - "7831D53E9DD0"
+    - "3045540D6E2B"
+    - "3CDD3FE02277"
+    - "62AB1C7131F9"
+    - "920DA1FD0B46"
+    - "9AC0CADC0CE3"
+    - "5455D081B637"
+  format: "json"
+  timeout: 10
+  retry_count: 3
+
+# Пути к файлам
+paths:
+  input:
+    requests: "Data/raw/Requests_raw.json"
+    pl: "Data/raw/PL_raw.json"
+  output:
+    intermediate: "Data/intermediate/"
+    final: "Data/final/"
+    logs: "Data/logs/"
+
+# Настройки парсинга
+parsing:
+  # Если true - останавливаемся при отсутствии обязательных полей
+  # Если false - логируем предупреждение и продолжаем
+  fail_on_missing_fields: false
+
+  # Логировать предупреждения о пропущенных полях
+  log_warnings: true
+
+# Настройки извлечения номера заявки
+extraction:
+  # Регулярное выражение для извлечения (не используется напрямую,
+  # но документирует логику)
+  pattern_description: "Цифры от начала строки до '/' или пробела"
+
+  # Игнорировать суффикс /1, /2 и т.д.
+  ignore_suffix: true
+
+# Настройки логирования
+logging:
+  # Уровень: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+
+  # Выводить в консоль (false = только в файл, чище вывод)
+  console: false
+
+  # Сохранять в файл
+  file: true
+
+  # Формат файла лога
+  file_format: "pipeline_{date}.log"

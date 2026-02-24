@@ -1,0 +1,765 @@
+"""
+Data Fetcher - orchestrates API requests and builds hierarchy.
+
+Workflow:
+1. Fetch requests for period
+2. Fetch route lists for period
+3. For each PL, for each vehicle (ts_id_mo), fetch monitoring for PL period
+4. Build hierarchical structure: Request → PL → Vehicle + Monitoring
+"""
+
+import logging
+from pathlib import Path
+from typing import Dict, Any, List, Tuple
+from datetime import datetime
+
+from src.api.client import APIClient
+from src.parsers.monitoring_parser import parse_monitoring
+
+
+class DataFetcher:
+    """
+    Orchestrates data fetching from API and builds data hierarchy.
+    """
+
+    def __init__(self, config_path: str = "config.yaml"):
+        """Initialize fetcher with API client."""
+        self.client = APIClient(config_path)
+        self.logger = logging.getLogger('api.fetcher')
+        self.logger.setLevel(logging.INFO)
+
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            ))
+            self.logger.addHandler(handler)
+
+    def fetch_all(
+        self,
+        from_requests: str,
+        to_requests: str,
+        from_pl: str,
+        to_pl: str,
+        save_raw: bool = True,
+    ) -> Tuple[Dict, Dict]:
+        """
+        Fetch requests and route-lists using separate date ranges.
+
+        Args:
+            from_requests: Start date for requests (DD.MM.YYYY)
+            to_requests: End date for requests (DD.MM.YYYY)
+            from_pl: Start date for route-lists (DD.MM.YYYY)
+            to_pl: End date for route-lists (DD.MM.YYYY)
+            save_raw: Whether to save raw JSON files
+
+        Returns:
+            Tuple of (requests_data, route_lists_data)
+        """
+        # Fetch requests
+        print(f"  Загрузка заявок...")
+        requests_data = self.client.get_requests(from_requests, to_requests)
+
+        if save_raw:
+            filename = f"Data/raw/Requests_{from_requests.replace('.', '-')}_{to_requests.replace('.', '-')}.json"
+            self.client.save_json(requests_data, filename)
+
+        # Fetch route lists
+        print(f"  Загрузка путевых листов...")
+        pl_data = self.client.get_route_lists(from_pl, to_pl)
+
+        if save_raw:
+            filename = f"Data/raw/PL_{from_pl.replace('.', '-')}_{to_pl.replace('.', '-')}.json"
+            self.client.save_json(pl_data, filename)
+
+        return requests_data, pl_data
+
+    def extract_monitoring_tasks(self, pl_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Extract monitoring tasks from route lists.
+
+        For each PL, for each vehicle (ts), create a monitoring task
+        with vehicle ID and PL period (dateOutPlan - dateInPlan).
+
+        Args:
+            pl_data: Route lists JSON data
+
+        Returns:
+            List of monitoring tasks: [{pl_id, ts_id_mo, ts_reg_number, from_date, to_date}, ...]
+        """
+        tasks = []
+
+        for pl in pl_data.get('list', []):
+            pl_id = f"{pl.get('tsNumber')}_{pl.get('dateOut')}"
+            date_out_plan = pl.get('dateOutPlan', '')
+            date_in_plan = pl.get('dateInPlan', '')
+
+            # Skip if no dates
+            if not date_out_plan or not date_in_plan:
+                continue
+
+            # Get vehicles from ts array
+            ts_list = pl.get('ts', [])
+            if not ts_list:
+                continue
+
+            for ts in ts_list:
+                if not isinstance(ts, dict):
+                    continue
+
+                ts_id_mo = ts.get('idMO')
+                if not ts_id_mo:
+                    continue
+
+                tasks.append({
+                    'pl_id': pl_id,
+                    'ts_id_mo': ts_id_mo,
+                    'ts_reg_number': ts.get('regNumber'),
+                    'ts_name_mo': ts.get('nameMO'),
+                    'from_date': date_out_plan,
+                    'to_date': date_in_plan,
+                })
+
+        return tasks
+
+    def fetch_monitoring_batch(self, tasks: List[Dict[str, Any]], progress_callback=None) -> Dict[str, Dict]:
+        """
+        Fetch monitoring data for all tasks.
+
+        Args:
+            tasks: List of monitoring tasks from extract_monitoring_tasks()
+            progress_callback: Optional callback(current, total) for progress
+
+        Returns:
+            Dictionary: {(pl_id, ts_id_mo): monitoring_data}
+        """
+        results = {}
+        total = len(tasks)
+
+        print(f"  Загрузка мониторинга ({total} запросов)...")
+
+        for i, task in enumerate(tasks):
+            key = (task['pl_id'], task['ts_id_mo'])
+
+            try:
+                raw_data = self.client.get_monitoring_stats(
+                    id_mo=task['ts_id_mo'],
+                    from_date=task['from_date'],
+                    to_date=task['to_date']
+                )
+
+                # Parse immediately, don't store raw
+                parsed = parse_monitoring(raw_data)
+                results[key] = parsed
+
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch monitoring for {key}: {e}")
+                results[key] = parse_monitoring({})  # Empty record
+
+            # Progress
+            if progress_callback:
+                progress_callback(i + 1, total)
+            elif (i + 1) % 10 == 0 or i + 1 == total:
+                print(f"    [{i + 1}/{total}]")
+
+        return results
+
+
+def fetch_data_interactive(config_path: str = "config.yaml") -> Tuple[str, str]:
+    """
+    Interactive prompt for date range.
+
+    Returns:
+        Tuple of (from_date, to_date) in DD.MM.YYYY format
+    """
+    print("\nВведите период для загрузки данных:")
+
+    while True:
+        from_date = input("  Дата начала (ДД.ММ.ГГГГ): ").strip()
+        if _validate_date(from_date):
+            break
+        print("  Неверный формат. Используйте ДД.ММ.ГГГГ")
+
+    while True:
+        to_date = input("  Дата окончания (ДД.ММ.ГГГГ): ").strip()
+        if _validate_date(to_date):
+            break
+        print("  Неверный формат. Используйте ДД.ММ.ГГГГ")
+
+    return from_date, to_date
+
+
+def _validate_date(date_str: str) -> bool:
+    """Validate date format DD.MM.YYYY."""
+    try:
+        datetime.strptime(date_str, '%d.%m.%Y')
+        return True
+    except ValueError:
+        return False
+----------
+_---------мейн
+---------
+"""
+Transport Analytics Pipeline - Main Entry Point
+
+Режимы работы:
+1. Локальные файлы: python main.py (интерактивный выбор файлов)
+2. Загрузка из API: python main.py --fetch --from 01.01.2026 --to 15.01.2026
+
+Результаты:
+- CSV файлы: matched.csv, requests_unmatched.csv, pl_unmatched.csv
+- HTML отчёт: report.html (иерархия Заявка → ПЛ → Машины + Мониторинг)
+"""
+
+import sys
+import time
+import logging
+import argparse
+from pathlib import Path
+from datetime import datetime
+
+import yaml
+import pandas as pd
+
+from src.parsers.request_parser import RequestParser
+from src.parsers.pl_parser import PLParser
+
+
+def parse_args():
+    """Разбор аргументов командной строки."""
+    parser = argparse.ArgumentParser(
+        description='Transport Analytics Pipeline - сопоставление заявок и путевых листов',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Примеры:
+  python main.py                                        # интерактивный выбор файлов
+  python main.py -r req.json -p pl.json                 # указать файлы напрямую
+  python main.py --fetch --from 01.01.2026 --to 15.01.2026  # загрузить из API
+        """
+    )
+
+    # Режим работы
+    parser.add_argument(
+        '--fetch',
+        action='store_true',
+        help='Загрузить данные из API (вместо локальных файлов)'
+    )
+
+    parser.add_argument(
+        '--from', dest='from_date',
+        type=str,
+        help='Дата начала периода (ДД.ММ.ГГГГ) для режима --fetch'
+    )
+
+    parser.add_argument(
+        '--to', dest='to_date',
+        type=str,
+        help='Дата окончания периода (ДД.ММ.ГГГГ) для режима --fetch'
+    )
+
+    # Separate periods for requests and route-lists (optional)
+    parser.add_argument(
+        '--from-req', dest='from_requests',
+        type=str,
+        help='Дата начала периода для ЗАЯВОК (ДД.ММ.ГГГГ)'
+    )
+
+    parser.add_argument(
+        '--to-req', dest='to_requests',
+        type=str,
+        help='Дата окончания периода для ЗАЯВОК (ДД.ММ.ГГГГ)'
+    )
+
+    parser.add_argument(
+        '--from-pl', dest='from_pl',
+        type=str,
+        help='Дата начала периода для ПУТЕВЫХ ЛИСТОВ (ДД.ММ.ГГГГ)'
+    )
+
+    parser.add_argument(
+        '--to-pl', dest='to_pl',
+        type=str,
+        help='Дата окончания периода для ПУТЕВЫХ ЛИСТОВ (ДД.ММ.ГГГГ)'
+    )
+
+    # Локальные файлы
+    parser.add_argument(
+        '-r', '--requests',
+        type=str,
+        help='Путь к файлу заявок (JSON)'
+    )
+
+    parser.add_argument(
+        '-p', '--pl',
+        type=str,
+        help='Путь к файлу путевых листов (JSON)'
+    )
+
+    parser.add_argument(
+        '-o', '--output',
+        type=str,
+        help='Директория для результатов. По умолчанию Data/final/'
+    )
+
+    parser.add_argument(
+        '-c', '--config',
+        type=str,
+        default='config.yaml',
+        help='Путь к файлу конфигурации (по умолчанию: config.yaml)'
+    )
+
+    parser.add_argument(
+        '--no-html',
+        action='store_true',
+        help='Не генерировать HTML отчёт'
+    )
+
+    return parser.parse_args()
+
+
+def get_json_files(directory: str) -> list:
+    """Получить список JSON файлов в директории."""
+    dir_path = Path(directory)
+    if not dir_path.exists():
+        return []
+
+    files = sorted(dir_path.glob('*.json'))
+    return [f for f in files if f.is_file()]
+
+
+def interactive_file_select(files: list, prompt: str) -> Path:
+    """Интерактивный выбор файла из списка."""
+    print(f"\n{prompt}")
+    print("-" * 50)
+
+    for i, f in enumerate(files, 1):
+        # Показать размер файла
+        size_kb = f.stat().st_size / 1024
+        print(f"  {i}. {f.name} ({size_kb:.1f} KB)")
+
+    print("-" * 50)
+
+    while True:
+        try:
+            choice = input("Введите номер (или 'q' для выхода): ").strip()
+            if choice.lower() == 'q':
+                print("Отмена.")
+                sys.exit(0)
+
+            idx = int(choice) - 1
+            if 0 <= idx < len(files):
+                return files[idx]
+            else:
+                print(f"Введите число от 1 до {len(files)}")
+        except ValueError:
+            print("Введите число")
+
+
+def select_files_interactive(raw_dir: str) -> tuple:
+    """Интерактивный выбор файлов заявок и ПЛ."""
+    files = get_json_files(raw_dir)
+
+    if not files:
+        print(f"\n❌ В папке {raw_dir} нет JSON файлов!")
+        print("Положите файлы заявок и путевых листов в эту папку.")
+        sys.exit(1)
+
+    if len(files) == 1:
+        print(f"\n❌ В папке {raw_dir} только один JSON файл!")
+        print("Нужны минимум 2 файла: заявки и путевые листы.")
+        sys.exit(1)
+
+    print(f"\nНайдено {len(files)} JSON файлов в {raw_dir}/")
+
+    # Выбор файла заявок
+    requests_file = interactive_file_select(files, "Выберите файл ЗАЯВОК:")
+
+    # Убираем выбранный файл из списка для ПЛ
+    remaining = [f for f in files if f != requests_file]
+
+    # Выбор файла ПЛ
+    pl_file = interactive_file_select(remaining, "Выберите файл ПУТЕВЫХ ЛИСТОВ:")
+
+    return str(requests_file), str(pl_file)
+
+
+def load_config(config_path: str = "config.yaml") -> dict:
+    """Загрузка конфигурации из YAML файла."""
+    config_file = Path(config_path)
+    if not config_file.exists():
+        raise FileNotFoundError(f"Файл конфигурации не найден: {config_path}")
+
+    with open(config_file, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
+
+
+def setup_logging(config: dict) -> logging.Logger:
+    """Настройка логирования для main модуля."""
+    log_config = config['logging']
+    log_level = getattr(logging, log_config['level'])
+
+    logger = logging.getLogger('main')
+    logger.setLevel(log_level)
+    logger.handlers = []
+
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    if log_config['console']:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(log_level)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    if log_config['file']:
+        log_dir = Path(config['paths']['output']['logs'])
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        date_str = datetime.now().strftime('%Y-%m-%d')
+        log_file = log_dir / log_config['file_format'].replace('{date}', date_str)
+
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
+
+
+def run_matching(config: dict, logger: logging.Logger) -> dict:
+    """
+    Сопоставление заявок и путевых листов.
+
+    Returns:
+        dict со статистикой матчинга
+    """
+    intermediate_dir = Path(config['paths']['output']['intermediate'])
+    output_dir = Path(config['paths']['output']['final'])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Загрузка данных
+    logger.info("Загрузка промежуточных файлов...")
+    requests_df = pd.read_csv(intermediate_dir / 'requests_parsed.csv')
+    pl_df = pd.read_csv(intermediate_dir / 'pl_parsed.csv')
+
+    logger.info(f"  Заявок: {len(requests_df)}")
+    logger.info(f"  Записей ПЛ: {len(pl_df)}")
+
+    # Ключи для сопоставления
+    req_key = 'request_number'
+    pl_key = 'extracted_request_number'
+
+    # Множества номеров для статистики
+    req_numbers = set(requests_df[req_key].dropna().astype(int))
+    pl_numbers = set(pl_df[pl_key].dropna().astype(int))
+
+    matched_numbers = req_numbers & pl_numbers
+    req_only_numbers = req_numbers - pl_numbers
+    pl_only_numbers = pl_numbers - req_numbers
+
+    # 1. Matched: inner join
+    logger.info("Создание matched.csv...")
+    matched_df = pd.merge(
+        requests_df,
+        pl_df,
+        left_on=req_key,
+        right_on=pl_key,
+        how='inner',
+        suffixes=('_req', '_pl')
+    )
+    matched_df.to_csv(output_dir / 'matched.csv', index=False)
+
+    # 2. Requests without PL
+    logger.info("Создание requests_unmatched.csv...")
+    requests_unmatched = requests_df[~requests_df[req_key].isin(pl_df[pl_key])]
+    requests_unmatched.to_csv(output_dir / 'requests_unmatched.csv', index=False)
+
+    # 3. PL without requests
+    logger.info("Создание pl_unmatched.csv...")
+    pl_unmatched = pl_df[~pl_df[pl_key].isin(requests_df[req_key])]
+    pl_unmatched.to_csv(output_dir / 'pl_unmatched.csv', index=False)
+
+    stats = {
+        'total_requests': len(requests_df),
+        'total_pl_records': len(pl_df),
+        'unique_request_numbers': len(req_numbers),
+        'unique_pl_numbers': len(pl_numbers),
+        'matched_numbers': len(matched_numbers),
+        'matched_rows': len(matched_df),
+        'requests_only_numbers': len(req_only_numbers),
+        'requests_unmatched_rows': len(requests_unmatched),
+        'pl_only_numbers': len(pl_only_numbers),
+        'pl_unmatched_rows': len(pl_unmatched),
+    }
+
+    return stats
+
+
+def print_summary(stats: dict, elapsed: float):
+    """Вывод итоговой статистики."""
+    print("\n" + "=" * 60)
+    print("ИТОГИ ОБРАБОТКИ")
+    print("=" * 60)
+    print(f"\nИсходные данные:")
+    print(f"  Заявок:           {stats['total_requests']}")
+    print(f"  Записей ПЛ:       {stats['total_pl_records']}")
+
+    print(f"\nУникальных номеров заявок:")
+    print(f"  В заявках:        {stats['unique_request_numbers']}")
+    print(f"  В ПЛ:             {stats['unique_pl_numbers']}")
+
+    print(f"\nРезультаты сопоставления:")
+    print(f"  Сопоставлено номеров:     {stats['matched_numbers']}")
+    print(f"  Строк в matched.csv:      {stats['matched_rows']}")
+    print(f"  Заявок без ПЛ:            {stats['requests_only_numbers']} ({stats['requests_unmatched_rows']} строк)")
+    print(f"  ПЛ без заявок:            {stats['pl_only_numbers']} ({stats['pl_unmatched_rows']} строк)")
+
+    # Процент выполнения заявок
+    if stats['unique_request_numbers'] > 0:
+        fulfillment_rate = stats['matched_numbers'] / stats['unique_request_numbers'] * 100
+        print(f"\n  Процент выполнения:       {fulfillment_rate:.1f}%")
+
+    print(f"\nВремя выполнения: {elapsed:.2f} сек")
+    print("=" * 60)
+
+
+def run_fetch_mode(args, config, logger):
+    """Режим загрузки данных из API."""
+    from src.api.fetcher import DataFetcher, fetch_data_interactive
+    from src.parsers.monitoring_parser import parse_monitoring
+    from src.output.html_generator import generate_html_report, build_hierarchy
+
+    # Support separate date ranges for requests and PL
+    from_req = args.from_requests or args.from_date
+    to_req = args.to_requests or args.to_date
+
+    from_pl = args.from_pl or args.from_date
+    to_pl = args.to_pl or args.to_date
+
+    # If any required pair is missing, ask interactively for both ranges
+    if not (from_req and to_req):
+        print("\nВведите период для ЗАЯВОК:")
+        from_req, to_req = fetch_data_interactive()
+
+    if not (from_pl and to_pl):
+        print("\nВведите период для ПУТЕВЫХ ЛИСТОВ:")
+        from_pl, to_pl = fetch_data_interactive()
+
+    print(f"\n  Период ЗАЯВОК: {from_req} — {to_req}")
+    print(f"  Период ПЛ:      {from_pl} — {to_pl}")
+
+    # Инициализация fetcher
+    fetcher = DataFetcher(args.config)
+
+    # 1. Загрузка заявок и ПЛ
+    print("\n[1/4] Загрузка данных из API...")
+    requests_data, pl_data = fetcher.fetch_all(
+        from_requests=from_req,
+        to_requests=to_req,
+        from_pl=from_pl,
+        to_pl=to_pl,
+        save_raw=True
+    )
+
+    req_count = len(requests_data.get('list', []))
+    pl_count = len(pl_data.get('list', []))
+    print(f"    Загружено: {req_count} заявок, {pl_count} путевых листов")
+
+    # 2. Парсинг
+    print("\n[2/4] Парсинг данных...")
+
+    # Сохраняем временные файлы для парсеров (имена зависят от соответствующих периодов)
+    raw_dir = Path(config['paths']['input']['requests']).parent
+    requests_file = raw_dir / f"Requests_{from_req.replace('.', '-')}_{to_req.replace('.', '-')}.json"
+    pl_file = raw_dir / f"PL_{from_pl.replace('.', '-')}_{to_pl.replace('.', '-')}.json"
+
+    request_parser = RequestParser(args.config)
+    request_parser.input_path = str(requests_file)
+    request_parser.parse()
+
+    pl_parser = PLParser(args.config)
+    pl_parser.input_path = str(pl_file)
+    pl_parser.parse()
+
+    # 3. Извлечение задач мониторинга и запросы
+    print("\n[3/4] Загрузка мониторинга...")
+    monitoring_tasks = fetcher.extract_monitoring_tasks(pl_data)
+    print(f"    Найдено {len(monitoring_tasks)} комбинаций ПЛ+машина")
+
+    monitoring_results = fetcher.fetch_monitoring_batch(monitoring_tasks)
+
+    # 4. Сопоставление и генерация отчётов
+    print("\n[4/4] Генерация отчётов...")
+
+    stats = run_matching(config, logger)
+
+    # Добавляем мониторинг к matched данным
+    output_dir = Path(config['paths']['output']['final'])
+    matched_df = pd.read_csv(output_dir / 'matched.csv')
+
+    # Добавляем колонки мониторинга
+    monitoring_cols = [
+        'mon_distance', 'mon_moving_time_hours', 'mon_engine_time_hours',
+        'mon_idling_time_hours', 'mon_fuel_rate', 'mon_parkings_count'
+    ]
+
+    for col in monitoring_cols:
+        matched_df[col] = None
+
+    # Заполняем данными мониторинга
+    for idx, row in matched_df.iterrows():
+        pl_id = row.get('pl_id')
+        ts_id = row.get('ts_id_mo')
+        key = (pl_id, ts_id)
+
+        if key in monitoring_results:
+            mon_data = monitoring_results[key]
+            for col in monitoring_cols:
+                if col in mon_data:
+                    matched_df.at[idx, col] = mon_data[col]
+
+    # Сохраняем обновлённый matched
+    matched_df.to_csv(output_dir / 'matched_full.csv', index=False)
+
+    # Генерация HTML
+    if not args.no_html:
+        print("  Генерация HTML отчёта...")
+        requests_unmatched = pd.read_csv(output_dir / 'requests_unmatched.csv')
+
+        hierarchy = build_hierarchy(
+            matched_df.to_dict('records'),
+            requests_unmatched.to_dict('records')
+        )
+
+        html_path = output_dir / 'report.html'
+        generate_html_report(
+            hierarchy,
+            str(html_path),
+            title=f"Отчёт за {from_req} — {to_req}"
+        )
+        print(f"    HTML: {html_path}")
+
+    return stats
+
+
+def run_local_mode(args, config, logger):
+    """Режим работы с локальными файлами."""
+    # Определяем пути к файлам
+    requests_path = args.requests
+    pl_path = args.pl
+
+    # Если файлы не указаны — интерактивный выбор
+    if not requests_path or not pl_path:
+        raw_dir = Path(config['paths']['input']['requests']).parent
+        requests_path, pl_path = select_files_interactive(str(raw_dir))
+
+    # Сохраняем выбранные пути
+    config['paths']['input']['requests'] = requests_path
+    config['paths']['input']['pl'] = pl_path
+    logger.info(f"Файл заявок: {requests_path}")
+    logger.info(f"Файл ПЛ: {pl_path}")
+
+    print(f"\n  Заявки: {Path(requests_path).name}")
+    print(f"  ПЛ:     {Path(pl_path).name}")
+    print(f"  Вывод:  {config['paths']['output']['final']}")
+
+    # Парсинг заявок
+    print("\n[1/3] Парсинг заявок...")
+    request_parser = RequestParser(args.config)
+    request_parser.input_path = requests_path
+    request_parser.parse()
+    logger.info("Парсинг заявок завершён")
+
+    # Парсинг путевых листов
+    print("[2/3] Парсинг путевых листов...")
+    pl_parser = PLParser(args.config)
+    pl_parser.input_path = pl_path
+    pl_parser.parse()
+    logger.info("Парсинг ПЛ завершён")
+
+    # Сопоставление
+    print("[3/3] Сопоставление данных...")
+    stats = run_matching(config, logger)
+    logger.info("Сопоставление завершено")
+
+    # Генерация HTML (если есть данные)
+    if not args.no_html:
+        try:
+            from src.output.html_generator import generate_html_report, build_hierarchy
+
+            output_dir = Path(config['paths']['output']['final'])
+            matched_df = pd.read_csv(output_dir / 'matched.csv')
+            requests_unmatched = pd.read_csv(output_dir / 'requests_unmatched.csv')
+
+            hierarchy = build_hierarchy(
+                matched_df.to_dict('records'),
+                requests_unmatched.to_dict('records')
+            )
+
+            html_path = output_dir / 'report.html'
+            generate_html_report(hierarchy, str(html_path))
+            print(f"\n  HTML отчёт: {html_path}")
+        except Exception as e:
+            logger.warning(f"Не удалось создать HTML: {e}")
+
+    return stats
+
+
+def main():
+    """Главная функция - точка входа пайплайна."""
+    args = parse_args()
+
+    print("=" * 60)
+    print("TRANSPORT ANALYTICS PIPELINE")
+    print("=" * 60)
+
+    try:
+        # Загрузка конфигурации
+        config = load_config(args.config)
+        logger = setup_logging(config)
+        logger.info("Конфигурация загружена")
+
+        if args.output:
+            config['paths']['output']['final'] = args.output
+            Path(args.output).mkdir(parents=True, exist_ok=True)
+
+        start_time = time.time()
+
+        # Выбор режима
+        if args.fetch:
+            print("\nРежим: Загрузка из API")
+            stats = run_fetch_mode(args, config, logger)
+        else:
+            print("\nРежим: Локальные файлы")
+            stats = run_local_mode(args, config, logger)
+
+        # Итоги
+        elapsed = time.time() - start_time
+        print_summary(stats, elapsed)
+
+        logger.info(f"Пайплайн завершён успешно за {elapsed:.2f} сек")
+
+        output_dir = config['paths']['output']['final']
+        print(f"\nРезультаты сохранены в: {output_dir}")
+
+        return 0
+
+    except FileNotFoundError as e:
+        print(f"\n❌ ОШИБКА: Файл не найден - {e}")
+        logging.error(f"File not found: {e}")
+        return 1
+
+    except ValueError as e:
+        print(f"\n❌ ОШИБКА КОНФИГУРАЦИИ: {e}")
+        logging.error(f"Config error: {e}")
+        return 1
+
+    except Exception as e:
+        print(f"\n❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        logging.exception("Pipeline failed")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

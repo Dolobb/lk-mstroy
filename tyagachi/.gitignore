@@ -1,0 +1,21 @@
+# Auto Claude data directory
+.auto-claude/
+
+# Auto Claude generated files
+.auto-claude-security.json
+.auto-claude-status
+.claude_settings.json
+.worktrees/
+.security-key
+logs/security/
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets - не коммитить конфиг с токеном!
+# config.yaml содержит API токен
+# Используйте config.example.yaml как шаблон

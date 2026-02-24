@@ -17,10 +17,12 @@ lk-mstroy/
 │   ├── src/               # Python: API client, parsers, HTML generator, web server
 │   ├── config.yaml        # Конфигурация API/путей
 │   └── main.py            # CLI точка входа
+├── samosvaly/             # Самосвалы — аналитика самосвалов (в разработке)
+│   └── src/
 └── frontend/              # Единый фронтенд-оболочка (React + Vite + Tailwind + shadcn)
     └── src/
         ├── app/           # Layout, роутинг, вкладки
-        └── features/      # Фичи по вкладкам
+        └── features/      # dashboard, tyagachi, kip, samosvaly
 ```
 
 ## Вкладки интерфейса
@@ -30,7 +32,7 @@ lk-mstroy/
 | 1 | Главная (дашборд) | Новый + блоки из tyagachi | В разработке |
 | 2 | Тягачи | tyagachi/ (переписать фронт) | Планируется |
 | 3 | КИП техники | kip/ (перенос после доработки UI) | MVP готов |
-| 4 | TBD | — | Планируется |
+| 4 | Самосвалы | samosvaly/ | В разработке |
 
 ## Подсистема: КИП техники (`kip/`)
 

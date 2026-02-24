@@ -1,0 +1,724 @@
+{
+  "vehicles": [
+    {
+      "idMo": 6099,
+      "regNumber": "А021АТ172",
+      "model": "Самосвал SITRAK 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRACK C7H"
+    },
+    {
+      "idMo": 6103,
+      "regNumber": "А446АТ172",
+      "model": "Самосвал SITRAK 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRACK C7H"
+    },
+    {
+      "idMo": 6101,
+      "regNumber": "А525АТ172",
+      "model": "Самосвал SITRAK 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRACK C7H"
+    },
+    {
+      "idMo": 6102,
+      "regNumber": "А538АТ172",
+      "model": "Самосвал SITRAK 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRACK C7H"
+    },
+    {
+      "idMo": 6100,
+      "regNumber": "А542АТ172",
+      "model": "Самосвал SITRAK 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRACK C7H"
+    },
+    {
+      "idMo": 6644,
+      "regNumber": "А695ХМ172",
+      "model": "Самосвал SITRAK 6*6",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRAK 6*6"
+    },
+    {
+      "idMo": 6645,
+      "regNumber": "А734ХМ172",
+      "model": "Самосвал SITRAK 6*6",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRAK 6*6"
+    },
+    {
+      "idMo": 6646,
+      "regNumber": "А743ХМ172",
+      "model": "Самосвал SITRAK 6*6",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRAK 6*6"
+    },
+    {
+      "idMo": 6790,
+      "regNumber": "А927ОХ172",
+      "model": "Самосвал MERCEDES benz actros 4141A",
+      "branch": "ДСУ",
+      "volumeM3": 21.0,
+      "weightT": 31.5,
+      "nameMO": "Самосвал MERCEDES benz actros 4141AK 8x8"
+    },
+    {
+      "idMo": 6684,
+      "regNumber": "В078НН172",
+      "model": "Самосвал SITRAK 6*6",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRAK 6*6"
+    },
+    {
+      "idMo": 6683,
+      "regNumber": "В085НН172",
+      "model": "Самосвал SITRAK 6*6",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRAK 6*6"
+    },
+    {
+      "idMo": 6682,
+      "regNumber": "В126НО172",
+      "model": "Самосвал SITRAK 6*6",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал SITRAK 6*6"
+    },
+    {
+      "idMo": 5619,
+      "regNumber": "В401НК172",
+      "model": "Самосвал HINO 658991E 6x4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал HINO 658991E 6x4"
+    },
+    {
+      "idMo": 5621,
+      "regNumber": "В430НС172",
+      "model": "Самосвал HINO 658991E 6x4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал HINO 658991E 6x4"
+    },
+    {
+      "idMo": 693,
+      "regNumber": "В472ХН86",
+      "model": "Самосвал Scania P380-CB 6х4",
+      "branch": "МО-15",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Scania P380-CB 6х4 EHZ"
+    },
+    {
+      "idMo": 5780,
+      "regNumber": "К404УА186",
+      "model": "Самосвал Hino 700",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Hino 700"
+    },
+    {
+      "idMo": 5781,
+      "regNumber": "К641УК186",
+      "model": "Самосвал Hino 700",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Hino 700"
+    },
+    {
+      "idMo": 10,
+      "regNumber": "О154ЕР72",
+      "model": "Самосвал Scania P380-CB 6х4",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Scania P380-CB 6х4"
+    },
+    {
+      "idMo": 31,
+      "regNumber": "О156ЕР72",
+      "model": "Самосвал Scania P380-CB 6х4",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Scania P380-CB 6х4"
+    },
+    {
+      "idMo": 20,
+      "regNumber": "Р025МС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 21,
+      "regNumber": "Р026МС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 33,
+      "regNumber": "Р027МС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 17,
+      "regNumber": "Р028МС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 15,
+      "regNumber": "Р029МС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 19,
+      "regNumber": "Р030МС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 16,
+      "regNumber": "Р031МС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 6211,
+      "regNumber": "Р161МР186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 5620,
+      "regNumber": "Р322ТН186",
+      "model": "Самосвал HINO 658991E 6x4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал HINO 658991E 6x4"
+    },
+    {
+      "idMo": 6224,
+      "regNumber": "Р372МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6217,
+      "regNumber": "Р381МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6227,
+      "regNumber": "Р382МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6221,
+      "regNumber": "Р391МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6212,
+      "regNumber": "Р404МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6228,
+      "regNumber": "Р424МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6230,
+      "regNumber": "Р445МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6220,
+      "regNumber": "Р459МС186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6214,
+      "regNumber": "Р595МО186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6218,
+      "regNumber": "Р605МО186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 12,
+      "regNumber": "Р664КХ72",
+      "model": "Самосвал Scania P400-CB 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Scania P400-CB 6х4"
+    },
+    {
+      "idMo": 32,
+      "regNumber": "Р665КХ72",
+      "model": "Самосвал Scania P400-CB 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Scania P400-CB 6х4"
+    },
+    {
+      "idMo": 6215,
+      "regNumber": "Р739МТ186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6222,
+      "regNumber": "Р755МТ186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6223,
+      "regNumber": "Р762МТ186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6226,
+      "regNumber": "Р791МТ186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6225,
+      "regNumber": "Р855МР186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6219,
+      "regNumber": "Р856МР186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6213,
+      "regNumber": "Р871МР186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6216,
+      "regNumber": "Р877МР186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 6229,
+      "regNumber": "Р886МР186",
+      "model": "Самосвал SANY 6x4",
+      "branch": "МО-36",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SANY 6x4"
+    },
+    {
+      "idMo": 785,
+      "regNumber": "С141МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 779,
+      "regNumber": "С165МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 777,
+      "regNumber": "С177МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 781,
+      "regNumber": "С217МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 778,
+      "regNumber": "С220МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1642,
+      "regNumber": "С224ОХ72",
+      "model": "Самосвал MAN БМЦ-57.6 6х6",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал MAN БМЦ-57.6 6х6"
+    },
+    {
+      "idMo": 780,
+      "regNumber": "С225МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 784,
+      "regNumber": "С228МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 786,
+      "regNumber": "С234МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 783,
+      "regNumber": "С238МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 782,
+      "regNumber": "С241МН72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1641,
+      "regNumber": "С243ОХ72",
+      "model": "Самосвал MAN БМЦ-57.6 6х6",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал MAN БМЦ-57.6 6х6"
+    },
+    {
+      "idMo": 1583,
+      "regNumber": "С824НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1562,
+      "regNumber": "С840НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1582,
+      "regNumber": "С842НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1561,
+      "regNumber": "С880НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1563,
+      "regNumber": "С881НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1581,
+      "regNumber": "С884НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1584,
+      "regNumber": "С886НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 1585,
+      "regNumber": "С887НС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 18,
+      "regNumber": "Т051СС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 14,
+      "regNumber": "Т052СС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 13,
+      "regNumber": "Т053СС72",
+      "model": "Самосвал Volvo FM Truck 6х4",
+      "branch": "МО-36",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал Volvo FM Truck 6х4"
+    },
+    {
+      "idMo": 705,
+      "regNumber": "Т219ХА72",
+      "model": "Самосвал MAN 9596-03-50 6х6",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал MAN 9596-03-50 6х6"
+    },
+    {
+      "idMo": 706,
+      "regNumber": "Т220ХА72",
+      "model": "Самосвал MAN 9596-03-50 6х6",
+      "branch": "ДСУ",
+      "volumeM3": 16.0,
+      "weightT": 24.0,
+      "nameMO": "Самосвал MAN 9596-03-50 6х6"
+    },
+    {
+      "idMo": 5797,
+      "regNumber": "Х331РХ72",
+      "model": "Самосвал SHACMAN 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SHACMAN 6x4"
+    },
+    {
+      "idMo": 5796,
+      "regNumber": "Х339РХ72",
+      "model": "Самосвал SHACMAN 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SHACMAN 6x4"
+    },
+    {
+      "idMo": 6042,
+      "regNumber": "Х347СК72",
+      "model": "Самосвал SHACMAN 6x4",
+      "branch": "ТЛК",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SHACMAN 6x4"
+    },
+    {
+      "idMo": 5795,
+      "regNumber": "Х371РХ72",
+      "model": "Самосвал SHACMAN 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SHACMAN 6x4"
+    },
+    {
+      "idMo": 5794,
+      "regNumber": "Х383РХ72",
+      "model": "Самосвал SHACMAN 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SHACMAN 6x4"
+    },
+    {
+      "idMo": 5798,
+      "regNumber": "Х570РХ72",
+      "model": "Самосвал SHACMAN 6x4",
+      "branch": "ДСУ",
+      "volumeM3": 20.0,
+      "weightT": 30.0,
+      "nameMO": "Самосвал SHACMAN 6x4"
+    }
+  ]
+}

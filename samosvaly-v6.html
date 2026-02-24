@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>НПС Мостострой-11 — Самосвалы</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+--bg:linear-gradient(145deg,#040812 0%,#0B1120 30%,#111B2E 60%,#0D1526 100%);
+--nav-bg:rgba(8,12,24,0.8);--nav-border:rgba(255,255,255,0.05);
+--card:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.07);
+--card-inner:rgba(30,41,59,0.5);--card-inner-border:rgba(255,255,255,0.05);
+--text-1:#F1F5F9;--text-2:#94A3B8;--text-3:#64748B;--text-4:#475569;
+--sel-bg:rgba(59,130,246,0.1);--hover-bg:rgba(255,255,255,0.03);
+--pill-bg:rgba(255,255,255,0.03);--pill-border:rgba(255,255,255,0.06);
+--pill-a-text:#60A5FA;
+--amb-o:rgba(249,115,22,0.04);--amb-b:rgba(59,130,246,0.03);
+--logo-a:#F97316;--logo-s:#94A3B8;--logo-d:rgba(255,255,255,0.15);
+--ghost-bg:rgba(255,255,255,0.04);--ghost-border:rgba(255,255,255,0.08);
+--scroll:rgba(255,255,255,0.1);--tbtn-bg:rgba(255,255,255,0.06);--tbtn-c:#94A3B8;
+--divider:rgba(255,255,255,0.04);
+--select-bg:rgba(255,255,255,0.04);--select-border:rgba(255,255,255,0.08);
+--order-bg:rgba(15,23,42,0.75);--order-border:rgba(59,130,246,0.25);
+--order-progress:rgba(59,130,246,0.13);
+--order-done-border:rgba(34,197,94,0.3);--order-done-progress:rgba(34,197,94,0.09);
+--gantt-bg:rgba(10,18,32,0.6);--gantt-line:rgba(255,255,255,0.04);
+--gantt-fill-bg:rgba(59,130,246,0.18);
+--stat-bg:rgba(30,41,59,0.6);
+--table-head:rgba(59,130,246,0.08);--table-head2:rgba(59,130,246,0.04);
+--table-alt:rgba(255,255,255,0.015);
+--kpi-bg:rgba(30,41,59,0.6);--donut-track:rgba(255,255,255,0.06);
+--tab-active-bg:rgba(249,115,22,0.12);
+--tree-line:rgba(59,130,246,0.25);
+--lv1-bg:rgba(59,130,246,0.04);--lv2-bg:rgba(167,139,250,0.04);--lv3-bg:rgba(34,197,94,0.04);
+--expand-icon:rgba(255,255,255,0.12);
+--sub-hdr:rgba(34,197,94,0.06);--sub-border:rgba(34,197,94,0.15);
+--sub-divider:rgba(34,197,94,0.1);--sub-dash:rgba(34,197,94,0.15);
+}
+[data-theme="light"]{
+--bg:linear-gradient(145deg,#F0F4F8 0%,#E2E8F0 30%,#EEF2F7 60%,#F8FAFC 100%);
+--nav-bg:rgba(255,255,255,0.85);--nav-border:rgba(0,0,0,0.06);
+--card:rgba(255,255,255,0.75);--card-border:rgba(0,0,0,0.06);
+--card-inner:rgba(241,245,249,0.7);--card-inner-border:rgba(0,0,0,0.04);
+--text-1:#0F172A;--text-2:#475569;--text-3:#64748B;--text-4:#94A3B8;
+--sel-bg:rgba(59,130,246,0.08);--hover-bg:rgba(0,0,0,0.02);
+--pill-bg:rgba(0,0,0,0.03);--pill-border:rgba(0,0,0,0.06);--pill-a-text:#2563EB;
+--amb-o:rgba(249,115,22,0.05);--amb-b:rgba(59,130,246,0.04);
+--logo-a:#EA580C;--logo-s:#475569;--logo-d:rgba(0,0,0,0.1);
+--ghost-bg:rgba(0,0,0,0.03);--ghost-border:rgba(0,0,0,0.08);
+--scroll:rgba(0,0,0,0.12);--tbtn-bg:rgba(0,0,0,0.05);--tbtn-c:#64748B;
+--divider:rgba(0,0,0,0.04);--select-bg:rgba(255,255,255,0.9);--select-border:rgba(0,0,0,0.1);
+--order-bg:rgba(255,255,255,0.85);--order-border:rgba(59,130,246,0.2);
+--order-progress:rgba(59,130,246,0.08);
+--order-done-border:rgba(34,197,94,0.25);--order-done-progress:rgba(34,197,94,0.06);
+--gantt-bg:rgba(241,245,249,0.7);--gantt-line:rgba(0,0,0,0.06);
+--gantt-fill-bg:rgba(59,130,246,0.12);
+--stat-bg:rgba(241,245,249,0.8);
+--table-head:rgba(59,130,246,0.06);--table-head2:rgba(59,130,246,0.03);--table-alt:rgba(0,0,0,0.015);
+--kpi-bg:rgba(241,245,249,0.8);--donut-track:rgba(0,0,0,0.06);
+--tab-active-bg:rgba(249,115,22,0.08);
+--tree-line:rgba(59,130,246,0.2);
+--lv1-bg:rgba(59,130,246,0.03);--lv2-bg:rgba(167,139,250,0.03);--lv3-bg:rgba(34,197,94,0.03);
+--expand-icon:rgba(0,0,0,0.08);
+--sub-hdr:rgba(34,197,94,0.05);--sub-border:rgba(34,197,94,0.12);
+--sub-divider:rgba(34,197,94,0.08);--sub-dash:rgba(34,197,94,0.12);
+}
+body{min-height:100vh;background:var(--bg);color:var(--text-1);font-family:'DM Sans',system-ui,sans-serif;overflow:hidden;transition:background .4s,color .3s;}
+.amb{position:fixed;pointer-events:none;z-index:0;border-radius:50%;}
+.amb-o{top:-20%;right:-10%;width:600px;height:600px;background:radial-gradient(circle,var(--amb-o) 0%,transparent 70%);}
+.amb-b{bottom:-15%;left:-5%;width:500px;height:500px;background:radial-gradient(circle,var(--amb-b) 0%,transparent 70%);}
+
+/* NAV */
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:44px;background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--nav-border);position:relative;z-index:10;}
+.nav-items{display:flex;gap:4px;}
+.nav-btn{display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:10px;border:none;cursor:pointer;transition:all .25s;background:transparent;color:var(--text-3);font-family:inherit;font-size:12px;font-weight:600;}
+.nav-btn svg{width:16px;height:16px;flex-shrink:0;}
+.nav-btn.active{background:linear-gradient(135deg,rgba(249,115,22,0.15),rgba(249,115,22,0.05));color:#F97316;box-shadow:0 0 20px rgba(249,115,22,0.12);}
+.nav-r{display:flex;align-items:center;gap:14px;}
+.t-toggle{background:var(--tbtn-bg);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--tbtn-c);display:flex;align-items:center;gap:5px;font-family:inherit;font-size:11px;font-weight:500;}
+.logo{display:flex;align-items:center;gap:6px;font-size:14px;}
+.logo-n{font-weight:700;letter-spacing:2px;color:var(--logo-a);text-transform:uppercase;}
+.logo-d{color:var(--logo-d);}.logo-m{font-weight:500;color:var(--logo-s);letter-spacing:1.5px;text-transform:uppercase;}
+
+/* SUB HEADER */
+.sub-header{display:flex;align-items:center;padding:8px 20px;border-bottom:1px solid var(--divider);gap:10px;min-height:44px;}
+.view-tabs{display:flex;gap:3px;}
+.view-tab{padding:6px 20px;border-radius:9px;border:1px solid transparent;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:all .2s;background:transparent;color:var(--text-3);}
+.view-tab.active{background:var(--tab-active-bg);color:#F97316;border-color:rgba(249,115,22,0.2);}
+.filter-sep{width:1px;height:28px;background:var(--divider);margin:0 4px;flex-shrink:0;}
+.fg{display:flex;flex-direction:column;gap:2px;}
+.fg-label{font-size:8px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;}
+.fg-row{display:flex;align-items:center;gap:4px;}
+.fb-pill{padding:4px 12px;border-radius:8px;border:1px solid var(--pill-border);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--pill-bg);color:var(--text-2);transition:all .15s;}
+.fb-pill.a{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border-color:transparent;}
+.fb-date{padding:4px 8px;border-radius:8px;border:1px solid var(--select-border);background:var(--select-bg);color:var(--text-1);font-size:11px;font-family:inherit;outline:none;width:95px;}
+.fb-select{padding:4px 24px 4px 8px;border-radius:8px;border:1px solid var(--select-border);background:var(--select-bg);color:var(--text-1);font-size:11px;font-family:inherit;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;}
+.btn-export{padding:5px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;margin-left:auto;}
+.analytics-filters{display:none;}.analytics-filters.show{display:contents;}
+
+/* MAIN */
+.main-wrap{height:calc(100vh - 44px - 44px);position:relative;z-index:1;overflow:hidden;}
+
+/* === TAB 1: ORDERS === */
+.tab-orders{display:grid;grid-template-columns:1fr 320px;height:100%;}
+.orders-scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;padding:16px 20px;}
+.city-group{margin-bottom:22px;}
+.city-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.city-name{font-size:18px;font-weight:800;}.city-badge{font-size:9px;font-weight:600;padding:3px 10px;border-radius:12px;background:rgba(249,115,22,0.1);color:#F97316;border:1px solid rgba(249,115,22,0.15);}
+.status-label{font-size:11px;font-weight:700;color:var(--text-2);margin:8px 0 5px;display:flex;align-items:center;gap:6px;}
+.status-dot{width:8px;height:8px;border-radius:50%;}
+
+/* Order card */
+.order-card{position:relative;border-radius:14px;border:1px solid var(--order-border);overflow:hidden;margin-bottom:8px;cursor:pointer;transition:all .2s;}
+.order-card:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.12);}
+.order-card.done{border-color:var(--order-done-border);}
+.order-card.expanded{border-color:rgba(59,130,246,0.45);}
+.order-content{position:relative;z-index:1;display:flex;align-items:stretch;background:var(--order-bg);backdrop-filter:blur(12px);}
+.order-label-area{width:150px;flex-shrink:0;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--divider);}
+.order-num{font-size:13px;font-weight:700;}.order-num span{color:#F97316;}
+.order-route-mini{font-size:9px;color:var(--text-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;}
+.order-data-area{flex:1;position:relative;padding:10px 14px;overflow:hidden;}
+.order-progress-fill{position:absolute;top:0;left:0;bottom:0;z-index:0;transition:width .4s ease;}
+.order-active .order-progress-fill{background:var(--order-progress);}
+.order-done .order-progress-fill{background:var(--order-done-progress);}
+.order-data-inner{position:relative;z-index:1;}
+.order-badges{display:flex;gap:4px;position:absolute;top:6px;right:10px;z-index:2;}
+.badge-sm{font-size:9px;font-weight:600;padding:3px 8px;border-radius:10px;}
+.badge-active{background:rgba(249,115,22,0.1);color:#F97316;border:1px solid rgba(249,115,22,0.15);}
+.badge-done{background:rgba(34,197,94,0.08);color:#22c55e;border:1px solid rgba(34,197,94,0.15);}
+.badge-pct{background:rgba(59,130,246,0.1);color:#60A5FA;border:1px solid rgba(59,130,246,0.15);font-weight:800;font-size:10px;}
+.order-meta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;}
+.om-item{display:flex;flex-direction:column;gap:1px;}
+.om-label{font-size:8px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.4px;}
+.om-val{font-size:11px;font-weight:600;color:var(--text-2);}
+.order-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+.order-obj{font-size:9px;color:var(--text-3);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.order-obj b{color:var(--text-4);font-weight:600;margin-right:4px;text-transform:uppercase;font-size:8px;}
+.ow-item{display:flex;align-items:baseline;gap:2px;}.ow-val{font-size:13px;font-weight:800;}.ow-unit{font-size:8px;color:var(--text-4);}
+.expand-arrow{position:absolute;bottom:6px;right:12px;color:var(--text-4);transition:transform .2s;z-index:2;}
+.order-card.expanded .expand-arrow{transform:rotate(180deg);}
+.progress-bar-mini{height:3px;border-radius:2px;background:rgba(255,255,255,0.04);margin-top:6px;overflow:hidden;}
+.progress-bar-mini-fill{height:100%;border-radius:2px;transition:width .4s;}
+
+/* GANTT */
+.gantt-wrap{max-height:0;overflow:hidden;transition:max-height .35s ease;border-top:1px solid var(--divider);}
+.gantt-wrap.open{max-height:600px;}
+.gantt{background:var(--gantt-bg);padding:8px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
+.gantt table{border-collapse:collapse;width:100%;min-width:400px;}
+.gantt th,.gantt td{padding:3px 4px;text-align:center;font-size:9px;border-bottom:1px solid var(--gantt-line);}
+.gantt th{font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
+.gantt th:first-child{text-align:left;padding-left:8px;width:150px;min-width:150px;}
+.gantt td:first-child{text-align:left;padding-left:8px;font-size:10px;font-weight:600;color:var(--text-2);white-space:nowrap;}
+.gantt-date-h{border-bottom:2px solid var(--gantt-line);}
+.gc{width:100%;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+.gc.f{background:var(--gantt-fill-bg);border:1px solid rgba(59,130,246,0.3);color:#60A5FA;}
+.gc.f:hover{background:rgba(59,130,246,0.3);}
+.truck-trips{font-size:9px;color:#F97316;font-weight:700;margin-left:4px;}
+
+/* STATS */
+.stats-panel{background:var(--card);backdrop-filter:blur(16px);border-left:1px solid var(--card-border);display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
+.sp-header{padding:14px 16px;border-bottom:1px solid var(--divider);}
+.sp-title{font-size:14px;font-weight:700;}.sp-sub{font-size:10px;color:var(--text-3);margin-top:2px;}
+.sp-body{padding:14px 16px;}
+.kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.kpi-card{background:var(--stat-bg);border-radius:10px;padding:8px;border:1px solid var(--card-inner-border);text-align:center;transition:all .2s;}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1);}
+.kpi-label{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:2px;}
+.kpi-val{font-size:20px;font-weight:800;line-height:1;}
+.donut-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
+.donut-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.donut-label{font-size:8px;font-weight:600;color:var(--text-4);text-transform:uppercase;}
+.donut-svg{width:90px;height:90px;}
+.donut-legend{display:flex;gap:8px;justify-content:center;margin-bottom:12px;}
+.leg-i{display:flex;align-items:center;gap:3px;font-size:8px;color:var(--text-3);}.leg-d{width:6px;height:6px;border-radius:50%;}
+.city-stat{margin-bottom:10px;}
+.city-stat-head{font-size:11px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.cs-row{display:flex;justify-content:space-between;padding:3px 0;font-size:10px;}
+.cs-label{color:var(--text-3);}.cs-val{color:var(--text-1);font-weight:600;}
+
+/* === TAB 2: ANALYTICS === */
+.tab-analytics{display:flex;height:100%;display:none;position:relative;}
+.an-table-wrap{overflow:auto;scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;flex:1;}
+table.at{font-size:12px;}
+table.at th{padding:7px 8px;font-size:9px;}
+table.at td{padding:5px 8px;font-size:12px;}
+table.at{width:100%;border-collapse:collapse;font-size:11px;}
+table.at thead{position:sticky;top:0;z-index:5;}
+table.at th{padding:6px 7px;font-weight:600;color:var(--text-2);text-align:center;font-size:8.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--card-inner-border);white-space:nowrap;cursor:pointer;transition:background .15s;user-select:none;}
+table.at th:hover{background:rgba(59,130,246,0.1);}
+.th-g1{background:var(--table-head);}.th-g2{background:rgba(167,139,250,0.06);}.th-g3{background:rgba(34,197,94,0.06);}.th-g4{background:rgba(249,115,22,0.06);}
+.th-sub{background:var(--table-head2);font-size:7.5px;}
+table.at td{padding:4px 7px;text-align:center;border-bottom:1px solid var(--divider);color:var(--text-2);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:11px;}
+table.at tr:hover{background:var(--hover-bg);}
+.v-g{color:#22c55e;font-weight:700;}.v-o{color:#F97316;font-weight:700;}.v-r{color:#EF4444;font-weight:600;}
+.td-plate{color:var(--pill-a-text);font-weight:700;}
+
+/* TREE */
+.tree-cell{display:flex;align-items:center;text-align:left;padding-left:8px;}
+.tree-indent{display:inline-flex;align-items:stretch;flex-shrink:0;}
+.tree-pipe{width:18px;position:relative;}
+.tree-pipe.line::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1.5px;background:var(--tree-line);}
+.tree-pipe.branch::before{content:'';position:absolute;left:8px;top:0;bottom:50%;width:1.5px;background:var(--tree-line);}
+.tree-pipe.branch::after{content:'';position:absolute;left:8px;top:50%;width:9px;height:1.5px;background:var(--tree-line);}
+.tree-pipe.last::before{content:'';position:absolute;left:8px;top:0;height:50%;width:1.5px;background:var(--tree-line);}
+.tree-pipe.last::after{content:'';position:absolute;left:8px;top:50%;width:9px;height:1.5px;background:var(--tree-line);}
+.tree-expand{width:18px;height:18px;border-radius:5px;background:var(--expand-icon);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-right:5px;transition:all .15s;font-size:9px;color:var(--text-3);}
+.tree-expand:hover{background:var(--sel-bg);color:var(--pill-a-text);}
+.tree-expand.open{transform:rotate(90deg);}
+.tree-label{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lv0{}.lv0 td:first-child .tree-label{color:var(--text-1);font-size:11px;}
+.lv1{background:var(--lv1-bg);}.lv1 td:first-child .tree-label{color:var(--pill-a-text);font-size:10.5px;}
+.lv2{background:var(--lv2-bg);}.lv2 td:first-child .tree-label{color:#A78BFA;font-size:10px;}
+.lv-badge{display:inline-flex;align-items:center;gap:2px;font-size:8px;padding:2px 6px;border-radius:6px;margin-left:5px;font-weight:500;}
+.lv-badge.orders{background:rgba(59,130,246,0.08);color:#60A5FA;border:1px solid rgba(59,130,246,0.12);}
+.lv-badge.days{background:rgba(167,139,250,0.08);color:#A78BFA;border:1px solid rgba(167,139,250,0.12);}
+.lv-badge.shifts{background:rgba(34,197,94,0.08);color:#22c55e;border:1px solid rgba(34,197,94,0.12);}
+
+/* Sub-table row (trip details) */
+.sub-row td{padding:0 !important;border:none !important;}
+.sub-table-wrap{padding:4px 8px 8px 44px;}
+.sub-t{width:100%;border-collapse:collapse;border:1px solid var(--sub-border);border-radius:8px;overflow:hidden;font-size:10px;}
+.sub-t thead th{background:var(--sub-hdr);color:var(--text-2);font-size:8px;font-weight:600;padding:5px 6px;text-align:center;white-space:nowrap;text-transform:uppercase;letter-spacing:.3px;}
+/* Block dividers between groups */
+.sub-t thead th.blk-start{border-left:2px solid var(--sub-divider);}
+/* Arrow between въезд→выезд */
+.sub-t thead th.arr::after{content:'→';margin-left:2px;color:var(--text-4);}
+/* Dashed border before стоянка */
+.sub-t thead th.dash-l{border-left:1px dashed var(--sub-dash);}
+.sub-t td{padding:4px 6px;text-align:center;color:var(--text-2);border-bottom:1px solid var(--gantt-line);font-variant-numeric:tabular-nums;}
+.sub-t td.blk-start{border-left:2px solid var(--sub-divider);}
+.sub-t td.dash-l{border-left:1px dashed var(--sub-dash);}
+.sub-t tr:last-child td{border-bottom:none;}
+.sub-t .trip-n{font-weight:700;color:var(--text-1);}
+
+.an-right{position:absolute;top:0;right:0;bottom:0;width:340px;background:var(--card);backdrop-filter:blur(20px);border-left:1px solid var(--card-border);overflow-y:auto;padding:14px 16px;z-index:10;transform:translateX(100%);transition:transform .3s ease;box-shadow:-8px 0 30px rgba(0,0,0,.2);}
+.an-right.open{transform:translateX(0);}
+.an-right-close{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:7px;background:var(--ghost-bg);border:1px solid var(--ghost-border);cursor:pointer;color:var(--text-3);display:flex;align-items:center;justify-content:center;font-size:14px;z-index:2;transition:all .15s;}
+.an-right-close:hover{background:var(--sel-bg);color:var(--pill-a-text);}
+.report-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:12px;}
+.report-placeholder-emoji{font-size:48px;}
+.report-placeholder-text{font-size:14px;font-weight:600;color:var(--text-2);}
+.report-placeholder-sub{font-size:11px;color:var(--text-4);max-width:220px;}
+.btn-report{padding:5px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;margin-left:auto;box-shadow:0 2px 8px rgba(34,197,94,.2);transition:all .15s;}
+.btn-report:hover{box-shadow:0 4px 14px rgba(34,197,94,.3);transform:translateY(-1px);}
+
+/* Weekly sidebar */
+.week-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--divider);}
+.week-nav-btn{width:28px;height:28px;border-radius:8px;background:var(--ghost-bg);border:1px solid var(--ghost-border);cursor:pointer;color:var(--text-3);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;}
+.week-nav-btn:hover{background:var(--sel-bg);color:var(--pill-a-text);}
+.week-title{font-size:13px;font-weight:700;color:var(--text-1);}
+.week-sub{font-size:9px;color:var(--text-3);text-align:center;margin-top:1px;}
+.obj-section{padding:12px 14px;border-bottom:1px solid var(--divider);}
+.obj-header{display:flex;align-items:center;gap:6px;margin-bottom:10px;cursor:pointer;}
+.obj-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.obj-name{font-size:14px;font-weight:700;flex:1;}
+.obj-toggle{color:var(--text-4);font-size:12px;transition:transform .2s;}
+.obj-section.collapsed .obj-toggle{transform:rotate(-90deg);}
+.obj-section.collapsed .obj-body{display:none;}
+
+/* KPI mini cards */
+.kpi-mini-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.kpi-mini{background:var(--stat-bg);border-radius:8px;padding:6px 8px;border:1px solid var(--card-inner-border);}
+.kpi-mini-top{display:flex;justify-content:space-between;align-items:center;}
+.kpi-mini-label{font-size:7px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);}
+.kpi-mini-val{font-size:16px;font-weight:800;line-height:1;margin-top:2px;}
+.kpi-mini-delta{font-size:9px;font-weight:600;margin-left:4px;}
+.kpi-mini-delta.up{color:#22c55e;}.kpi-mini-delta.down{color:#EF4444;}
+.kpi-mini.dual{display:flex;gap:8px;align-items:center;}
+.kpi-half{flex:1;text-align:center;}
+.kpi-half-divider{width:1px;height:28px;background:var(--divider);}
+
+/* Repair cards */
+.repair-header{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.repair-title{font-size:10px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;}
+.repair-count{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(239,68,68,0.1);color:#EF4444;border:1px solid rgba(239,68,68,0.15);}
+.repair-card{display:flex;align-items:stretch;border-radius:8px;overflow:hidden;margin-bottom:5px;background:var(--card-inner);border:1px solid var(--card-inner-border);transition:all .15s;}
+.repair-card:hover{border-color:rgba(255,255,255,0.1);}
+.repair-stripe{width:3px;flex-shrink:0;}
+.repair-stripe.red{background:linear-gradient(180deg,#EF4444,#DC2626);}
+.repair-stripe.orange{background:linear-gradient(180deg,#F97316,#EA580C);}
+.repair-body{padding:5px 8px;flex:1;display:flex;align-items:center;gap:6px;min-width:0;}
+.repair-icon{color:var(--text-4);flex-shrink:0;}
+.repair-info{flex:1;min-width:0;}
+.repair-name{font-size:9px;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.repair-reason{font-size:8px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.repair-dates{font-size:8px;color:var(--text-4);flex-shrink:0;text-align:right;}
+.repair-date-from{font-weight:600;}.repair-date-to{color:#22c55e;font-weight:600;}
+
+/* Donut mini row */
+.donut-mini-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.donut-mini-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.donut-mini-label{font-size:7px;font-weight:600;color:var(--text-4);text-transform:uppercase;}
+.donut-mini-svg{width:70px;height:70px;}
+
+/* Horizontal bars */
+.hbar-section{margin-bottom:8px;}
+.hbar-item{margin-bottom:6px;}
+.hbar-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}
+.hbar-label{font-size:8px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.3px;}
+.hbar-val{font-size:10px;font-weight:700;color:var(--text-1);}
+.hbar-track{height:6px;border-radius:3px;background:rgba(255,255,255,0.05);overflow:hidden;}
+.hbar-fill{height:100%;border-radius:3px;transition:width .4s ease;}
+
+/* Per-vehicle expandable */
+.veh-expand-btn{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:var(--ghost-bg);border:1px solid var(--ghost-border);cursor:pointer;font-size:8px;color:var(--text-3);font-family:inherit;font-weight:600;transition:all .15s;margin-bottom:6px;}
+.veh-expand-btn:hover{background:var(--sel-bg);color:var(--pill-a-text);}
+.veh-expand-btn .arrow{transition:transform .2s;font-size:7px;}
+.veh-expand-btn.open .arrow{transform:rotate(90deg);}
+.veh-list{max-height:0;overflow:hidden;transition:max-height .3s ease;}
+.veh-list.open{max-height:500px;}
+.veh-bar-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.veh-bar-name{font-size:8px;font-weight:600;color:var(--text-2);width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;}
+.veh-bar-track{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,0.04);overflow:hidden;}
+.veh-bar-fill{height:100%;border-radius:3px;background:#3B82F6;}
+.veh-bar-pct{font-size:8px;font-weight:700;color:var(--text-2);width:30px;text-align:right;flex-shrink:0;}
+.donut-mini-legend{display:flex;gap:6px;justify-content:center;margin-bottom:6px;}.donut-mini-legend .leg-i{font-size:7px;}
+</style>
+</head>
+<body>
+<div class="amb amb-o"></div><div class="amb amb-b"></div>
+<nav>
+  <div class="nav-items">
+    <button class="nav-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Домашняя</button>
+    <button class="nav-btn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Самосвалы</button>
+    <button class="nav-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 17H3a1 1 0 01-1-1v-4l3-6h8l3 6v4a1 1 0 01-1 1h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="14.5" cy="17.5" r="2.5"/></svg>Тягачи</button>
+    <button class="nav-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>ДСТ</button>
+  </div>
+  <div class="nav-r">
+    <button class="t-toggle" onclick="ttog()"><svg id="t-sun" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="t-moon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg><span id="t-lbl">Light</span></button>
+    <div class="logo"><span class="logo-n">НПС</span><span class="logo-d">/</span><span class="logo-m">МОСТОСТРОЙ-11</span></div>
+  </div>
+</nav>
+<div class="sub-header" id="sub-header">
+  <div class="view-tabs"><button class="view-tab active" onclick="switchTab('orders',this)">📋 Заявки</button><button class="view-tab" onclick="switchTab('analytics',this)">📊 Аналитика</button></div>
+  <div class="analytics-filters" id="an-filters">
+    <div class="filter-sep"></div>
+    <div class="fg"><div class="fg-label">Период</div><div class="fg-row"><button class="fb-pill a" onclick="sfp(this)">Неделя</button><button class="fb-pill" onclick="sfp(this)">Месяц</button></div></div>
+    <div class="filter-sep"></div>
+    <div class="fg"><div class="fg-label">Даты</div><div class="fg-row"><input type="text" class="fb-date" value="12.02.2026"><span style="font-size:9px;color:var(--text-4)">—</span><input type="text" class="fb-date" value="19.02.2026"></div></div>
+    <div class="filter-sep"></div>
+    <div class="fg"><div class="fg-label">Смена</div><div class="fg-row"><button class="fb-pill a" onclick="sfp(this)">Все</button><button class="fb-pill" onclick="sfp(this)">1-я</button><button class="fb-pill" onclick="sfp(this)">2-я</button></div></div>
+    <div class="filter-sep"></div>
+    <div class="fg"><div class="fg-label">Объект</div><select class="fb-select"><option>Все</option></select></div>
+    <button class="btn-report" onclick="toggleReport()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Формирование отчёта</button>
+  </div>
+</div>
+<div class="main-wrap">
+<!-- TAB 1: ORDERS -->
+<div class="tab-orders" id="tab-orders">
+<div class="orders-scroll" id="orders-scroll"></div>
+<div class="stats-panel" id="weekly-panel">
+  <!-- Week navigation -->
+  <div class="week-nav">
+    <button class="week-nav-btn" onclick="chgWeek(-1)">‹</button>
+    <div style="text-align:center"><div class="week-title" id="wk-title">17.02 — 23.02</div><div class="week-sub" id="wk-sub">пн — вс · текущая</div></div>
+    <button class="week-nav-btn" onclick="chgWeek(1)">›</button>
+  </div>
+  <!-- Content rendered by JS -->
+  <div id="weekly-body" style="overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;"></div>
+</div>
+</div>
+<!-- TAB 2: ANALYTICS -->
+<div class="tab-analytics" id="tab-analytics">
+<div class="an-table-wrap" id="an-table-wrap"></div>
+<div class="an-right" id="an-right-panel">
+  <button class="an-right-close" onclick="toggleReport()">✕</button>
+  <div class="report-placeholder">
+    <div class="report-placeholder-emoji">🤌</div>
+    <div class="report-placeholder-text">Тут будут формироваться Excel-отчёты</div>
+    <div class="report-placeholder-sub">Выберите параметры отчёта, период и нажмите «Сформировать» — файл скачается автоматически</div>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+// === ORDERS ===
+const orders=[
+  {city:"Тобольск",status:"active",id:"#122699",route:"База МО36 → Р-404 Тобольск",dateFrom:"16.02",dateTo:"19.02",dist:"233 км",time:"2ч53м",ts:"1/1",pl:1,cargo:"арм. каркасы",wt:20,vol:69.12,totalWt:140,totalVol:483.8,obj:"Мост р. Иртыш, Р-404",pct:65,trucks:[{name:"КамАЗ 6520 А123ВС72",trips:5},{name:"КамАЗ 65115 В456ЕН72",trips:4}],gantt:[[3,0,2,0,0,0,0,0],[0,0,3,0,1,0,0,0]]},
+  {city:"Тобольск",status:"active",id:"#122715",route:"База МО36 → Тобольск Вост.",dateFrom:"14.02",dateTo:"19.02",dist:"245 км",time:"3ч10м",ts:"1/1",pl:1,cargo:"щебень 20-40",wt:25,vol:82.5,totalWt:200,totalVol:660,obj:"Вост. пром. район",pct:40,trucks:[{name:"Volvo FMX Е789КМ72",trips:3},{name:"Shacman М345РС72",trips:2}],gantt:[[1,0,0,2,3,0,0,0,0,0,0,0],[0,0,2,0,1,0,0,0,0,0,0,0]]},
+  {city:"Тобольск",status:"done",id:"#122650",route:"База МО36 → мост р. Иртыш",dateFrom:"01.02",dateTo:"12.02",dist:"233 км",time:"2ч53м",ts:"1/1",pl:1,cargo:"арм. каркасы",wt:20,vol:69.12,totalWt:100,totalVol:345.6,obj:"Мост р. Иртыш",pct:100,trucks:[{name:"КамАЗ 6520 А123ВС72",trips:22}],gantt:[[4,2,3,1,4,3,2,0,3,2,3,0,4,2,3,1,4,3,2,0,3,2,0,0]]},
+  {city:"Тюмень",status:"active",id:"#122710",route:"Тюмень бет. завод → Мельникайте",dateFrom:"01.02",dateTo:"28.02",dist:"18.5 км",time:"35м",ts:"2/2",pl:2,cargo:"бетон М350",wt:16,vol:7,totalWt:448,totalVol:196,obj:"ЖК Новый квартал",pct:55,trucks:[{name:"КамАЗ 65222 О678ТУ72",trips:32},{name:"КамАЗ 6520 К012НО72",trips:28},{name:"КамАЗ 6520 С234ЧШ72",trips:30}],gantt:[[5,3,4,2,5,3,0,0,4,2,3,0,4,3,2,0,5,3,4,2,3,0,0,0,5,3,4,2,5,3,0,0,4,2,3,0,4,3,2,0,5,3,4,2,3,0,0,0,5,3,4,2,5,3,0,0],[3,2,4,0,3,2,0,0,2,0,4,0,3,2,0,0,3,2,4,0,3,2,0,0,2,0,4,0,3,2,0,0,3,2,4,0,3,2,0,0,2,0,4,0,3,2,0,0,3,2,0,0,0,0,0,0],[4,0,3,2,4,0,0,0,3,2,3,0,4,0,0,0,4,0,3,2,4,0,0,0,3,2,3,0,4,0,0,0,4,0,3,2,4,0,0,0,3,2,3,0,4,0,0,0,4,0,3,2,0,0,0,0]]},
+  {city:"Тюмень",status:"done",id:"#122680",route:"Тюмень → Богандинский",dateFrom:"03.02",dateTo:"10.02",dist:"35 км",time:"45м",ts:"1/1",pl:1,cargo:"грунт",wt:18,vol:12,totalWt:144,totalVol:96,obj:"А/д Тюмень — Богандинский",pct:100,trucks:[{name:"Volvo FMX Е789КМ72",trips:8}],gantt:[[3,2,4,3,2,4,3,0,0,0,0,0,0,0,0,0]]},
+];
+function bDates(o){const ml=Math.max(...o.gantt.map(g=>g.length));const days=Math.ceil(ml/2);const d=[];const p=o.dateFrom.split('.');let dy=parseInt(p[0]),mn=parseInt(p[1]);for(let i=0;i<days;i++){const dd=dy+i;d.push(String(dd).padStart(2,'0')+'.'+String(mn).padStart(2,'0'));}return d;}
+let expOrd=null;
+function renderOrders(){
+  const el=document.getElementById('orders-scroll');const cities=[...new Set(orders.map(o=>o.city))];let h='';
+  cities.forEach(c=>{
+    const co=orders.filter(o=>o.city===c);const act=co.filter(o=>o.status==='active'),don=co.filter(o=>o.status==='done');
+    h+=`<div class="city-group"><div class="city-header"><span class="city-name">${c}</span><span class="city-badge">${co.length}</span></div>`;
+    if(act.length){h+=`<div class="status-label"><div class="status-dot" style="background:#F97316"></div>Активные (${act.length})</div>`;act.forEach(o=>h+=card(o));}
+    if(don.length){h+=`<div class="status-label"><div class="status-dot" style="background:#22c55e"></div>Выполненные (${don.length})</div>`;don.forEach(o=>h+=card(o));}
+    h+=`</div>`;
+  });el.innerHTML=h;
+}
+function card(o){
+  const dn=o.status==='done',ex=expOrd===o.id,pc=dn?'#22c55e':'#3B82F6';const dates=bDates(o);
+  return`<div class="order-card ${dn?'done':''} ${ex?'expanded':''} ${dn?'order-done':'order-active'}" onclick="togOrd('${o.id}')">
+  <div class="order-content">
+    <div class="order-label-area"><div class="order-num"><span>Заявка ${o.id}</span></div><div class="order-route-mini" title="${o.route}">${o.route}</div></div>
+    <div class="order-data-area">
+      <div class="order-progress-fill" style="width:${o.pct}%"></div>
+      <div class="order-badges">${!dn?`<span class="badge-sm badge-pct">${o.pct}%</span>`:''}<span class="badge-sm ${dn?'badge-done':'badge-active'}">${dn?'✓ готово':'● работа'}</span></div>
+      <div class="order-data-inner">
+        <div class="order-meta">
+          <div class="om-item"><div class="om-label">Даты</div><div class="om-val">${o.dateFrom}—${o.dateTo}</div></div>
+          <div class="om-item"><div class="om-label">Расст.</div><div class="om-val">${o.dist}</div></div>
+          <div class="om-item"><div class="om-label">Время</div><div class="om-val">${o.time}</div></div>
+          <div class="om-item"><div class="om-label">ТС</div><div class="om-val">${o.ts}</div></div>
+          <div class="om-item"><div class="om-label">ПЛ</div><div class="om-val">${o.pl}</div></div>
+          <div class="om-item"><div class="om-label">Груз</div><div class="om-val">${o.cargo}</div></div>
+          <div class="om-item"><div class="om-label">Всего тонн</div><div class="om-val" style="color:#F97316;font-weight:700">${o.totalWt} т</div></div>
+          <div class="om-item"><div class="om-label">Всего м³</div><div class="om-val" style="color:#A78BFA;font-weight:700">${o.totalVol} м³</div></div>
+        </div>
+        <div class="order-foot"><div class="order-obj"><b>Объект</b>${o.obj}</div><div style="display:flex;gap:10px"><div class="ow-item"><span class="ow-val" style="color:${pc}">${o.wt}</span><span class="ow-unit">т/рейс</span></div><div class="ow-item"><span class="ow-val" style="color:${pc}">${o.vol}</span><span class="ow-unit">м³/рейс</span></div></div></div>
+        <div class="progress-bar-mini"><div class="progress-bar-mini-fill" style="width:${o.pct}%;background:${pc}"></div></div>
+      </div>
+    </div>
+  </div>
+  <svg class="expand-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+  <div class="gantt-wrap ${ex?'open':''}"><div class="gantt"><table><thead>
+    <tr><th></th>${dates.map(d=>`<th class="gantt-date-h" colspan="2">${d}</th>`).join('')}</tr>
+    <tr><th style="width:150px;min-width:150px">Самосвал</th>${dates.map(()=>`<th>1</th><th>2</th>`).join('')}</tr>
+  </thead><tbody>
+    ${o.trucks.map((t,ti)=>{const g=o.gantt[ti];return`<tr><td>${t.name}<span class="truck-trips">[${t.trips}]</span></td>${Array.from({length:dates.length*2},(_,i)=>{const v=g[i]||0;return`<td><div class="gc ${v?'f':''}">${v||''}</div></td>`;}).join('')}</tr>`;}).join('')}
+  </tbody></table></div></div></div>`;
+}
+function togOrd(id){expOrd=expOrd===id?null:id;renderOrders();}
+
+// === ANALYTICS ===
+const vehicles=[
+  {plate:"А123ВС72",model:"КамАЗ 6520",orders:[
+    {id:"#140021",obj:"Вост. объезд",vol:1200,trips:8,volF:320,kip1:84,mov1:62,kip2:0,mov2:0,days:[
+      {date:"16.02",trips:5,kip1:88,mov1:65,kip2:0,mov2:0,st:"08:03",en:"18:03",shifts:[
+        {s:1,recs:[{n:1,pIn:"08:03",pOut:"08:34",pSt:"00:31",uIn:"09:06",uOut:"09:19",uSt:"00:13"},{n:2,pIn:"09:47",pOut:"10:08",pSt:"00:21",uIn:"10:38",uOut:"10:52",uSt:"00:14"},{n:3,pIn:"11:23",pOut:"11:41",pSt:"00:18",uIn:"13:10",uOut:"13:46",uSt:"00:36"}]},
+        {s:2,recs:[]}
+      ]},
+      {date:"17.02",trips:3,kip1:80,mov1:58,kip2:0,mov2:0,st:"08:10",en:"17:45",shifts:[
+        {s:1,recs:[{n:1,pIn:"08:10",pOut:"08:40",pSt:"00:30",uIn:"09:15",uOut:"09:28",uSt:"00:13"},{n:2,pIn:"10:00",pOut:"10:22",pSt:"00:22",uIn:"11:00",uOut:"11:14",uSt:"00:14"},{n:3,pIn:"12:05",pOut:"12:28",pSt:"00:23",uIn:"13:05",uOut:"13:18",uSt:"00:13"}]}
+      ]}
+    ]},
+    {id:"#140055",obj:"Зап. объезд",vol:400,trips:4,volF:160,kip1:75,mov1:50,kip2:40,mov2:25,days:[
+      {date:"18.02",trips:4,kip1:78,mov1:52,kip2:40,mov2:25,st:"07:50",en:"05:00",shifts:[
+        {s:1,recs:[{n:1,pIn:"07:50",pOut:"08:15",pSt:"00:25",uIn:"08:50",uOut:"09:05",uSt:"00:15"},{n:2,pIn:"09:30",pOut:"09:55",pSt:"00:25",uIn:"10:30",uOut:"10:42",uSt:"00:12"}]},
+        {s:2,recs:[{n:1,pIn:"19:30",pOut:"19:55",pSt:"00:25",uIn:"20:30",uOut:"20:45",uSt:"00:15"},{n:2,pIn:"21:10",pOut:"21:35",pSt:"00:25",uIn:"22:10",uOut:"22:22",uSt:"00:12"}]}
+      ]}
+    ]}
+  ]},
+  {plate:"В456ЕН72",model:"КамАЗ 65115",orders:[
+    {id:"#140022",obj:"Вост. объезд",vol:800,trips:12,volF:480,kip1:97,mov1:71,kip2:45,mov2:30,days:[
+      {date:"16.02",trips:8,kip1:97,mov1:71,kip2:45,mov2:30,st:"08:00",en:"04:00",shifts:[
+        {s:1,recs:[{n:1,pIn:"08:00",pOut:"08:25",pSt:"00:25",uIn:"09:00",uOut:"09:12",uSt:"00:12"},{n:2,pIn:"09:40",pOut:"10:05",pSt:"00:25",uIn:"10:40",uOut:"10:52",uSt:"00:12"},{n:3,pIn:"11:15",pOut:"11:38",pSt:"00:23",uIn:"12:15",uOut:"12:28",uSt:"00:13"},{n:4,pIn:"13:00",pOut:"13:22",pSt:"00:22",uIn:"14:00",uOut:"14:10",uSt:"00:10"},{n:5,pIn:"14:35",pOut:"14:58",pSt:"00:23",uIn:"15:35",uOut:"15:48",uSt:"00:13"}]},
+        {s:2,recs:[{n:1,pIn:"19:30",pOut:"19:52",pSt:"00:22",uIn:"20:28",uOut:"20:40",uSt:"00:12"},{n:2,pIn:"21:05",pOut:"21:28",pSt:"00:23",uIn:"22:05",uOut:"22:18",uSt:"00:13"},{n:3,pIn:"22:45",pOut:"23:08",pSt:"00:23",uIn:"23:45",uOut:"23:58",uSt:"00:13"}]}
+      ]}
+    ]}
+  ]},
+  {plate:"Е789КМ72",model:"Volvo FMX",orders:[
+    {id:"#140023",obj:"Путепр. км 8",vol:600,trips:5,volF:200,kip1:65,mov1:48,kip2:0,mov2:0,days:[
+      {date:"16.02",trips:5,kip1:65,mov1:48,kip2:0,mov2:0,st:"08:15",en:"17:00",shifts:[
+        {s:1,recs:[{n:1,pIn:"08:15",pOut:"08:38",pSt:"00:23",uIn:"09:15",uOut:"09:28",uSt:"00:13"},{n:2,pIn:"09:55",pOut:"10:18",pSt:"00:23",uIn:"10:55",uOut:"11:08",uSt:"00:13"},{n:3,pIn:"11:35",pOut:"11:58",pSt:"00:23",uIn:"12:35",uOut:"12:48",uSt:"00:13"},{n:4,pIn:"13:15",pOut:"13:38",pSt:"00:23",uIn:"14:15",uOut:"14:28",uSt:"00:13"},{n:5,pIn:"14:55",pOut:"15:18",pSt:"00:23",uIn:"15:55",uOut:"16:08",uSt:"00:13"}]}
+      ]}
+    ]}
+  ]},
+];
+
+let exp={};
+function vc(v){return v>=75?'v-g':v>=50?'v-o':'v-r';}
+
+function renderAnalytics(){
+  const w=document.getElementById('an-table-wrap');
+  let h=`<table class="at"><thead><tr>
+    <th class="th-g1" rowspan="2" style="min-width:220px;text-align:left;padding-left:10px">ТС / Заявка / День</th>
+    <th class="th-g1" rowspan="2">Гос.№</th>
+    <th class="th-g2" colspan="2" onclick="expAll(1)" title="Раскрыть заявки">Заявки ↕</th>
+    <th class="th-g3" rowspan="2">Рейсы</th><th class="th-g3" rowspan="2">Объём</th><th class="th-g3" rowspan="2">Ост.</th>
+    <th class="th-g4" colspan="2" onclick="expAll(2)" title="Раскрыть дни">1 смена ↕</th><th class="th-g4" colspan="2" onclick="expAll(2)" title="Раскрыть дни">2 смена ↕</th>
+  </tr><tr>
+    <th class="th-sub">№ заявки</th><th class="th-sub">Объект</th>
+    <th class="th-sub">КИП</th><th class="th-sub">Движ.</th><th class="th-sub">КИП</th><th class="th-sub">Движ.</th>
+  </tr></thead><tbody>`;
+
+  vehicles.forEach((v,vi)=>{
+    const k0=`v${vi}`;const o0=exp[k0];
+    const tt=v.orders.reduce((s,o)=>s+o.trips,0);
+    const tv=v.orders.reduce((s,o)=>s+o.volF,0);
+    const tp=v.orders.reduce((s,o)=>s+o.vol,0);
+    const ak1=Math.round(v.orders.reduce((s,o)=>s+o.kip1,0)/v.orders.length);
+    const am1=Math.round(v.orders.reduce((s,o)=>s+o.mov1,0)/v.orders.length);
+    const k2o=v.orders.filter(o=>o.kip2>0);
+    const ak2=k2o.length?Math.round(k2o.reduce((s,o)=>s+o.kip2,0)/k2o.length):0;
+    const am2=k2o.length?Math.round(k2o.reduce((s,o)=>s+o.mov2,0)/k2o.length):0;
+    const oList=v.orders.map(o=>o.id).join(', ');
+    const hm=v.orders.length>1;
+
+    h+=`<tr class="lv0" onclick="tog('${k0}')"><td><div class="tree-cell">
+      <div class="tree-expand ${o0?'open':''}">▶</div>
+      <span class="tree-label">${v.model}</span>${hm?`<span class="lv-badge orders">${v.orders.length} заяв.</span>`:''}
+    </div></td>
+    <td class="td-plate">${v.plate}</td>
+    <td style="font-size:10px;text-align:left">${oList}</td><td style="font-size:9px;text-align:left;max-width:100px;overflow:hidden;text-overflow:ellipsis">${v.orders.map(o=>o.obj).join('; ')}</td>
+    <td style="font-weight:700">${tt}</td><td>${tv}</td><td>${tp-tv}</td>
+    <td class="${vc(ak1)}">${ak1}</td><td class="${vc(am1)}">${am1}</td>
+    <td class="${vc(ak2)}">${ak2||'—'}</td><td class="${vc(am2)}">${am2||'—'}</td></tr>`;
+
+    if(o0) v.orders.forEach((o,oi)=>{
+      const k1=`${k0}_o${oi}`;const o1=exp[k1];const il0=oi===v.orders.length-1;
+      const td=o.days.length;
+      h+=`<tr class="lv1" onclick="event.stopPropagation();tog('${k1}')"><td><div class="tree-cell">
+        <div class="tree-indent"><div class="tree-pipe ${il0?'last':'branch'}"></div></div>
+        <div class="tree-expand ${o1?'open':''}">▶</div>
+        <span class="tree-label">${o.id} · ${o.obj}</span>${td>1?`<span class="lv-badge days">${td} дн.</span>`:''}
+      </div></td>
+      <td></td><td>${o.id}</td><td style="font-size:9px">${o.obj}</td>
+      <td style="font-weight:700">${o.trips}</td><td>${o.volF}</td><td>${o.vol-o.volF}</td>
+      <td class="${vc(o.kip1)}">${o.kip1}</td><td class="${vc(o.mov1)}">${o.mov1}</td>
+      <td class="${vc(o.kip2)}">${o.kip2||'—'}</td><td class="${vc(o.mov2)}">${o.mov2||'—'}</td></tr>`;
+
+      if(o1) o.days.forEach((d,di)=>{
+        const k2=`${k1}_d${di}`;const o2=exp[k2];const il1=di===o.days.length-1;
+        const hs=d.shifts&&d.shifts.length>1;
+        h+=`<tr class="lv2" onclick="event.stopPropagation();tog('${k2}')"><td><div class="tree-cell">
+          <div class="tree-indent"><div class="tree-pipe ${il0?'':'line'}"></div><div class="tree-pipe ${il1?'last':'branch'}"></div></div>
+          <div class="tree-expand ${o2?'open':''}">▶</div>
+          <span class="tree-label">${d.date}</span>${hs?`<span class="lv-badge shifts">2 см.</span>`:''}
+        </div></td>
+        <td></td><td></td><td></td>
+        <td style="font-weight:600">${d.trips}</td><td>—</td><td>—</td>
+        <td class="${vc(d.kip1)}">${d.kip1}</td><td class="${vc(d.mov1)}">${d.mov1}</td>
+        <td class="${vc(d.kip2||0)}">${d.kip2||'—'}</td><td class="${vc(d.mov2||0)}">${d.mov2||'—'}</td></tr>`;
+
+        if(o2 && d.shifts){
+          d.shifts.forEach(sh=>{
+            if(!sh.recs||!sh.recs.length)return;
+            // Sub-table header row
+            h+=`<tr class="sub-row"><td colspan="11"><div class="sub-table-wrap">
+              <div style="font-size:10px;font-weight:700;color:var(--text-2);margin-bottom:4px">Смена ${sh.s} · ${d.date} · ${sh.recs.length} рейсов</div>
+              <table class="sub-t"><thead><tr>
+                <th>Рейс</th>
+                <th class="blk-start">Кол-во</th>
+                <th class="blk-start">Нач. смены</th>
+                <th class="blk-start">Въезд</th><th class="arr">Выезд</th><th class="dash-l">Стоянка</th>
+                <th class="blk-start">Въезд</th><th class="arr">Выезд</th><th class="dash-l">Стоянка</th>
+                <th class="blk-start">Кон. смены</th>
+                <th class="blk-start">Ср.ст П</th><th>Ср.ст В</th><th>Ср.путь П→В</th><th>Ср.путь В→П</th>
+                <th class="blk-start">Комм.</th>
+              </tr><tr>
+                <th></th><th class="blk-start">рейс</th><th class="blk-start"></th>
+                <th class="blk-start" colspan="3" style="font-size:7px;color:var(--text-4)">ПОГРУЗКА</th>
+                <th class="blk-start" colspan="3" style="font-size:7px;color:var(--text-4)">ВЫГРУЗКА</th>
+                <th class="blk-start"></th><th class="blk-start" colspan="4"></th><th class="blk-start"></th>
+              </tr></thead><tbody>`;
+            sh.recs.forEach((r,ri)=>{
+              const isFirst=ri===0;
+              const isCenter=ri===Math.floor(sh.recs.length/2);
+              h+=`<tr>
+                <td class="trip-n">${r.n}</td>
+                <td class="blk-start">1</td>
+                <td class="blk-start">${isFirst?(d.st||'—'):''}</td>
+                <td class="blk-start">${r.pIn}</td><td>${r.pOut}</td><td class="dash-l">${r.pSt}</td>
+                <td class="blk-start">${r.uIn}</td><td>${r.uOut}</td><td class="dash-l">${r.uSt}</td>
+                <td class="blk-start">${ri===sh.recs.length-1?(d.en||'—'):''}</td>
+                <td class="blk-start">${isCenter?'00:24':''}</td><td>${isCenter?'00:13':''}</td><td>${isCenter?'00:47':''}</td><td>${isCenter?'00:29':''}</td>
+                <td class="blk-start">${!r.uIn||r.uIn==='—'?'Нет погрузки':''}</td>
+              </tr>`;
+            });
+            h+=`</tbody></table></div></td></tr>`;
+          });
+        }
+      });
+    });
+  });
+  h+=`</tbody></table>`;w.innerHTML=h;
+}
+
+function tog(k){exp[k]=!exp[k];renderAnalytics();}
+function expAll(lv){
+  vehicles.forEach((v,vi)=>{
+    const k0=`v${vi}`;
+    if(lv>=1)exp[k0]=true;
+    if(lv>=2)v.orders.forEach((o,oi)=>{exp[`${k0}_o${oi}`]=true;});
+    if(lv>=3)v.orders.forEach((o,oi)=>{o.days.forEach((d,di)=>{exp[`${k0}_o${oi}_d${di}`]=true;});});
+  });
+  renderAnalytics();
+}
+
+function switchTab(t,btn){
+  document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('tab-orders').style.display=t==='orders'?'grid':'none';
+  document.getElementById('tab-analytics').style.display=t==='analytics'?'flex':'none';
+  document.getElementById('an-filters').classList.toggle('show',t==='analytics');
+  // Close report panel when switching tabs
+  document.getElementById('an-right-panel').classList.remove('open');
+}
+function toggleReport(){document.getElementById('an-right-panel').classList.toggle('open');}
+function drawD(id,kip,mov){
+  const el=document.getElementById(id);if(!el)return;
+  const r=32,cx=45,cy=45,sw=9,c=2*Math.PI*r;
+  el.innerHTML=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--donut-track)" stroke-width="${sw}"/>
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#3B82F6" stroke-width="${sw}" stroke-dasharray="${c*kip/100} ${c*(1-kip/100)}" stroke-dashoffset="${c/4}" stroke-linecap="round"/>
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="${c*mov/100} ${c*(1-mov/100)}" stroke-dashoffset="${c/4-c*kip/100}" stroke-linecap="round"/>
+  <text x="${cx}" y="${cy-3}" text-anchor="middle" fill="var(--text-1)" font-size="12" font-weight="800" font-family="DM Sans">${kip}%</text>
+  <text x="${cx}" y="${cy+9}" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700" font-family="DM Sans">${mov}%</text>`;
+}
+function sfp(b){b.parentElement.querySelectorAll('.fb-pill').forEach(x=>x.classList.remove('a'));b.classList.add('a');}
+function ttog(){const b=document.body;if(!b.hasAttribute('data-theme')){b.setAttribute('data-theme','light');document.getElementById('t-sun').style.display='none';document.getElementById('t-moon').style.display='';document.getElementById('t-lbl').textContent='Dark';}else{b.removeAttribute('data-theme');document.getElementById('t-sun').style.display='';document.getElementById('t-moon').style.display='none';document.getElementById('t-lbl').textContent='Light';}}
+// === WEEKLY SIDEBAR ===
+const weeklyData=[
+  {obj:"Тобольск",color:"#F97316",activeOrders:3,activeD:1,doneOrders:2,doneD:0,trips:28,tripsPlan:42,volT:560,trucks:4,trucksD:0,
+   repairs:[{name:"КамАЗ 65222 О678ТУ72",reason:"ремонт ходовой части",type:"red",from:"14.02",to:"21.02"},{name:"Shacman М345РС72",reason:"полное ТО",type:"orange",from:"17.02",to:"19.02"}],
+   kip1:72,mov1:55,kip2:35,mov2:22,
+   vehTrips:[{name:"КамАЗ 6520 А123ВС72",done:12,plan:18},{name:"КамАЗ 65115 В456ЕН72",done:10,plan:14},{name:"Volvo FMX Е789КМ72",done:6,plan:10}]},
+  {obj:"Тюмень",color:"#3B82F6",activeOrders:2,activeD:0,doneOrders:1,doneD:1,trips:19,tripsPlan:35,volT:304,trucks:3,trucksD:-1,
+   repairs:[{name:"КамАЗ 6520 С234ЧШ72",reason:"ремонт после ДТП",type:"red",from:"12.02",to:"26.02"}],
+   kip1:58,mov1:42,kip2:28,mov2:18,
+   vehTrips:[{name:"КамАЗ 65222 О678ТУ72",done:8,plan:12},{name:"КамАЗ 6520 К012НО72",done:7,plan:12},{name:"КамАЗ 6520 С234ЧШ72",done:4,plan:11}]},
+  {obj:"Екатеринбург",color:"#A78BFA",activeOrders:1,activeD:0,doneOrders:0,doneD:0,trips:8,tripsPlan:14,volT:128,trucks:2,trucksD:0,
+   repairs:[],kip1:60,mov1:45,kip2:0,mov2:0,
+   vehTrips:[{name:"Volvo FMX Р901ХЦ72",done:5,plan:7},{name:"КамАЗ 6520 Т567УФ72",done:3,plan:7}]},
+  {obj:"Сингапай",color:"#E11D48",activeOrders:1,activeD:1,doneOrders:0,doneD:0,trips:5,tripsPlan:10,volT:80,trucks:1,trucksD:1,
+   repairs:[],kip1:45,mov1:30,kip2:0,mov2:0,
+   vehTrips:[{name:"КамАЗ 65115 Х890ЦЧ72",done:5,plan:10}]},
+];
+let curWeekOff=0;
+let vehExpanded={};
+let objCollapsed={};
+
+function chgWeek(d){curWeekOff+=d;renderWeekly();}
+function delta(v){if(!v)return'';return v>0?`<span class="kpi-mini-delta up">+${v}</span>`:`<span class="kpi-mini-delta down">${v}</span>`;}
+function drawMiniDonut(id,mov,idle){
+  const el=document.getElementById(id);if(!el)return;
+  const r=24,cx=35,cy=35,sw=7,c=2*Math.PI*r;
+  el.innerHTML=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--donut-track)" stroke-width="${sw}"/>
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="${c*mov/100} ${c*(1-mov/100)}" stroke-dashoffset="${c/4}" stroke-linecap="round"/>
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EF4444" stroke-width="${sw}" stroke-dasharray="${c*idle/100} ${c*(1-idle/100)}" stroke-dashoffset="${c/4-c*mov/100}" stroke-linecap="round"/>
+  <text x="${cx}" y="${cy+1}" text-anchor="middle" fill="var(--text-1)" font-size="10" font-weight="800" font-family="DM Sans">${mov}%</text>
+  <text x="${cx}" y="${cy+9}" text-anchor="middle" fill="var(--text-4)" font-size="6" font-weight="500" font-family="DM Sans">движ.</text>`;
+}
+
+function renderWeekly(){
+  const base=new Date(2026,1,17);// Mon Feb 17
+  const off=curWeekOff*7;
+  const mon=new Date(base.getTime()+off*86400000);
+  const sun=new Date(mon.getTime()+6*86400000);
+  const fmt=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('wk-title').textContent=`${fmt(mon)} — ${fmt(sun)}`;
+  document.getElementById('wk-sub').textContent=curWeekOff===0?'пн — вс · текущая':`пн — вс · ${curWeekOff>0?'+':''}${curWeekOff} нед.`;
+
+  const wb=document.getElementById('weekly-body');
+  let h='';
+  weeklyData.forEach((o,oi)=>{
+    const collapsed=objCollapsed[oi];
+    const tripPct=o.tripsPlan?Math.round(o.trips/o.tripsPlan*100):0;
+    const d1id=`wd1_${oi}`,d2id=`wd2_${oi}`;
+    const veKey=`ve_${oi}`;const veOpen=vehExpanded[veKey];
+
+    h+=`<div class="obj-section ${collapsed?'collapsed':''}">
+      <div class="obj-header" onclick="togObj(${oi})">
+        <div class="obj-dot" style="background:${o.color}"></div>
+        <div class="obj-name">${o.obj}</div>
+        <span class="obj-toggle">▾</span>
+      </div>
+      <div class="obj-body">
+        <!-- KPI cards -->
+        <div class="kpi-mini-row">
+          <div class="kpi-mini dual">
+            <div class="kpi-half"><div class="kpi-mini-label">Активн.</div><div class="kpi-mini-val" style="color:#F97316;font-size:14px;font-weight:800">${o.activeOrders}${delta(o.activeD)}</div></div>
+            <div class="kpi-half-divider"></div>
+            <div class="kpi-half"><div class="kpi-mini-label">Выполн.</div><div class="kpi-mini-val" style="color:#22c55e;font-size:14px;font-weight:800">${o.doneOrders}${delta(o.doneD)}</div></div>
+          </div>
+          <div class="kpi-mini"><div class="kpi-mini-label">Самосвалов</div><div class="kpi-mini-val" style="color:#3B82F6">${o.trucks}${delta(o.trucksD)}</div></div>
+        </div>
+        <div class="kpi-mini-row">
+          <div class="kpi-mini"><div class="kpi-mini-label">Рейсов</div><div class="kpi-mini-val" style="color:#22c55e">${o.trips}</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-label">Объём</div><div class="kpi-mini-val" style="color:#A78BFA">${o.volT} т</div></div>
+        </div>
+
+        <!-- Repairs -->
+        ${o.repairs.length?`<div class="repair-header"><svg class="repair-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span class="repair-title">В ремонте</span><span class="repair-count">${o.repairs.length}</span></div>
+        ${o.repairs.map(r=>`<div class="repair-card"><div class="repair-stripe ${r.type}"></div><div class="repair-body">
+          <svg class="repair-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          <div class="repair-info"><div class="repair-name">${r.name}</div><div class="repair-reason">${r.reason}</div></div>
+          <div class="repair-dates"><div class="repair-date-from">${r.from}</div><div class="repair-date-to">→ ${r.to}</div></div>
+        </div></div>`).join('')}`:''}
+
+        <!-- Donuts: движение vs стоянка -->
+        <div style="margin-top:8px">
+          <div class="donut-mini-row">
+            <div class="donut-mini-wrap"><div class="donut-mini-label">1 смена</div><svg class="donut-mini-svg" viewBox="0 0 70 70" id="${d1id}"></svg></div>
+            <div class="donut-mini-wrap"><div class="donut-mini-label">2 смена</div><svg class="donut-mini-svg" viewBox="0 0 70 70" id="${d2id}"></svg></div>
+          </div>
+          <div class="donut-mini-legend"><div class="leg-i"><div class="leg-d" style="background:#22c55e"></div>Движение</div><div class="leg-i"><div class="leg-d" style="background:#EF4444"></div>Стоянка</div></div>
+        </div>
+
+        <!-- H-bars: КИП + Рейсы/план -->
+        <div class="hbar-section">
+          <div class="hbar-item"><div class="hbar-top"><span class="hbar-label">КИП</span><span class="hbar-val">${o.kip1}%</span></div><div class="hbar-track"><div class="hbar-fill" style="width:${o.kip1}%;background:linear-gradient(90deg,#3B82F6,#60A5FA)"></div></div></div>
+          <div class="hbar-item"><div class="hbar-top"><span class="hbar-label">Рейсы / план</span><span class="hbar-val">${o.trips} / ${o.tripsPlan} <span style="color:var(--text-4)">(${tripPct}%)</span></span></div><div class="hbar-track"><div class="hbar-fill" style="width:${tripPct}%;background:linear-gradient(90deg,#22c55e,#4ade80)"></div></div></div>
+        </div>
+
+        <!-- Per-vehicle expandable -->
+        <button class="veh-expand-btn ${veOpen?'open':''}" onclick="event.stopPropagation();togVeh('${veKey}')"><span class="arrow">▶</span> По машинам (${o.vehTrips.length})</button>
+        <div class="veh-list ${veOpen?'open':''}">
+          ${o.vehTrips.map(vt=>{const p=vt.plan?Math.round(vt.done/vt.plan*100):0;return`<div class="veh-bar-item">
+            <span class="veh-bar-name">${vt.name}</span>
+            <div class="veh-bar-track"><div class="veh-bar-fill" style="width:${p}%"></div></div>
+            <span class="veh-bar-pct">${vt.done}/${vt.plan}</span>
+          </div>`;}).join('')}
+        </div>
+      </div>
+    </div>`;
+  });
+  wb.innerHTML=h;
+  // Draw donuts after render
+  weeklyData.forEach((o,oi)=>{
+    const idle1=100-o.mov1;const idle2=o.kip2?100-o.mov2:0;
+    drawMiniDonut(`wd1_${oi}`,o.mov1,idle1);
+    if(o.kip2)drawMiniDonut(`wd2_${oi}`,o.mov2,idle2);
+    else{const el=document.getElementById(`wd2_${oi}`);if(el)el.innerHTML=`<text x="35" y="38" text-anchor="middle" fill="var(--text-4)" font-size="9" font-family="DM Sans">—</text>`;}
+  });
+}
+function togObj(i){objCollapsed[i]=!objCollapsed[i];renderWeekly();}
+function togVeh(k){vehExpanded[k]=!vehExpanded[k];renderWeekly();}
+
+renderOrders();renderAnalytics();renderWeekly();
+</script>
+</body>
+</html>

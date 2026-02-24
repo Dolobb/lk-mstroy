@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geo-Admin — Управление зонами</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet.draw -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <h1>Geo-Admin</h1>
+    <div class="subtitle">Управление геозонами</div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>ОБЪЕКТЫ</h2>
+      <div class="sidebar-actions">
+        <button class="btn-primary" id="btn-new-object">+ Объект</button>
+        <button class="btn-secondary" id="btn-draw-zone">✏ Нарисовать зону</button>
+      </div>
+    </div>
+    <div id="object-list">
+      <div class="empty-state">Загрузка...</div>
+    </div>
+  </aside>
+
+  <!-- Map -->
+  <div id="map"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay hidden" id="modal">
+  <div class="modal-box" id="modal-content"></div>
+</div>
+
+<!-- Error banner -->
+<div id="error-banner" class="hidden"></div>
+
+<!-- App bundle (compiled from TypeScript) -->
+<script type="module" src="main.js"></script>
+
+</body>
+</html>
