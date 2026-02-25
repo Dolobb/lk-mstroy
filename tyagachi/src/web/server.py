@@ -1252,6 +1252,28 @@ async def get_dashboard_summary():
     return db.get_dashboard_summary()
 
 
+@app.get("/api/route-addresses")
+async def get_route_addresses():
+    """Get distinct route start/end addresses collected from synced requests."""
+    from src.web.models import TrackedRequest as TR
+    session = db.get_session()
+    try:
+        starts = session.query(TR.route_start_address).filter(
+            TR.route_start_address.isnot(None),
+            TR.route_start_address != ''
+        ).distinct().all()
+        ends = session.query(TR.route_end_address).filter(
+            TR.route_end_address.isnot(None),
+            TR.route_end_address != ''
+        ).distinct().all()
+        return {
+            "route_start": sorted({s[0] for s in starts if s[0]}),
+            "route_end": sorted({e[0] for e in ends if e[0]}),
+        }
+    finally:
+        session.close()
+
+
 @app.get("/api/request/{request_number}/report", response_class=HTMLResponse)
 async def get_request_report(request_number: int):
     """Generate V2 report for a single request from cached matched_data_json."""

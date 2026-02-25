@@ -12,6 +12,14 @@ export interface TyagachiVehicle {
   requests_in_progress: number;
 }
 
+export interface PLRecordBrief {
+  pl_id: string;
+  pl_status: string | null;
+  pl_date_out: string | null;
+  pl_date_out_plan: string | null;   // "DD.MM.YYYY HH:MM" — начало ПЛ (плановое)
+  pl_date_in_plan: string | null;    // "DD.MM.YYYY HH:MM" — конец ПЛ (плановое)
+}
+
 export interface TyagachiRequest {
   id: number;
   request_number: number;
@@ -27,6 +35,7 @@ export interface TyagachiRequest {
   order_name_cargo: string | null;
   first_synced_at: string;
   last_synced_at: string;
+  pl_records?: PLRecordBrief[];
 }
 
 export interface DashboardSummary {
