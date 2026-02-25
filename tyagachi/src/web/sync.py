@@ -30,6 +30,7 @@ def sync_vehicle_data(
     period_to_pl: str,
     db: Database,
     progress_callback: Optional[Callable[[str], None]] = None,
+    mon_progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> dict:
     """
     Main sync flow.
@@ -39,6 +40,7 @@ def sync_vehicle_data(
         period_to_pl: PL end date DD.MM.YYYY
         db: Database instance
         progress_callback: optional fn(message) to report progress
+        mon_progress_callback: optional fn(current, total) for monitoring progress
 
     Returns:
         dict with sync stats
@@ -116,6 +118,9 @@ def sync_vehicle_data(
     requests_seen = {}  # request_number -> list of matched records
     stable_count = 0
     in_progress_count = 0
+    requests_added = 0
+    requests_updated = 0
+    requests_upserted_nums = set()  # track per request_number (not per row)
 
     for _, row in matched_df.iterrows():
         record = row.to_dict()
@@ -146,7 +151,7 @@ def sync_vehicle_data(
                 requests_seen[req_num] = []
             requests_seen[req_num].append(record)
 
-            db.upsert_tracked_request({
+            upsert_result = db.upsert_tracked_request({
                 'request_number': req_num,
                 'request_status': req_status,
                 'stability_status': stability,
@@ -159,6 +164,14 @@ def sync_vehicle_data(
                 'object_expend_name': record.get('object_expend_name'),
                 'order_name_cargo': record.get('order_name_cargo'),
             })
+
+            # Count added/updated per unique request_number (not per row)
+            if req_num not in requests_upserted_nums:
+                requests_upserted_nums.add(req_num)
+                if upsert_result == 'added':
+                    requests_added += 1
+                elif upsert_result == 'updated':
+                    requests_updated += 1
 
             if stability == 'stable':
                 stable_count += 1
@@ -257,6 +270,8 @@ def sync_vehicle_data(
 
         def mon_progress(current, total):
             progress(f'Мониторинг: {current}/{total}...')
+            if mon_progress_callback:
+                mon_progress_callback(current, total)
 
         monitoring_results = fetcher.fetch_monitoring_batch(mon_tasks, progress_callback=mon_progress)
 
@@ -352,6 +367,8 @@ def sync_vehicle_data(
 
         def orphan_mon_progress(current, total):
             progress(f'Догрузка мониторинга: {current}/{total}...')
+            if mon_progress_callback:
+                mon_progress_callback(current, total)
 
         orphan_results = fetcher.fetch_monitoring_batch(orphan_tasks, progress_callback=orphan_mon_progress)
 
@@ -447,5 +464,7 @@ def sync_vehicle_data(
         'requests_total': len(requests_seen),
         'requests_stable': unique_stable,
         'requests_in_progress': unique_in_progress,
+        'requests_added': requests_added,
+        'requests_updated': requests_updated,
         'sync_log_id': sync_log.id,
     }

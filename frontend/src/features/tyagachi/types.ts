@@ -48,12 +48,23 @@ export interface DashboardSummary {
   } | null;
 }
 
+export interface SyncStats {
+  vehicles_count: number;
+  requests_total: number;
+  requests_stable: number;
+  requests_in_progress: number;
+  requests_added: number;
+  requests_updated: number;
+}
+
 export interface SyncStatus {
   running: boolean;
   progress: string;
   error: string | null;
   completed_at: string | null;
-  stats: unknown | null;
+  stats: SyncStats | null;
+  mon_current: number;
+  mon_total: number;
 }
 
 export interface LegacyReport {

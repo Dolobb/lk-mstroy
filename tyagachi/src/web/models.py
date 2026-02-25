@@ -645,23 +645,26 @@ class Database:
         finally:
             session.close()
 
-    def upsert_tracked_request(self, data: dict) -> None:
-        """Upsert tracked request. Skips if already stable."""
+    def upsert_tracked_request(self, data: dict) -> str:
+        """Upsert tracked request. Returns 'added', 'updated', or 'skipped'."""
         session = self.get_session()
         try:
             req_num = data['request_number']
             existing = session.query(TrackedRequest).filter_by(request_number=req_num).first()
             if existing and existing.stability_status == 'stable':
-                return
+                return 'skipped'
             if existing:
                 for k, v in data.items():
                     if k != 'request_number' and v is not None:
                         setattr(existing, k, v)
                 existing.last_synced_at = datetime.utcnow()
+                session.commit()
+                return 'updated'
             else:
                 existing = TrackedRequest(**data)
                 session.add(existing)
-            session.commit()
+                session.commit()
+                return 'added'
         finally:
             session.close()
 

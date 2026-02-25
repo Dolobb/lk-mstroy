@@ -303,6 +303,8 @@ class DataFetcher:
                     completed[0] += 1
                     if completed[0] % 10 == 0 or completed[0] == total:
                         print(f"    [{completed[0]}/{total}]")
+                        if progress_callback:
+                            progress_callback(completed[0], total)
 
             return local_results
 

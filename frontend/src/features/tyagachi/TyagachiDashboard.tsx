@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, ChevronDown, ChevronRight, ExternalLink, Truck, FileText, Plus } from 'lucide-react';
-import type { TyagachiVehicle, TyagachiRequest, DashboardSummary, SyncStatus, LegacyReport } from './types';
+import type { TyagachiVehicle, TyagachiRequest, DashboardSummary, SyncStatus, SyncStats, LegacyReport } from './types';
 import {
   getDashboardSummary,
   getVehicles,
@@ -35,12 +35,18 @@ const SyncPanel: React.FC<SyncPanelProps> = ({ summary, onSyncDone }) => {
   const [period, setPeriod] = useState(daysFromMonthStart);
   const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState('');
+  const [monCurrent, setMonCurrent] = useState(0);
+  const [monTotal, setMonTotal] = useState(0);
+  const [lastStats, setLastStats] = useState<SyncStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
     setError(null);
+    setLastStats(null);
+    setMonCurrent(0);
+    setMonTotal(0);
     setProgress('Запуск синхронизации...');
     try {
       await startSync(period);
@@ -57,11 +63,17 @@ const SyncPanel: React.FC<SyncPanelProps> = ({ summary, onSyncDone }) => {
       try {
         const status: SyncStatus = await getSyncStatus();
         setProgress(status.progress || '');
+        setMonCurrent(status.mon_current ?? 0);
+        setMonTotal(status.mon_total ?? 0);
         if (!status.running) {
           setSyncing(false);
           clearInterval(interval);
-          if (status.error) setError(status.error);
-          else onSyncDone();
+          if (status.error) {
+            setError(status.error);
+          } else {
+            if (status.stats) setLastStats(status.stats);
+            onSyncDone();
+          }
         }
       } catch {
         // ignore polling errors
@@ -71,6 +83,8 @@ const SyncPanel: React.FC<SyncPanelProps> = ({ summary, onSyncDone }) => {
   }, [syncing, onSyncDone]);
 
   const ls = summary?.last_sync;
+  const monPct = monTotal > 0 ? Math.round((monCurrent / monTotal) * 100) : null;
+  const isMonPhase = syncing && monTotal > 0;
 
   return (
     <div className="glass-card px-4 py-3 flex flex-col gap-2">
@@ -108,17 +122,49 @@ const SyncPanel: React.FC<SyncPanelProps> = ({ summary, onSyncDone }) => {
       </div>
 
       {syncing && (
-        <div className="flex flex-col gap-1">
-          <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full animate-pulse w-full" />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>{progress}</span>
+            {isMonPhase && (
+              <span className="tabular-nums font-semibold text-primary">
+                {monCurrent}/{monTotal} · {monPct}%
+              </span>
+            )}
           </div>
-          <span className="text-xs text-muted-foreground">{progress}</span>
+          <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+            {isMonPhase ? (
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${monPct}%` }}
+              />
+            ) : (
+              <div className="h-full bg-primary rounded-full animate-pulse w-1/3" />
+            )}
+          </div>
         </div>
       )}
 
       {error && <span className="text-xs text-red-500">{error}</span>}
 
-      {ls && !syncing && (
+      {/* Completion log */}
+      {!syncing && lastStats && (
+        <div className="text-xs rounded-md bg-green-500/10 border border-green-500/20 px-3 py-2 flex flex-wrap gap-x-4 gap-y-0.5">
+          <span className="text-green-400 font-semibold">Синхронизация завершена</span>
+          <span className="text-muted-foreground">
+            добавлено: <span className="text-foreground font-semibold">{lastStats.requests_added}</span>
+          </span>
+          <span className="text-muted-foreground">
+            обновлено: <span className="text-foreground font-semibold">{lastStats.requests_updated}</span>
+          </span>
+          <span className="text-muted-foreground">
+            всего в БД: <span className="text-foreground font-semibold">{lastStats.requests_total}</span> заявок
+            · <span className="text-green-400">{lastStats.requests_stable} финал</span>
+            · <span className="text-yellow-400">{lastStats.requests_in_progress} в работе</span>
+          </span>
+        </div>
+      )}
+
+      {ls && !syncing && !lastStats && (
         <div className="text-xs text-muted-foreground">
           Последняя синхронизация: {fmtIsoDateTime(ls.synced_at)} — ПЛ {ls.period_from_pl}–{ls.period_to_pl},
           заявки {ls.period_from_req}–{ls.period_to_req}

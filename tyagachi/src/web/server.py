@@ -123,7 +123,9 @@ sync_status = {
     'progress': '',
     'error': None,
     'completed_at': None,
-    'stats': None
+    'stats': None,
+    'mon_current': 0,
+    'mon_total': 0,
 }
 sync_lock = threading.Lock()
 
@@ -1196,7 +1198,9 @@ async def start_sync(request: SyncRequest, background_tasks: BackgroundTasks):
             'progress': 'Starting...',
             'error': None,
             'completed_at': None,
-            'stats': None
+            'stats': None,
+            'mon_current': 0,
+            'mon_total': 0,
         }
 
     # Calculate date range
@@ -1325,12 +1329,18 @@ def run_sync_pipeline(from_pl: str, to_pl: str):
         with sync_lock:
             sync_status['progress'] = msg
 
+    def mon_progress_cb(current: int, total: int):
+        with sync_lock:
+            sync_status['mon_current'] = current
+            sync_status['mon_total'] = total
+
     try:
         result = sync_vehicle_data(
             period_from_pl=from_pl,
             period_to_pl=to_pl,
             db=db,
             progress_callback=progress_cb,
+            mon_progress_callback=mon_progress_cb,
         )
         with sync_lock:
             sync_status['running'] = False
