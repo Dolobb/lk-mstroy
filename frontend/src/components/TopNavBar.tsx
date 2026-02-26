@@ -48,7 +48,7 @@ const TopNavBar: React.FC = () => {
 
       <div className="flex items-center gap-3">
         <a
-          href="http://localhost:3003/admin"
+          href={`http://${window.location.hostname}:3003/admin`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
