@@ -8,10 +8,11 @@ import { TyagachiPage } from './features/tyagachi';
 
 const KipPage: React.FC = () => {
   const { theme } = useTheme();
+  const host = window.location.hostname;
   return (
     <div className="flex-1 min-h-0">
       <iframe
-        src={`http://localhost:3001?theme=${theme}`}
+        src={`http://${host}:3001?theme=${theme}`}
         className="w-full h-full border-0"
         title="КИП техники"
       />
