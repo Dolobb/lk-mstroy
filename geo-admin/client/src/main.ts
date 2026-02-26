@@ -35,7 +35,10 @@ async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
         }
       }
     }
-    sidebar.renderObjectList(loadedObjects.filter(o => visibleObjectUids.has(o.uid)));
+    const filtered = visibleObjectUids.size > 0
+      ? loadedObjects.filter(o => visibleObjectUids.has(o.uid))
+      : loadedObjects;
+    sidebar.renderObjectList(filtered);
   } catch (err) {
     sidebar.showError(`Ошибка загрузки зон: ${(err as Error).message}`);
   }
