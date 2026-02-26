@@ -4,6 +4,30 @@ import * as sidebar from './sidebar.js';
 
 let loadedObjects: api.GeoObject[] = [];
 let pendingGeometry: GeoJSON.Polygon | null = null;
+let currentFilter: 'dst' | 'dt' = 'dst';
+
+async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
+  mapModule.clearAllZones();
+  const tags = filter === 'dst'
+    ? ['dst_zone', 'dt_boundary']
+    : ['dt_loading', 'dt_unloading', 'dt_boundary'];
+
+  try {
+    const results = await Promise.all(tags.map(t => api.getZonesByTag(t)));
+    const seen = new Set<string>();
+    for (const fc of results) {
+      for (const feature of fc.features) {
+        const uid = (feature.properties as { uid: string }).uid;
+        if (!seen.has(uid)) {
+          seen.add(uid);
+          mapModule.addZoneToMap(feature, handleDeleteZone);
+        }
+      }
+    }
+  } catch (err) {
+    sidebar.showError(`Ошибка загрузки зон: ${(err as Error).message}`);
+  }
+}
 
 async function init(): Promise<void> {
   const map = mapModule.initMap();
@@ -29,19 +53,26 @@ async function init(): Promise<void> {
     },
   });
 
-  // Загрузить объекты и все зоны одним запросом
+  // Загрузить объекты
   try {
-    [loadedObjects] = await Promise.all([api.getObjects()]);
+    loadedObjects = await api.getObjects();
     sidebar.renderObjectList(loadedObjects);
-
-    // Все зоны за один запрос по тегу dst_zone
-    const allZones = await api.getZonesByTag('dst_zone');
-    for (const feature of allZones.features) {
-      mapModule.addZoneToMap(feature, handleDeleteZone);
-    }
   } catch (err) {
-    sidebar.showError(`Ошибка загрузки данных: ${(err as Error).message}`);
+    sidebar.showError(`Ошибка загрузки объектов: ${(err as Error).message}`);
   }
+
+  // Загрузить зоны по текущему фильтру
+  await loadZones(currentFilter);
+
+  // Переключатель фильтра
+  document.querySelectorAll<HTMLButtonElement>('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter as 'dst' | 'dt';
+      await loadZones(currentFilter);
+    });
+  });
 
   // Кнопка "Нарисовать зону"
   document.getElementById('btn-draw-zone')?.addEventListener('click', () => {

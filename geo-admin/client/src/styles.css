@@ -24,6 +24,31 @@ body {
 .header h1 { font-size: 16px; font-weight: 600; }
 .header .subtitle { font-size: 12px; color: #94b3d4; }
 
+/* Zone filter toggle */
+.zone-filter {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 4px;
+}
+.filter-btn {
+  flex: 1;
+  padding: 5px 0;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.filter-btn:hover { background: #e5e7eb; }
+.filter-btn.active {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
 /* Main layout */
 .layout {
   display: flex;
