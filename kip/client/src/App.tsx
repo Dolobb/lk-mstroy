@@ -30,16 +30,6 @@ function defaultFilters(): FilterState {
 const App: React.FC = () => {
   const isEmbedded = window !== window.parent;
   const [activeNav, setActiveNav] = useState(isEmbedded ? 'dst' : 'home');
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const theme = params.get('theme');
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [vehicles, setVehicles] = useState<WeeklyVehicle[]>([]);
   const [loading, setLoading] = useState(false);
