@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { Calendar, ExternalLink, RefreshCw, ChevronDown, MapPin, Navigation } from "lucide-react"
-import { DumpTruckIcon, HeavyMachineryIcon } from "./VehicleIcons"
+import { Calendar, ExternalLink, RefreshCw, ChevronDown, MapPin, Navigation, Settings } from "lucide-react"
+import { DumpTruckIcon } from "./VehicleIcons"
 import { cn } from "@/lib/utils"
 import { VehicleTypeSlider, TYPE_COLORS, type VehicleType } from "./vehicle-type-slider"
 
@@ -262,7 +262,7 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
       {wip && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-card/80 backdrop-blur-[3px]">
           {vehicleType === 'samosvaly' && <DumpTruckIcon className="w-28 h-20 text-muted-foreground/40 mb-5" strokeWidth={1.4} />}
-          {vehicleType === 'dst' && <HeavyMachineryIcon className="w-28 h-20 text-muted-foreground/40 mb-5" strokeWidth={1.4} />}
+          {vehicleType === 'dst' && <Settings className="w-20 h-20 text-muted-foreground/40 mb-5" strokeWidth={1.2} />}
           <span className="text-foreground/70 font-semibold text-lg">В разработке</span>
           <span className="text-4xl mt-3">🤖</span>
         </div>

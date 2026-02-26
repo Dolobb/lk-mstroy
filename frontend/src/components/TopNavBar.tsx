@@ -1,13 +1,14 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Monitor, Truck, Tractor, Sun, Moon, Map } from 'lucide-react';
+import { Home, Settings, Sun, Moon, Map } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { DumpTruckIcon, SemiTruckIcon } from './dashboard/VehicleIcons';
 
-const navItems = [
+const navItems: { id: string; path: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: string | number }> }[] = [
   { id: 'home',     path: '/',          label: 'ГЛАВНАЯ',     icon: Home },
-  { id: 'kip',      path: '/kip',       label: 'КИП ТЕХНИКИ', icon: Monitor },
-  { id: 'tractors', path: '/tyagachi',  label: 'ТЯГАЧИ',      icon: Tractor },
-  { id: 'dump',     path: '/samosvaly', label: 'САМОСВАЛЫ',   icon: Truck },
+  { id: 'kip',      path: '/kip',       label: 'КИП ТЕХНИКИ', icon: Settings },
+  { id: 'tractors', path: '/tyagachi',  label: 'ТЯГАЧИ',      icon: SemiTruckIcon },
+  { id: 'dump',     path: '/samosvaly', label: 'САМОСВАЛЫ',   icon: DumpTruckIcon },
 ];
 
 const TopNavBar: React.FC = () => {
@@ -39,7 +40,7 @@ const TopNavBar: React.FC = () => {
                 textDecoration: 'none',
               }}
             >
-              <Icon className="size-4 shrink-0" />
+              <Icon className="h-4 w-auto shrink-0" strokeWidth={1.8} />
               <span>{item.label}</span>
             </Link>
           );

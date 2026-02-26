@@ -1,5 +1,6 @@
 import React from "react"
-import { DumpTruckIcon, SemiTruckIcon, HeavyMachineryIcon } from "./VehicleIcons"
+import { Settings } from "lucide-react"
+import { DumpTruckIcon, SemiTruckIcon } from "./VehicleIcons"
 
 export type VehicleType = 'samosvaly' | 'tyagachi' | 'dst'
 
@@ -9,10 +10,10 @@ export const TYPE_COLORS: Record<VehicleType, string> = {
   dst: '#E11D48',
 }
 
-const TABS: { key: VehicleType; label: string; Icon: React.FC<{ className?: string; strokeWidth?: number }> }[] = [
+const TABS: { key: VehicleType; label: string; Icon: React.ComponentType<{ className?: string; strokeWidth?: string | number }> }[] = [
   { key: 'samosvaly', label: 'Самосвалы', Icon: DumpTruckIcon },
   { key: 'tyagachi', label: 'Тягачи', Icon: SemiTruckIcon },
-  { key: 'dst', label: 'ДСТ', Icon: HeavyMachineryIcon },
+  { key: 'dst', label: 'ДСТ', Icon: Settings },
 ]
 
 interface VehicleTypeSliderProps {
