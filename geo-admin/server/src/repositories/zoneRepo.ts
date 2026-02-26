@@ -85,15 +85,20 @@ export async function getZonesByTag(tag: string): Promise<GeoJSON.FeatureCollect
   const pool = getPool();
   const { rows } = await pool.query<{
     uid: string; name: string; geometry: string; object_name: string;
+    object_uid: string; tags: string[];
   }>(`
     SELECT
       z.uid, z.name,
       ST_AsGeoJSON(z.geom)::text AS geometry,
-      o.name AS object_name
+      o.name AS object_name,
+      o.uid  AS object_uid,
+      COALESCE(array_agg(DISTINCT zt2.tag) FILTER (WHERE zt2.tag IS NOT NULL), '{}') AS tags
     FROM geo.zones z
-    JOIN geo.zone_tags zt ON zt.zone_id = z.id
-    JOIN geo.objects o ON o.id = z.object_id
+    JOIN geo.zone_tags zt  ON zt.zone_id  = z.id
+    JOIN geo.objects   o   ON o.id        = z.object_id
+    LEFT JOIN geo.zone_tags zt2 ON zt2.zone_id = z.id
     WHERE zt.tag = $1
+    GROUP BY z.id, o.name, o.uid
     ORDER BY z.name
   `, [tag]);
 
@@ -101,7 +106,7 @@ export async function getZonesByTag(tag: string): Promise<GeoJSON.FeatureCollect
     type: 'FeatureCollection',
     features: rows.map(z => ({
       type: 'Feature',
-      properties: { uid: z.uid, name: z.name, object_name: z.object_name, tag },
+      properties: { uid: z.uid, name: z.name, object_name: z.object_name, object_uid: z.object_uid, tags: z.tags },
       geometry: JSON.parse(z.geometry) as GeoJSON.Geometry,
     })),
   };

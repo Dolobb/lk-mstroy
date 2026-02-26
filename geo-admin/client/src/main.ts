@@ -1,10 +1,19 @@
 import * as api from './api.js';
 import * as mapModule from './map.js';
 import * as sidebar from './sidebar.js';
+import type { ZoneInfo } from './sidebar.js';
+
+interface ZoneFeatureProps {
+  uid: string;
+  name: string;
+  object_uid: string;
+  tags: string[];
+}
 
 let loadedObjects: api.GeoObject[] = [];
 let pendingGeometry: GeoJSON.Polygon | null = null;
 let currentFilter: 'dst' | 'dt' = 'dst';
+let currentOpenObjectUid: string | null = null;
 
 async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
   mapModule.clearAllZones();
@@ -13,20 +22,47 @@ async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
     : ['dt_loading', 'dt_unloading', 'dt_boundary'];
 
   try {
-    const results = await Promise.all(tags.map(t => api.getZonesByTag(t)));
+    const visibleObjectUids = new Set<string>();
     const seen = new Set<string>();
+    const results = await Promise.all(tags.map(t => api.getZonesByTag(t)));
     for (const fc of results) {
       for (const feature of fc.features) {
-        const uid = (feature.properties as { uid: string }).uid;
-        if (!seen.has(uid)) {
-          seen.add(uid);
+        const props = feature.properties as ZoneFeatureProps;
+        if (props.object_uid) visibleObjectUids.add(props.object_uid);
+        if (!seen.has(props.uid)) {
+          seen.add(props.uid);
           mapModule.addZoneToMap(feature, handleDeleteZone);
         }
       }
     }
+    sidebar.renderObjectList(loadedObjects.filter(o => visibleObjectUids.has(o.uid)));
   } catch (err) {
     sidebar.showError(`Ошибка загрузки зон: ${(err as Error).message}`);
   }
+}
+
+async function showEditZoneModal(uid: string, data: { name: string; tags: string[] }): Promise<void> {
+  sidebar.showEditZoneForm(data, async (updated) => {
+    try {
+      await api.updateZone(uid, updated);
+      await loadZones(currentFilter);
+      if (currentOpenObjectUid) {
+        const result = await api.getObject(currentOpenObjectUid);
+        const zones: ZoneInfo[] = result.zones.features.map(f => ({
+          uid:  (f.properties as ZoneFeatureProps).uid,
+          name: (f.properties as ZoneFeatureProps).name,
+          tags: (f.properties as ZoneFeatureProps).tags || [],
+        }));
+        sidebar.showObjectZones(currentOpenObjectUid, zones, {
+          onZoom:   (zoneUid) => mapModule.zoomToZone(zoneUid),
+          onDelete: handleDeleteZone,
+          onEdit:   (zoneUid, d) => void showEditZoneModal(zoneUid, d),
+        });
+      }
+    } catch (err) {
+      sidebar.showError(`Ошибка обновления зоны: ${(err as Error).message}`);
+    }
+  });
 }
 
 async function init(): Promise<void> {
@@ -34,11 +70,27 @@ async function init(): Promise<void> {
 
   sidebar.initSidebar({
     onObjectSelect: async (uid) => {
-      const result = await api.getObject(uid);
-      const names = result.zones.features.map(
-        f => (f.properties as { name: string }).name,
-      );
-      sidebar.showObjectZones(uid, names);
+      currentOpenObjectUid = uid;
+      try {
+        const result = await api.getObject(uid);
+        const zones: ZoneInfo[] = result.zones.features.map(f => ({
+          uid:  (f.properties as ZoneFeatureProps).uid,
+          name: (f.properties as ZoneFeatureProps).name,
+          tags: (f.properties as ZoneFeatureProps).tags || [],
+        }));
+        sidebar.showObjectZones(uid, zones, {
+          onZoom:   (zoneUid) => mapModule.zoomToZone(zoneUid),
+          onDelete: handleDeleteZone,
+          onEdit:   (zoneUid, data) => void showEditZoneModal(zoneUid, data),
+        });
+        // Зум на boundary или первую зону объекта
+        const boundary = result.zones.features.find(f =>
+          ((f.properties as ZoneFeatureProps).tags || []).includes('dt_boundary'),
+        ) ?? result.zones.features[0];
+        if (boundary) mapModule.zoomToFeature(boundary);
+      } catch (err) {
+        sidebar.showError(`Ошибка загрузки объекта: ${(err as Error).message}`);
+      }
     },
     onNewObject: () => {
       sidebar.showNewObjectForm(async (data) => {

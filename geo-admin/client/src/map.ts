@@ -135,6 +135,17 @@ export function clearAllZones(): void {
   zoneLayerMap.clear();
 }
 
+export function zoomToZone(uid: string): void {
+  const layer = zoneLayerMap.get(uid);
+  if (layer) map.fitBounds(layer.getBounds(), { padding: [40, 40] });
+}
+
+export function zoomToFeature(feature: GeoJSON.Feature): void {
+  const coords = (feature.geometry as GeoJSON.Polygon).coordinates[0];
+  const bounds = L.latLngBounds(coords.map((pos: number[]) => L.latLng(pos[1], pos[0])));
+  map.fitBounds(bounds, { padding: [40, 40] });
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
