@@ -726,11 +726,9 @@ function shiftCntLabel(recs: ShiftRecord[], showOnsite: boolean): string {
   return `${del}/${ons}`;
 }
 
-const _yesterday = new Date();
-_yesterday.setDate(_yesterday.getDate() - 1);
-const _yStr = _yesterday.toISOString().slice(0, 10);
-const DEFAULT_DATE_FROM = _yStr;
-const DEFAULT_DATE_TO   = _yStr;
+const _today = new Date();
+const DEFAULT_DATE_FROM = new Date(_today.getFullYear(), _today.getMonth(), 1).toISOString().slice(0, 10);
+const DEFAULT_DATE_TO   = _today.toISOString().slice(0, 10);
 
 function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, onToggleReport, records, loading }: {
   objects: DtObject[];
