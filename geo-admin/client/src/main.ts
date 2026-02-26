@@ -22,23 +22,18 @@ async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
     : ['dt_loading', 'dt_unloading', 'dt_boundary'];
 
   try {
-    const visibleObjectUids = new Set<string>();
     const seen = new Set<string>();
     const results = await Promise.all(tags.map(t => api.getZonesByTag(t)));
     for (const fc of results) {
       for (const feature of fc.features) {
         const props = feature.properties as ZoneFeatureProps;
-        if (props.object_uid) visibleObjectUids.add(props.object_uid);
         if (!seen.has(props.uid)) {
           seen.add(props.uid);
           mapModule.addZoneToMap(feature, handleDeleteZone);
         }
       }
     }
-    const filtered = visibleObjectUids.size > 0
-      ? loadedObjects.filter(o => visibleObjectUids.has(o.uid))
-      : loadedObjects;
-    sidebar.renderObjectList(filtered);
+    sidebar.renderObjectList(loadedObjects);
   } catch (err) {
     sidebar.showError(`Ошибка загрузки зон: ${(err as Error).message}`);
   }
