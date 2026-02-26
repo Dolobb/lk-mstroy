@@ -24,18 +24,12 @@ export function Dashboard() {
         </div>
 
         {/* Column 2 - Reports */}
-        <div className="glass-card bg-card rounded-[18px] border border-border p-5 overflow-hidden flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl relative">
+        <div className="glass-card bg-card rounded-[18px] border border-border p-5 overflow-hidden flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl">
           <ReportsColumn
             vehicleType={reportType}
             onTypeChange={setReportType}
             onCreateReport={() => addToast("Отчёт создан ✓")}
           />
-          {reportType !== "tyagachi" && (
-            <div className="absolute inset-0 rounded-[18px] bg-black/50 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <span className="text-white font-semibold text-lg">В разработке</span>
-              <span className="text-5xl mt-2">🤖</span>
-            </div>
-          )}
         </div>
 
         {/* Column 3 - DST Monitoring (always WIP) */}

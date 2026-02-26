@@ -1,3 +1,6 @@
+import React from "react"
+import { DumpTruckIcon, SemiTruckIcon, HeavyMachineryIcon } from "./VehicleIcons"
+
 export type VehicleType = 'samosvaly' | 'tyagachi' | 'dst'
 
 export const TYPE_COLORS: Record<VehicleType, string> = {
@@ -6,10 +9,10 @@ export const TYPE_COLORS: Record<VehicleType, string> = {
   dst: '#E11D48',
 }
 
-const TABS: { key: VehicleType; label: string }[] = [
-  { key: 'samosvaly', label: 'Самосвалы' },
-  { key: 'tyagachi', label: 'Тягачи' },
-  { key: 'dst', label: 'ДСТ' },
+const TABS: { key: VehicleType; label: string; Icon: React.FC<{ className?: string; strokeWidth?: number }> }[] = [
+  { key: 'samosvaly', label: 'Самосвалы', Icon: DumpTruckIcon },
+  { key: 'tyagachi', label: 'Тягачи', Icon: SemiTruckIcon },
+  { key: 'dst', label: 'ДСТ', Icon: HeavyMachineryIcon },
 ]
 
 interface VehicleTypeSliderProps {
@@ -49,7 +52,7 @@ export function VehicleTypeSlider({ value, onChange }: VehicleTypeSliderProps) {
             <button
               key={tab.key}
               onClick={() => onChange(tab.key)}
-              className="flex-1 py-1.5 text-center text-xs font-medium border-none bg-transparent cursor-pointer transition-none"
+              className="flex-1 py-1.5 flex flex-col items-center gap-0.5 border-none bg-transparent cursor-pointer transition-none"
               style={{
                 color: isActive ? '#F97316' : 'var(--text-muted)',
                 fontWeight: isActive ? 600 : 400,
@@ -58,7 +61,8 @@ export function VehicleTypeSlider({ value, onChange }: VehicleTypeSliderProps) {
                 zIndex: 2,
               }}
             >
-              {tab.label}
+              <tab.Icon className="w-7 h-5" strokeWidth={isActive ? 1.8 : 1.4} />
+              <span className="text-[10px]">{tab.label}</span>
             </button>
           )
         })}

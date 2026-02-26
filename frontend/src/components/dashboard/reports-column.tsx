@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { Calendar, ExternalLink, RefreshCw, ChevronDown, MapPin, Navigation } from "lucide-react"
+import { DumpTruckIcon, HeavyMachineryIcon } from "./VehicleIcons"
 import { cn } from "@/lib/utils"
 import { VehicleTypeSlider, TYPE_COLORS, type VehicleType } from "./vehicle-type-slider"
 
@@ -247,10 +248,25 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
     }
   }
 
+  const wip = vehicleType !== 'tyagachi'
+
   return (
     <div className="flex flex-col h-full">
-      {/* Vehicle Type Slider */}
+      {/* Vehicle Type Slider — всегда поверх overlay */}
       {!hideTypeSlider && <VehicleTypeSlider value={vehicleType} onChange={onTypeChange} />}
+
+      {/* Content area с WIP overlay */}
+      <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+
+      {/* WIP overlay — показывается сразу при переключении на не-тягачи */}
+      {wip && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-card/80 backdrop-blur-[3px]">
+          {vehicleType === 'samosvaly' && <DumpTruckIcon className="w-28 h-20 text-muted-foreground/40 mb-5" strokeWidth={1.4} />}
+          {vehicleType === 'dst' && <HeavyMachineryIcon className="w-28 h-20 text-muted-foreground/40 mb-5" strokeWidth={1.4} />}
+          <span className="text-foreground/70 font-semibold text-lg">В разработке</span>
+          <span className="text-4xl mt-3">🤖</span>
+        </div>
+      )}
 
       {/* Header */}
       <h2 className="text-lg font-bold text-text-primary mb-4">Создать новый отчёт</h2>
@@ -429,6 +445,7 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
           ))
         )}
       </div>
+      </div>{/* /relative content wrapper */}
     </div>
   )
 }
