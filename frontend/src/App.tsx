@@ -1,19 +1,23 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import TopNavBar from './components/TopNavBar';
 import { Dashboard } from './components/dashboard/dashboard';
 import { DumpTrucksPage } from './features/samosvaly';
 import { TyagachiPage } from './features/tyagachi';
 
-const KipPage: React.FC = () => (
-  <div className="flex-1 min-h-0">
-    <iframe
-      src="http://localhost:3001"
-      className="w-full h-full border-0"
-      title="КИП техники"
-    />
-  </div>
-);
+const KipPage: React.FC = () => {
+  const { theme } = useTheme();
+  return (
+    <div className="flex-1 min-h-0">
+      <iframe
+        src={`http://localhost:3001?theme=${theme}`}
+        className="w-full h-full border-0"
+        title="КИП техники"
+      />
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   return (

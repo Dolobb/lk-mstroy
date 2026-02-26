@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import './samosvaly.css';
 import {
   fetchObjects, fetchOrders, fetchOrderGantt,
@@ -725,8 +726,11 @@ function shiftCntLabel(recs: ShiftRecord[], showOnsite: boolean): string {
   return `${del}/${ons}`;
 }
 
-const DEFAULT_DATE_FROM = '2026-02-17';
-const DEFAULT_DATE_TO   = '2026-02-19';
+const _yesterday = new Date();
+_yesterday.setDate(_yesterday.getDate() - 1);
+const _yStr = _yesterday.toISOString().slice(0, 10);
+const DEFAULT_DATE_FROM = _yStr;
+const DEFAULT_DATE_TO   = _yStr;
 
 function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, onToggleReport, records, loading }: {
   objects: DtObject[];
@@ -1010,6 +1014,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
 //  Main page
 // ─────────────────────────────────────────────
 export function DumpTrucksPage() {
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'orders' | 'analytics'>('orders');
   const [reportOpen, setReportOpen] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
@@ -1068,7 +1073,7 @@ export function DumpTrucksPage() {
   });
 
   return (
-    <div className="sv-root flex-1 min-h-0">
+    <div className="sv-root flex-1 min-h-0" data-theme={theme}>
       <div className="sv-amb sv-amb-o" />
       <div className="sv-amb sv-amb-b" />
 

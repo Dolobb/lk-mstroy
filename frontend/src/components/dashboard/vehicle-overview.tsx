@@ -1098,28 +1098,29 @@ function VehicleDetailRow({
                      cursor: 'pointer', padding: '0 0 0 8px', lineHeight: 1 }}
           >✕</button>
         </div>
-        {pinnedFanState.segments.map((seg, i) => (
-          <div
-            key={i}
-            style={{
-              height: 28, borderRadius: 6,
-              background: plColor(seg.plStatus),
-              padding: '0 10px', marginBottom: 3,
-              display: 'flex', alignItems: 'center', cursor: 'default',
-              opacity: pinnedFanState.hoveredIdx === i ? 1 : 0.82,
-              transition: 'opacity 120ms',
-            }}
-            onMouseEnter={() => setPinnedFanState(p => p ? { ...p, hoveredIdx: i } : null)}
-            onMouseLeave={() => setPinnedFanState(p => p ? { ...p, hoveredIdx: null } : null)}
-          >
-            <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
-              #{seg.request.request_number}
-            </span>
-            {seg.plId && (
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginLeft: 6 }}>{seg.plId}</span>
-            )}
-          </div>
-        ))}
+        <div onMouseLeave={() => setPinnedFanState(p => p ? { ...p, hoveredIdx: null } : null)}>
+          {pinnedFanState.segments.map((seg, i) => (
+            <div
+              key={i}
+              style={{
+                height: 28, borderRadius: 6,
+                background: plColor(seg.plStatus),
+                padding: '0 10px', marginBottom: 3,
+                display: 'flex', alignItems: 'center', cursor: 'default',
+                opacity: pinnedFanState.hoveredIdx === i ? 1 : 0.82,
+                transition: 'opacity 120ms',
+              }}
+              onMouseEnter={() => setPinnedFanState(p => p ? { ...p, hoveredIdx: i } : null)}
+            >
+              <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
+                #{seg.request.request_number}
+              </span>
+              {seg.plId && (
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginLeft: 6 }}>{seg.plId}</span>
+              )}
+            </div>
+          ))}
+        </div>
         {pinnedFanState.hoveredIdx !== null && (() => {
           const seg = pinnedFanState.segments[pinnedFanState.hoveredIdx!]
           if (!seg) return null
