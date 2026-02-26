@@ -1,8 +1,5 @@
 # fetch-samosvaly.ps1
-# Выгрузка данных самосвалов за указанный период
-#
-# Использование:
-#   .\fetch-samosvaly.ps1 -from 2026-02-19 -to 2026-02-25
+# Usage: .\fetch-samosvaly.ps1 -from 2026-02-19 -to 2026-02-25
 #
 param(
     [Parameter(Mandatory)][string]$from,
@@ -17,7 +14,7 @@ for ($d = $start; $d -le $end; $d = $d.AddDays(1)) {
     $dates += $d.ToString("yyyy-MM-dd")
 }
 
-Write-Host "Выгрузка самосвалов с $from по $to ($($dates.Count) дней)..."
+Write-Host "Fetching dump trucks from $from to $to ($($dates.Count) days)..."
 
 foreach ($date in $dates) {
     foreach ($shift in @("shift1","shift2")) {
@@ -27,4 +24,4 @@ foreach ($date in $dates) {
     }
 }
 
-Write-Host "Готово!"
+Write-Host "Done!"
