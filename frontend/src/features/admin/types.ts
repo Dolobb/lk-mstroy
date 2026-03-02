@@ -10,6 +10,8 @@ export interface ServiceStatus {
 export interface DataCoverage {
   kip: string[];        // YYYY-MM-DD dates with data
   dumpTrucks: string[]; // YYYY-MM-DD dates with data
+  errors?: { kip: string | null; dumpTrucks: string | null };
+  config?: { kip: string; main: string };
 }
 
 export interface FetchStatus {

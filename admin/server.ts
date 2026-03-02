@@ -161,7 +161,7 @@ const mainPool = new Pool({
   user: process.env.MAIN_DB_USER || 'max',
 });
 
-async function getKipDates(from: string, to: string): Promise<string[]> {
+async function getKipDates(from: string, to: string): Promise<{ dates: string[]; error?: string }> {
   try {
     const res = await kipPool.query(
       `SELECT DISTINCT report_date::text FROM vehicle_records
@@ -169,13 +169,13 @@ async function getKipDates(from: string, to: string): Promise<string[]> {
        ORDER BY report_date`,
       [from, to]
     );
-    return res.rows.map(r => r.report_date);
-  } catch {
-    return [];
+    return { dates: res.rows.map(r => r.report_date) };
+  } catch (e) {
+    return { dates: [], error: String(e) };
   }
 }
 
-async function getDumpTrucksDates(from: string, to: string): Promise<string[]> {
+async function getDumpTrucksDates(from: string, to: string): Promise<{ dates: string[]; error?: string }> {
   try {
     const res = await mainPool.query(
       `SELECT DISTINCT report_date::text FROM dump_trucks.shift_records
@@ -183,9 +183,9 @@ async function getDumpTrucksDates(from: string, to: string): Promise<string[]> {
        ORDER BY report_date`,
       [from, to]
     );
-    return res.rows.map(r => r.report_date);
-  } catch {
-    return [];
+    return { dates: res.rows.map(r => r.report_date) };
+  } catch (e) {
+    return { dates: [], error: String(e) };
   }
 }
 
@@ -398,12 +398,23 @@ app.get('/api/admin/data-coverage', async (req, res) => {
     return;
   }
 
-  const [kip, dumpTrucks] = await Promise.all([
+  const [kipResult, dtResult] = await Promise.all([
     getKipDates(from, to),
     getDumpTrucksDates(from, to),
   ]);
 
-  res.json({ kip, dumpTrucks });
+  res.json({
+    kip: kipResult.dates,
+    dumpTrucks: dtResult.dates,
+    errors: {
+      kip: kipResult.error ?? null,
+      dumpTrucks: dtResult.error ?? null,
+    },
+    config: {
+      kip: `${process.env.KIP_DB_HOST || 'localhost'}:${process.env.KIP_DB_PORT || 5432}/${process.env.KIP_DB_NAME || 'kip_vehicles'} user=${process.env.KIP_DB_USER || 'max'}`,
+      main: `${process.env.MAIN_DB_HOST || 'localhost'}:${process.env.MAIN_DB_PORT || 5433}/${process.env.MAIN_DB_NAME || 'mstroy'} user=${process.env.MAIN_DB_USER || 'max'}`,
+    },
+  });
 });
 
 // GET fetch status
@@ -439,10 +450,10 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
 
   // Вычислить недостающие даты
   const allDates = allDatesInRange(from, to).reverse(); // от последней к ранней
-  const existing = service === 'kip'
+  const existingResult = service === 'kip'
     ? await getKipDates(from, to)
     : await getDumpTrucksDates(from, to);
-  const existingSet = new Set(existing);
+  const existingSet = new Set(existingResult.dates);
   const missing = allDates.filter(d => !existingSet.has(d));
 
   if (missing.length === 0) {

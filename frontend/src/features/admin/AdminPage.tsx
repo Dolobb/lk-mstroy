@@ -425,6 +425,21 @@ export const AdminPage: React.FC = () => {
             </div>
           )}
 
+          {/* DB connection errors */}
+          {coverage?.errors && (coverage.errors.kip || coverage.errors.dumpTrucks) && (
+            <div className="flex flex-col gap-1 text-xs text-destructive bg-destructive/10 rounded-lg p-2" style={{ fontSize: '10px' }}>
+              {coverage.errors.kip && (
+                <div><span className="font-medium">КИП БД ({coverage.config?.kip}):</span> {coverage.errors.kip}</div>
+              )}
+              {coverage.errors.dumpTrucks && (
+                <div><span className="font-medium">Самосвалы БД ({coverage.config?.main}):</span> {coverage.errors.dumpTrucks}</div>
+              )}
+              <div className="text-muted-foreground mt-1">
+                Проверь <span className="font-mono">admin/.env</span> — порты и пользователя БД
+              </div>
+            </div>
+          )}
+
           {/* Legend */}
           <div className="flex items-center gap-3" style={{ fontSize: '10px' }}>
             <div className="flex items-center gap-1">
