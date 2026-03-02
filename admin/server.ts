@@ -189,6 +189,145 @@ async function getDumpTrucksDates(from: string, to: string): Promise<string[]> {
   }
 }
 
+// ─── Fetch queue ──────────────────────────────────────────────────────────────
+
+interface FetchProgress {
+  active: boolean;
+  service: 'kip' | 'dump-trucks' | null;
+  queue: string[];        // даты ожидающие загрузки
+  current: string | null; // дата в процессе
+  done: string[];         // успешно загруженные
+  errors: string[];       // ошибки по датам
+  cancelRequested: boolean;
+}
+
+const fetchProgress: FetchProgress = {
+  active: false,
+  service: null,
+  queue: [],
+  current: null,
+  done: [],
+  errors: [],
+  cancelRequested: false,
+};
+
+// Генерация всех дат в диапазоне
+function allDatesInRange(from: string, to: string): string[] {
+  const dates: string[] = [];
+  const cur = new Date(from);
+  const end = new Date(to);
+  while (cur <= end) {
+    dates.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+// Ожидать появления даты в БД (поллинг каждые 20с, таймаут timeoutMs)
+async function waitForDate(
+  pool: Pool,
+  query: string,
+  params: string[],
+  timeoutMs: number
+): Promise<'ok' | 'timeout' | 'cancelled'> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (fetchProgress.cancelRequested) return 'cancelled';
+    await new Promise(r => setTimeout(r, 20_000));
+    if (fetchProgress.cancelRequested) return 'cancelled';
+    try {
+      const res = await pool.query(query, params);
+      if ((res.rowCount ?? 0) > 0) return 'ok';
+    } catch { /* игнорируем ошибки поллинга */ }
+  }
+  return 'timeout';
+}
+
+async function runKipQueue(dates: string[]) {
+  fetchProgress.active = true;
+  fetchProgress.service = 'kip';
+  fetchProgress.done = [];
+  fetchProgress.errors = [];
+  fetchProgress.cancelRequested = false;
+  fetchProgress.queue = [...dates];
+
+  for (const date of dates) {
+    if (fetchProgress.cancelRequested) break;
+
+    fetchProgress.current = date;
+    fetchProgress.queue = fetchProgress.queue.filter(d => d !== date);
+
+    try {
+      await fetch(`http://localhost:3001/api/admin/fetch?date=${date}`, { method: 'POST' });
+
+      // KIP pipeline долгий — таймаут 30 минут
+      const result = await waitForDate(
+        kipPool,
+        `SELECT 1 FROM vehicle_records WHERE report_date = $1 LIMIT 1`,
+        [date],
+        30 * 60 * 1000
+      );
+
+      if (result === 'cancelled') break;
+      if (result === 'timeout') {
+        fetchProgress.errors.push(`${date}: таймаут (30 мин)`);
+      } else {
+        fetchProgress.done.push(date);
+      }
+    } catch (e) {
+      fetchProgress.errors.push(`${date}: ${e}`);
+    }
+  }
+
+  fetchProgress.active = false;
+  fetchProgress.current = null;
+  fetchProgress.service = null;
+}
+
+async function runDTQueue(dates: string[]) {
+  fetchProgress.active = true;
+  fetchProgress.service = 'dump-trucks';
+  fetchProgress.done = [];
+  fetchProgress.errors = [];
+  fetchProgress.cancelRequested = false;
+  fetchProgress.queue = [...dates];
+
+  for (const date of dates) {
+    if (fetchProgress.cancelRequested) break;
+
+    fetchProgress.current = date;
+    fetchProgress.queue = fetchProgress.queue.filter(d => d !== date);
+
+    try {
+      // Запускаем обе смены
+      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift1`, { method: 'POST' });
+      await new Promise(r => setTimeout(r, 2000)); // небольшая пауза между сменами
+      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift2`, { method: 'POST' });
+
+      // DT pipeline быстрее — таймаут 8 минут
+      const result = await waitForDate(
+        mainPool,
+        `SELECT 1 FROM dump_trucks.shift_records WHERE report_date = $1 LIMIT 1`,
+        [date],
+        8 * 60 * 1000
+      );
+
+      if (result === 'cancelled') break;
+      if (result === 'timeout') {
+        fetchProgress.errors.push(`${date}: таймаут (8 мин)`);
+      } else {
+        fetchProgress.done.push(date);
+      }
+    } catch (e) {
+      fetchProgress.errors.push(`${date}: ${e}`);
+    }
+  }
+
+  fetchProgress.active = false;
+  fetchProgress.current = null;
+  fetchProgress.service = null;
+}
+
 // ─── Express app ──────────────────────────────────────────────────────────────
 
 const app = express();
@@ -265,6 +404,70 @@ app.get('/api/admin/data-coverage', async (req, res) => {
   ]);
 
   res.json({ kip, dumpTrucks });
+});
+
+// GET fetch status
+app.get('/api/admin/fetch/status', (_req, res) => {
+  res.json({
+    active: fetchProgress.active,
+    service: fetchProgress.service,
+    current: fetchProgress.current,
+    queue: fetchProgress.queue,
+    done: fetchProgress.done,
+    errors: fetchProgress.errors,
+  });
+});
+
+// POST start fetch for kip or dump-trucks
+app.post('/api/admin/fetch/:service', async (req, res) => {
+  const { service } = req.params;
+  const from = req.query.from as string;
+  const to = req.query.to as string;
+
+  if (service !== 'kip' && service !== 'dump-trucks') {
+    res.status(400).json({ error: 'service должен быть kip или dump-trucks' });
+    return;
+  }
+  if (!from || !to) {
+    res.status(400).json({ error: '"from" и "to" обязательны (YYYY-MM-DD)' });
+    return;
+  }
+  if (fetchProgress.active) {
+    res.status(409).json({ error: 'Уже выполняется загрузка' });
+    return;
+  }
+
+  // Вычислить недостающие даты
+  const allDates = allDatesInRange(from, to).reverse(); // от последней к ранней
+  const existing = service === 'kip'
+    ? await getKipDates(from, to)
+    : await getDumpTrucksDates(from, to);
+  const existingSet = new Set(existing);
+  const missing = allDates.filter(d => !existingSet.has(d));
+
+  if (missing.length === 0) {
+    res.json({ ok: true, message: 'Все даты уже загружены', missing: 0 });
+    return;
+  }
+
+  res.json({ ok: true, started: true, missing: missing.length, dates: missing });
+
+  // Запускаем в фоне
+  if (service === 'kip') {
+    runKipQueue(missing).catch(console.error);
+  } else {
+    runDTQueue(missing).catch(console.error);
+  }
+});
+
+// POST cancel fetch
+app.post('/api/admin/fetch/cancel', (_req, res) => {
+  if (!fetchProgress.active) {
+    res.json({ ok: true, message: 'Нет активной загрузки' });
+    return;
+  }
+  fetchProgress.cancelRequested = true;
+  res.json({ ok: true, message: 'Отмена запрошена' });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RotateCcw, Play, Square, ChevronDown, ChevronUp } from 'lucide-react';
-import type { ServiceStatus, DataCoverage } from './types';
+import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
+import type { ServiceStatus, DataCoverage, FetchStatus } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +55,21 @@ async function fetchCoverage(from: string, to: string): Promise<DataCoverage> {
   return res.json();
 }
 
+async function fetchFetchStatus(): Promise<FetchStatus> {
+  const res = await fetch('/api/admin/fetch/status');
+  if (!res.ok) return { active: false, service: null, current: null, queue: [], done: [], errors: [] };
+  return res.json();
+}
+
+async function startFetch(service: 'kip' | 'dump-trucks', from: string, to: string) {
+  const res = await fetch(`/api/admin/fetch/${service}?from=${from}&to=${to}`, { method: 'POST' });
+  return res.json();
+}
+
+async function cancelFetch() {
+  await fetch('/api/admin/fetch/cancel', { method: 'POST' });
+}
+
 // ─── Service Card ─────────────────────────────────────────────────────────────
 
 const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ svc, onAction }) => {
@@ -91,22 +106,17 @@ const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ s
 
   return (
     <div className="glass-card rounded-xl p-3 flex flex-col gap-2">
-      {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className={`size-2 rounded-full shrink-0 ${statusColor}`} />
           <span className="text-sm font-medium truncate">{svc.name}</span>
           <span className="text-xs text-muted-foreground shrink-0">:{svc.port}</span>
         </div>
-        <span
-          className="text-xs text-muted-foreground shrink-0"
-          style={{ fontSize: '10px' }}
-        >
+        <span className="text-xs text-muted-foreground shrink-0" style={{ fontSize: '10px' }}>
           {statusLabel}
         </span>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => act('start')}
@@ -145,7 +155,6 @@ const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ s
         </button>
       </div>
 
-      {/* Log viewer */}
       {logsOpen && (
         <div
           ref={logRef}
@@ -156,7 +165,14 @@ const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ s
             <span className="text-muted-foreground">Нет логов</span>
           ) : (
             logLines.map((l, i) => (
-              <div key={i} className={l.startsWith('[err]') ? 'text-red-400' : l.startsWith('[admin]') ? 'text-yellow-400' : ''}>
+              <div
+                key={i}
+                className={
+                  l.startsWith('[err]') ? 'text-red-400'
+                  : l.startsWith('[admin]') ? 'text-yellow-400'
+                  : ''
+                }
+              >
                 {l}
               </div>
             ))
@@ -167,13 +183,15 @@ const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ s
   );
 };
 
-// ─── Coverage calendar ────────────────────────────────────────────────────────
+// ─── Coverage calendar row ────────────────────────────────────────────────────
 
 const CoverageRow: React.FC<{
   label: string;
   dates: Set<string>;
+  done: Set<string>;
+  current: string | null;
   allDays: string[];
-}> = ({ label, dates, allDays }) => (
+}> = ({ label, dates, done, current, allDays }) => (
   <div className="flex items-center gap-2">
     <span className="text-xs text-muted-foreground shrink-0 w-24 text-right" style={{ fontSize: '11px' }}>
       {label}
@@ -181,11 +199,19 @@ const CoverageRow: React.FC<{
     <div className="flex flex-wrap gap-0.5">
       {allDays.map(d => {
         const has = dates.has(d);
+        const justDone = done.has(d);
+        const isCurrent = d === current;
         return (
           <div
             key={d}
-            title={`${fmtDate(d)}${has ? ' ✓' : ' — нет данных'}`}
-            className={`rounded-sm transition-colors ${has ? 'bg-green-500/70' : 'bg-muted/60'}`}
+            title={`${fmtDate(d)}${has || justDone ? ' ✓' : isCurrent ? ' ⏳ загружается...' : ' — нет данных'}`}
+            className={`rounded-sm transition-colors ${
+              has || justDone
+                ? 'bg-green-500/70'
+                : isCurrent
+                ? 'bg-yellow-400/80 animate-pulse'
+                : 'bg-muted/60'
+            }`}
             style={{ width: '14px', height: '14px' }}
           />
         );
@@ -199,6 +225,9 @@ const CoverageRow: React.FC<{
 export const AdminPage: React.FC = () => {
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [coverage, setCoverage] = useState<DataCoverage | null>(null);
+  const [fetchStatus, setFetchStatus] = useState<FetchStatus>({
+    active: false, service: null, current: null, queue: [], done: [], errors: [],
+  });
   const [coverageFrom, setCoverageFrom] = useState(monthStart());
   const [coverageTo, setCoverageTo] = useState(today());
   const [loadingCov, setLoadingCov] = useState(false);
@@ -214,12 +243,6 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadServices();
-    const t = setInterval(loadServices, 3000);
-    return () => clearInterval(t);
-  }, []);
-
   const loadCoverage = async () => {
     setLoadingCov(true);
     const data = await fetchCoverage(coverageFrom, coverageTo);
@@ -227,16 +250,58 @@ export const AdminPage: React.FC = () => {
     setLoadingCov(false);
   };
 
+  const loadFetchStatus = async () => {
+    const s = await fetchFetchStatus();
+    setFetchStatus(s);
+    // Обновляем покрытие пока идёт загрузка
+    if (s.active) {
+      const data = await fetchCoverage(coverageFrom, coverageTo);
+      setCoverage(data);
+    }
+  };
+
+  useEffect(() => {
+    loadServices();
+    const t = setInterval(loadServices, 3000);
+    return () => clearInterval(t);
+  }, []);
+
   useEffect(() => {
     loadCoverage();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Поллинг статуса загрузки каждые 5с
+  useEffect(() => {
+    const t = setInterval(loadFetchStatus, 5000);
+    return () => clearInterval(t);
+  }, [coverageFrom, coverageTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleStartFetch = async (service: 'kip' | 'dump-trucks') => {
+    const result = await startFetch(service, coverageFrom, coverageTo);
+    if (result.missing === 0) {
+      alert('Все даты в выбранном периоде уже загружены!');
+      return;
+    }
+    await loadFetchStatus();
+  };
+
+  const handleCancel = async () => {
+    await cancelFetch();
+    await loadFetchStatus();
+  };
+
   const allDays = daysInRange(coverageFrom, coverageTo);
   const kipSet = new Set(coverage?.kip ?? []);
   const dtSet = new Set(coverage?.dumpTrucks ?? []);
+  const fetchDoneSet = new Set(fetchStatus.done);
+
+  const isKipFetching = fetchStatus.active && fetchStatus.service === 'kip';
+  const isDTFetching = fetchStatus.active && fetchStatus.service === 'dump-trucks';
+  const totalFetch = fetchStatus.done.length + fetchStatus.queue.length + (fetchStatus.current ? 1 : 0);
 
   return (
     <div className="flex flex-col h-full overflow-auto p-3 gap-4">
+
       {/* Services */}
       <div>
         <h2 className="text-sm font-semibold mb-2">Сервисы</h2>
@@ -257,7 +322,8 @@ export const AdminPage: React.FC = () => {
       <div>
         <h2 className="text-sm font-semibold mb-2">Покрытие данных</h2>
         <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
-          {/* Period picker */}
+
+          {/* Period + refresh */}
           <div className="flex items-center gap-2 flex-wrap">
             <input
               type="date"
@@ -277,12 +343,87 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={loadCoverage}
               disabled={loadingCov}
-              className="px-3 py-1 rounded-lg text-xs border-none cursor-pointer bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60 transition-opacity"
+              className="px-3 py-1 rounded-lg text-xs border-none cursor-pointer bg-muted text-foreground hover:bg-muted/80 disabled:opacity-60 transition-opacity"
               style={{ fontSize: '11px' }}
             >
               {loadingCov ? 'Загрузка...' : 'Обновить'}
             </button>
           </div>
+
+          {/* Fetch buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleStartFetch('kip')}
+              disabled={fetchStatus.active}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium ${
+                isKipFetching
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-primary/15 text-primary hover:bg-primary/25'
+              } disabled:opacity-50`}
+              style={{ fontSize: '11px' }}
+            >
+              {isKipFetching && <RotateCcw className="size-3 animate-spin" />}
+              Обновить КИП
+            </button>
+            <button
+              onClick={() => handleStartFetch('dump-trucks')}
+              disabled={fetchStatus.active}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium ${
+                isDTFetching
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-primary/15 text-primary hover:bg-primary/25'
+              } disabled:opacity-50`}
+              style={{ fontSize: '11px' }}
+            >
+              {isDTFetching && <RotateCcw className="size-3 animate-spin" />}
+              Обновить Самосвалы
+            </button>
+            {fetchStatus.active && (
+              <button
+                onClick={handleCancel}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                style={{ fontSize: '11px' }}
+              >
+                <XCircle className="size-3" />
+                Отмена
+              </button>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          {fetchStatus.active && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between" style={{ fontSize: '11px' }}>
+                <span className="text-muted-foreground">
+                  Загружается: <span className="text-foreground font-mono">
+                    {fetchStatus.current ? fmtDate(fetchStatus.current) : '...'}
+                  </span>
+                </span>
+                <span className="text-muted-foreground">
+                  {fetchStatus.done.length} из {totalFetch} дн.
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: totalFetch > 0 ? `${(fetchStatus.done.length / totalFetch) * 100}%` : '0%' }}
+                />
+              </div>
+              {fetchStatus.queue.length > 0 && (
+                <div className="text-muted-foreground" style={{ fontSize: '10px' }}>
+                  В очереди: {fetchStatus.queue.slice(0, 5).map(fmtDate).join(', ')}
+                  {fetchStatus.queue.length > 5 ? ` ...ещё ${fetchStatus.queue.length - 5}` : ''}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Errors */}
+          {fetchStatus.errors.length > 0 && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-2" style={{ fontSize: '10px' }}>
+              {fetchStatus.errors.slice(-3).map((e, i) => <div key={i}>{e}</div>)}
+            </div>
+          )}
 
           {/* Legend */}
           <div className="flex items-center gap-3" style={{ fontSize: '10px' }}>
@@ -291,27 +432,43 @@ export const AdminPage: React.FC = () => {
               <span className="text-muted-foreground">Есть данные</span>
             </div>
             <div className="flex items-center gap-1">
+              <div className="size-2.5 rounded-sm bg-yellow-400/80" />
+              <span className="text-muted-foreground">Загружается</span>
+            </div>
+            <div className="flex items-center gap-1">
               <div className="size-2.5 rounded-sm bg-muted/60" />
               <span className="text-muted-foreground">Нет данных</span>
             </div>
             <span className="text-muted-foreground ml-auto">
-              Период: {allDays.length} дн.  | КИП: {kipSet.size} дн. | Самосвалы: {dtSet.size} дн.
+              {allDays.length} дн. | КИП: {kipSet.size} | Самосвалы: {dtSet.size}
             </span>
           </div>
 
-          {/* Calendar rows */}
+          {/* Calendar */}
           {coverage && (
             <div className="flex flex-col gap-1.5">
-              <CoverageRow label="КИП техники" dates={kipSet} allDays={allDays} />
-              <CoverageRow label="Самосвалы" dates={dtSet} allDays={allDays} />
+              <CoverageRow
+                label="КИП техники"
+                dates={kipSet}
+                done={isKipFetching ? fetchDoneSet : new Set()}
+                current={isKipFetching ? fetchStatus.current : null}
+                allDays={allDays}
+              />
+              <CoverageRow
+                label="Самосвалы"
+                dates={dtSet}
+                done={isDTFetching ? fetchDoneSet : new Set()}
+                current={isDTFetching ? fetchStatus.current : null}
+                allDays={allDays}
+              />
             </div>
           )}
 
-          {/* Date labels (every 7th day) */}
+          {/* Date labels */}
           {allDays.length > 0 && (
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2">
               <span className="w-24 shrink-0" />
-              <div className="flex flex-wrap gap-0.5 overflow-hidden">
+              <div className="flex flex-wrap gap-0.5">
                 {allDays.map((d, i) => (
                   <div key={d} style={{ width: '14px', fontSize: '8px' }} className="text-muted-foreground text-center overflow-hidden">
                     {i % 7 === 0 ? fmtDate(d) : ''}
