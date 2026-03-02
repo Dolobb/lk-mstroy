@@ -1,0 +1,10 @@
+{
+  "name": "lk-mstroy",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n admin,frontend -c cyan,yellow --kill-others-on-fail \"npm run dev --prefix admin\" \"npm run dev --prefix frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

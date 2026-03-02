@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Settings, Sun, Moon, Map, Wrench } from 'lucide-react';
+import { Home, Settings, Sun, Moon, Map, Wrench, Terminal } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { DumpTruckIcon, SemiTruckIcon } from './dashboard/VehicleIcons';
 
@@ -48,6 +48,14 @@ const TopNavBar: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-3">
+        <Link
+          to="/admin"
+          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
+          style={{ fontSize: '11px', textDecoration: 'none' }}
+        >
+          <Terminal className="size-3.5" />
+          <span>Серверы</span>
+        </Link>
         <Link
           to="/vehicle-status"
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"

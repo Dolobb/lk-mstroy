@@ -6,6 +6,7 @@ import { Dashboard } from './components/dashboard/dashboard';
 import { DumpTrucksPage } from './features/samosvaly';
 import { TyagachiPage } from './features/tyagachi';
 import { VehicleStatusPage } from './features/vehicle-status';
+import { AdminPage } from './features/admin';
 
 const KipPage: React.FC = () => {
   const { theme } = useTheme();
@@ -34,6 +35,7 @@ const App: React.FC = () => {
         <Route path="/tyagachi/*" element={<TyagachiPage />} />
         <Route path="/samosvaly" element={<DumpTrucksPage />} />
         <Route path="/vehicle-status" element={<VehicleStatusPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

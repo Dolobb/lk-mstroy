@@ -32,6 +32,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/tyagachi/, '/api'),
       },
+      '/api/admin': {
+        target: 'http://localhost:3005',
+        changeOrigin: true,
+      },
     },
   },
   build: {

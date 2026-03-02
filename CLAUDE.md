@@ -41,15 +41,22 @@ NAVIGATION.md → docs/*.md → исходный код
 | Самосвалы | `dump-trucks/` | 3002 | Express + PostgreSQL 17 (`mstroy`) |
 | Состояние ТС | `vehicle-status/` | 3004 | Express + PostgreSQL 17 (`mstroy`) |
 | Гео-Администратор | `geo-admin/` | 3003 | Express + PostgreSQL 17 (`mstroy` / PostGIS) |
+| **Admin** | `admin/` | **3005** | Express (процесс-менеджер) |
 
-### Запуск всех сервисов
+### Запуск всех сервисов — ОДНА КОМАНДА
 
 ```bash
-cd kip/ && npm run dev:server                          # :3001
-cd tyagachi/ && python main.py --web --port 8000       # :8000
-cd dump-trucks/server && npm run dev                   # :3002
-cd geo-admin/server && npm run dev                     # :3003
-cd vehicle-status/server && npm run dev                # :3004
+# Из корня монорепо — запускает admin-сервер + frontend одновременно
+npm run dev
+
+# Admin-сервер авто-запускает все 5 бэкендов при старте
+# Управление + покрытие данных: http://localhost:5173/admin
+```
+
+### Альтернативный запуск по отдельности
+
+```bash
+cd admin && npm run dev                                # :3005 + авто-запуск бэкендов
 cd frontend && npm run dev                             # :5173
 ```
 
@@ -70,7 +77,7 @@ cd frontend && npm run dev                             # :5173
 - **PG 17** (порт 5433): `mstroy` → `/usr/local/opt/postgresql@17/bin/psql -p 5433 -d mstroy`
 
 ### Vite proxy (`frontend/vite.config.ts`)
-`/api/kip` → :3001 | `/api/tyagachi` → :8000 | `/api/dt` → :3002 | `/api/vs` → :3004
+`/api/kip` → :3001 | `/api/tyagachi` → :8000 | `/api/dt` → :3002 | `/api/vs` → :3004 | `/api/admin` → :3005
 
 ### Secrets
 - `.env` в корнях подпроектов — не коммитить
