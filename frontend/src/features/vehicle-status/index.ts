@@ -1,0 +1,1 @@
+export { VehicleStatusPage } from './VehicleStatusPage';

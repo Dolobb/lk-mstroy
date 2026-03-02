@@ -1,0 +1,77 @@
+# Dump Trucks — История и Возможности
+
+## Что реализовано
+
+- Express backend (:3002) на TypeScript — полный pipeline TIS API → PostgreSQL
+- ZoneAnalyzer — геозонный анализ GPS-трека (Turf.js `booleanPointInPolygon`)
+- VehicleDetector / ObjectDetector — определение объекта по максимуму точек в `dt_boundary`
+- TripBuilder — построение рейсов (пары погрузка → выгрузка) с фильтрами транзита
+- WorkTypeClassifier — классификация `delivery` / `onsite` / `unknown`
+- KpiCalculator — расчёт КИП%, % движения, времени на объекте
+- Планировщик (node-cron): автозапуск в 08:30 (shift2/вчера) и 20:30 (shift1/сегодня) по Asia/Yekaterinburg
+- PostgreSQL: схема `dump_trucks` (5 таблиц) в базе `mstroy` (PG17 порт 5433)
+- CSV-экспорт: три отчёта (summary, trips, zone-events) с временами по Екатеринбургу
+- React фронтенд `DumpTrucksPage` — заменяет iframe, все данные через `/api/dt`
+- Вкладка «Заявки»: список карточек с прогрессом и Гант-таблицей на раскрытие
+- Вкладка «Аналитика»: трёхуровневая таблица ТС → заявка → день → смена
+- WeeklySidebar: еженедельная сводка по объектам с MiniDonut, ремонтами и навигацией по неделям
+- ShiftSubTable: детализация рейса с временами въезда/выезда по погрузке и выгрузке
+- Таблица ремонтов `dump_trucks.repairs` (миграция 002, заполняется вручную)
+- Тест-режим: `DT_TEST_ID_MOS` — обрабатываются только idMO {781, 15, 1581}
+- API: 10 публичных + 2 admin endpoints + ручной запуск pipeline через POST
+
+## Что можно получить из текущей архитектуры
+
+**Без изменений бэкенда:**
+
+- Экспорт CSV уже реализован — можно добавить кнопки в UI прямо сейчас (`/api/dt/export/*.csv`)
+- Карта объекта с треком: `raw_monitoring` в `shift_records` хранит `trackPoints` (кол-во точек), но не сами координаты — нужен дополнительный endpoint или сохранение полного трека
+- Сравнение объектов за период: данные есть в `shift_records`, нужна только агрегация на фронте
+- Фильтрация по workType на бэкенде: сейчас только на клиенте, легко добавить параметр в `queryShiftRecords`
+
+**С небольшими доработками бэкенда (1–3 дня):**
+
+- Среднее время рейса / стоянки по объекту: уже вычисляется `avgLoadingDwellSec` через LATERAL JOIN, можно агрегировать по объекту
+- Сводка по объекту за произвольный период: простой GROUP BY запрос к `shift_records`
+- WebSocket-уведомление о завершении pipeline: сейчас admin/fetch возвращает «started» без коллбека — можно добавить polling endpoint `GET /api/dt/admin/status`
+- Сохранение полного GPS-трека в JSONB: `raw_monitoring` сейчас хранит только мета (`trackPoints: count`), при необходимости можно расширить до полного трека для отображения на карте
+
+**С реализацией отдельной функциональности:**
+
+- Объём рейса (м³): поля `trips.volume_m3` и `shift_records.fact_volume_m3` есть в схеме, но всегда `null` — нужен источник данных (справочник `volumeM3` в `dump-trucks-registry.json` есть: `"volumeM3": 16.0`)
+- Пробег рейса (км): `trips.distance_km` всегда `null` — нужно считать из GPS-трека по точкам между `loadedAt` и `unloadedAt`
+- Excel-отчёты: placeholder в UI уже есть (`sv-an-right` панель), нужна библиотека типа ExcelJS
+- Тепловая карта активности по дням: данные есть, нужна визуализация
+
+## Что ограничено архитектурой
+
+**Объём и пробег рейса:**
+Поля `trips.distance_km` и `trips.volume_m3` всегда `null`. Пробег потребует пересчёта GPS-трека по точкам между `loadedAt` и `unloadedAt`. Объём — либо брать из справочника ТС (`dump-trucks-registry.json`), либо из данных TIS.
+
+**Одновременная работа ТС на нескольких объектах:**
+Pipeline присваивает ТС **один** объект на смену (тот, где больше точек трека). Если самосвал реально работал на двух объектах, второй объект теряется.
+
+**Повторный визит в одну зону выгрузки:**
+TripBuilder использует каждое событие выгрузки только один раз. Реальный второй рейс на ту же площадку в смену не будет посчитан как отдельный рейс. (см. подробнее в `PIPELINE.md`, раздел 6)
+
+**Rate limit TIS API:**
+Обработка ТС строго последовательная (30 сек/idMO). При большом числе самосвалов pipeline занимает много времени. Например, 20 ТС × 30 сек = минимум 10 минут на одну смену.
+
+**Нет отката при частичной ошибке:**
+Если pipeline упал на 10-м ТС из 20, первые 9 уже записаны в БД. Повторный запуск перезапишет их (upsert), но это может занять дополнительное время.
+
+**Геозоны только из схемы `geo`:**
+dump-trucks работает только с объектами и зонами из `geo.objects` + `geo.zones`. Добавление нового объекта требует настройки геозон в geo-admin с тегами `dt_boundary`, `dt_loading`, `dt_unloading`.
+
+**Нет WebSocket-уведомлений:**
+Admin fetch асинхронный, UI не знает когда он завершился. Решение: polling или ручное обновление.
+
+---
+
+## История изменений
+
+- **2026-02-19:** Создан подпроект `dump-trucks/` (переименован из `samosvaly/`). Реализован Express backend, pipeline TIS API → PostgreSQL, схема `dump_trucks` с 4 таблицами (shift_records, trips, zone_events, requests), ZoneAnalyzer, TripBuilder, KpiCalculator, планировщик cron.
+
+- **2026-02-19:** Добавлена таблица `dump_trucks.repairs` (миграция 002). API-endpoint `GET /api/dt/repairs`. Тест-ТС: idMO {781, 15, 1581} через `DT_TEST_ID_MOS`.
+
+- **2026-02-24:** Реализован React фронтенд `DumpTrucksPage` (`frontend/src/features/samosvaly/`) — заменяет iframe. Новые API endpoints: `/api/dt/orders`, `/api/dt/orders/:number/gantt`, `/api/dt/repairs`, `/api/dt/shift-detail`. Расширен ShiftRecord API: добавлены `shiftStart`, `shiftEnd`, `requestNumbers`, `plId`. Группировка заявок по городам через `objectName` из shift_records. Vite proxy `/api/dt` → `:3002` добавлен в `frontend/vite.config.ts`.
