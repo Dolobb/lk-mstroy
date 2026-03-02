@@ -158,6 +158,7 @@ const kipPool = new Pool({
   port: Number(process.env.KIP_DB_PORT || 5432),
   database: process.env.KIP_DB_NAME || 'kip_vehicles',
   user: process.env.KIP_DB_USER || 'max',
+  password: process.env.KIP_DB_PASSWORD,
 });
 
 const mainPool = new Pool({
@@ -165,6 +166,7 @@ const mainPool = new Pool({
   port: Number(process.env.MAIN_DB_PORT || 5433),
   database: process.env.MAIN_DB_NAME || 'mstroy',
   user: process.env.MAIN_DB_USER || 'max',
+  password: process.env.MAIN_DB_PASSWORD,
 });
 
 async function getKipDates(from: string, to: string): Promise<{ dates: string[]; error?: string }> {
