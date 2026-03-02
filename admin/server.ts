@@ -137,12 +137,18 @@ function stopService(id: string) {
   const child = processes[id];
   if (!child) return;
   appendLog(id, '[admin] Остановка...');
-  child.kill('SIGTERM');
-  setTimeout(() => {
-    if (processes[id] === child) {
-      try { child.kill('SIGKILL'); } catch {}
-    }
-  }, 3000);
+
+  if (process.platform === 'win32' && child.pid) {
+    // На Windows SIGTERM не убивает дерево дочерних процессов (tsx, npm остаются зомби)
+    spawn('taskkill', ['/F', '/T', '/PID', String(child.pid)], { shell: false });
+  } else {
+    child.kill('SIGTERM');
+    setTimeout(() => {
+      if (processes[id] === child) {
+        try { child.kill('SIGKILL'); } catch {}
+      }
+    }, 3000);
+  }
 }
 
 // ─── DB connections ───────────────────────────────────────────────────────────
