@@ -1,131 +1,90 @@
 # CLAUDE.md — ЛК Мстрой (Монорепо)
 
+## Протокол работы с кодовой базой
+
+**Прежде чем читать исходные файлы** — проверить документацию. Она написана специально чтобы не тратить время на исследование.
+
+### Точки входа
+
+| Что нужно | Куда смотреть |
+|-----------|--------------|
+| Сервисная карта, порты, БД | `NAVIGATION.md` → раздел «Сервисная карта» |
+| «Хочу изменить X» — где файл? | `NAVIGATION.md` → раздел «Сценарии разработчика» (16 сценариев) |
+| Схемы всех таблиц БД | `NAVIGATION.md` → раздел «Схема баз данных» |
+| Ключевые алгоритмы (КИП, геозоны, смены) | `NAVIGATION.md` → раздел «Ключевые алгоритмы» |
+| Поток данных по кнопке UI | `NAVIGATION.md` → раздел «Потоки данных» |
+| Все `.env` переменные | `NAVIGATION.md` → раздел «Переменные окружения» |
+| Pipeline конкретного сервиса | `<сервис>/docs/PIPELINE.md` |
+| Компоненты фронтенда сервиса | `<сервис>/docs/FRONTEND.md` |
+| Что реализовано, ограничения | `<сервис>/docs/HISTORY.md` |
+| Запуск, конфиг, расширение | `<сервис>/docs/DEVGUIDE.md` |
+
+### Правило
+
+```
+NAVIGATION.md → docs/*.md → исходный код
+```
+
+Не читать исходники пока docs не проверены и недостаточны.
+
+---
+
 ## Обзор проекта
 
-**ЛК Мстрой** — единый личный кабинет для управления строительным транспортом. Объединяет несколько подсистем в одном интерфейсе с вкладками.
+**ЛК Мстрой** — единый личный кабинет управления строительным транспортом. 6 сервисов в монорепо.
 
-## Структура монорепо
+| Сервис | Папка | Порт | Стек |
+|--------|-------|------|------|
+| Единый фронтенд | `frontend/` | 5173 | React 18 + Vite + Tailwind v4 + shadcn/ui |
+| КИП техники | `kip/` | 3001 | Express + PostgreSQL 16 (`kip_vehicles`) |
+| Тягачи | `tyagachi/` | 8000 | Python / FastAPI + SQLite |
+| Самосвалы | `dump-trucks/` | 3002 | Express + PostgreSQL 17 (`mstroy`) |
+| Состояние ТС | `vehicle-status/` | 3004 | Express + PostgreSQL 17 (`mstroy`) |
+| Гео-Администратор | `geo-admin/` | 3003 | Express + PostgreSQL 17 (`mstroy` / PostGIS) |
 
-```
-lk-mstroy/
-├── CLAUDE.md              # Этот файл
-├── kip/                   # КИП техники — мониторинг KPI транспорта
-│   ├── client/            # React 18 + Tailwind v4 + Vite + Leaflet
-│   ├── server/            # Express + PostgreSQL
-│   └── config/            # vehicle-registry, geozones, shifts и т.д.
-├── tyagachi/              # Тягачи (бывш. TransportAnalytics) — аналитика тягачей
-│   ├── src/               # Python: API client, parsers, HTML generator, web server
-│   ├── config.yaml        # Конфигурация API/путей
-│   └── main.py            # CLI точка входа
-├── samosvaly/             # Самосвалы — аналитика самосвалов (в разработке)
-│   └── src/
-└── frontend/              # Единый фронтенд-оболочка (React + Vite + Tailwind + shadcn)
-    └── src/
-        ├── app/           # Layout, роутинг, вкладки
-        └── features/      # dashboard, tyagachi, kip, samosvaly
-```
+### Запуск всех сервисов
 
-## Вкладки интерфейса
-
-| # | Название | Источник | Статус |
-|---|----------|----------|--------|
-| 1 | Главная (дашборд) | Новый + блоки из tyagachi | В разработке |
-| 2 | Тягачи | tyagachi/ (переписать фронт) | Планируется |
-| 3 | КИП техники | kip/ (перенос после доработки UI) | MVP готов |
-| 4 | Самосвалы | samosvaly/ | В разработке |
-
-## Подсистема: КИП техники (`kip/`)
-
-Мониторинг KPI строительной техники. Получает ПЛ, заявки и GPS из TIS Online API, считает КИП (загрузка, утилизация), показывает на карте + таблице.
-
-### Стек
-- **Бэкенд**: Express + PostgreSQL 16 (БД `kip_vehicles`)
-- **Фронтенд**: React 18 + Tailwind CSS v4 + Vite + Leaflet
-- **Single-port serving**: Express раздаёт API + React build на :3001
-
-### Команды
 ```bash
-cd kip/
-npm run dev:server        # Express на :3001
-npm run dev:client        # Vite dev на :3000
-npm run build --workspace=client
+cd kip/ && npm run dev:server                          # :3001
+cd tyagachi/ && python main.py --web --port 8000       # :8000
+cd dump-trucks/server && npm run dev                   # :3002
+cd geo-admin/server && npm run dev                     # :3003
+cd vehicle-status/server && npm run dev                # :3004
+cd frontend && npm run dev                             # :5173
 ```
 
-### TIS API (критично!)
-- **POST** с пустым телом, все параметры в **query string**
-- URL: `POST {baseUrl}?token=...&format=json&command={cmd}&{params}`
+---
+
+## Критичные неочевидные факты
+
+### TIS API (все сервисы используют одинаково)
+- **POST с пустым телом**, все параметры в **query string**
+- `POST {baseUrl}?token=...&format=json&command={cmd}&{params}`
 - Команды: `getRequests`, `getRouteListsByDateOut`, `getMonitoringStats`
-- `getMonitoringStats` даты: `DD.MM.YYYY HH:mm`
-- 18 токенов round-robin, rate limit 1 req/30s per idMO
-
-### Ключевые конфиги
-- `config/vehicle-registry.json` — ~170 ТС (regNumber, type, branch, fuelNorm)
-- `config/geozones.geojson` — геозоны (controlType === 1)
-- `config/vehicle-types.json` — фильтр ТС для pipeline
-
-### КИП Pipeline
-1. Fetch ПЛ (7 дней) + заявки (2 месяца) из TIS API
-2. Фильтр ТС по keywords → split на смены (утро 07:30–19:30, вечер 19:30–07:30)
-3. Fetch мониторинг → анализ геозон → расчёт KPI → upsert в vehicle_records
-
-### KPI цвета
-RED <50%, BLUE 50–75%, GREEN >=75%
+- `getMonitoringStats` даты: `DD.MM.YYYY HH:mm` (остальные: `DD.MM.YYYY`)
+- Rate limit: **1 запрос / 30с на idMO**; 18 токенов round-robin
+- Готовые клиенты: `tyagachi/src/api/client.py`, `kip/server/src/services/tisClient.ts`
 
 ### PostgreSQL
-```bash
-/usr/local/opt/postgresql@16/bin/psql -d kip_vehicles
-```
+- **PG 16** (порт 5432): `kip_vehicles` → `/usr/local/opt/postgresql@16/bin/psql -d kip_vehicles`
+- **PG 17** (порт 5433): `mstroy` → `/usr/local/opt/postgresql@17/bin/psql -p 5433 -d mstroy`
 
-## Подсистема: Тягачи (`tyagachi/`)
+### Vite proxy (`frontend/vite.config.ts`)
+`/api/kip` → :3001 | `/api/tyagachi` → :8000 | `/api/dt` → :3002 | `/api/vs` → :3004
 
-Аналитика тягачей — сопоставление заявок и путевых листов, загрузка мониторинга ГЛОНАСС, генерация отчётов.
+### Secrets
+- `.env` в корнях подпроектов — не коммитить
+- `vehicle-status/server/creds.json` — Google Service Account — **в .gitignore**
 
-### Стек
-- **Python 3.10+**, FastAPI + Uvicorn, SQLAlchemy + SQLite
-- **HTML-генератор** (V2): трёхколоночный layout с картой Leaflet
+---
 
-### Команды
-```bash
-cd tyagachi/
-python main.py --web --port 8000       # Web-сервер
-python main.py --fetch --from DD.MM.YYYY --to DD.MM.YYYY  # CLI
-```
+## Документация по подпроектам
 
-### Ключевые модули
-- `src/api/client.py` — TIS API клиент (те же endpoints что КИП)
-- `src/parsers/` — request_parser, pl_parser, monitoring_parser
-- `src/output/html_generator_v2.py` — основной HTML-генератор (~4600 строк)
-- `src/web/server.py` — FastAPI endpoints (dashboard + reports)
-- `src/web/models.py` — SQLite модели (Vehicle, TrackedRequest, PLRecord, SyncLog)
-
-### Pipeline тягачей
-1. Fetch ПЛ + заявки → парсинг → матчинг (request_number ↔ extracted_request_number)
-2. Fetch мониторинг → генерация HTML отчёта V2
-3. Dashboard: синхронизация → upsert Vehicle/TrackedRequest/PLRecord
-
-### Стабильность заявок
-- `SUCCESSFULLY_COMPLETED` → stable (не обновляется при sync)
-- Остальные → in_progress (обновляются каждый sync)
-
-## Единый фронтенд (`frontend/`)
-
-React + Vite + Tailwind CSS v4 + shadcn/ui. Единая оболочка с табами/роутингом.
-
-### Стек
-- React 18 + TypeScript
-- Vite (сборка)
-- Tailwind CSS v4
-- shadcn/ui (компоненты)
-- lucide-react (иконки)
-
-## Деплой (планируется)
-
-- **VPS reg.ru**: Ubuntu 22.04, 2 vCPU / 4 GB RAM / 40 GB SSD
-- nginx reverse proxy: `/` → frontend, `/api/kip/*` → Node:3001, `/api/transport/*` → FastAPI
-- Всё через SSH, без панели управления
-
-## Окружение
-
-- `.env` в корнях подпроектов (не коммитятся)
-- КИП: DB_NAME, TIS_API_TOKENS, TIS_API_URL
-- Тягачи: config.yaml (токены API)
+| Подпроект | FRONTEND.md | PIPELINE.md | HISTORY.md | DEVGUIDE.md |
+|-----------|------------|-------------|------------|-------------|
+| КИП | `kip/docs/FRONTEND.md` | `kip/docs/PIPELINE.md` | `kip/docs/HISTORY.md` | `kip/docs/DEVGUIDE.md` |
+| Тягачи | `tyagachi/docs/FRONTEND.md` | `tyagachi/docs/PIPELINE.md` | `tyagachi/docs/HISTORY.md` | `tyagachi/docs/DEVGUIDE.md` |
+| Самосвалы | `dump-trucks/docs/FRONTEND.md` | `dump-trucks/docs/PIPELINE.md` | `dump-trucks/docs/HISTORY.md` | `dump-trucks/docs/DEVGUIDE.md` |
+| Состояние ТС | `vehicle-status/docs/FRONTEND.md` | `vehicle-status/docs/PIPELINE.md` | `vehicle-status/docs/HISTORY.md` | `vehicle-status/docs/DEVGUIDE.md` |
+| Гео-Администратор | `geo-admin/docs/FRONTEND.md` | `geo-admin/docs/PIPELINE.md` | `geo-admin/docs/HISTORY.md` | `geo-admin/docs/DEVGUIDE.md` |
+| Единый фронтенд | `frontend/docs/FRONTEND.md` | `frontend/docs/PIPELINE.md` | `frontend/docs/HISTORY.md` | `frontend/docs/DEVGUIDE.md` |

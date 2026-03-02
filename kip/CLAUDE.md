@@ -121,6 +121,8 @@ Copy `.env.example` to `.env` and fill in `TIS_API_URL` and `TIS_API_TOKENS`. Da
 
 ## Full Documentation
 
-- `референсы и работа с агентом/Architecture.md` — complete architecture reference
-- `референсы и работа с агентом/DatabaseStructure.md` — DB schema, SQL queries, admin guide
+- `docs/PIPELINE.md` — формулы КИП, pipeline, API endpoints, схема БД
+- `docs/FRONTEND.md` — компоненты клиента, CSS-классы, интерактивность
+- `docs/HISTORY.md` — что реализовано, ограничения архитектуры
+- `docs/DEVGUIDE.md` — расширенное руководство разработчика
 - `API_REQUEST_EXAMPLES.md` — TIS API reference with curl/Node.js examples
