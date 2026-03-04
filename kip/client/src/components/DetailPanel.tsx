@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, WifiOff } from 'lucide-react';
 import type { VehicleRequest, WeeklyVehicle } from '../types/vehicle';
 
 interface Props {
@@ -70,6 +70,14 @@ const DetailPanel: React.FC<Props> = ({ vehicle, requests, onClose }) => {
           <InfoRow label="Гос. №">
             <span className="text-accent font-bold">{vehicle.vehicle_id}</span>
           </InfoRow>
+          {vehicle.is_ghost && vehicle.last_seen_date && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border-b border-border">
+              <WifiOff className="size-3.5 text-orange-400 shrink-0" />
+              <span className="text-orange-400 font-medium" style={{ fontSize: '11px' }}>
+                Нет связи с {vehicle.last_seen_date}
+              </span>
+            </div>
+          )}
 
           {/* Request navigator */}
           <InfoRow label={`№ Заявки (${totalRequests})`}>
@@ -105,7 +113,20 @@ const DetailPanel: React.FC<Props> = ({ vehicle, requests, onClose }) => {
                 value={currentRequest.customer_name || (currentRequest.id_own_customer != null ? String(currentRequest.id_own_customer) : '—')}
               />
               <InfoRow label="Объект затрат" value={currentRequest.object_expend_name} />
-              <InfoRow label="Вид работ" value={currentRequest.type_of_work} isLast />
+              <InfoRow label="Вид работ" value={currentRequest.type_of_work} />
+              {(currentRequest.date_start || currentRequest.date_end) && (
+                <InfoRow label="Период" isLast>
+                  <span className="font-medium">
+                    {currentRequest.date_start ?? '—'}
+                    {currentRequest.date_end && currentRequest.date_end !== currentRequest.date_start
+                      ? ` – ${currentRequest.date_end}`
+                      : ''}
+                  </span>
+                </InfoRow>
+              )}
+              {!(currentRequest.date_start || currentRequest.date_end) && (
+                <InfoRow label="Период" value="—" isLast />
+              )}
             </>
           ) : (
             <InfoRow label="Заявитель" value="—" isLast />

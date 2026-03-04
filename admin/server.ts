@@ -183,6 +183,35 @@ async function getKipDates(from: string, to: string): Promise<{ dates: string[];
   }
 }
 
+async function getKipRawDates(from: string, to: string): Promise<{ dates: string[]; partial: string[]; error?: string }> {
+  try {
+    const res = await kipPool.query(
+      `SELECT
+         vr.report_date::text,
+         COUNT(DISTINCT vr.vehicle_id || '|' || vr.shift_type)  AS vr_count,
+         COUNT(DISTINCT mr.vehicle_id || '|' || mr.shift_type)  AS raw_count
+       FROM vehicle_records vr
+       LEFT JOIN monitoring_raw mr
+         ON mr.report_date = vr.report_date
+         AND mr.vehicle_id = vr.vehicle_id
+         AND mr.shift_type = vr.shift_type
+       WHERE vr.report_date BETWEEN $1 AND $2
+       GROUP BY vr.report_date`,
+      [from, to],
+    );
+    const dates: string[] = [];
+    const partial: string[] = [];
+    for (const row of res.rows) {
+      const pct = row.vr_count > 0 ? row.raw_count / row.vr_count : 0;
+      if (pct >= 0.9) dates.push(row.report_date);
+      else if (row.raw_count > 0) partial.push(row.report_date);
+    }
+    return { dates, partial };
+  } catch (e) {
+    return { dates: [], partial: [], error: String(e) };
+  }
+}
+
 async function getDumpTrucksDates(from: string, to: string): Promise<{ dates: string[]; error?: string }> {
   try {
     const res = await mainPool.query(
@@ -204,12 +233,36 @@ interface FetchProgress {
   service: 'kip' | 'dump-trucks' | null;
   queue: string[];        // даты ожидающие загрузки
   current: string | null; // дата в процессе
+  startedAt: number | null; // unix ms когда текущая дата начала загружаться
   done: string[];         // успешно загруженные
   errors: string[];       // ошибки по датам
   cancelRequested: boolean;
 }
 
 const fetchProgress: FetchProgress = {
+  active: false,
+  service: null,
+  queue: [],
+  current: null,
+  startedAt: null,
+  done: [],
+  errors: [],
+  cancelRequested: false,
+};
+
+// ─── Recalc queue ──────────────────────────────────────────────────────────────
+
+interface RecalcProgress {
+  active: boolean;
+  service: 'kip' | 'dump-trucks' | null;
+  queue: string[];        // даты ожидающие пересчёта
+  current: string | null;
+  done: string[];
+  errors: string[];
+  cancelRequested: boolean;
+}
+
+const recalcProgress: RecalcProgress = {
   active: false,
   service: null,
   queue: [],
@@ -231,18 +284,57 @@ function allDatesInRange(from: string, to: string): string[] {
   return dates;
 }
 
-// Ожидать появления даты в БД (поллинг каждые 20с, таймаут timeoutMs)
+// Ожидать завершения force-пайплайна: считаем новые записи в monitoring_raw (fetched_at >= fireTime).
+// Пайплайн считается завершённым, когда счётчик не меняется 2 проверки подряд (~30с).
+async function waitForRawComplete(
+  pool: Pool,
+  date: string,
+  fireTime: string,
+  isCancelled: () => boolean,
+): Promise<'ok' | 'timeout' | 'cancelled'> {
+  const deadline = Date.now() + 30 * 60 * 1000; // 30 мин макс
+  let lastCount = -1;
+  let stableChecks = 0;
+
+  while (Date.now() < deadline) {
+    if (isCancelled()) return 'cancelled';
+    await new Promise(r => setTimeout(r, 15_000));
+    if (isCancelled()) return 'cancelled';
+
+    try {
+      const res = await pool.query(
+        `SELECT COUNT(*)::int AS cnt FROM monitoring_raw WHERE report_date = $1 AND fetched_at >= $2`,
+        [date, fireTime],
+      );
+      const count: number = res.rows[0]?.cnt ?? 0;
+
+      if (count > 0 && count === lastCount) {
+        stableChecks++;
+        if (stableChecks >= 2) return 'ok'; // счётчик не менялся ~30с → пайплайн завершён
+      } else {
+        stableChecks = 0;
+      }
+      lastCount = count;
+    } catch { /* ignore poll errors */ }
+  }
+
+  return 'timeout';
+}
+
+// Ожидать появления даты в БД (поллинг каждые intervalMs, таймаут timeoutMs)
 async function waitForDate(
   pool: Pool,
   query: string,
   params: string[],
-  timeoutMs: number
+  timeoutMs: number,
+  isCancelled: () => boolean = () => fetchProgress.cancelRequested,
+  intervalMs: number = 20_000,
 ): Promise<'ok' | 'timeout' | 'cancelled'> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (fetchProgress.cancelRequested) return 'cancelled';
-    await new Promise(r => setTimeout(r, 20_000));
-    if (fetchProgress.cancelRequested) return 'cancelled';
+    if (isCancelled()) return 'cancelled';
+    await new Promise(r => setTimeout(r, intervalMs));
+    if (isCancelled()) return 'cancelled';
     try {
       const res = await pool.query(query, params);
       if ((res.rowCount ?? 0) > 0) return 'ok';
@@ -251,7 +343,7 @@ async function waitForDate(
   return 'timeout';
 }
 
-async function runKipQueue(dates: string[]) {
+async function runKipQueue(dates: string[], pollRaw = false) {
   fetchProgress.active = true;
   fetchProgress.service = 'kip';
   fetchProgress.done = [];
@@ -263,25 +355,35 @@ async function runKipQueue(dates: string[]) {
     if (fetchProgress.cancelRequested) break;
 
     fetchProgress.current = date;
+    fetchProgress.startedAt = Date.now();
     fetchProgress.queue = fetchProgress.queue.filter(d => d !== date);
 
     try {
       await fetch(`http://localhost:3001/api/admin/fetch?date=${date}`, { method: 'POST' });
 
-      // KIP pipeline долгий — таймаут 30 минут
-      const result = await waitForDate(
-        kipPool,
-        `SELECT 1 FROM vehicle_records WHERE report_date = $1 LIMIT 1`,
-        [date],
-        30 * 60 * 1000
-      );
-
-      if (result === 'cancelled') break;
-      if (result === 'timeout') {
-        fetchProgress.errors.push(`${date}: таймаут (30 мин)`);
+      if (pollRaw) {
+        // force-режим: ждём пока monitoring_raw перестанет пополняться (~30с стабильности).
+        // Естественный темп — один пайплайн за раз, никаких hard minimum.
+        const fireTime = new Date().toISOString();
+        const result = await waitForRawComplete(kipPool, date, fireTime, () => fetchProgress.cancelRequested);
+        if (result === 'cancelled') break;
+        // timeout тоже считается done (пайплайн запущен, данные придут в фоне)
       } else {
-        fetchProgress.done.push(date);
+        // normal mode: ждём vehicle_records (30 мин, поллинг 20с)
+        const result = await waitForDate(
+          kipPool,
+          `SELECT 1 FROM vehicle_records WHERE report_date = $1 LIMIT 1`,
+          [date],
+          30 * 60 * 1000,
+        );
+        if (result === 'cancelled') break;
+        if (result === 'timeout') {
+          fetchProgress.errors.push(`${date}: таймаут (30 мин)`);
+          continue;
+        }
       }
+
+      fetchProgress.done.push(date);
     } catch (e) {
       fetchProgress.errors.push(`${date}: ${e}`);
     }
@@ -289,6 +391,7 @@ async function runKipQueue(dates: string[]) {
 
   fetchProgress.active = false;
   fetchProgress.current = null;
+  fetchProgress.startedAt = null;
   fetchProgress.service = null;
 }
 
@@ -334,6 +437,120 @@ async function runDTQueue(dates: string[]) {
   fetchProgress.active = false;
   fetchProgress.current = null;
   fetchProgress.service = null;
+}
+
+// Пересчёт KIP: endpoint асинхронный (возвращает сразу), поллим статус каждые 10с
+async function runKipRecalc(dates: string[]) {
+  recalcProgress.active = true;
+  recalcProgress.service = 'kip';
+  recalcProgress.done = [];
+  recalcProgress.errors = [];
+  recalcProgress.cancelRequested = false;
+  recalcProgress.queue = [...dates];
+
+  for (const date of dates) {
+    if (recalcProgress.cancelRequested) break;
+
+    recalcProgress.current = date;
+    recalcProgress.queue = recalcProgress.queue.filter(d => d !== date);
+
+    try {
+      // Запускаем пересчёт — endpoint возвращает сразу
+      const startRes = await fetch(`http://localhost:3001/api/admin/recalculate?date=${date}`, { method: 'POST' });
+      if (!startRes.ok) {
+        recalcProgress.errors.push(`${date}: HTTP ${startRes.status}`);
+        continue;
+      }
+
+      // Поллим статус (таймаут 20 минут)
+      const deadline = Date.now() + 20 * 60 * 1000;
+      let finished = false;
+      while (Date.now() < deadline) {
+        if (recalcProgress.cancelRequested) break;
+        await new Promise(r => setTimeout(r, 10_000));
+        if (recalcProgress.cancelRequested) break;
+
+        try {
+          const statusRes = await fetch(`http://localhost:3001/api/admin/recalculate/status?date=${date}`);
+          if (!statusRes.ok) continue;
+          const body = await statusRes.json() as { status: string; errors?: string[] };
+
+          if (body.status === 'done') {
+            if (body.errors && body.errors.length > 0) {
+              recalcProgress.errors.push(`${date}: ${body.errors.join(', ')}`);
+            } else {
+              recalcProgress.done.push(date);
+            }
+            finished = true;
+            break;
+          }
+          if (body.status === 'not_found') {
+            // Сервер перезапустился — job потерян
+            recalcProgress.errors.push(`${date}: job lost (server restart?)`);
+            finished = true;
+            break;
+          }
+          // status === 'running' → ждём
+        } catch {
+          // poll failed → продолжаем ждать
+        }
+      }
+
+      if (!finished && !recalcProgress.cancelRequested) {
+        recalcProgress.errors.push(`${date}: timeout (20 min)`);
+      }
+    } catch (e) {
+      recalcProgress.errors.push(`${date}: ${e}`);
+    }
+  }
+
+  recalcProgress.active = false;
+  recalcProgress.current = null;
+  recalcProgress.service = null;
+}
+
+// Пересчёт Самосвалов: две смены на дату, оба endpoint синхронные
+async function runDTRecalc(dates: string[]) {
+  recalcProgress.active = true;
+  recalcProgress.service = 'dump-trucks';
+  recalcProgress.done = [];
+  recalcProgress.errors = [];
+  recalcProgress.cancelRequested = false;
+  recalcProgress.queue = [...dates];
+
+  for (const date of dates) {
+    if (recalcProgress.cancelRequested) break;
+
+    recalcProgress.current = date;
+    recalcProgress.queue = recalcProgress.queue.filter(d => d !== date);
+
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(`http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift1`, { method: 'POST' }),
+        fetch(`http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift2`, { method: 'POST' }),
+      ]);
+      const [b1, b2] = await Promise.all([
+        r1.json() as Promise<{ status: string; errors?: string[] }>,
+        r2.json() as Promise<{ status: string; errors?: string[] }>,
+      ]);
+
+      const errs: string[] = [];
+      if (!r1.ok || b1.status === 'error') errs.push(`shift1: ${b1.errors?.join(', ') ?? r1.status}`);
+      if (!r2.ok || b2.status === 'error') errs.push(`shift2: ${b2.errors?.join(', ') ?? r2.status}`);
+
+      if (errs.length > 0) {
+        recalcProgress.errors.push(`${date}: ${errs.join(' | ')}`);
+      } else {
+        recalcProgress.done.push(date);
+      }
+    } catch (e) {
+      recalcProgress.errors.push(`${date}: ${e}`);
+    }
+  }
+
+  recalcProgress.active = false;
+  recalcProgress.current = null;
+  recalcProgress.service = null;
 }
 
 // ─── Express app ──────────────────────────────────────────────────────────────
@@ -406,14 +623,17 @@ app.get('/api/admin/data-coverage', async (req, res) => {
     return;
   }
 
-  const [kipResult, dtResult] = await Promise.all([
+  const [kipResult, dtResult, kipRawResult] = await Promise.all([
     getKipDates(from, to),
     getDumpTrucksDates(from, to),
+    getKipRawDates(from, to),
   ]);
 
   res.json({
     kip: kipResult.dates,
     dumpTrucks: dtResult.dates,
+    rawDates: kipRawResult.dates,
+    rawPartial: kipRawResult.partial,
     errors: {
       kip: kipResult.error ?? null,
       dumpTrucks: dtResult.error ?? null,
@@ -431,6 +651,7 @@ app.get('/api/admin/fetch/status', (_req, res) => {
     active: fetchProgress.active,
     service: fetchProgress.service,
     current: fetchProgress.current,
+    startedAt: fetchProgress.startedAt,
     queue: fetchProgress.queue,
     done: fetchProgress.done,
     errors: fetchProgress.errors,
@@ -456,24 +677,43 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
     return;
   }
 
+  const force = req.query.force === 'true';
+
   // Вычислить недостающие даты
   const allDates = allDatesInRange(from, to).reverse(); // от последней к ранней
-  const existingResult = service === 'kip'
-    ? await getKipDates(from, to)
-    : await getDumpTrucksDates(from, to);
-  const existingSet = new Set(existingResult.dates);
-  const missing = allDates.filter(d => !existingSet.has(d));
+  let missing: string[];
 
-  if (missing.length === 0) {
-    res.json({ ok: true, message: 'Все даты уже загружены', missing: 0 });
-    return;
+  if (force && service === 'kip') {
+    // force-режим: перевыгружаем только даты у которых есть vehicle_records, но нет monitoring_raw
+    const [kipResult, rawResult] = await Promise.all([
+      getKipDates(from, to),
+      getKipRawDates(from, to),
+    ]);
+    const kipSet = new Set(kipResult.dates);
+    const rawSet = new Set(rawResult.dates);
+    missing = allDates.filter(d => kipSet.has(d) && !rawSet.has(d));
+    if (missing.length === 0) {
+      res.json({ ok: true, message: 'Все даты уже есть в monitoring_raw', missing: 0 });
+      return;
+    }
+  } else {
+    // обычный режим: только даты без vehicle_records
+    const existingResult = service === 'kip'
+      ? await getKipDates(from, to)
+      : await getDumpTrucksDates(from, to);
+    const existingSet = new Set(existingResult.dates);
+    missing = allDates.filter(d => !existingSet.has(d));
+    if (missing.length === 0) {
+      res.json({ ok: true, message: 'Все даты уже загружены', missing: 0 });
+      return;
+    }
   }
 
   res.json({ ok: true, started: true, missing: missing.length, dates: missing });
 
   // Запускаем в фоне
   if (service === 'kip') {
-    runKipQueue(missing).catch(console.error);
+    runKipQueue(missing, force).catch(console.error);
   } else {
     runDTQueue(missing).catch(console.error);
   }
@@ -487,6 +727,70 @@ app.post('/api/admin/fetch/cancel', (_req, res) => {
   }
   fetchProgress.cancelRequested = true;
   res.json({ ok: true, message: 'Отмена запрошена' });
+});
+
+// ─── Recalc endpoints ─────────────────────────────────────────────────────────
+
+// GET recalc status
+app.get('/api/admin/recalc/status', (_req, res) => {
+  res.json({
+    active:   recalcProgress.active,
+    service:  recalcProgress.service,
+    current:  recalcProgress.current,
+    queue:    recalcProgress.queue,
+    done:     recalcProgress.done,
+    errors:   recalcProgress.errors,
+  });
+});
+
+// POST cancel recalc (должен быть ДО /recalc/:service, иначе Express не дойдёт до него)
+app.post('/api/admin/recalc/cancel', (_req, res) => {
+  if (!recalcProgress.active) {
+    res.json({ ok: true, message: 'Нет активного пересчёта' });
+    return;
+  }
+  recalcProgress.cancelRequested = true;
+  res.json({ ok: true, message: 'Отмена пересчёта запрошена' });
+});
+
+// POST start recalc for kip or dump-trucks
+app.post('/api/admin/recalc/:service', async (req, res) => {
+  const { service } = req.params;
+  const from = req.query.from as string;
+  const to   = req.query.to   as string;
+
+  if (service !== 'kip' && service !== 'dump-trucks') {
+    res.status(400).json({ error: 'service должен быть kip или dump-trucks' });
+    return;
+  }
+  if (!from || !to) {
+    res.status(400).json({ error: '"from" и "to" обязательны (YYYY-MM-DD)' });
+    return;
+  }
+  if (recalcProgress.active) {
+    res.status(409).json({ error: 'Уже выполняется пересчёт' });
+    return;
+  }
+
+  // Пересчитываем только даты, для которых есть данные в БД
+  const existingResult = service === 'kip'
+    ? await getKipDates(from, to)
+    : await getDumpTrucksDates(from, to);
+
+  const dates = existingResult.dates.sort().reverse(); // от последней к ранней
+
+  if (dates.length === 0) {
+    res.json({ ok: true, message: 'Нет данных в выбранном периоде для пересчёта', count: 0 });
+    return;
+  }
+
+  res.json({ ok: true, started: true, count: dates.length, dates });
+
+  if (service === 'kip') {
+    runKipRecalc(dates).catch(console.error);
+  } else {
+    runDTRecalc(dates).catch(console.error);
+  }
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

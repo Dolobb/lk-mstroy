@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
-import type { ServiceStatus, DataCoverage, FetchStatus } from './types';
+import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,7 +57,7 @@ async function fetchCoverage(from: string, to: string): Promise<DataCoverage> {
 
 async function fetchFetchStatus(): Promise<FetchStatus> {
   const res = await fetch('/api/admin/fetch/status');
-  if (!res.ok) return { active: false, service: null, current: null, queue: [], done: [], errors: [] };
+  if (!res.ok) return { active: false, service: null, current: null, startedAt: null, queue: [], done: [], errors: [] };
   return res.json();
 }
 
@@ -66,8 +66,28 @@ async function startFetch(service: 'kip' | 'dump-trucks', from: string, to: stri
   return res.json();
 }
 
+async function startForceFetch(service: 'kip', from: string, to: string) {
+  const res = await fetch(`/api/admin/fetch/${service}?from=${from}&to=${to}&force=true`, { method: 'POST' });
+  return res.json();
+}
+
 async function cancelFetch() {
   await fetch('/api/admin/fetch/cancel', { method: 'POST' });
+}
+
+async function fetchRecalcStatus(): Promise<RecalcStatus> {
+  const res = await fetch('/api/admin/recalc/status');
+  if (!res.ok) return { active: false, service: null, current: null, queue: [], done: [], errors: [] };
+  return res.json();
+}
+
+async function startRecalc(service: 'kip' | 'dump-trucks', from: string, to: string) {
+  const res = await fetch(`/api/admin/recalc/${service}?from=${from}&to=${to}`, { method: 'POST' });
+  return res.json();
+}
+
+async function cancelRecalc() {
+  await fetch('/api/admin/recalc/cancel', { method: 'POST' });
 }
 
 // ─── Service Card ─────────────────────────────────────────────────────────────
@@ -190,8 +210,9 @@ const CoverageRow: React.FC<{
   dates: Set<string>;
   done: Set<string>;
   current: string | null;
+  partial?: Set<string>;
   allDays: string[];
-}> = ({ label, dates, done, current, allDays }) => (
+}> = ({ label, dates, done, current, partial = new Set(), allDays }) => (
   <div className="flex items-center gap-2">
     <span className="text-xs text-muted-foreground shrink-0 w-24 text-right" style={{ fontSize: '11px' }}>
       {label}
@@ -201,15 +222,18 @@ const CoverageRow: React.FC<{
         const has = dates.has(d);
         const justDone = done.has(d);
         const isCurrent = d === current;
+        const isPartial = !has && !justDone && !isCurrent && partial.has(d);
         return (
           <div
             key={d}
-            title={`${fmtDate(d)}${has || justDone ? ' ✓' : isCurrent ? ' ⏳ загружается...' : ' — нет данных'}`}
+            title={`${fmtDate(d)}${has || justDone ? ' ✓' : isCurrent ? ' ⏳ загружается...' : isPartial ? ' ⚠️ частично' : ' — нет данных'}`}
             className={`rounded-sm transition-colors ${
               has || justDone
                 ? 'bg-green-500/70'
                 : isCurrent
                 ? 'bg-yellow-400/80 animate-pulse'
+                : isPartial
+                ? 'bg-yellow-400/50'
                 : 'bg-muted/60'
             }`}
             style={{ width: '14px', height: '14px' }}
@@ -226,6 +250,10 @@ export const AdminPage: React.FC = () => {
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [coverage, setCoverage] = useState<DataCoverage | null>(null);
   const [fetchStatus, setFetchStatus] = useState<FetchStatus>({
+    active: false, service: null, current: null, startedAt: null, queue: [], done: [], errors: [],
+  });
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [recalcStatus, setRecalcStatus] = useState<RecalcStatus>({
     active: false, service: null, current: null, queue: [], done: [], errors: [],
   });
   const [coverageFrom, setCoverageFrom] = useState(monthStart());
@@ -253,11 +281,14 @@ export const AdminPage: React.FC = () => {
   const loadFetchStatus = async () => {
     const s = await fetchFetchStatus();
     setFetchStatus(s);
-    // Обновляем покрытие пока идёт загрузка
-    if (s.active) {
-      const data = await fetchCoverage(coverageFrom, coverageTo);
-      setCoverage(data);
-    }
+    // Обновляем покрытие всегда — иначе после перезапуска admin-сервера календарик зависает
+    const data = await fetchCoverage(coverageFrom, coverageTo);
+    setCoverage(data);
+  };
+
+  const loadRecalcStatus = async () => {
+    const s = await fetchRecalcStatus();
+    setRecalcStatus(s);
   };
 
   useEffect(() => {
@@ -276,10 +307,38 @@ export const AdminPage: React.FC = () => {
     return () => clearInterval(t);
   }, [coverageFrom, coverageTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Поллинг статуса пересчёта каждые 5с
+  useEffect(() => {
+    const t = setInterval(loadRecalcStatus, 5000);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Счётчик секунд для текущей даты в загрузке
+  useEffect(() => {
+    if (!fetchStatus.active || !fetchStatus.startedAt) {
+      setElapsedSec(0);
+      return;
+    }
+    setElapsedSec(Math.floor((Date.now() - fetchStatus.startedAt) / 1000));
+    const t = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - (fetchStatus.startedAt ?? Date.now())) / 1000));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [fetchStatus.active, fetchStatus.startedAt]);
+
   const handleStartFetch = async (service: 'kip' | 'dump-trucks') => {
     const result = await startFetch(service, coverageFrom, coverageTo);
     if (result.missing === 0) {
       alert('Все даты в выбранном периоде уже загружены!');
+      return;
+    }
+    await loadFetchStatus();
+  };
+
+  const handleStartForceFetch = async () => {
+    const result = await startForceFetch('kip', coverageFrom, coverageTo);
+    if (result.missing === 0) {
+      alert('Все даты в периоде уже есть в monitoring_raw!');
       return;
     }
     await loadFetchStatus();
@@ -290,14 +349,34 @@ export const AdminPage: React.FC = () => {
     await loadFetchStatus();
   };
 
+  const handleStartRecalc = async (service: 'kip' | 'dump-trucks') => {
+    const result = await startRecalc(service, coverageFrom, coverageTo);
+    if (result.count === 0) {
+      alert('Нет данных в выбранном периоде для пересчёта. Сначала выполните загрузку.');
+      return;
+    }
+    await loadRecalcStatus();
+  };
+
+  const handleCancelRecalc = async () => {
+    await cancelRecalc();
+    await loadRecalcStatus();
+  };
+
   const allDays = daysInRange(coverageFrom, coverageTo);
   const kipSet = new Set(coverage?.kip ?? []);
   const dtSet = new Set(coverage?.dumpTrucks ?? []);
+  const rawSet = new Set(coverage?.rawDates ?? []);
+  const rawPartialSet = new Set(coverage?.rawPartial ?? []);
   const fetchDoneSet = new Set(fetchStatus.done);
 
   const isKipFetching = fetchStatus.active && fetchStatus.service === 'kip';
   const isDTFetching = fetchStatus.active && fetchStatus.service === 'dump-trucks';
   const totalFetch = fetchStatus.done.length + fetchStatus.queue.length + (fetchStatus.current ? 1 : 0);
+
+  const isKipRecalcing = recalcStatus.active && recalcStatus.service === 'kip';
+  const isDTRecalcing  = recalcStatus.active && recalcStatus.service === 'dump-trucks';
+  const totalRecalc = recalcStatus.done.length + recalcStatus.queue.length + (recalcStatus.current ? 1 : 0);
 
   return (
     <div className="flex flex-col h-full overflow-auto p-3 gap-4">
@@ -378,6 +457,14 @@ export const AdminPage: React.FC = () => {
               {isDTFetching && <RotateCcw className="size-3 animate-spin" />}
               Обновить Самосвалы
             </button>
+            <button
+              onClick={handleStartForceFetch}
+              disabled={fetchStatus.active}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium bg-amber-500/15 text-amber-600 hover:bg-amber-500/25 disabled:opacity-50"
+              style={{ fontSize: '11px' }}
+            >
+              Перевыгрузить raw (КИП)
+            </button>
             {fetchStatus.active && (
               <button
                 onClick={handleCancel}
@@ -398,6 +485,13 @@ export const AdminPage: React.FC = () => {
                   Загружается: <span className="text-foreground font-mono">
                     {fetchStatus.current ? fmtDate(fetchStatus.current) : '...'}
                   </span>
+                  {elapsedSec > 0 && (
+                    <span className="text-muted-foreground ml-1.5">
+                      {elapsedSec < 60
+                        ? `${elapsedSec}с`
+                        : `${Math.floor(elapsedSec / 60)}м ${elapsedSec % 60}с`}
+                    </span>
+                  )}
                 </span>
                 <span className="text-muted-foreground">
                   {fetchStatus.done.length} из {totalFetch} дн.
@@ -444,10 +538,14 @@ export const AdminPage: React.FC = () => {
           <div className="flex items-center gap-3" style={{ fontSize: '10px' }}>
             <div className="flex items-center gap-1">
               <div className="size-2.5 rounded-sm bg-green-500/70" />
-              <span className="text-muted-foreground">Есть данные</span>
+              <span className="text-muted-foreground">Полные (&ge;90%)</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="size-2.5 rounded-sm bg-yellow-400/80" />
+              <div className="size-2.5 rounded-sm bg-yellow-400/50" />
+              <span className="text-muted-foreground">Частично</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="size-2.5 rounded-sm bg-yellow-400/80 animate-pulse" />
               <span className="text-muted-foreground">Загружается</span>
             </div>
             <div className="flex items-center gap-1">
@@ -455,7 +553,7 @@ export const AdminPage: React.FC = () => {
               <span className="text-muted-foreground">Нет данных</span>
             </div>
             <span className="text-muted-foreground ml-auto">
-              {allDays.length} дн. | КИП: {kipSet.size} | Самосвалы: {dtSet.size}
+              {allDays.length} дн. | КИП: {kipSet.size} | Raw: {rawSet.size}{rawPartialSet.size > 0 ? `+${rawPartialSet.size}⚠️` : ''} | Самосвалы: {dtSet.size}
             </span>
           </div>
 
@@ -467,6 +565,14 @@ export const AdminPage: React.FC = () => {
                 dates={kipSet}
                 done={isKipFetching ? fetchDoneSet : new Set()}
                 current={isKipFetching ? fetchStatus.current : null}
+                allDays={allDays}
+              />
+              <CoverageRow
+                label="KIP raw"
+                dates={rawSet}
+                done={new Set()}
+                current={null}
+                partial={rawPartialSet}
                 allDays={allDays}
               />
               <CoverageRow
@@ -490,6 +596,100 @@ export const AdminPage: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recalculate */}
+      <div>
+        <h2 className="text-sm font-semibold mb-2">Пересчёт данных</h2>
+        <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
+          <div className="text-xs text-muted-foreground" style={{ fontSize: '11px' }}>
+            Пересчитать КИП из уже сохранённых сырых данных — без обращения к TIS API.
+            Период выбирается тот же, что и для покрытия данных.
+          </div>
+
+          {/* Recalc buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleStartRecalc('kip')}
+              disabled={recalcStatus.active || fetchStatus.active}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium ${
+                isKipRecalcing
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-primary/15 text-primary hover:bg-primary/25'
+              } disabled:opacity-50`}
+              style={{ fontSize: '11px' }}
+            >
+              {isKipRecalcing && <RotateCcw className="size-3 animate-spin" />}
+              Пересчитать КИП
+            </button>
+            <button
+              onClick={() => handleStartRecalc('dump-trucks')}
+              disabled={recalcStatus.active || fetchStatus.active}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium ${
+                isDTRecalcing
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-primary/15 text-primary hover:bg-primary/25'
+              } disabled:opacity-50`}
+              style={{ fontSize: '11px' }}
+            >
+              {isDTRecalcing && <RotateCcw className="size-3 animate-spin" />}
+              Пересчитать Самосвалы
+            </button>
+            {recalcStatus.active && (
+              <button
+                onClick={handleCancelRecalc}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                style={{ fontSize: '11px' }}
+              >
+                <XCircle className="size-3" />
+                Отмена
+              </button>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          {recalcStatus.active && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between" style={{ fontSize: '11px' }}>
+                <span className="text-muted-foreground">
+                  Пересчёт: <span className="text-foreground font-mono">
+                    {recalcStatus.current ? fmtDate(recalcStatus.current) : '...'}
+                  </span>
+                </span>
+                <span className="text-muted-foreground">
+                  {recalcStatus.done.length} из {totalRecalc} дн.
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: totalRecalc > 0 ? `${(recalcStatus.done.length / totalRecalc) * 100}%` : '0%' }}
+                />
+              </div>
+              {recalcStatus.queue.length > 0 && (
+                <div className="text-muted-foreground" style={{ fontSize: '10px' }}>
+                  В очереди: {recalcStatus.queue.slice(0, 5).map(fmtDate).join(', ')}
+                  {recalcStatus.queue.length > 5 ? ` ...ещё ${recalcStatus.queue.length - 5}` : ''}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Errors */}
+          {recalcStatus.errors.length > 0 && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-2" style={{ fontSize: '10px' }}>
+              {recalcStatus.errors.slice(-3).map((e, i) => <div key={i}>{e}</div>)}
+            </div>
+          )}
+
+          {/* Last result */}
+          {!recalcStatus.active && recalcStatus.done.length > 0 && (
+            <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
+              Последний пересчёт: {recalcStatus.done.length} дн. выполнено
+              {recalcStatus.errors.length > 0 ? `, ${recalcStatus.errors.length} ошибок` : ''}
             </div>
           )}
         </div>

@@ -276,7 +276,14 @@ export async function runShiftFetch(
           movementPct:    kpi.movementPct,
           plId:           vehicleInfo.plId,
           requestNumbers: vehicleInfo.requestNumbers,
-          rawMonitoring:  { engineTime: monitoring.engineTime, movingTime: monitoring.movingTime, distance: monitoring.distance, trackPoints: track.length },
+          rawMonitoring:  {
+            engineTime:  monitoring.engineTime,
+            movingTime:  monitoring.movingTime,
+            distance:    monitoring.distance,
+            trackPoints: track.length,
+            fuels:       monitoring.fuels  ?? [],
+            track:       track,
+          },
           trips,
           zoneEvents:     objectZoneEvents,
         });

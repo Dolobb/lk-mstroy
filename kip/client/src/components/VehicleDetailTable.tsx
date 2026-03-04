@@ -57,6 +57,13 @@ function pct(v: number | null): string {
   return Math.round(capDisplay(v)).toString();
 }
 
+function hoursToHmm(h: number): string {
+  const totalMin = Math.round(h * 60);
+  const hh = Math.floor(totalMin / 60);
+  const mm = totalMin % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
 const MIN_ROWS = 7;
 
 const VehicleDetailTable: React.FC<Props> = ({ details }) => {
@@ -136,17 +143,28 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
             </DialogHeader>
             <div style={{ overflowY: 'auto', flex: 1 }}>
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow className="border-border hover:bg-transparent">
-                    {['Дата', 'Смена', 'Вр.зоны ч', 'Двиг. ч', 'Простой ч', 'Расход л', 'Норма л/ч', 'Факт л/ч', 'КИП %', 'Нагр. %'].map(h => (
-                      <TableHead key={h} className="text-muted-foreground font-semibold uppercase whitespace-nowrap" style={{ fontSize: '8px', padding: '4px 8px' }}>
+                    {[
+                      'Дата',
+                      'Смена',
+                      'Время в зоне',
+                      'Двигатель',
+                      'Простой',
+                      'Расход топлива, л',
+                      'Норма расхода, л/ч',
+                      'Факт расхода, л/ч',
+                      'КИП, %',
+                      'Нагрузка, %',
+                    ].map(h => (
+                      <TableHead key={h} className="text-muted-foreground font-semibold whitespace-nowrap bg-muted" style={{ fontSize: '9px', padding: '4px 8px' }}>
                         {h}
                       </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {[...details].sort((a, b) => a.report_date.localeCompare(b.report_date) || a.shift_type.localeCompare(b.shift_type)).map((row, i) => (
+                  {[...details].sort((a, b) => a.report_date.localeCompare(b.report_date) || (a.shift_type === 'morning' ? 0 : 1) - (b.shift_type === 'morning' ? 0 : 1)).map((row, i) => (
                     <TableRow key={i} className="border-border hover:bg-muted/30">
                       <TableCell className="font-medium text-foreground whitespace-nowrap" style={{ fontSize: '11px', padding: '5px 8px' }}>
                         {formatDate(row.report_date)}
@@ -155,13 +173,13 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
                         {row.shift_type === 'morning' ? '1' : '2'}
                       </TableCell>
                       <TableCell className="text-foreground" style={{ fontSize: '11px', padding: '5px 8px' }}>
-                        {row.total_stay_time.toFixed(2)}
+                        {hoursToHmm(row.total_stay_time)}
                       </TableCell>
                       <TableCell className="text-foreground" style={{ fontSize: '11px', padding: '5px 8px' }}>
-                        {row.engine_on_time.toFixed(2)}
+                        {hoursToHmm(row.engine_on_time)}
                       </TableCell>
                       <TableCell className="text-foreground" style={{ fontSize: '11px', padding: '5px 8px' }}>
-                        {row.idle_time.toFixed(2)}
+                        {hoursToHmm(row.idle_time)}
                       </TableCell>
                       <TableCell className="text-foreground" style={{ fontSize: '11px', padding: '5px 8px' }}>
                         {row.fuel_consumed_total.toFixed(1)}
@@ -187,37 +205,37 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
         </Dialog>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-2">
+      <div className="relative flex-1 overflow-y-auto min-h-0 px-3 pb-2">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow className="border-border hover:bg-transparent">
               <TableHead
                 rowSpan={2}
-                className="text-muted-foreground font-semibold uppercase align-bottom"
+                className="text-muted-foreground font-semibold uppercase align-bottom bg-muted"
                 style={{ fontSize: '8px', padding: '3px 6px' }}
               >
                 Дата
               </TableHead>
               <TableHead
                 colSpan={2}
-                className="text-center text-muted-foreground font-semibold uppercase border-b-0"
+                className="text-center text-muted-foreground font-semibold uppercase border-b-0 bg-muted"
                 style={{ fontSize: '8px', padding: '3px 6px' }}
               >
-                1 Смена, %
+                1 Смена
               </TableHead>
               <TableHead
                 colSpan={2}
-                className="text-center text-muted-foreground font-semibold uppercase border-b-0"
+                className="text-center text-muted-foreground font-semibold uppercase border-b-0 bg-muted"
                 style={{ fontSize: '8px', padding: '3px 6px' }}
               >
-                2 Смена, %
+                2 Смена
               </TableHead>
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
-              {['КИП', 'Под нагр.', 'КИП', 'Под нагр.'].map((h, i) => (
+              {['КИП, %', 'Нагрузка, %', 'КИП, %', 'Нагрузка, %'].map((h, i) => (
                 <TableHead
                   key={i}
-                  className="text-center text-muted-foreground font-semibold uppercase"
+                  className="text-center text-muted-foreground font-semibold uppercase bg-muted"
                   style={{ fontSize: '8px', padding: '2px 6px' }}
                 >
                   {h}

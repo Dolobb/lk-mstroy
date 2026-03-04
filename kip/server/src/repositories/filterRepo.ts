@@ -1,5 +1,5 @@
 import { getPool } from '../config/database';
-import { getDistinctTypes, getDistinctBranches, getVehicleInfo } from '../services/vehicleRegistry';
+import { getDistinctBranches, getVehicleInfo } from '../services/vehicleRegistry';
 import type { FilterOptions } from '../types/domain';
 
 export async function getFilterOptions(
@@ -10,9 +10,19 @@ export async function getFilterOptions(
 ): Promise<FilterOptions> {
   const pool = getPool();
 
-  // Types and branches come from vehicle registry (CSV)
-  const allTypes = getDistinctTypes();
   const allBranches = getDistinctBranches();
+
+  // Types — only from vehicles actually present in the period
+  const typeResult = await pool.query(
+    `SELECT DISTINCT vehicle_id FROM vehicle_records WHERE report_date BETWEEN $1 AND $2`,
+    [from, to],
+  );
+  const typesInData = new Set<string>();
+  for (const row of typeResult.rows) {
+    const info = getVehicleInfo(row.vehicle_id);
+    if (info) typesInData.add(info.type);
+  }
+  const allTypes = Array.from(typesInData).sort();
 
   // Departments come from DB for the given period, filtered by branch/type via registry
   const result = await pool.query(

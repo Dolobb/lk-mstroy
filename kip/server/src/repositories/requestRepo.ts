@@ -82,6 +82,34 @@ export async function getRequestsForVehicle(
       ? (customersMap[String(idOwnCustomer)] ?? String(idOwnCustomer))
       : '';
 
+    // Период заявки из route.points первого ордера (начало А и конец Б)
+    let date_start: string | undefined;
+    let date_end: string | undefined;
+    {
+      const matchedOrders = idOrders.length > 0
+        ? orders.filter((o: Record<string, unknown>) => idOrders.includes(Number(o.id)))
+        : orders.slice(0, 1);
+      const order = matchedOrders[0] ?? orders[0];
+      if (order) {
+        const route = order.route as Record<string, unknown> | undefined;
+        const points = Array.isArray(route?.points)
+          ? (route.points as Array<Record<string, unknown>>)
+          : [];
+        if (points.length >= 1) {
+          const p0 = points[0];
+          const d0 = p0.date as string | undefined;
+          const t0 = p0.time as string | undefined;
+          if (d0) date_start = t0 ? `${d0} ${t0}` : d0;
+        }
+        if (points.length >= 2) {
+          const pN = points[points.length - 1];
+          const dN = pN.date as string | undefined;
+          const tN = pN.time as string | undefined;
+          if (dN) date_end = tN ? `${dN} ${tN}` : dN;
+        }
+      }
+    }
+
     return {
       request_id: Number(row.request_id),
       number: num,
@@ -93,6 +121,8 @@ export async function getRequestsForVehicle(
       customer_name: customerName,
       type_of_work: typeOfWork,
       object_expend_name: objectExpendName,
+      date_start,
+      date_end,
     };
   });
 }

@@ -116,6 +116,8 @@ export interface VehicleRequestRow {
   customer_name: string;
   type_of_work: string;
   object_expend_name: string;
+  date_start?: string;  // DD.MM.YYYY HH:MM из route.points[0]
+  date_end?: string;    // DD.MM.YYYY HH:MM из route.points[last]
 }
 
 export interface FilterOptions {

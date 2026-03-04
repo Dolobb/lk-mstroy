@@ -88,9 +88,21 @@ const App: React.FC = () => {
     let cancelled = false;
     const f = filtersRef.current;
 
+    // Если выбрано ghost-ТС (нет данных в периоде), берём диапазон вокруг последней известной записи
+    const selectedV = vehicles.find(v => v.vehicle_id === selectedVehicleId);
+    let detailFrom = f.from;
+    let detailTo = f.to;
+    if (selectedV?.is_ghost && selectedV?.last_seen_date) {
+      const lastDate = new Date(selectedV.last_seen_date);
+      const fromDate = new Date(lastDate);
+      fromDate.setDate(fromDate.getDate() - 14);
+      detailFrom = fromDate.toISOString().slice(0, 10);
+      detailTo = selectedV.last_seen_date;
+    }
+
     Promise.all([
-      fetchVehicleDetails(selectedVehicleId, f.from, f.to),
-      fetchVehicleRequests(selectedVehicleId, f.from, f.to),
+      fetchVehicleDetails(selectedVehicleId, detailFrom, detailTo),
+      fetchVehicleRequests(selectedVehicleId, detailFrom, detailTo),
     ])
       .then(([details, requests]) => {
         if (cancelled) return;

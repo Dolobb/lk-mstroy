@@ -356,7 +356,7 @@ const FilterPanel: React.FC<Props> = ({
             {avgKip > 0 ? `${avgKip.toFixed(1)}%` : '—'}
           </div>
         </div>
-        <div className="flex flex-wrap gap-1 max-w-[180px]">
+        <div className="flex flex-row gap-1">
           {KPI_SCALE.map(item => {
             const isActive = filters.kpiRanges.includes(item.value);
             return (

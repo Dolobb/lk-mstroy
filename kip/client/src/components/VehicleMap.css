@@ -1,0 +1,52 @@
+/* vehicle map marker styles derived from design variants
+   Variant B: round marker + hover expand (pill style)
+   Copied almost verbatim from the HTML reference file.
+   Only necessary classes are included; other sections (toggle controls, map bg, etc.)
+   are omitted.
+*/
+
+.marker{position:absolute;z-index:2;cursor:pointer;display:flex;flex-direction:column;align-items:center;transition:all .25s ease;}
+.marker:hover{z-index:10;transform:translateY(-3px);}
+
+/* Compact state — pill with icon + plate */
+.marker-compact{display:flex;align-items:center;gap:4px;padding:4px 8px 4px 5px;border-radius:20px;background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);border:1.5px solid transparent;transition:all .25s;filter:drop-shadow(0 3px 8px rgba(0,0,0,.2));}
+.marker:hover .marker-compact{filter:drop-shadow(0 6px 18px rgba(0,0,0,.3));}
+
+.marker.kip-green .marker-compact{border-color:rgba(34,197,94,0.45);}
+.marker.kip-orange .marker-compact{border-color:rgba(249,115,22,0.45);}
+.marker.kip-red .marker-compact{border-color:rgba(239,68,68,0.45);}
+.marker.kip-blue .marker-compact{border-color:rgba(59,130,246,0.45);}
+
+.marker-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.marker.kip-green .marker-icon{background:linear-gradient(135deg,#22c55e,#16a34a);}
+.marker.kip-orange .marker-icon{background:linear-gradient(135deg,#f97316,#ea580c);}
+.marker.kip-red .marker-icon{background:linear-gradient(135deg,#ef4444,#dc2626);}
+.marker.kip-blue .marker-icon{background:linear-gradient(135deg,#3b82f6,#2563eb);}
+.marker-icon svg{width:12px;height:12px;color:#fff;}
+
+.marker-plate{font-size:11px;font-weight:800;color:#0f172a;letter-spacing:0.3px;}
+
+/* Expanded state on hover — KIP percentage slides out */
+.marker-expand{display:flex;align-items:center;gap:0;max-width:0;overflow:hidden;transition:all .3s ease;opacity:0;}
+.marker:hover .marker-expand{max-width:50px;opacity:1;margin-left:4px;}
+.marker-expand-sep{width:1px;height:14px;background:rgba(0,0,0,0.08);margin-right:5px;flex-shrink:0;}
+.marker-kip{font-size:11px;font-weight:800;white-space:nowrap;}
+.marker.kip-green .marker-kip{color:#16a34a;}
+.marker.kip-orange .marker-kip{color:#ea580c;}
+.marker.kip-red .marker-kip{color:#dc2626;}
+.marker.kip-blue .marker-kip{color:#2563eb;}
+
+/* Tail dot */
+.marker-dot{width:4px;height:4px;border-radius:50%;margin-top:4px;transition:all .25s;}
+.marker.kip-green .marker-dot{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.5);}
+.marker.kip-orange .marker-dot{background:#f97316;box-shadow:0 0 6px rgba(249,115,22,0.5);}
+.marker.kip-red .marker-dot{background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,0.5);}
+.marker.kip-blue .marker-dot{background:#3b82f6;box-shadow:0 0 6px rgba(59,130,246,0.5);}
+.marker:hover .marker-dot{transform:scale(1.5);}
+
+/* Connector line from dot to ground */
+.marker-stem{width:1px;height:16px;margin-top:1px;transition:all .25s;}
+.marker.kip-green .marker-stem{background:linear-gradient(180deg,rgba(34,197,94,0.4),transparent);}
+.marker.kip-orange .marker-stem{background:linear-gradient(180deg,rgba(249,115,22,0.4),transparent);}
+.marker.kip-red .marker-stem{background:linear-gradient(180deg,rgba(239,68,68,0.4),transparent);}
+.marker.kip-blue .marker-stem{background:linear-gradient(180deg,rgba(59,130,246,0.4),transparent);}

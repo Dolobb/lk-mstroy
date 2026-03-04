@@ -47,7 +47,7 @@ export async function getVehicleRecords(
 ): Promise<VehicleRecordRow[]> {
   const pool = getPool();
 
-  let query = `SELECT * FROM vehicle_records WHERE report_date = $1`;
+  let query = `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified FROM vehicle_records WHERE report_date = $1`;
   const params: unknown[] = [date];
 
   if (shift) {
@@ -209,7 +209,8 @@ export async function getVehicleDetails(
   const pool = getPool();
 
   const result = await pool.query(
-    `SELECT * FROM vehicle_records
+    `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified
+     FROM vehicle_records
      WHERE vehicle_id = $1 AND report_date BETWEEN $2 AND $3
      ORDER BY report_date DESC, shift_type`,
     [vehicleId, from, to],
@@ -243,6 +244,67 @@ export async function getRequestNumbersForDateRange(
     if (!arr.includes(reqNum)) arr.push(reqNum);
   }
   return map;
+}
+
+/**
+ * Проверяет, было ли зажигание выключено хоть раз за последние 7 дней (условие 1).
+ * Возвращает null если записей за этот период нет вообще (неизвестно).
+ */
+export async function hadEngineOffInPastWeek(
+  vehicleId: string,
+  date: string,
+): Promise<boolean | null> {
+  const pool = getPool();
+
+  const countRes = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM vehicle_records
+     WHERE vehicle_id = $1
+       AND report_date >= $2::date - interval '7 days'
+       AND report_date < $2::date`,
+    [vehicleId, date],
+  );
+  const total = Number(countRes.rows[0].cnt);
+  if (total === 0) return null; // нет данных за неделю — состояние неизвестно
+
+  const offRes = await pool.query(
+    `SELECT 1 FROM vehicle_records
+     WHERE vehicle_id = $1
+       AND report_date >= $2::date - interval '7 days'
+       AND report_date < $2::date
+       AND engine_on_time < 0.1
+     LIMIT 1`,
+    [vehicleId, date],
+  );
+  return offRes.rows.length > 0;
+}
+
+/**
+ * Возвращает ТС, у которых нет данных в указанном периоде [from..to],
+ * но есть данные в предшествующие 30 дней (условие 5: нет данных >4 дней).
+ * Включает последнюю известную позицию.
+ */
+export async function getGhostVehicles(
+  from: string,
+  to: string,
+): Promise<Array<{ vehicle_id: string; last_seen_date: string; latitude: number | null; longitude: number | null }>> {
+  const pool = getPool();
+  const res = await pool.query(
+    `SELECT DISTINCT ON (vehicle_id)
+       vehicle_id,
+       report_date::text AS last_seen_date,
+       latitude,
+       longitude
+     FROM vehicle_records
+     WHERE report_date < $1
+       AND report_date >= $1::date - interval '30 days'
+       AND vehicle_id NOT IN (
+         SELECT DISTINCT vehicle_id FROM vehicle_records
+         WHERE report_date BETWEEN $1 AND $2
+       )
+     ORDER BY vehicle_id, report_date DESC, shift_type DESC`,
+    [from, to],
+  );
+  return res.rows;
 }
 
 export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<void> {

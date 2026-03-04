@@ -4,6 +4,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { startScheduler } from './jobs/scheduler';
 import { runDailyFetch } from './jobs/dailyFetchJob';
+import { recalculateForDate } from './jobs/recalculateJob';
+import { getPool } from './config/database';
 import { logger } from './utils/logger';
 import { getFilteredGeozonesGeoJson } from './services/geozoneAnalyzer';
 import { getVehicleInfo } from './services/vehicleRegistry';
@@ -61,7 +63,7 @@ app.get('/api/vehicles/weekly', async (req, res) => {
   }
 
   try {
-    const { getWeeklyAggregated, getRequestNumbersForDateRange } = await import('./repositories/vehicleRecordRepo');
+    const { getWeeklyAggregated, getRequestNumbersForDateRange, getGhostVehicles } = await import('./repositories/vehicleRecordRepo');
 
     // Helper to parse query param as string array
     const toArray = (val: unknown): string[] => {
@@ -70,7 +72,7 @@ app.get('/api/vehicles/weekly', async (req, res) => {
       return [val as string];
     };
 
-    const [rows, reqMap] = await Promise.all([
+    const [rows, reqMap, ghosts] = await Promise.all([
       getWeeklyAggregated({
         from,
         to,
@@ -81,6 +83,7 @@ app.get('/api/vehicles/weekly', async (req, res) => {
         kpiRanges: toArray(req.query.kpiRange),
       }),
       getRequestNumbersForDateRange(from, to),
+      getGhostVehicles(from, to),
     ]);
 
     // Enrich with type/branch from registry + request numbers
@@ -91,8 +94,38 @@ app.get('/api/vehicles/weekly', async (req, res) => {
         vehicle_type: info?.type ?? '',
         branch: info?.branch ?? '',
         request_numbers: reqMap.get(r.vehicle_id) ?? [],
+        is_ghost: false,
+        last_seen_date: undefined as string | undefined,
       };
     });
+
+    // Условие 5: добавить «призрачные» ТС (нет данных >4 дней)
+    const toMs = new Date(to).getTime();
+    for (const g of ghosts) {
+      const daysSince = Math.floor((toMs - new Date(g.last_seen_date).getTime()) / 86_400_000);
+      if (daysSince < 4) continue;
+      const info = getVehicleInfo(g.vehicle_id);
+      enriched.push({
+        vehicle_id:              g.vehicle_id,
+        vehicle_model:           '',
+        company_name:            '',
+        vehicle_type:            info?.type ?? '',
+        branch:                  info?.branch ?? '',
+        department_unit:         '',
+        avg_total_stay_time:     0,
+        avg_engine_on_time:      0,
+        avg_idle_time:           0,
+        avg_fuel:                0,
+        avg_load_efficiency_pct: 0,
+        avg_utilization_ratio:   0,
+        latitude:                g.latitude,
+        longitude:               g.longitude,
+        record_count:            0,
+        request_numbers:         reqMap.get(g.vehicle_id) ?? [],
+        is_ghost:                true,
+        last_seen_date:          g.last_seen_date,
+      });
+    }
 
     res.json(enriched);
   } catch (err) {
@@ -183,6 +216,59 @@ app.get('/api/geozones', (_req, res) => {
     logger.error('Failed to load geozones', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// In-memory job status for recalculate jobs
+const recalcJobStatus = new Map<string, { running: boolean; errors: string[]; processed: number; skipped: number }>();
+
+// Admin endpoint: recalculate KIP from stored raw monitoring data (no TIS API call)
+// Асинхронный — запускает пересчёт в фоне, возвращает сразу. Статус — через /status.
+app.post('/api/admin/recalculate', (req, res) => {
+  const date = req.query.date as string | undefined;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: 'Query parameter "date" required in YYYY-MM-DD format' });
+    return;
+  }
+
+  logger.info(`[Recalculate] Manual recalculate triggered for date: ${date}`);
+
+  recalcJobStatus.set(date, { running: true, errors: [], processed: 0, skipped: 0 });
+
+  recalculateForDate(getPool(), date)
+    .then(result => {
+      recalcJobStatus.set(date, {
+        running: false,
+        errors: result.errors,
+        processed: result.processed,
+        skipped: result.skipped,
+      });
+    })
+    .catch(err => {
+      logger.error(`[Recalculate] Failed for ${date}`, err);
+      recalcJobStatus.set(date, { running: false, errors: [String(err)], processed: 0, skipped: 0 });
+    });
+
+  res.json({ status: 'started', date });
+});
+
+// Admin endpoint: poll recalculate job status
+app.get('/api/admin/recalculate/status', (req, res) => {
+  const date = req.query.date as string | undefined;
+  if (!date) {
+    res.status(400).json({ error: '"date" required' });
+    return;
+  }
+  const job = recalcJobStatus.get(date);
+  if (!job) {
+    res.json({ status: 'not_found' });
+    return;
+  }
+  if (job.running) {
+    res.json({ status: 'running' });
+    return;
+  }
+  recalcJobStatus.delete(date);
+  res.json({ status: 'done', errors: job.errors, processed: job.processed, skipped: job.skipped });
 });
 
 // Admin endpoint: manually trigger daily fetch for a specific date

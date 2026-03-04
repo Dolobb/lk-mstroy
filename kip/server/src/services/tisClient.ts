@@ -15,9 +15,6 @@ interface TisClientOptions {
   rateLimiter: PerVehicleRateLimiter;
 }
 
-const MAX_RETRY_429 = 5;
-const BACKOFF_429_BASE_MS = 10_000;   // linear: 10s, 20s, 30s, 40s, 50s
-
 const MAX_RETRY_TIMEOUT = 3;
 const BACKOFF_TIMEOUT_BASE_MS = 1_000; // exponential: 1s, 2s, 4s
 
@@ -35,23 +32,33 @@ export class TisClient {
   /**
    * All API calls: POST {baseUrl}?token=...&format=json&command=...&params
    * Empty body, all params in query string.
+   *
+   * 429 strategy: rotate through all tokens immediately (no wait);
+   * only if ALL tokens return 429 — wait 30s and try once more.
    */
   private async requestWithRetry<T>(
     command: string,
     params: Record<string, string | number>,
   ): Promise<T | null> {
-    const token = this.tokenPool.next();
-    const urlParams = new URLSearchParams({
-      token,
-      format: 'json',
-      command,
-      ...Object.fromEntries(
-        Object.entries(params).map(([k, v]) => [k, String(v)])
-      ),
-    });
-    const url = `${this.baseUrl}?${urlParams}`;
+    const baseParams = Object.fromEntries(
+      Object.entries(params).map(([k, v]) => [k, String(v)]),
+    );
 
-    for (let attempt429 = 0; attempt429 <= MAX_RETRY_429; attempt429++) {
+    // Outer loop: on 429 rotate to next token; after all tokens exhausted — wait 30s once
+    const totalTokens = this.tokenPool.size;
+    for (let tokenAttempt = 0; tokenAttempt <= totalTokens; tokenAttempt++) {
+      if (tokenAttempt === totalTokens) {
+        // All tokens returned 429 — wait 30s before final attempt
+        logger.warn(`429 on all ${totalTokens} tokens for ${command}, waiting 30s`);
+        await this.sleep(30_000);
+      }
+
+      const token = this.tokenPool.next();
+      const url = `${this.baseUrl}?${new URLSearchParams({ token, format: 'json', command, ...baseParams })}`;
+
+      let got429 = false;
+
+      // Inner loop: retry on network timeout with same token
       for (let attemptTimeout = 0; attemptTimeout <= MAX_RETRY_TIMEOUT; attemptTimeout++) {
         try {
           const response = await axios.post<T>(url, null, { timeout: 30_000 });
@@ -59,21 +66,17 @@ export class TisClient {
         } catch (err) {
           const axiosErr = err as AxiosError;
 
-          // 404 → return null (no data)
+          // 404 → no data
           if (axiosErr.response?.status === 404) {
             logger.warn(`404 Not Found: ${command}`, params);
             return null;
           }
 
-          // 429 → linear backoff, retry outer loop
+          // 429 → try next token immediately
           if (axiosErr.response?.status === 429) {
-            if (attempt429 < MAX_RETRY_429) {
-              const waitMs = BACKOFF_429_BASE_MS * (attempt429 + 1);
-              logger.warn(`429 Rate limit on ${command}, retry ${attempt429 + 1}/${MAX_RETRY_429} in ${waitMs}ms`);
-              await this.sleep(waitMs);
-              break; // break timeout loop, continue 429 loop
-            }
-            throw new Error(`429 Rate limit exceeded after ${MAX_RETRY_429} retries: ${command}`);
+            logger.warn(`429 on token attempt ${tokenAttempt + 1}/${totalTokens} for ${command}`);
+            got429 = true;
+            break;
           }
 
           // Timeout → exponential backoff, retry inner loop
@@ -91,9 +94,11 @@ export class TisClient {
           throw err;
         }
       }
+
+      if (!got429) break; // timeout loop completed normally (shouldn't reach here, but safety)
     }
 
-    throw new Error(`Exceeded all retries for ${command}`);
+    throw new Error(`429 for all ${totalTokens + 1} token attempts on ${command}`);
   }
 
   async getRequests(fromDate: Date, toDate: Date): Promise<TisRequest[]> {

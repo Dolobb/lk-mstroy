@@ -9,7 +9,10 @@ import { calculateKpi } from '../services/kpiCalculator';
 import { analyzeTrackGeozones } from '../services/geozoneAnalyzer';
 import { upsertRequests } from '../repositories/requestRepo';
 import { upsertRouteLists } from '../repositories/routeListRepo';
-import { upsertVehicleRecord } from '../repositories/vehicleRecordRepo';
+import { upsertVehicleRecord, hadEngineOffInPastWeek } from '../repositories/vehicleRecordRepo';
+import { upsertMonitoringRaw } from '../repositories/monitoringRawRepo';
+import type { FuelSensorInfo } from '../services/kpiCalculator';
+import { getPool } from '../config/database';
 import { getEnvConfig } from '../config/env';
 import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
@@ -72,12 +75,14 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
     }
   }
 
-  // 5. Process each vehicle task sequentially
+  // 5. Process vehicle tasks with concurrency (different idMO — no rate limit conflict)
+  const CONCURRENCY = 5;
+  let taskIndex = 0;
   let successCount = 0;
   let skipCount = 0;
   let errorCount = 0;
 
-  for (const task of interleaved) {
+  const processOneTask = async (task: (typeof interleaved)[0]) => {
     try {
       const stats = await client.getMonitoringStats(
         task.idMO,
@@ -88,10 +93,28 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
       if (!stats) {
         skipCount++;
         logger.debug(`Skipped ${task.regNumber} (${task.shift.shiftType} ${task.shift.date}) — no monitoring data`);
-        continue;
+        return;
       }
 
       const monitoring = parseMonitoringStats(stats);
+
+      // Save raw monitoring data for future recalculation without TIS API
+      try {
+        const pool = getPool();
+        await upsertMonitoringRaw(pool, {
+          report_date:     task.shift.date,
+          shift_type:      task.shift.shiftType,
+          vehicle_id:      task.regNumber,
+          id_mo:           task.idMO,
+          vehicle_model:   task.nameMO,
+          company_name:    task.companyName,
+          engine_time_sec: stats.engineTime,
+          fuel_json:       stats.fuels,
+          track_json:      stats.track,
+        });
+      } catch (rawErr) {
+        logger.warn(`Failed to save raw monitoring for ${task.regNumber} (non-critical)`, rawErr);
+      }
 
       // Geozone analysis: determine time inside work zones and department unit
       const geozoneResult = analyzeTrackGeozones(monitoring.fullTrack);
@@ -109,11 +132,30 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
 
       const fuelRateNorm = matchFuelNorm(task.regNumber);
 
+      // Условие 1: датчик расхода = 0, двигатель работает
+      let fuelSensor: FuelSensorInfo | undefined;
+      if (stats.fuels.length > 0 && stats.fuels[0].rate === 0 && monitoring.engineOnTime > 0) {
+        const actualConsumed = stats.fuels.reduce((sum, f) => {
+          return sum + (f.valueBegin - f.valueEnd + (f.charges ?? 0) - (f.discharges ?? 0));
+        }, 0);
+        const ignitionResult = await hadEngineOffInPastWeek(task.regNumber, task.shift.date);
+        fuelSensor = {
+          rateSensorValue: 0,
+          actualConsumed: Math.max(0, actualConsumed),
+          ignitionOffInWeek: ignitionResult !== false,
+        };
+        logger.info(
+          `Condition 1 for ${task.regNumber} (${task.shift.shiftType} ${task.shift.date}): ` +
+          `actualConsumed=${actualConsumed.toFixed(1)}L ignitionOff=${ignitionResult}`,
+        );
+      }
+
       const kpi = calculateKpi({
         total_stay_time: totalStayTime,
         engine_on_time: monitoring.engineOnTime,
         fuel_consumed_total: monitoring.fuelConsumedTotal,
         fuel_rate_norm: fuelRateNorm,
+        fuelSensor,
       });
 
       await upsertVehicleRecord({
@@ -143,9 +185,18 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
     } catch (err) {
       errorCount++;
       logger.error(`Error processing ${task.regNumber} (${task.shift.shiftType} ${task.shift.date})`, err);
-      // Individual vehicle errors do not stop the process
     }
-  }
+  };
+
+  // Worker pool: taskIndex++ is synchronous (before any await) — safe in Node.js single-threaded model
+  const workers = Array.from({ length: CONCURRENCY }, async () => {
+    while (true) {
+      const i = taskIndex++;
+      if (i >= interleaved.length) break;
+      await processOneTask(interleaved[i]);
+    }
+  });
+  await Promise.all(workers);
 
   logger.info(
     `=== Daily fetch complete for ${dateLabel}: ${successCount} success, ${skipCount} skipped, ${errorCount} errors ===`,

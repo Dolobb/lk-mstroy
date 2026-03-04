@@ -47,6 +47,8 @@ export interface WeeklyVehicle {
   longitude: number | null;
   record_count: number;
   request_numbers: number[];
+  is_ghost?: boolean;        // условие 5: нет данных >4 дней в выбранном периоде
+  last_seen_date?: string;   // YYYY-MM-DD последней записи перед периодом
 }
 
 // Detail row: one day/shift for a specific vehicle
@@ -77,6 +79,8 @@ export interface VehicleRequest {
   customer_name: string;
   type_of_work: string;
   object_expend_name: string;
+  date_start?: string;  // DD.MM.YYYY HH:MM — начало периода заявки (из route.points[0])
+  date_end?: string;    // DD.MM.YYYY HH:MM — конец периода заявки (из route.points[last])
 }
 
 // Cascading filter options from server

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PGPASSWORD=\"888\" \"/c/Program Files/PostgreSQL/16/bin/psql\":*)",
+      "Bash(PGPASSWORD=\"888\" PGCLIENTENCODING=\"UTF8\" \"/c/Program Files/PostgreSQL/16/bin/psql\":*)"
+    ]
+  }
+}

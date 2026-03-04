@@ -4,6 +4,7 @@ import { getEnvConfig } from './config/env';
 import { getPool, closePool } from './config/database';
 import { startScheduler } from './jobs/scheduler';
 import { runShiftFetch } from './jobs/shiftFetchJob';
+import { recalculateShift } from './jobs/recalculateJob';
 import { queryShiftRecords } from './repositories/shiftRecordRepo';
 import { getDtObjects } from './repositories/filterRepo';
 import { logger } from './utils/logger';
@@ -425,6 +426,37 @@ app.get('/api/dt/export/zone-events.csv', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
+});
+
+// ========================
+// Пересчёт из raw_monitoring (без TIS API)
+// ========================
+// POST /api/dt/admin/recalculate?date=2026-02-18&shift=shift1
+app.post('/api/dt/admin/recalculate', async (req, res) => {
+  const dateStr  = req.query['date']  as string;
+  const shiftStr = req.query['shift'] as string;
+
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    res.status(400).json({ error: 'date param required (YYYY-MM-DD)' });
+    return;
+  }
+  if (!shiftStr || !['shift1', 'shift2'].includes(shiftStr)) {
+    res.status(400).json({ error: 'shift param required (shift1 | shift2)' });
+    return;
+  }
+
+  const shiftType = shiftStr as ShiftType;
+
+  // Синхронный — ждёт завершения пересчёта
+  const pool = getPool();
+  try {
+    const result = await recalculateShift(pool, dateStr, shiftType);
+    logger.info('[Admin] Recalculate complete', result);
+    res.json({ status: 'done', date: dateStr, shift: shiftType, ...result });
+  } catch (err) {
+    logger.error('[Admin] Recalculate error', err);
+    res.status(500).json({ status: 'error', date: dateStr, shift: shiftType, error: String(err) });
+}
 });
 
 // ========================
