@@ -23,7 +23,7 @@ function defaultFilters(): FilterState {
     branches: [],
     types: [],
     departments: [],
-    kpiRanges: [],
+    kpiRanges: ['0-25', '25-50', '50-75', '75-100', 'no-data'],
   };
 }
 
@@ -42,10 +42,17 @@ const App: React.FC = () => {
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
 
+  // Фильтруем ghost-ТС на клиенте: если Н/Д кнопка отключена — убираем их с карты
+  const displayVehicles = useMemo(() => {
+    if (filters.kpiRanges.includes('no-data')) return vehicles;
+    return vehicles.filter(v => !v.is_ghost);
+  }, [vehicles, filters.kpiRanges]);
+
   const avgKip = useMemo(() => {
-    if (vehicles.length === 0) return 0;
-    const sum = vehicles.reduce((acc, v) => acc + (v.avg_utilization_ratio ?? 0), 0);
-    return sum / vehicles.length;
+    const active = vehicles.filter(v => !v.is_ghost);
+    if (active.length === 0) return 0;
+    const sum = active.reduce((acc, v) => acc + (v.avg_utilization_ratio ?? 0), 0);
+    return sum / active.length;
   }, [vehicles]);
 
   useEffect(() => {
@@ -181,7 +188,7 @@ const App: React.FC = () => {
             {/* Map area */}
             <div className="min-h-0 rounded-2xl overflow-hidden">
               <VehicleMap
-                vehicles={vehicles}
+                vehicles={displayVehicles}
                 selectedVehicleId={selectedVehicleId}
                 selectedDetails={vehicleDetails}
                 onSelectVehicle={handleSelectVehicle}

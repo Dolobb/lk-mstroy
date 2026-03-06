@@ -11,7 +11,8 @@ export async function fetchWeeklyVehicles(filters: FilterState): Promise<WeeklyV
   for (const b of filters.branches) params.append('branch', b);
   for (const t of filters.types) params.append('type', t);
   for (const d of filters.departments) params.append('department', d);
-  for (const r of filters.kpiRanges) params.append('kpiRange', r);
+  // 'no-data' — клиентский флаг (ghost-ТС), сервер его не понимает
+  for (const r of filters.kpiRanges.filter(r => r !== 'no-data')) params.append('kpiRange', r);
 
   const res = await axios.get<WeeklyVehicle[]>(`${API_BASE}/api/vehicles/weekly`, { params });
   return res.data;

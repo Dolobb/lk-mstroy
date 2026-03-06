@@ -20,10 +20,11 @@ function formatDate(d: Date): string {
 }
 
 const KPI_SCALE = [
-  { label: '0-25%', color: '#ef4444', value: '0-25' },
-  { label: '25-50%', color: '#eab308', value: '25-50' },
-  { label: '50-75%', color: '#3b82f6', value: '50-75' },
-  { label: '75-100%', color: '#22c55e', value: '75-100' },
+  { label: '0-25%',   color: '#ef4444', value: '0-25'    },
+  { label: '25-50%',  color: '#eab308', value: '25-50'   },
+  { label: '50-75%',  color: '#3b82f6', value: '50-75'   },
+  { label: '75-100%', color: '#22c55e', value: '75-100'  },
+  { label: 'Н/Д',     color: '#94a3b8', value: 'no-data' },
 ];
 
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
