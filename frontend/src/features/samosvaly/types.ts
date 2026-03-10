@@ -52,6 +52,8 @@ export interface OrderCard {
   objectExpend: string;
   dateFrom: string;
   dateTo: string;
+  dateFromIso: string;   // YYYY-MM-DD for filtering/sorting
+  dateToIso: string;     // YYYY-MM-DD for filtering/sorting
   actualTrips: number;
   pct: number;
   vehicles: string[];

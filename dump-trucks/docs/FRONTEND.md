@@ -22,7 +22,7 @@ frontend/src/features/samosvaly/
 
 ## Компоненты
 
-### DumpTrucksPage (`DumpTrucksPage.tsx:1014`)
+### DumpTrucksPage
 
 Корневой компонент страницы. Управляет глобальным состоянием и отрисовывает два таба.
 
@@ -31,31 +31,33 @@ frontend/src/features/samosvaly/
 | Имя | Тип | Описание |
 |-----|-----|----------|
 | `activeTab` | `'orders' \| 'analytics'` | Активная вкладка |
-| `reportOpen` | `boolean` | Открыта ли панель формирования отчёта (справа) |
 | `expandedOrders` | `Set<number>` | Раскрытые карточки заявок (по номеру заявки) |
-| `dateFrom` | `string` | Дата начала периода (YYYY-MM-DD), дефолт — 1-е число текущего месяца |
-| `dateTo` | `string` | Дата конца периода (YYYY-MM-DD), дефолт — сегодня |
-| `analyticsFilters` | `AnalyticsFilters` | Фильтры вкладки Аналитика |
+| `constructorOpen` | `boolean` | Панель конструктора таблицы (аналитика) |
+| `groupByCargo` | `boolean` | Группировка закрытых заявок по типу груза |
+| `orderMonth` | `string` | Выбранный месяц заявок (`YYYY-MM`), дефолт — текущий |
+| `dateFrom` / `dateTo` | `string` | Период аналитики (YYYY-MM-DD), дефолт — 1-е число текущего месяца / сегодня |
+| `currentUser` | `string \| null` | Имя профиля настроек (localStorage) |
+| `userSettings` | `UserSettings` | Настройки конструктора (блоки, столбцы, groupByRequest/Shift) |
+| `analyticsFilters` | `AnalyticsFilters` | Фильтры вкладки Аналитика (смена, объект, showOnsite) |
 | `objects` | `DtObject[]` | Список объектов из `/api/dt/objects` |
 | `orders` | `OrderCard[]` | Список обработанных заявок из `/api/dt/orders` |
 | `shiftRecords` | `ShiftRecord[]` | Данные смен из `/api/dt/shift-records` |
 | `repairs` | `Repair[]` | Ремонты из `/api/dt/repairs` |
-| `loadingOrders` | `boolean` | Флаг загрузки заявок |
-| `loadingRecords` | `boolean` | Флаг загрузки смен |
 
 **Визуально:**
 
-- Sub-header с переключателем табов, датами, фильтрами аналитики
-- Таб «Заявки»: список `OrderCardView`, сгруппированный по городам + `WeeklySidebar` справа
-- Таб «Аналитика»: `AnalyticsTab` + опциональная панель `sv-an-right` (placeholder отчётов)
+- Sub-header с переключателем табов; месячная навигация (заявки) / date range (аналитика); фильтры аналитики; профиль + конструктор
+- Таб «Заявки»: список `OrderCardView` по городам → «Активные» + «Закрытые» (с кнопкой «По грузу») + `WeeklySidebar` справа
+- Таб «Аналитика»: `AnalyticsTab` + `TableConstructorPanel` (опционально)
 
 **Данные:**
 - При монтировании: `fetchObjects()`, `fetchRepairs()`
-- При изменении периода дат: `fetchOrders(dateFrom, dateTo)`, `fetchShiftRecords({ dateFrom, dateTo })`
+- Заявки: `fetchOrders(±1 месяц от orderMonth)` → клиентская фильтрация по пересечению дат
+- Аналитика: `fetchShiftRecords({ dateFrom, dateTo })` при изменении периода
 
 ---
 
-### MiniDonut (`DumpTrucksPage.tsx:152`)
+### MiniDonut
 
 SVG-диаграмма «бублик» — показывает процент движения за смену.
 
@@ -65,33 +67,36 @@ SVG-диаграмма «бублик» — показывает процент 
 
 ---
 
-### GanttTable (`DumpTrucksPage.tsx:179`)
+### GanttTable
 
 Таблица Ганта для заявки. Загружает данные при монтировании через `fetchOrderGantt(orderNumber)`.
 
 **Props:** `orderNumber: number`
 
-Строки = самосвалы, столбцы = даты × смены (1 / 2). Ячейка = количество рейсов за смену (заполнена если > 0).
+Строки = самосвалы (госномер крупно + модель мелким текстом под ним, как в аналитике), столбцы = даты × смены (1 / 2). Ячейка = количество рейсов за смену (заполнена если > 0). В ячейке госномера также показывается суммарное кол-во рейсов `[N]`.
 
 ---
 
-### OrderCardView (`DumpTrucksPage.tsx:267`)
+### OrderCardView
 
 Карточка заявки с прогресс-баром и раскрывающейся таблицей Ганта.
 
 **Props:** `card: OrderCard`, `expanded: boolean`, `onToggle: () => void`
 
 Отображает:
-- Номер заявки, маршрут `routeFrom → routeTo`
-- Прогресс-полоса (actualTrips / planTrips), бейдж статуса (активная/готово)
-- Метаданные: даты, расстояние, время маршрута, кол-во ТС, ПЛ, груз, тоннаж/объём
+- Номер заявки, маршрут в 2 строки (`→` туда / `←` обратно)
+- Фоновый прогресс-fill на весь `sv-order-data-area` + mini progress bar (`position: absolute; bottom: 0`) поверх
+- Бейдж статуса: `● работа` (оранжевый) / `✓ закрыто` (зелёный)
+- Метрики через `Fraction` компонент (факт/план): рейсы, ТС
+- Метаданные: даты (из route points TIS), расстояние, время маршрута, кол-во ПЛ, груз, тоннаж/объём
+- Иконки `PopoverIcon` (📝/💬) для notes/comment из заявки — popover через `createPortal` в `document.body`, непрозрачный фон с поддержкой dark/light через `data-theme`
 - При `expanded=true`: `GanttTable`
 
 Стиль: `sv-order-done` (зелёный) если `isDone`, `sv-order-active` (оранжевый) иначе.
 
 ---
 
-### WeeklySidebar (`DumpTrucksPage.tsx:345`)
+### WeeklySidebar
 
 Правая панель на вкладке «Заявки» — еженедельная сводка по объектам.
 
@@ -110,7 +115,7 @@ SVG-диаграмма «бублик» — показывает процент 
 
 ---
 
-### ShiftSubTable (`DumpTrucksPage.tsx:568`)
+### ShiftSubTable
 
 Детализация смены: таблица рейсов с временами въезда/выезда из зон погрузки и выгрузки.
 
@@ -122,14 +127,17 @@ SVG-диаграмма «бублик» — показывает процент 
 
 Отображает компактную таблицу:
 
-| № | Погрузка: Въезд | Выезд | Стоянка | Выгрузка: Въезд | Выезд | Стоянка | Ср.П | Ср.В |
-|---|---|---|---|---|---|---|---|---|
+| № | Погрузка: Въезд | Выезд | Стоянка | → Выгр. | Выгрузка: Въезд | Выезд | Стоянка | → Погр. | Ср.П | Ср.В |
+|---|---|---|---|---|---|---|---|---|---|---|
 
-Первый рейс помечен `›|` (начало), последний `|‹` (конец смены). Средние стоянки `avgPSt`/`avgUSt` отображаются в центральной строке.
+- `→ Выгр.` — время пути от погрузки к выгрузке (`travel_to_unload_min`, мин)
+- `→ Погр.` — время пути обратно к погрузке (`return_to_load_min`, мин)
+- Средние travel times отображаются в центральной строке (как и Ср.П/Ср.В)
+- Первый рейс помечен `›|` (начало), последний `|‹` (конец смены)
 
 ---
 
-### AnalyticsTab (`DumpTrucksPage.tsx:733`)
+### AnalyticsTab
 
 Вкладка «Аналитика» — трёхуровневая таблица с группировкой ТС → заявка → день → смена.
 
@@ -177,21 +185,28 @@ SVG-диаграмма «бублик» — показывает процент 
 Строительный объект с dt_* зонами. `smu` — подразделение (СМУ-1 и т.п.).
 
 ### OrderSummary
-Сырой ответ от `/api/dt/orders`. Содержит `rawJson` с вложенными данными TIS (cargo, route, points).
+Сырой ответ от `/api/dt/orders`. Содержит `raw_json` (snake_case из PostgreSQL!) с вложенными данными TIS (cargo, route, points).
 
 ### OrderCard
-Обработанная версия `OrderSummary` (функция `toOrderCard` в `DumpTrucksPage.tsx:98`).
-Добавляет поля: `pct` (процент выполнения), `isDone`, `city` (из `object_names[0]`), `dateFrom/dateTo`.
+Обработанная версия `OrderSummary` (функция `toOrderCard`).
+Ключевые поля:
+- `dateFromIso` / `dateToIso` — даты из TIS route points (`raw_json.orders[0].route.points[].date`), формат `YYYY-MM-DD` для фильтрации/сортировки. **Не** из `MIN/MAX(shift_records.report_date)`.
+- `dateFrom` / `dateTo` — отображаемые даты (DD.MM)
+- `pct` (процент выполнения), `isDone` (status === `SUCCESSFULLY_COMPLETED`), `city` (из `object_names[0]`)
+- `cargo`, `weightTotal`, `volumeTotal`, `notes`, `comment` — из `raw_json.orders[0]`
+- `routeFrom` / `routeTo` — адреса из points[0] / points[last]
 
 ### GanttRecord
 Строка для таблицы Ганта: `id`, `reg_number`, `name_mo`, `report_date`, `shift_type`, `trips_count`.
 
 ### ShiftRecord
 Основная KPI-запись смены. Поля числовые (уже конвертированы в `shiftRecordRepo.ts`).
-Дополнительно содержит `avgLoadingDwellSec` и `avgUnloadingDwellSec` (среднее время в зонах погрузки/выгрузки, вычисляется через `LEFT JOIN LATERAL` в запросе).
+Дополнительные агрегаты (через `LEFT JOIN LATERAL` в `queryShiftRecords`):
+- `avgLoadingDwellSec` / `avgUnloadingDwellSec` — среднее время в зонах погрузки/выгрузки (из zone_events)
+- `avgTravelToUnloadMin` / `avgReturnToLoadMin` — среднее время пути к выгрузке / обратно к погрузке (из trips)
 
 ### TripRecord
-Рейс: `trip_number`, `loaded_at`, `unloaded_at`, `loading_zone`, `unloading_zone`, `duration_min`.
+Рейс: `trip_number`, `loaded_at`, `unloaded_at`, `loading_zone`, `unloading_zone`, `duration_min`, `travel_to_unload_min`, `return_to_load_min`.
 
 ### ZoneEvent
 Событие зоны: `zone_tag` (`dt_boundary` / `dt_loading` / `dt_unloading`), `entered_at`, `exited_at`, `duration_sec`.
@@ -223,3 +238,7 @@ SVG-диаграмма «бублик» — показывает процент 
 - `IDLE_SHIFT_SEC = 11 * 3600` — расчётное рабочее время смены без обеда (для подсчёта стоянки в `aggRecs`)
 - Определение «города» заявки: берётся `object_names[0]` из `OrderSummary` (упрощённо)
 - Группировка заявок по ТС: первый номер из `requestNumbers[]` используется как ключ заявки
+- Даты заявок берутся из TIS route points (DD.MM.YYYY → YYYY-MM-DD), а **не** из MIN/MAX shift_records.report_date
+- Заявки фильтруются по пересечению дат с выбранным месяцем (API запрашивает ±1 месяц, клиент фильтрует)
+- `PopoverIcon` рендерит popover через `createPortal` в `document.body` — CSS-переменные `.sv-root` не каскадируются, поэтому цвета захардкожены + `data-theme` для light/dark
+- `request_numbers` в shift_records — `INTEGER[]`; один shift_record может ссылаться на несколько заявок → рейсы учитываются в каждой. При совпадении request_numbers рейсы могут дублироваться между заявками

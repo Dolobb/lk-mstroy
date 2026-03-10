@@ -74,6 +74,14 @@ function fmtDwell(sec: number | null): string {
   return `${m}м`;
 }
 
+/** Парсит DD.MM.YYYY → YYYY-MM-DD */
+function parseDdMmYyyy(s: string | undefined): string {
+  if (!s) return '';
+  const p = s.split('.');
+  if (p.length === 3 && p[2]!.length === 4) return `${p[2]}-${p[1]}-${p[0]}`;
+  return '';
+}
+
 const IDLE_SHIFT_SEC = 11 * 3600; // 11ч = рабочее время смены без обеда
 
 /** Понедельник недели, содержащей дату */
@@ -417,9 +425,11 @@ function toOrderCard(o: OrderSummary): OrderCard {
   // Город: берём из object_names (первый) — упрощённо
   const city = (o.object_names ?? [])[0] ?? 'Прочие';
 
-  // Дата: из shift_records
-  const dateFrom = o.first_date ? fmtDate(o.first_date) : (pts[0]?.date ? pts[0].date.slice(0, 5) : '—');
-  const dateTo = o.last_date ? fmtDate(o.last_date) : (pts[pts.length - 1]?.date ? pts[pts.length - 1].date!.slice(0, 5) : '—');
+  // Даты из маршрутных точек TIS (points[].date в формате DD.MM.YYYY)
+  const dateFromIso = parseDdMmYyyy(pts[0]?.date);
+  const dateToIso   = pts.length > 0 ? parseDdMmYyyy(pts[pts.length - 1]?.date) : '';
+  const dateFrom = dateFromIso ? `${dateFromIso.slice(8, 10)}.${dateFromIso.slice(5, 7)}` : '—';
+  const dateTo   = dateToIso   ? `${dateToIso.slice(8, 10)}.${dateToIso.slice(5, 7)}`   : '—';
 
   return {
     number: o.number,
@@ -435,6 +445,8 @@ function toOrderCard(o: OrderSummary): OrderCard {
     objectExpend,
     dateFrom,
     dateTo,
+    dateFromIso,
+    dateToIso,
     actualTrips,
     pct,
     vehicles: o.vehicles ?? [],
@@ -481,6 +493,7 @@ function MiniDonut({ mov, size = 70 }: { mov: number; size?: number }) {
 // ─────────────────────────────────────────────
 
 function PopoverIcon({ icon, label, text }: { icon: string; label: string; text: string }) {
+  const { resolvedTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -515,7 +528,7 @@ function PopoverIcon({ icon, label, text }: { icon: string; label: string; text:
         title={label}
       >{icon}</button>
       {open && createPortal(
-        <div ref={boxRef} className="sv-popover-box"
+        <div ref={boxRef} className="sv-popover-box" data-theme={resolvedTheme}
           style={{ top: pos.top, left: pos.left }}
           onClick={e => e.stopPropagation()}>
           <div className="sv-popover-title">{label}</div>
@@ -608,7 +621,12 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
             const total = totalByVeh.get(reg) ?? 0;
             return (
               <tr key={reg}>
-                <td>{name} <span className="sv-truck-trips">[{total}]</span></td>
+                <td>
+                  <div className="sv-vehicle-name-cell">
+                    <span className="sv-reg-num">{reg} <span className="sv-truck-trips">[{total}]</span></span>
+                    <span className="sv-veh-model">{stripSamosvaly(name)}</span>
+                  </div>
+                </td>
                 {dates.map(d => {
                   const cell = dm.get(d) ?? { s1: 0, s2: 0 };
                   return (
@@ -661,7 +679,7 @@ function OrderCardView({ card, expanded, onToggle }: {
           <div className="sv-order-badges">
             <span className="sv-badge-sm sv-badge-pct">{card.pct}%</span>
             <span className={`sv-badge-sm ${card.isDone ? 'sv-badge-done' : 'sv-badge-active'}`}>
-              {card.isDone ? '✓ готово' : '● работа'}
+              {card.isDone ? '✓ закрыто' : '● работа'}
             </span>
           </div>
           <div className="sv-order-data-inner">
@@ -694,9 +712,9 @@ function OrderCardView({ card, expanded, onToggle }: {
                 </div>
               )}
             </div>
-            <div className="sv-progress-bar-mini">
-              <div className="sv-progress-bar-mini-fill" style={{ width: `${card.pct}%`, background: pc }} />
-            </div>
+          </div>
+          <div className="sv-progress-bar-mini">
+            <div className="sv-progress-bar-mini-fill" style={{ width: `${card.pct}%`, background: pc }} />
           </div>
         </div>
       </div>
@@ -1545,6 +1563,7 @@ export function DumpTrucksPage() {
   const [activeTab, setActiveTab] = useState<'orders' | 'analytics'>('orders');
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [constructorOpen, setConstructorOpen] = useState(false);
+  const [groupByCargo, setGroupByCargo] = useState(false);
 
   // User settings
   const [currentUser, setCurrentUserState] = useState<string | null>(() => getCurrentUser());
@@ -1563,12 +1582,39 @@ export function DumpTrucksPage() {
     if (currentUser) saveUserSettings(currentUser, s);
   };
 
-  // Shared date range for both tabs
+  // Orders tab: month-based navigation
+  const [orderMonth, setOrderMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  // Analytics tab: date range
   const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
   const [dateTo, setDateTo]     = useState(DEFAULT_DATE_TO);
 
   // Analytics-only filters
   const [analyticsFilters, setAnalyticsFilters] = useState<AnalyticsFilters>({ shift: 'all', objectUid: '', showOnsite: false });
+
+  // Compute month boundaries for orders API
+  const orderMonthFrom = `${orderMonth}-01`;
+  const orderMonthTo = (() => {
+    const [y, m] = orderMonth.split('-').map(Number);
+    const last = new Date(y!, m!, 0);
+    return `${y}-${String(m).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+  })();
+
+  const fmtMonth = (ym: string): string => {
+    const [y, m] = ym.split('-').map(Number);
+    const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    return `${months[m! - 1]} ${y}`;
+  };
+
+  const shiftMonth = (dir: -1 | 1) => {
+    const [y, m] = orderMonth.split('-').map(Number);
+    const d = new Date(y!, m! - 1 + dir, 1);
+    setOrderMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  };
 
   const [objects, setObjects] = useState<DtObject[]>([]);
   const [orders, setOrders] = useState<OrderCard[]>([]);
@@ -1583,14 +1629,19 @@ export function DumpTrucksPage() {
     fetchRepairs().then(setRepairs).catch(console.error);
   }, []);
 
-  // Load orders when date range changes
+  // Load orders when month changes (fetch ±1 month to catch edge cases)
   useEffect(() => {
     setLoadingOrders(true);
-    fetchOrders(dateFrom, dateTo)
+    const [y, m] = orderMonth.split('-').map(Number);
+    const from = new Date(y!, m! - 2, 1); // prev month start
+    const to = new Date(y!, m! + 1, 0);   // next month end
+    const fromStr = isoDate(from);
+    const toStr = isoDate(to);
+    fetchOrders(fromStr, toStr)
       .then(raw => setOrders(raw.map(toOrderCard)))
       .catch(console.error)
       .finally(() => setLoadingOrders(false));
-  }, [dateFrom, dateTo]);
+  }, [orderMonth]);
 
   // Load shift records when date range changes
   useEffect(() => {
@@ -1609,9 +1660,18 @@ export function DumpTrucksPage() {
     });
   };
 
+  // Filter orders: overlap with selected month
+  const monthOrders = orders.filter(o => {
+    // If no dates from points, fallback: show if API returned it for this range
+    if (!o.dateFromIso && !o.dateToIso) return true;
+    const oFrom = o.dateFromIso || '0000-01-01';
+    const oTo   = o.dateToIso   || '9999-12-31';
+    return oFrom <= orderMonthTo && oTo >= orderMonthFrom;
+  });
+
   // Group orders by city
   const cityMap = new Map<string, OrderCard[]>();
-  orders.forEach(o => {
+  monthOrders.forEach(o => {
     if (!cityMap.has(o.city)) cityMap.set(o.city, []);
     cityMap.get(o.city)!.push(o);
   });
@@ -1632,20 +1692,39 @@ export function DumpTrucksPage() {
           </button>
         </div>
 
-        {/* Date range */}
-        <div className="sv-filter-sep" />
-        <div className="sv-fg">
-          <div className="sv-fg-label">Период</div>
-          <div className="sv-fg-row">
-            <input type="date" className="sv-fb-date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)} />
-            <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>
-            <input type="date" className="sv-fb-date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)} />
-          </div>
-        </div>
+        {/* Orders: month nav */}
+        {activeTab === 'orders' && (
+          <>
+            <div className="sv-filter-sep" />
+            <div className="sv-fg">
+              <div className="sv-fg-label">Месяц</div>
+              <div className="sv-fg-row">
+                <button className="sv-week-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }} onClick={() => shiftMonth(-1)}>‹</button>
+                <span style={{ fontSize: 12, fontWeight: 700, minWidth: 110, textAlign: 'center' }}>{fmtMonth(orderMonth)}</span>
+                <button className="sv-week-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }} onClick={() => shiftMonth(1)}>›</button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Analytics: date range */}
+        {activeTab === 'analytics' && (
+          <>
+            <div className="sv-filter-sep" />
+            <div className="sv-fg">
+              <div className="sv-fg-label">Период</div>
+              <div className="sv-fg-row">
+                <input type="date" className="sv-fb-date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)} />
+                <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>
+                <input type="date" className="sv-fb-date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)} />
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Analytics-only filters */}
         {activeTab === 'analytics' && (
@@ -1724,7 +1803,41 @@ export function DumpTrucksPage() {
                 ) : (
                   [...cityMap.entries()].map(([city, cityOrders]) => {
                     const active = cityOrders.filter(o => !o.isDone);
-                    const done = cityOrders.filter(o => o.isDone);
+                    const closed = cityOrders.filter(o => o.isDone)
+                      .sort((a, b) => (b.dateToIso || '').localeCompare(a.dateToIso || ''));
+
+                    // Cargo grouping for closed orders
+                    let closedRendered: React.ReactNode;
+                    if (groupByCargo && closed.length > 0) {
+                      const cargoMap = new Map<string, OrderCard[]>();
+                      closed.forEach(o => {
+                        const key = o.cargo || '—';
+                        if (!cargoMap.has(key)) cargoMap.set(key, []);
+                        cargoMap.get(key)!.push(o);
+                      });
+                      // Sort groups by latest dateTo in group (desc)
+                      const cargoGroups = [...cargoMap.entries()]
+                        .sort(([, a], [, b]) => (b[0]?.dateToIso || '').localeCompare(a[0]?.dateToIso || ''));
+                      closedRendered = cargoGroups.map(([cargo, items]) => (
+                        <div key={cargo} style={{ marginBottom: 6 }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 3, marginLeft: 4 }}>
+                            {cargo} ({items.length})
+                          </div>
+                          {items.map(o => (
+                            <OrderCardView key={o.number} card={o}
+                              expanded={expandedOrders.has(o.number)}
+                              onToggle={() => toggleOrder(o.number)} />
+                          ))}
+                        </div>
+                      ));
+                    } else {
+                      closedRendered = closed.map(o => (
+                        <OrderCardView key={o.number} card={o}
+                          expanded={expandedOrders.has(o.number)}
+                          onToggle={() => toggleOrder(o.number)} />
+                      ));
+                    }
+
                     return (
                       <div key={city} className="sv-city-group">
                         <div className="sv-city-header">
@@ -1744,17 +1857,22 @@ export function DumpTrucksPage() {
                             ))}
                           </>
                         )}
-                        {done.length > 0 && (
+                        {closed.length > 0 && (
                           <>
-                            <div className="sv-status-label">
-                              <div className="sv-status-dot" style={{ background: '#22c55e' }} />
-                              Выполненные ({done.length})
+                            <div className="sv-status-label" style={{ justifyContent: 'space-between' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div className="sv-status-dot" style={{ background: '#22c55e' }} />
+                                Закрытые ({closed.length})
+                              </span>
+                              <button
+                                className={`sv-fb-pill ${groupByCargo ? 'active' : ''}`}
+                                style={{ fontSize: 9, padding: '2px 8px' }}
+                                onClick={e => { e.stopPropagation(); setGroupByCargo(p => !p); }}
+                              >
+                                По грузу
+                              </button>
                             </div>
-                            {done.map(o => (
-                              <OrderCardView key={o.number} card={o}
-                                expanded={expandedOrders.has(o.number)}
-                                onToggle={() => toggleOrder(o.number)} />
-                            ))}
+                            {closedRendered}
                           </>
                         )}
                       </div>
