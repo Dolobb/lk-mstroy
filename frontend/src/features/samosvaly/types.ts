@@ -9,12 +9,15 @@ export interface DtObject {
 export interface OrderSummary {
   number: number;
   status: string;
-  rawJson: {
+  raw_json: {
     orders?: Array<{
       nameCargo?: string;
       weightCargo?: number;
       volumeCargo?: number;
       cntTrip?: number;
+      countTs?: number;
+      notes?: string;
+      comment?: string;
       route?: {
         distance?: number;
         time?: number;
@@ -38,9 +41,10 @@ export interface OrderCard {
   number: number;
   status: string;
   cargo: string;
-  weightPerTrip: number;
-  volumePerTrip: number;
+  weightTotal: number;
+  volumeTotal: number;
   planTrips: number;
+  countTs: number;
   routeFrom: string;
   routeTo: string;
   routeDistance: number;
@@ -56,6 +60,8 @@ export interface OrderCard {
   plCount: number;
   city: string;
   isDone: boolean;
+  notes: string;
+  comment: string;
 }
 
 export interface GanttRecord {
@@ -91,6 +97,8 @@ export interface ShiftRecord {
   requestNumbers: number[];
   avgLoadingDwellSec: number | null;
   avgUnloadingDwellSec: number | null;
+  avgTravelToUnloadMin: number | null;
+  avgReturnToLoadMin: number | null;
 }
 
 export interface TripRecord {
@@ -102,6 +110,21 @@ export interface TripRecord {
   loading_zone: string | null;
   unloading_zone: string | null;
   duration_min: number | null;
+  travel_to_unload_min: number | null;
+  return_to_load_min: number | null;
+}
+
+// ─── User Settings (localStorage) ───────────────────────────────────────────
+
+export type BlockId = 'identity' | 'work' | 'kpi' | 'aggregates';
+
+export interface UserSettings {
+  blockOrder: BlockId[];
+  blockVisibility: Record<BlockId, boolean>;
+  columnVisibility: Record<BlockId, Record<string, boolean>>;
+  columnOrder: Record<BlockId, string[]>;
+  groupByRequest: boolean;   // true = группировать по заявке (уровень 1)
+  groupByShift: boolean;     // true = две смены в одной строке (агрегат); false = каждая смена отдельно
 }
 
 export interface ZoneEvent {

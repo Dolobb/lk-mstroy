@@ -34,6 +34,7 @@ export interface TisRequestOrder {
   };
   kindType?: string;
   notes?: string;
+  comment?: string;
 }
 
 export interface TisRequest {

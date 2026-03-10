@@ -26,8 +26,9 @@ export async function replaceTrips(
         shift_record_id, trip_number,
         loaded_at, unloaded_at,
         loading_zone, unloading_zone,
-        duration_min, distance_km, volume_m3
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        duration_min, distance_km, volume_m3,
+        travel_to_unload_min, return_to_load_min
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `, [
       shiftRecordId,
       trip.tripNumber,
@@ -38,6 +39,8 @@ export async function replaceTrips(
       trip.durationMin ?? null,
       trip.distanceKm ?? null,
       trip.volumeM3 ?? null,
+      trip.travelToUnloadMin ?? null,
+      trip.returnToLoadMin ?? null,
     ]);
   }
 }

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from 'next-themes';
 import './samosvaly.css';
 import {
@@ -8,6 +9,7 @@ import {
 import type {
   DtObject, OrderSummary, OrderCard, GanttRecord,
   ShiftRecord, TripRecord, ZoneEvent, Repair,
+  BlockId, UserSettings,
 } from './types';
 
 // ─────────────────────────────────────────────
@@ -94,19 +96,317 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// ─────────────────────────────────────────────
+//  Block / Column definitions
+// ─────────────────────────────────────────────
+
+const BLOCK_LABELS: Record<BlockId, string> = {
+  identity:   'Определители',
+  work:       'Выполненная работа',
+  kpi:        'KPI',
+  aggregates: 'Агрегаты',
+};
+
+const BLOCK_COLUMNS: Record<BlockId, Array<{ id: string; label: string }>> = {
+  identity: [
+    { id: 'requestNumber', label: '№ заявки' },
+    { id: 'objectName',   label: 'Объект' },
+  ],
+  work: [
+    { id: 'shiftsCount',  label: 'Смены' },
+    { id: 'shift1Trips',  label: 'Рейсы 1 см.' },
+    { id: 'shift2Trips',  label: 'Рейсы 2 см.' },
+    { id: 'totalTrips',   label: 'Рейсы итого' },
+  ],
+  kpi: [
+    { id: 'kip1',         label: 'КИП 1 см.' },
+    { id: 'kip2',         label: 'КИП 2 см.' },
+    { id: 'movement1',    label: 'Движение% 1' },
+    { id: 'movement2',    label: 'Движение% 2' },
+  ],
+  aggregates: [
+    { id: 'engineTotal',       label: 'Двиг. итого' },
+    { id: 'movingTotal',       label: 'Движ. итого' },
+    { id: 'onsiteMin',         label: 'На объекте' },
+    { id: 'avgLoadingDwell',   label: 'Ср. стоянка П' },
+    { id: 'avgUnloadingDwell', label: 'Ср. стоянка В' },
+    { id: 'travelToUnload',    label: 'Путь к выгрузке' },
+    { id: 'returnToLoad',      label: 'Путь к погрузке' },
+  ],
+};
+
+// ─────────────────────────────────────────────
+//  User settings utilities (localStorage)
+// ─────────────────────────────────────────────
+
+function getDefaultSettings(): UserSettings {
+  const allBlocks: BlockId[] = ['identity', 'work', 'kpi', 'aggregates'];
+  return {
+    blockOrder: allBlocks,
+    blockVisibility: { identity: true, work: true, kpi: true, aggregates: true },
+    columnVisibility: Object.fromEntries(
+      allBlocks.map(b => [b, Object.fromEntries(BLOCK_COLUMNS[b].map(c => [c.id, true]))])
+    ) as Record<BlockId, Record<string, boolean>>,
+    columnOrder: Object.fromEntries(
+      allBlocks.map(b => [b, BLOCK_COLUMNS[b].map(c => c.id)])
+    ) as Record<BlockId, string[]>,
+    groupByRequest: true,
+    groupByShift: true,
+  };
+}
+
+function loadUserSettings(name: string): UserSettings {
+  try {
+    const raw = localStorage.getItem(`dt_user_settings_${name}`);
+    if (!raw) return getDefaultSettings();
+    const saved = JSON.parse(raw) as Partial<UserSettings>;
+    const def = getDefaultSettings();
+    return { ...def, ...saved };
+  } catch {
+    return getDefaultSettings();
+  }
+}
+
+function saveUserSettings(name: string, settings: UserSettings): void {
+  localStorage.setItem(`dt_user_settings_${name}`, JSON.stringify(settings));
+}
+
+function getUsersList(): string[] {
+  try {
+    const raw = localStorage.getItem('dt_users_list');
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveUsersList(list: string[]): void {
+  localStorage.setItem('dt_users_list', JSON.stringify(list));
+}
+
+function getCurrentUser(): string | null {
+  return localStorage.getItem('dt_current_user');
+}
+
+function setCurrentUser(name: string): void {
+  localStorage.setItem('dt_current_user', name);
+}
+
+// ─────────────────────────────────────────────
+//  UserSelector component
+// ─────────────────────────────────────────────
+
+function UserSelector({ currentUser, onSelect }: {
+  currentUser: string | null;
+  onSelect: (name: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const users = getUsersList();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleSelect = (name: string) => {
+    setCurrentUser(name);
+    onSelect(name);
+    setOpen(false);
+  };
+
+  const handleAdd = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const list = getUsersList();
+    if (!list.includes(name)) {
+      list.push(name);
+      saveUsersList(list);
+    }
+    handleSelect(name);
+    setNewName('');
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className="sv-fb-pill"
+        onClick={() => setOpen(p => !p)}
+        style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <circle cx="12" cy="8" r="5" /><path d="M3 21c0-5 9-5 9-5s9 0 9 5" />
+        </svg>
+        {currentUser ?? 'Выбрать профиль'}
+      </button>
+      {open && (
+        <div className="sv-user-dropdown">
+          {users.length > 0 && (
+            <div style={{ marginBottom: 6 }}>
+              {users.map(u => (
+                <div
+                  key={u}
+                  className={`sv-user-option ${u === currentUser ? 'active' : ''}`}
+                  onClick={() => handleSelect(u)}
+                >
+                  {u}
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              className="sv-fb-date"
+              style={{ flex: 1, width: 'auto' }}
+              placeholder="Новый профиль..."
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            />
+            <button className="sv-fb-pill" onClick={handleAdd} style={{ padding: '4px 10px' }}>+</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+//  TableConstructorPanel component
+// ─────────────────────────────────────────────
+
+function TableConstructorPanel({ settings, onUpdate, onClose }: {
+  settings: UserSettings;
+  onUpdate: (s: UserSettings) => void;
+  onClose: () => void;
+}) {
+  const [expandedBlocks, setExpandedBlocks] = useState<Set<BlockId>>(new Set());
+
+  const toggleBlockExpand = (b: BlockId) => {
+    setExpandedBlocks(prev => {
+      const s = new Set(prev);
+      if (s.has(b)) s.delete(b); else s.add(b);
+      return s;
+    });
+  };
+
+  const toggleBlockVisibility = (b: BlockId) => {
+    onUpdate({
+      ...settings,
+      blockVisibility: { ...settings.blockVisibility, [b]: !settings.blockVisibility[b] },
+    });
+  };
+
+  const toggleColumnVisibility = (b: BlockId, col: string) => {
+    onUpdate({
+      ...settings,
+      columnVisibility: {
+        ...settings.columnVisibility,
+        [b]: { ...settings.columnVisibility[b], [col]: !settings.columnVisibility[b][col] },
+      },
+    });
+  };
+
+  const moveBlock = (b: BlockId, dir: -1 | 1) => {
+    const order = [...settings.blockOrder];
+    const i = order.indexOf(b);
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j]!, order[i]!];
+    onUpdate({ ...settings, blockOrder: order });
+  };
+
+  return (
+    <div className="sv-constructor-panel">
+      <div className="sv-constructor-header">
+        <span style={{ fontWeight: 700, fontSize: 13 }}>Конструктор таблицы</span>
+        <button className="sv-an-right-close" style={{ position: 'static' }} onClick={onClose}>✕</button>
+      </div>
+
+      {/* Группировка */}
+      <div className="sv-constructor-section">
+        <div className="sv-constructor-section-title">Группировка</div>
+        <label className="sv-constructor-toggle-row">
+          <span>По заявке</span>
+          <input type="checkbox" checked={settings.groupByRequest}
+            onChange={() => onUpdate({ ...settings, groupByRequest: !settings.groupByRequest })} />
+        </label>
+        <label className="sv-constructor-toggle-row">
+          <span>Смены в одной строке</span>
+          <input type="checkbox" checked={settings.groupByShift}
+            onChange={() => onUpdate({ ...settings, groupByShift: !settings.groupByShift })} />
+        </label>
+      </div>
+
+      {/* Блоки */}
+      <div className="sv-constructor-section">
+        <div className="sv-constructor-section-title">Блоки и столбцы</div>
+        {settings.blockOrder.map((b, bi) => (
+          <div key={b} className="sv-constructor-block">
+            <div className="sv-constructor-block-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+                {/* Order controls */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginRight: 2 }}>
+                  <button className="sv-constructor-arrow" onClick={() => moveBlock(b, -1)} disabled={bi === 0}>▲</button>
+                  <button className="sv-constructor-arrow" onClick={() => moveBlock(b, 1)} disabled={bi === settings.blockOrder.length - 1}>▼</button>
+                </div>
+                <input type="checkbox" checked={settings.blockVisibility[b]}
+                  onChange={() => toggleBlockVisibility(b)}
+                  style={{ cursor: 'pointer' }} />
+                <span
+                  style={{ fontWeight: 600, fontSize: 12, cursor: 'pointer', flex: 1 }}
+                  onClick={() => toggleBlockExpand(b)}
+                >
+                  {BLOCK_LABELS[b]}
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--sv-text-4)', cursor: 'pointer' }} onClick={() => toggleBlockExpand(b)}>
+                  {expandedBlocks.has(b) ? '▲' : '▼'}
+                </span>
+              </div>
+            </div>
+            {expandedBlocks.has(b) && (
+              <div className="sv-constructor-cols">
+                {(settings.columnOrder[b] ?? BLOCK_COLUMNS[b].map(c => c.id)).map(colId => {
+                  const colDef = BLOCK_COLUMNS[b].find(c => c.id === colId);
+                  if (!colDef) return null;
+                  const visible = settings.columnVisibility[b][colId] !== false;
+                  return (
+                    <label key={colId} className="sv-constructor-col-row">
+                      <input type="checkbox" checked={visible}
+                        onChange={() => toggleColumnVisibility(b, colId)} />
+                      <span style={{ fontSize: 11 }}>{colDef.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Преобразует OrderSummary (raw от API) в удобный OrderCard */
 function toOrderCard(o: OrderSummary): OrderCard {
-  const ord = o.rawJson?.orders?.[0];
+  const ord = o.raw_json?.orders?.[0];
   const pts = ord?.route?.points ?? [];
   const cargo = ord?.nameCargo ?? '—';
-  const weightPerTrip = ord?.weightCargo ?? 0;
-  const volumePerTrip = ord?.volumeCargo ?? 0;
+  const weightTotal = ord?.weightCargo ?? 0;
+  const volumeTotal = ord?.volumeCargo ?? 0;
   const planTrips = ord?.cntTrip ?? 0;
   const routeFrom = pts[0]?.address ?? '—';
-  const routeTo = pts[pts.length - 1]?.address ?? '—';
+  const routeTo = pts.length > 2
+    ? `⚠ ${pts.length} точек`
+    : pts[pts.length - 1]?.address ?? '—';
   const routeDistance = ord?.route?.distance ?? 0;
   const routeTimeMins = ord?.route?.time ? Math.round(ord.route.time / 60) : 0;
   const objectExpend = ord?.objectExpend?.name ?? '';
+  const countTs = ord?.countTs ?? 0;
+  const notes = ord?.notes ?? '';
+  const comment = ord?.comment ?? '';
 
   const actualTrips = Number(o.actual_trips);
   const pct = planTrips > 0 ? Math.min(100, Math.round((actualTrips / planTrips) * 100)) : 0;
@@ -125,8 +425,8 @@ function toOrderCard(o: OrderSummary): OrderCard {
     number: o.number,
     status: o.status,
     cargo,
-    weightPerTrip,
-    volumePerTrip,
+    weightTotal,
+    volumeTotal,
     planTrips,
     routeFrom,
     routeTo,
@@ -143,6 +443,9 @@ function toOrderCard(o: OrderSummary): OrderCard {
     plCount: Number(o.pl_count),
     city,
     isDone,
+    countTs,
+    notes,
+    comment,
   };
 }
 
@@ -170,6 +473,69 @@ function MiniDonut({ mov, size = 70 }: { mov: number; size?: number }) {
       <text x={cx} y={cy + size * 0.14} textAnchor="middle" fill="var(--sv-text-4)"
         fontSize={size * 0.086} fontWeight="500" fontFamily="DM Sans">движ.</text>
     </svg>
+  );
+}
+
+// ─────────────────────────────────────────────
+//  Popover icon (hover to show, click to pin)
+// ─────────────────────────────────────────────
+
+function PopoverIcon({ icon, label, text }: { icon: string; label: string; text: string }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node) &&
+          btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: Math.max(8, r.left - 80) });
+    }
+    setOpen(p => !p);
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        className={`sv-popover-btn ${open ? 'pinned' : ''}`}
+        onClick={handleClick}
+        title={label}
+      >{icon}</button>
+      {open && createPortal(
+        <div ref={boxRef} className="sv-popover-box"
+          style={{ top: pos.top, left: pos.left }}
+          onClick={e => e.stopPropagation()}>
+          <div className="sv-popover-title">{label}</div>
+          <div className="sv-popover-body">{text}</div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+/** Fraction display: actual/planned, green if actual >= planned */
+function Fraction({ actual, planned, unit }: { actual: number; planned: number; unit: string }) {
+  const done = planned > 0 && actual >= planned;
+  return (
+    <span>
+      <span style={{ fontWeight: 700, color: done ? '#22c55e' : 'var(--sv-text-2)' }}>{actual}</span>
+      <span style={{ color: 'var(--sv-text-4)' }}>/{planned}</span>
+      <span style={{ fontSize: '0.85em', color: 'var(--sv-text-4)', marginLeft: 2 }}>{unit}</span>
+    </span>
   );
 }
 
@@ -270,6 +636,11 @@ function OrderCardView({ card, expanded, onToggle }: {
   onToggle: () => void;
 }) {
   const pc = card.isDone ? '#22c55e' : '#3B82F6';
+  // Факт: 24т и 15м³ за рейс (константа для самосвала)
+  const weightActual = Math.round(card.actualTrips * 24);
+  const volActual    = Math.round(card.actualTrips * 15);
+  const tripsPerTs   = card.vehicles.length > 0 ? Math.round(card.actualTrips / card.vehicles.length * 10) / 10 : 0;
+
   return (
     <div
       className={`sv-order-card ${card.isDone ? 'done sv-order-done' : 'sv-order-active'} ${expanded ? 'expanded' : ''}`}
@@ -277,15 +648,18 @@ function OrderCardView({ card, expanded, onToggle }: {
     >
       <div className="sv-order-content">
         <div className="sv-order-label-area">
-          <div className="sv-order-num"><span>Заявка #{card.number}</span></div>
-          <div className="sv-order-route-mini" title={`${card.routeFrom} → ${card.routeTo}`}>
-            {card.routeFrom} → {card.routeTo}
+          <div className="sv-order-num">
+            <span>Заявка #{card.number}</span>
+          </div>
+          <div className="sv-order-route-two">
+            <div className="sv-route-line" title={card.routeFrom}>→ {card.routeFrom}</div>
+            <div className="sv-route-line" title={card.routeTo}>← {card.routeTo}</div>
           </div>
         </div>
         <div className="sv-order-data-area">
           <div className="sv-order-progress-fill" style={{ width: `${card.pct}%` }} />
           <div className="sv-order-badges">
-            {!card.isDone && <span className="sv-badge-sm sv-badge-pct">{card.pct}%</span>}
+            <span className="sv-badge-sm sv-badge-pct">{card.pct}%</span>
             <span className={`sv-badge-sm ${card.isDone ? 'sv-badge-done' : 'sv-badge-active'}`}>
               {card.isDone ? '✓ готово' : '● работа'}
             </span>
@@ -293,33 +667,32 @@ function OrderCardView({ card, expanded, onToggle }: {
           <div className="sv-order-data-inner">
             <div className="sv-order-meta">
               <div className="sv-om-item"><div className="sv-om-label">Даты</div><div className="sv-om-val">{card.dateFrom}—{card.dateTo}</div></div>
-              {card.routeDistance > 0 && <div className="sv-om-item"><div className="sv-om-label">Расст.</div><div className="sv-om-val">{card.routeDistance} км</div></div>}
-              {card.routeTimeMins > 0 && <div className="sv-om-item"><div className="sv-om-label">Время</div><div className="sv-om-val">{Math.floor(card.routeTimeMins / 60)}ч{card.routeTimeMins % 60 ? `${card.routeTimeMins % 60}м` : ''}</div></div>}
-              <div className="sv-om-item"><div className="sv-om-label">ТС</div><div className="sv-om-val">{card.vehicles.length}</div></div>
-              <div className="sv-om-item"><div className="sv-om-label">ПЛ</div><div className="sv-om-val">{card.plCount}</div></div>
               {card.cargo !== '—' && <div className="sv-om-item"><div className="sv-om-label">Груз</div><div className="sv-om-val">{card.cargo}</div></div>}
-              {card.weightPerTrip > 0 && <div className="sv-om-item"><div className="sv-om-label">Всего тонн</div><div className="sv-om-val" style={{ color: '#F97316', fontWeight: 700 }}>{card.weightPerTrip * card.actualTrips} т</div></div>}
-              {card.volumePerTrip > 0 && <div className="sv-om-item"><div className="sv-om-label">Всего м³</div><div className="sv-om-val" style={{ color: '#A78BFA', fontWeight: 700 }}>{(card.volumePerTrip * card.actualTrips).toFixed(1)} м³</div></div>}
+              <div className="sv-om-item"><div className="sv-om-label">Рейсы</div><div className="sv-om-val"><Fraction actual={card.actualTrips} planned={card.planTrips} unit="" /></div></div>
+              {card.countTs > 0 && <div className="sv-om-item"><div className="sv-om-label">ТС</div><div className="sv-om-val"><Fraction actual={card.vehicles.length} planned={card.countTs} unit="" /></div></div>}
+              {card.countTs === 0 && <div className="sv-om-item"><div className="sv-om-label">ТС</div><div className="sv-om-val">{card.vehicles.length}</div></div>}
+              {card.weightTotal > 0 && <div className="sv-om-item"><div className="sv-om-label">Вес</div><div className="sv-om-val"><Fraction actual={weightActual} planned={card.weightTotal} unit="т" /></div></div>}
+              {card.volumeTotal > 0 && <div className="sv-om-item"><div className="sv-om-label">Объём</div><div className="sv-om-val"><Fraction actual={volActual} planned={card.volumeTotal} unit="м³" /></div></div>}
+              {card.routeDistance > 0 && <div className="sv-om-item"><div className="sv-om-label">Расстояние</div><div className="sv-om-val">{Math.round(card.routeDistance / 1000)} км</div></div>}
+              <div className="sv-om-item"><div className="sv-om-label">ПЛ</div><div className="sv-om-val">{card.plCount}</div></div>
             </div>
             <div className="sv-order-foot">
               <div className="sv-order-obj">
                 <b>Объект</b>
                 {card.objectExpend || card.objectNames[0] || '—'}
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                {card.weightPerTrip > 0 && (
-                  <div className="sv-ow-item">
-                    <span className="sv-ow-val" style={{ color: pc }}>{card.weightPerTrip}</span>
-                    <span className="sv-ow-unit">т/рейс</span>
-                  </div>
-                )}
-                {card.volumePerTrip > 0 && (
-                  <div className="sv-ow-item">
-                    <span className="sv-ow-val" style={{ color: pc }}>{card.volumePerTrip}</span>
-                    <span className="sv-ow-unit">м³/рейс</span>
-                  </div>
+                {(card.notes || card.comment) && (
+                  <span className="sv-order-icons" onClick={e => e.stopPropagation()}>
+                    {card.notes && <PopoverIcon icon="&#x1F4CB;" label="Описание" text={card.notes} />}
+                    {card.comment && <PopoverIcon icon="&#x1F4AC;" label="Комментарий" text={card.comment} />}
+                  </span>
                 )}
               </div>
+              {card.vehicles.length > 0 && (
+                <div className="sv-ow-item">
+                  <span className="sv-ow-val" style={{ color: pc }}>{tripsPerTs}</span>
+                  <span className="sv-ow-unit">рейс/ТС</span>
+                </div>
+              )}
             </div>
             <div className="sv-progress-bar-mini">
               <div className="sv-progress-bar-mini-fill" style={{ width: `${card.pct}%`, background: pc }} />
@@ -634,6 +1007,10 @@ function ShiftSubTable({ shiftRecord }: { shiftRecord: ShiftRecord }) {
   const uStSecs = enriched.map(e => e.uStSec).filter((s): s is number => s !== null && s > 0);
   const avgPSt = pStSecs.length ? Math.round(pStSecs.reduce((a, b) => a + b, 0) / pStSecs.length) : null;
   const avgUSt = uStSecs.length ? Math.round(uStSecs.reduce((a, b) => a + b, 0) / uStSecs.length) : null;
+  const ttuVals = trips.map(t => t.travel_to_unload_min).filter((v): v is number => v !== null && v > 0);
+  const rtlVals = trips.map(t => t.return_to_load_min).filter((v): v is number => v !== null && v > 0);
+  const avgTtu = ttuVals.length ? Math.round(ttuVals.reduce((a, b) => a + b, 0) / ttuVals.length) : null;
+  const avgRtl = rtlVals.length ? Math.round(rtlVals.reduce((a, b) => a + b, 0) / rtlVals.length) : null;
   const centerIdx = Math.floor(enriched.length / 2);
 
   return (
@@ -649,6 +1026,8 @@ function ShiftSubTable({ shiftRecord }: { shiftRecord: ShiftRecord }) {
             <th className="blk-start" colSpan={3} style={{ fontSize: 7, color: 'var(--sv-text-4)' }}>ВЫГРУЗКА</th>
             <th className="blk-start" rowSpan={2}>Ср.П</th>
             <th rowSpan={2}>Ср.В</th>
+            <th className="blk-start" rowSpan={2}>→ Выгр.</th>
+            <th rowSpan={2}>→ Погр.</th>
           </tr>
           <tr>
             <th className="blk-start">Въезд</th>
@@ -682,6 +1061,8 @@ function ShiftSubTable({ shiftRecord }: { shiftRecord: ShiftRecord }) {
                 <td className="dash-l">{fmtDwell(uStSec)}</td>
                 <td className="blk-start">{ri === centerIdx ? fmtDwell(avgPSt) : ''}</td>
                 <td>{ri === centerIdx ? fmtDwell(avgUSt) : ''}</td>
+                <td className="blk-start">{ri === centerIdx ? (avgTtu ? `${avgTtu}м` : '—') : ''}</td>
+                <td>{ri === centerIdx ? (avgRtl ? `${avgRtl}м` : '—') : ''}</td>
               </tr>
             );
           })}
@@ -711,48 +1092,115 @@ interface AnalyticsFilters {
 function aggRecs(recs: ShiftRecord[]) {
   const engineSec  = recs.reduce((s, r) => s + r.engineTimeSec, 0);
   const movingSec  = recs.reduce((s, r) => s + r.movingTimeSec, 0);
-  const idleSec    = Math.max(0, recs.length * IDLE_SHIFT_SEC - movingSec);
+  const onsiteMin  = recs.reduce((s, r) => s + r.onsiteMin, 0);
   const lds = recs.map(r => r.avgLoadingDwellSec).filter((v): v is number => v !== null && v > 0);
   const uds = recs.map(r => r.avgUnloadingDwellSec).filter((v): v is number => v !== null && v > 0);
   const avgLoad   = lds.length   ? Math.round(lds.reduce((a, b) => a + b, 0) / lds.length)   : null;
   const avgUnload = uds.length   ? Math.round(uds.reduce((a, b) => a + b, 0) / uds.length)   : null;
-  return { engineSec, movingSec, idleSec, avgLoad, avgUnload };
+  const ttus = recs.map(r => r.avgTravelToUnloadMin).filter((v): v is number => v !== null && v > 0);
+  const rtls = recs.map(r => r.avgReturnToLoadMin).filter((v): v is number => v !== null && v > 0);
+  const avgTravelToUnload = ttus.length ? Math.round(ttus.reduce((a, b) => a + b, 0) / ttus.length) : null;
+  const avgReturnToLoad   = rtls.length ? Math.round(rtls.reduce((a, b) => a + b, 0) / rtls.length) : null;
+  return { engineSec, movingSec, onsiteMin, avgLoad, avgUnload, avgTravelToUnload, avgReturnToLoad };
 }
 
-function shiftCntLabel(recs: ShiftRecord[], showOnsite: boolean): string {
-  const del = recs.filter(r => r.workType === 'delivery').length;
-  if (!showOnsite) return String(del);
-  const ons = recs.filter(r => r.workType === 'onsite').length;
-  return `${del}/${ons}`;
-}
 
 const _today = new Date();
 const DEFAULT_DATE_FROM = new Date(_today.getFullYear(), _today.getMonth(), 1).toISOString().slice(0, 10);
 const DEFAULT_DATE_TO   = _today.toISOString().slice(0, 10);
 
-function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, onToggleReport, records, loading }: {
+// Helper: render a single cell value for a given column in a given block
+function renderCell(
+  colId: string,
+  recs: ShiftRecord[],
+  level: 'vehicle' | 'order' | 'day',
+  ctx: {
+    regNumber?: string; nameMO?: string;
+    reqNum?: string; objName?: string;
+    date?: string;
+    s1Rec?: ShiftRecord; s2Rec?: ShiftRecord;
+  }
+): React.ReactNode {
+  const totalTrips = recs.reduce((s, r) => s + r.tripsCount, 0);
+  const s1Recs = recs.filter(r => r.shiftType === 'shift1');
+  const s2Recs = recs.filter(r => r.shiftType === 'shift2' && r.kipPct > 0);
+  const ak1 = avgOrDash(s1Recs.map(r => r.kipPct));
+  const am1 = avgOrDash(s1Recs.map(r => r.movementPct));
+  const ak2 = avgOrDash(s2Recs.map(r => r.kipPct));
+  const am2 = avgOrDash(s2Recs.map(r => r.movementPct));
+  const agg = aggRecs(recs);
+  const s1trips = s1Recs.reduce((s, r) => s + r.tripsCount, 0);
+  const s2trips = s2Recs.reduce((s, r) => s + r.tripsCount, 0);
+
+  switch (colId) {
+    case 'requestNumber': return <span style={{ fontSize: 10 }}>{ctx.reqNum ?? '—'}</span>;
+    case 'objectName': return <span style={{ fontSize: 10 }}>{ctx.objName ?? '—'}</span>;
+    case 'shift1Trips': return <span style={{ fontWeight: 600 }}>{s1trips || '—'}</span>;
+    case 'shift2Trips': return <span style={{ fontWeight: 600 }}>{s2trips || '—'}</span>;
+    case 'totalTrips': return <span style={{ fontWeight: 700, color: '#F97316' }}>{totalTrips || '—'}</span>;
+    case 'kip1': return <span className={ak1 !== '—' ? kipColor(Number(ak1)) : ''}>{ak1}</span>;
+    case 'kip2': return <span className={ak2 !== '—' ? kipColor(Number(ak2)) : ''}>{ak2}</span>;
+    case 'movement1': return <span className={am1 !== '—' ? kipColor(Number(am1)) : ''}>{am1}</span>;
+    case 'movement2': return <span className={am2 !== '—' ? kipColor(Number(am2)) : ''}>{am2}</span>;
+    case 'engineTotal': return <span className="sv-td-agg">{fmtHours(agg.engineSec)}</span>;
+    case 'movingTotal': return <span className="sv-td-agg">{fmtHours(agg.movingSec)}</span>;
+    case 'onsiteMin': return <span className="sv-td-agg">{agg.onsiteMin > 0 ? `${agg.onsiteMin}м` : '—'}</span>;
+    case 'avgLoadingDwell': return <span className="sv-td-agg">{fmtDwell(agg.avgLoad)}</span>;
+    case 'avgUnloadingDwell': return <span className="sv-td-agg">{fmtDwell(agg.avgUnload)}</span>;
+    case 'travelToUnload': return <span className="sv-td-agg">{agg.avgTravelToUnload ? `${agg.avgTravelToUnload}м` : '—'}</span>;
+    case 'returnToLoad': return <span className="sv-td-agg">{agg.avgReturnToLoad ? `${agg.avgReturnToLoad}м` : '—'}</span>;
+    case 'shiftsCount': return <span>{recs.length}</span>;
+    default: return '—';
+  }
+}
+
+function getVisibleCols(settings: UserSettings, blockId: BlockId): string[] {
+  const validIds = new Set(BLOCK_COLUMNS[blockId].map(c => c.id));
+  const order = settings.columnOrder[blockId] ?? BLOCK_COLUMNS[blockId].map(c => c.id);
+  return order.filter(c => validIds.has(c) && settings.columnVisibility[blockId]?.[c] !== false);
+}
+
+function getVisibleBlocks(settings: UserSettings): BlockId[] {
+  return settings.blockOrder.filter(b => settings.blockVisibility[b]);
+}
+
+// Count total rendered columns
+function countCols(settings: UserSettings): number {
+  return 1 + getVisibleBlocks(settings).reduce((s, b) => s + getVisibleCols(settings, b).length, 0);
+}
+
+const BLOCK_HEADER_COLORS: Record<BlockId, string> = {
+  identity:   'sv-th-g1',
+  work:       'sv-th-g3',
+  kpi:        'sv-th-g4',
+  aggregates: 'sv-th-g5',
+};
+
+function AnalyticsTab({ objects, period, filters, onFiltersChange, records, loading, settings }: {
   objects: DtObject[];
   period: PeriodState;
   filters: AnalyticsFilters;
   onFiltersChange: (f: AnalyticsFilters) => void;
-  reportOpen: boolean;
-  onToggleReport: () => void;
   records: ShiftRecord[];
   loading: boolean;
+  settings: UserSettings;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const togOrder = (key: string) => setExpanded(prev => {
-    const s = new Set(prev);
-    if (s.has(key)) s.delete(key); else s.add(key);
-    return s;
+    const s = new Set(prev); if (s.has(key)) s.delete(key); else s.add(key); return s;
   });
   const togDay = (key: string) => setExpandedDays(prev => {
-    const s = new Set(prev);
-    if (s.has(key)) s.delete(key); else s.add(key);
-    return s;
+    const s = new Set(prev); if (s.has(key)) s.delete(key); else s.add(key); return s;
   });
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('desc'); }
+  };
 
   // Apply client-side filters
   const filteredRecords = records.filter(r => {
@@ -762,8 +1210,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
     return true;
   });
 
-  // Group records: vehicle → order → day → shift
-  // vehicle key = regNumber
+  // Group records: vehicle → (order) → day → shift
   const vehicleMap = new Map<string, { nameMO: string; records: ShiftRecord[] }>();
   filteredRecords.forEach(r => {
     const key = r.regNumber;
@@ -771,26 +1218,50 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
     vehicleMap.get(key)!.records.push(r);
   });
 
-  // For each vehicle, group by requestNumbers (use first request number)
   type OrderGroup = { reqNum: string; objName: string; records: ShiftRecord[] };
-  type VehicleRow = { regNumber: string; nameMO: string; orders: OrderGroup[] };
+  type VehicleRow = { regNumber: string; nameMO: string; orders: OrderGroup[]; allRecs: ShiftRecord[] };
 
-  const vehicleRows: VehicleRow[] = [...vehicleMap.entries()].map(([reg, { nameMO, records: vRecs }]) => {
+  let vehicleRows: VehicleRow[] = [...vehicleMap.entries()].map(([reg, { nameMO, records: vRecs }]) => {
     const orderMap = new Map<string, OrderGroup>();
     vRecs.forEach(r => {
       const nums = Array.isArray(r.requestNumbers) ? r.requestNumbers : [];
-      const reqKey = nums.length > 0 ? String(nums[0]) : '—';
+      const reqKey = settings.groupByRequest && nums.length > 0 ? String(nums[0]) : '—';
       if (!orderMap.has(reqKey)) orderMap.set(reqKey, { reqNum: reqKey, objName: r.objectName ?? '—', records: [] });
       orderMap.get(reqKey)!.records.push(r);
     });
-    return { regNumber: reg, nameMO, orders: [...orderMap.values()] };
+    return { regNumber: reg, nameMO, orders: [...orderMap.values()], allRecs: vRecs };
   });
+
+  // Sort vehicle rows
+  if (sortCol) {
+    vehicleRows = [...vehicleRows].sort((a, b) => {
+      const getVal = (row: VehicleRow): number => {
+        const recs = row.allRecs;
+        switch (sortCol) {
+          case 'totalTrips': return recs.reduce((s, r) => s + r.tripsCount, 0);
+          case 'kip1': return Number(avgOrDash(recs.filter(r => r.shiftType === 'shift1').map(r => r.kipPct)).replace('—', '0'));
+          case 'kip2': return Number(avgOrDash(recs.filter(r => r.shiftType === 'shift2').map(r => r.kipPct)).replace('—', '0'));
+          case 'engineTotal': return aggRecs(recs).engineSec;
+          case 'onsiteMin': return aggRecs(recs).onsiteMin;
+          default: return 0;
+        }
+      };
+      const va = getVal(a), vb = getVal(b);
+      return sortDir === 'asc' ? va - vb : vb - va;
+    });
+  }
+
+  const visibleBlocks = getVisibleBlocks(settings);
+  const totalCols = countCols(settings);
+
+  const SortIcon = ({ col }: { col: string }) => sortCol === col
+    ? <span style={{ marginLeft: 3, fontSize: 8 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
+    : null;
+
+  const SORTABLE_COLS = new Set(['totalTrips', 'shift1Trips', 'shift2Trips', 'kip1', 'kip2', 'engineTotal', 'onsiteMin']);
 
   return (
     <div className="sv-tab-analytics" style={{ display: 'flex' }}>
-      {/* Filters sub-bar */}
-      {/* (rendered in parent sub-header) */}
-
       <div className="sv-an-table-wrap">
         {loading ? (
           <div className="sv-empty">
@@ -807,48 +1278,68 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
         ) : (
           <table className="sv-at">
             <thead>
+              {/* Row 1: block headers */}
               <tr>
-                <th className="sv-th-g1" rowSpan={2} style={{ minWidth: 200, textAlign: 'left', paddingLeft: 10 }}>ТС / Заявка / День</th>
-                <th className="sv-th-g2" colSpan={2}>Заявки</th>
-                <th className="sv-th-g3" rowSpan={2}>{filters.showOnsite ? 'дост/место' : 'Смены'}</th>
-                <th className="sv-th-g3" rowSpan={2}>Рейсы</th>
-                <th className="sv-th-g3" rowSpan={2}>Объём</th>
-                <th className="sv-th-g4" colSpan={2}>1 смена</th>
-                <th className="sv-th-g4" colSpan={2}>2 смена</th>
-                <th className="sv-th-g5" rowSpan={2}>Двиг.</th>
-                <th className="sv-th-g5" rowSpan={2}>Движ.</th>
-                <th className="sv-th-g5" rowSpan={2}>Стоянка</th>
-                <th className="sv-th-g5" rowSpan={2}>Ср.П</th>
-                <th className="sv-th-g5" rowSpan={2}>Ср.В</th>
+                <th className="sv-th-g1" rowSpan={2} style={{ minWidth: 180, textAlign: 'left', paddingLeft: 10 }}>
+                  ТС / Заявка / День
+                </th>
+                {visibleBlocks.map(b => {
+                  const cols = getVisibleCols(settings, b);
+                  if (!cols.length) return null;
+                  return (
+                    <th key={b} className={BLOCK_HEADER_COLORS[b]} colSpan={cols.length}>
+                      {BLOCK_LABELS[b]}
+                    </th>
+                  );
+                })}
               </tr>
+              {/* Row 2: column headers */}
               <tr>
-                <th className="sv-th-sub">№ заявки</th>
-                <th className="sv-th-sub">Объект</th>
-                <th className="sv-th-sub">КИП</th>
-                <th className="sv-th-sub">Движ.</th>
-                <th className="sv-th-sub">КИП</th>
-                <th className="sv-th-sub">Движ.</th>
+                {visibleBlocks.map(b => {
+                  const cols = getVisibleCols(settings, b);
+                  return cols.map((colId, ci) => {
+                    const colDef = BLOCK_COLUMNS[b].find(c => c.id === colId);
+                    const sortable = SORTABLE_COLS.has(colId);
+                    return (
+                      <th
+                        key={`${b}_${colId}`}
+                        className={`sv-th-sub${ci === 0 ? ' sv-blk-first' : ''}`}
+                        onClick={sortable ? () => handleSort(colId) : undefined}
+                        style={sortable ? { cursor: 'pointer' } : {}}
+                      >
+                        {colDef?.label ?? colId}
+                        <SortIcon col={colId} />
+                      </th>
+                    );
+                  });
+                })}
               </tr>
             </thead>
             <tbody>
               {vehicleRows.map((v, vi) => {
                 const k0 = `v${vi}`;
                 const isOpen = expanded.has(k0);
-                const allRecs = v.orders.flatMap(o => o.records);
+                const allRecs = v.allRecs;
                 const totalTrips = allRecs.reduce((s, r) => s + r.tripsCount, 0);
-                const kip1s = allRecs.filter(r => r.shiftType === 'shift1').map(r => r.kipPct);
-                const mov1s = allRecs.filter(r => r.shiftType === 'shift1').map(r => r.movementPct);
-                const kip2s = allRecs.filter(r => r.shiftType === 'shift2' && r.kipPct > 0).map(r => r.kipPct);
-                const mov2s = allRecs.filter(r => r.shiftType === 'shift2' && r.kipPct > 0).map(r => r.movementPct);
-                const ak1 = avgOrDash(kip1s); const am1 = avgOrDash(mov1s);
-                const ak2 = avgOrDash(kip2s); const am2 = avgOrDash(mov2s);
-                const reqList = [...new Set(v.orders.map(o => o.reqNum))].join(', ');
-                const vAgg = aggRecs(allRecs);
                 const isOnsite = allRecs.some(r => r.workType === 'onsite') && allRecs.every(r => r.workType !== 'delivery');
+                // row color hint
+                const rowKip1 = Number(avgOrDash(allRecs.filter(r => r.shiftType === 'shift1').map(r => r.kipPct)).replace('—', '-1'));
+                const rowStyle: React.CSSProperties = totalTrips === 0
+                  ? { background: 'rgba(239,68,68,0.06)' }
+                  : rowKip1 >= 75 ? { background: 'rgba(34,197,94,0.04)' }
+                  : {};
+
+                const ctx0 = { regNumber: v.regNumber, nameMO: v.nameMO,
+                  reqNum: [...new Set(v.orders.map(o => o.reqNum))].join(', '),
+                  objName: [...new Set(v.orders.map(o => o.objName))].join('; ') };
 
                 return (
                   <React.Fragment key={k0}>
-                    <tr className={`sv-lv0 ${isOnsite ? 'sv-onsite-row' : ''}`} onClick={() => togOrder(k0)} style={{ cursor: 'pointer' }}>
+                    <tr
+                      className={`sv-lv0 ${isOnsite ? 'sv-onsite-row' : ''}`}
+                      style={{ cursor: 'pointer', ...rowStyle }}
+                      onClick={() => togOrder(k0)}
+                    >
                       <td>
                         <div className="sv-tree-cell">
                           <div className={`sv-tree-expand ${isOpen ? 'open' : ''}`}>▶</div>
@@ -859,45 +1350,41 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
                           {v.orders.length > 1 && <span className="sv-lv-badge orders">{v.orders.length} заяв.</span>}
                         </div>
                       </td>
-                      <td style={{ fontSize: 10, textAlign: 'left' }}>{reqList}</td>
-                      <td style={{ fontSize: 9, textAlign: 'left' }}>{[...new Set(v.orders.map(o => o.objName))].join('; ')}</td>
-                      <td>{shiftCntLabel(allRecs, filters.showOnsite)}</td>
-                      <td style={{ fontWeight: 700 }}>{totalTrips}</td>
-                      <td>—</td>
-                      <td className={ak1 !== '—' ? kipColor(Number(ak1)) : ''}>{ak1}</td>
-                      <td className={am1 !== '—' ? kipColor(Number(am1)) : ''}>{am1}</td>
-                      <td className={ak2 !== '—' ? kipColor(Number(ak2)) : ''}>{ak2}</td>
-                      <td className={am2 !== '—' ? kipColor(Number(am2)) : ''}>{am2}</td>
-                      <td className="sv-td-agg">{fmtHours(vAgg.engineSec)}</td>
-                      <td className="sv-td-agg">{fmtHours(vAgg.movingSec)}</td>
-                      <td className="sv-td-agg">{fmtHours(vAgg.idleSec)}</td>
-                      <td className="sv-td-agg">{fmtDwell(vAgg.avgLoad)}</td>
-                      <td className="sv-td-agg">{fmtDwell(vAgg.avgUnload)}</td>
+                      {visibleBlocks.map(b => getVisibleCols(settings, b).map((colId, ci) => (
+                        <td key={`${b}_${colId}`} className={ci === 0 ? 'sv-blk-first' : undefined}>{renderCell(colId, allRecs, 'vehicle', ctx0)}</td>
+                      )))}
                     </tr>
 
-                    {isOpen && v.orders.map((ord, oi) => {
+                    {isOpen && settings.groupByRequest && v.orders.map((ord, oi) => {
                       const k1 = `${k0}_o${oi}`;
                       const isLast1 = oi === v.orders.length - 1;
-                      const ordTrips = ord.records.reduce((s, r) => s + r.tripsCount, 0);
-                      const ok1s = ord.records.filter(r => r.shiftType === 'shift1').map(r => r.kipPct);
-                      const om1s = ord.records.filter(r => r.shiftType === 'shift1').map(r => r.movementPct);
-                      const ok2s = ord.records.filter(r => r.shiftType === 'shift2' && r.kipPct > 0).map(r => r.kipPct);
-                      const om2s = ord.records.filter(r => r.shiftType === 'shift2' && r.kipPct > 0).map(r => r.movementPct);
-                      const oAk1 = avgOrDash(ok1s); const oAm1 = avgOrDash(om1s);
-                      const oAk2 = avgOrDash(ok2s); const oAm2 = avgOrDash(om2s);
-                      const oAgg = aggRecs(ord.records);
+                      const ctx1 = { reqNum: ord.reqNum, objName: ord.objName };
 
-                      const dayMap = new Map<string, ShiftRecord[]>();
-                      ord.records.forEach(r => {
-                        const key = toDateStr(r.reportDate);
-                        if (!dayMap.has(key)) dayMap.set(key, []);
-                        dayMap.get(key)!.push(r);
-                      });
-                      const days = [...dayMap.entries()].sort(([a], [b]) => a.localeCompare(b));
+                      type DayRow = { key: string; label: string; recs: ShiftRecord[]; badge?: string };
+                      let dayRows: DayRow[];
+                      if (settings.groupByShift) {
+                        const dayMap = new Map<string, ShiftRecord[]>();
+                        ord.records.forEach(r => {
+                          const key = toDateStr(r.reportDate);
+                          if (!dayMap.has(key)) dayMap.set(key, []);
+                          dayMap.get(key)!.push(r);
+                        });
+                        dayRows = [...dayMap.entries()].sort(([a], [b]) => a.localeCompare(b))
+                          .map(([d, r]) => ({ key: d, label: fmtDateShort(d), recs: r, badge: r.length > 1 ? '2 см.' : undefined }));
+                      } else {
+                        dayRows = [...ord.records]
+                          .sort((a, b) => toDateStr(a.reportDate).localeCompare(toDateStr(b.reportDate)) || a.shiftType.localeCompare(b.shiftType))
+                          .map(r => ({
+                            key: `${toDateStr(r.reportDate)}_${r.shiftType}`,
+                            label: `${fmtDateShort(r.reportDate)} · ${r.shiftType === 'shift1' ? '1 см.' : '2 см.'}`,
+                            recs: [r],
+                          }));
+                      }
 
                       return (
                         <React.Fragment key={k1}>
-                          <tr className="sv-lv1" onClick={e => { e.stopPropagation(); togOrder(k1); }} style={{ cursor: 'pointer' }}>
+                          <tr className="sv-lv1" style={{ cursor: 'pointer' }}
+                            onClick={e => { e.stopPropagation(); togOrder(k1); }}>
                             <td>
                               <div className="sv-tree-cell">
                                 <div className="sv-tree-indent">
@@ -905,41 +1392,30 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
                                 </div>
                                 <div className={`sv-tree-expand ${expanded.has(k1) ? 'open' : ''}`}>▶</div>
                                 <span className="sv-tree-label">#{ord.reqNum} · {ord.objName}</span>
-                                {days.length > 1 && <span className="sv-lv-badge days">{days.length} дн.</span>}
+                                {dayRows.length > 1 && <span className="sv-lv-badge days">{dayRows.length} дн.</span>}
                               </div>
                             </td>
-                            <td>{ord.reqNum}</td>
-                            <td style={{ fontSize: 9 }}>{ord.objName}</td>
-                            <td>{shiftCntLabel(ord.records, filters.showOnsite)}</td>
-                            <td style={{ fontWeight: 700 }}>{ordTrips}</td>
-                            <td>—</td>
-                            <td className={oAk1 !== '—' ? kipColor(Number(oAk1)) : ''}>{oAk1}</td>
-                            <td className={oAm1 !== '—' ? kipColor(Number(oAm1)) : ''}>{oAm1}</td>
-                            <td className={oAk2 !== '—' ? kipColor(Number(oAk2)) : ''}>{oAk2}</td>
-                            <td className={oAm2 !== '—' ? kipColor(Number(oAm2)) : ''}>{oAm2}</td>
-                            <td className="sv-td-agg">{fmtHours(oAgg.engineSec)}</td>
-                            <td className="sv-td-agg">{fmtHours(oAgg.movingSec)}</td>
-                            <td className="sv-td-agg">{fmtHours(oAgg.idleSec)}</td>
-                            <td className="sv-td-agg">{fmtDwell(oAgg.avgLoad)}</td>
-                            <td className="sv-td-agg">{fmtDwell(oAgg.avgUnload)}</td>
+                            {visibleBlocks.map(b => getVisibleCols(settings, b).map((colId, ci) => (
+                              <td key={`${b}_${colId}`} className={ci === 0 ? 'sv-blk-first' : undefined}>{renderCell(colId, ord.records, 'order', ctx1)}</td>
+                            )))}
                           </tr>
 
-                          {expanded.has(k1) && days.map(([date, dayRecs], di) => {
+                          {expanded.has(k1) && dayRows.map((dr, di) => {
                             const k2 = `${k1}_d${di}`;
-                            const isLast2 = di === days.length - 1;
-                            const dayTrips = dayRecs.reduce((s, r) => s + r.tripsCount, 0);
-                            const s1Rec = dayRecs.find(r => r.shiftType === 'shift1');
-                            const s2Rec = dayRecs.find(r => r.shiftType === 'shift2');
-                            const dAk1 = s1Rec?.kipPct ?? 0;
-                            const dAm1 = s1Rec?.movementPct ?? 0;
-                            const dAk2 = s2Rec?.kipPct ?? 0;
-                            const dAm2 = s2Rec?.movementPct ?? 0;
+                            const isLast2 = di === dayRows.length - 1;
                             const isDayOpen = expandedDays.has(k2);
-                            const dAgg = aggRecs(dayRecs);
+                            const dayTrips = dr.recs.reduce((s, r) => s + r.tripsCount, 0);
+                            const dayStyle: React.CSSProperties = dayTrips === 0
+                              ? { background: 'rgba(239,68,68,0.08)' }
+                              : (dr.recs.find(r => r.shiftType === 'shift1')?.kipPct ?? 0) >= 75
+                              ? { background: 'rgba(34,197,94,0.06)' }
+                              : {};
+                            const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: ord.reqNum, objName: ord.objName };
 
                             return (
                               <React.Fragment key={k2}>
-                                <tr className="sv-lv2" onClick={e => { e.stopPropagation(); togDay(k2); }} style={{ cursor: 'pointer' }}>
+                                <tr className="sv-lv2" style={{ cursor: 'pointer', ...dayStyle }}
+                                  onClick={e => { e.stopPropagation(); togDay(k2); }}>
                                   <td>
                                     <div className="sv-tree-cell">
                                       <div className="sv-tree-indent">
@@ -947,30 +1423,19 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
                                         <div className={`sv-tree-pipe ${isLast2 ? 'last' : 'branch'}`} />
                                       </div>
                                       <div className={`sv-tree-expand ${isDayOpen ? 'open' : ''}`}>▶</div>
-                                      <span className="sv-tree-label">{fmtDateShort(date)}</span>
-                                      {dayRecs.length > 1 && <span className="sv-lv-badge shifts">2 см.</span>}
+                                      <span className="sv-tree-label">{dr.label}</span>
+                                      {dr.badge && <span className="sv-lv-badge shifts">{dr.badge}</span>}
                                     </div>
                                   </td>
-                                  <td></td><td></td>
-                                  <td>{dayRecs.length}</td>
-                                  <td style={{ fontWeight: 600 }}>{dayTrips}</td>
-                                  <td>—</td>
-                                  <td className={dAk1 > 0 ? kipColor(dAk1) : ''}>{dAk1 > 0 ? dAk1 : '—'}</td>
-                                  <td className={dAm1 > 0 ? kipColor(dAm1) : ''}>{dAm1 > 0 ? dAm1 : '—'}</td>
-                                  <td className={dAk2 > 0 ? kipColor(dAk2) : ''}>{dAk2 > 0 ? dAk2 : '—'}</td>
-                                  <td className={dAm2 > 0 ? kipColor(dAm2) : ''}>{dAm2 > 0 ? dAm2 : '—'}</td>
-                                  <td className="sv-td-agg">{fmtHours(dAgg.engineSec)}</td>
-                                  <td className="sv-td-agg">{fmtHours(dAgg.movingSec)}</td>
-                                  <td className="sv-td-agg">{fmtHours(dAgg.idleSec)}</td>
-                                  <td className="sv-td-agg">{fmtDwell(dAgg.avgLoad)}</td>
-                                  <td className="sv-td-agg">{fmtDwell(dAgg.avgUnload)}</td>
+                                  {visibleBlocks.map(b => getVisibleCols(settings, b).map((colId, ci) => (
+                                    <td key={`${b}_${colId}`} className={ci === 0 ? 'sv-blk-first' : undefined}>{renderCell(colId, dr.recs, 'day', ctx2)}</td>
+                                  )))}
                                 </tr>
-
                                 {isDayOpen && (
                                   <tr className="sv-sub-row">
-                                    <td colSpan={15}>
+                                    <td colSpan={totalCols}>
                                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                        {dayRecs
+                                        {dr.recs
                                           .sort((a, b) => a.shiftType.localeCompare(b.shiftType))
                                           .map(sr => (
                                             <div key={sr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
@@ -987,22 +1452,86 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
                         </React.Fragment>
                       );
                     })}
+
+                    {/* Flat days (no groupByRequest) */}
+                    {isOpen && !settings.groupByRequest && (() => {
+                      type DayRow2 = { key: string; label: string; recs: ShiftRecord[]; badge?: string };
+                      let dayRows2: DayRow2[];
+                      if (settings.groupByShift) {
+                        const dayMap = new Map<string, ShiftRecord[]>();
+                        allRecs.forEach(r => {
+                          const key = toDateStr(r.reportDate);
+                          if (!dayMap.has(key)) dayMap.set(key, []);
+                          dayMap.get(key)!.push(r);
+                        });
+                        dayRows2 = [...dayMap.entries()].sort(([a], [b]) => a.localeCompare(b))
+                          .map(([d, r]) => ({ key: d, label: fmtDateShort(d), recs: r, badge: r.length > 1 ? '2 см.' : undefined }));
+                      } else {
+                        dayRows2 = [...allRecs]
+                          .sort((a, b) => toDateStr(a.reportDate).localeCompare(toDateStr(b.reportDate)) || a.shiftType.localeCompare(b.shiftType))
+                          .map(r => ({
+                            key: `${toDateStr(r.reportDate)}_${r.shiftType}`,
+                            label: `${fmtDateShort(r.reportDate)} · ${r.shiftType === 'shift1' ? '1 см.' : '2 см.'}`,
+                            recs: [r],
+                          }));
+                      }
+                      return dayRows2.map((dr, di) => {
+                        const k2 = `${k0}_d${di}`;
+                        const isLast2 = di === dayRows2.length - 1;
+                        const isDayOpen = expandedDays.has(k2);
+                        const dayTrips = dr.recs.reduce((s, r) => s + r.tripsCount, 0);
+                        const dayStyle: React.CSSProperties = dayTrips === 0
+                          ? { background: 'rgba(239,68,68,0.08)' }
+                          : (dr.recs.find(r => r.shiftType === 'shift1')?.kipPct ?? 0) >= 75
+                          ? { background: 'rgba(34,197,94,0.06)' }
+                          : {};
+                        const reqNums = [...new Set(dr.recs.flatMap(r => r.requestNumbers ?? []))].join(', ');
+                        const objNames = [...new Set(dr.recs.map(r => r.objectName ?? ''))].join('; ');
+                        const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: reqNums || '—', objName: objNames || '—' };
+
+                        return (
+                          <React.Fragment key={k2}>
+                            <tr className="sv-lv1" style={{ cursor: 'pointer', ...dayStyle }}
+                              onClick={e => { e.stopPropagation(); togDay(k2); }}>
+                              <td>
+                                <div className="sv-tree-cell">
+                                  <div className="sv-tree-indent">
+                                    <div className={`sv-tree-pipe ${isLast2 ? 'last' : 'branch'}`} />
+                                  </div>
+                                  <div className={`sv-tree-expand ${isDayOpen ? 'open' : ''}`}>▶</div>
+                                  <span className="sv-tree-label">{dr.label}</span>
+                                  {dr.badge && <span className="sv-lv-badge shifts">{dr.badge}</span>}
+                                </div>
+                              </td>
+                              {visibleBlocks.map(b => getVisibleCols(settings, b).map(colId => (
+                                <td key={`${b}_${colId}`}>{renderCell(colId, dr.recs, 'day', ctx2)}</td>
+                              )))}
+                            </tr>
+                            {isDayOpen && (
+                              <tr className="sv-sub-row">
+                                <td colSpan={totalCols}>
+                                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                    {dr.recs
+                                      .sort((a, b) => a.shiftType.localeCompare(b.shiftType))
+                                      .map(sr => (
+                                        <div key={sr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
+                                          <ShiftSubTable shiftRecord={sr} />
+                                        </div>
+                                      ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
                   </React.Fragment>
                 );
               })}
             </tbody>
           </table>
         )}
-      </div>
-
-      {/* Report overlay */}
-      <div className={`sv-an-right ${reportOpen ? 'open' : ''}`}>
-        <button className="sv-an-right-close" onClick={onToggleReport}>✕</button>
-        <div className="sv-report-placeholder">
-          <div className="sv-report-placeholder-emoji">🤌</div>
-          <div className="sv-report-placeholder-text">Тут будут формироваться Excel-отчёты</div>
-          <div className="sv-report-placeholder-sub">Выберите параметры отчёта, период и нажмите «Сформировать» — файл скачается автоматически</div>
-        </div>
       </div>
     </div>
   );
@@ -1014,8 +1543,25 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, reportOpen, o
 export function DumpTrucksPage() {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'orders' | 'analytics'>('orders');
-  const [reportOpen, setReportOpen] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
+  const [constructorOpen, setConstructorOpen] = useState(false);
+
+  // User settings
+  const [currentUser, setCurrentUserState] = useState<string | null>(() => getCurrentUser());
+  const [userSettings, setUserSettings] = useState<UserSettings>(() => {
+    const user = getCurrentUser();
+    return user ? loadUserSettings(user) : getDefaultSettings();
+  });
+
+  const handleUserSelect = (name: string) => {
+    setCurrentUserState(name);
+    setUserSettings(loadUserSettings(name));
+  };
+
+  const handleSettingsUpdate = (s: UserSettings) => {
+    setUserSettings(s);
+    if (currentUser) saveUserSettings(currentUser, s);
+  };
 
   // Shared date range for both tabs
   const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
@@ -1046,7 +1592,7 @@ export function DumpTrucksPage() {
       .finally(() => setLoadingOrders(false));
   }, [dateFrom, dateTo]);
 
-  // Load shift records when date range changes (shared by analytics + sidebar)
+  // Load shift records when date range changes
   useEffect(() => {
     setLoadingRecords(true);
     fetchShiftRecords({ dateFrom, dateTo })
@@ -1086,7 +1632,7 @@ export function DumpTrucksPage() {
           </button>
         </div>
 
-        {/* Date range — shown on both tabs */}
+        {/* Date range */}
         <div className="sv-filter-sep" />
         <div className="sv-fg">
           <div className="sv-fg-label">Период</div>
@@ -1129,100 +1675,122 @@ export function DumpTrucksPage() {
             <div className="sv-filter-sep" />
             <label className="sv-fg" style={{ cursor: 'pointer', userSelect: 'none' }}>
               <div className="sv-fg-label">По месту</div>
-              <input type="checkbox" style={{ accentColor: 'var(--sv-accent)' }}
+              <input type="checkbox"
                 checked={analyticsFilters.showOnsite}
                 onChange={e => setAnalyticsFilters(f => ({ ...f, showOnsite: e.target.checked }))} />
             </label>
-            <button className="sv-btn-report" onClick={() => setReportOpen(p => !p)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              Формирование отчёта
-            </button>
           </>
         )}
+
+        {/* Right controls */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <UserSelector currentUser={currentUser} onSelect={handleUserSelect} />
+          {activeTab === 'analytics' && (
+            <button
+              className={`sv-fb-pill ${constructorOpen ? 'active' : ''}`}
+              onClick={() => setConstructorOpen(p => !p)}
+              title="Конструктор таблицы"
+              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+              </svg>
+              Конструктор
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Main content */}
-      <div className="sv-main-wrap">
-        {/* Tab 1: Orders */}
-        {activeTab === 'orders' && (
-          <div className="sv-tab-orders">
-            <div className="sv-orders-scroll">
-              {loadingOrders ? (
-                <div className="sv-empty">
-                  <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
-                  </svg>
-                  <span className="sv-empty-text">Загрузка заявок...</span>
-                </div>
-              ) : orders.length === 0 ? (
-                <div className="sv-empty">
-                  <span className="sv-empty-icon">📭</span>
-                  <span className="sv-empty-text">Заявок не найдено</span>
-                </div>
-              ) : (
-                [...cityMap.entries()].map(([city, cityOrders]) => {
-                  const active = cityOrders.filter(o => !o.isDone);
-                  const done = cityOrders.filter(o => o.isDone);
-                  return (
-                    <div key={city} className="sv-city-group">
-                      <div className="sv-city-header">
-                        <span className="sv-city-name">{city}</span>
-                        <span className="sv-city-badge">{cityOrders.length}</span>
+      {/* Main content + constructor panel */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <div className="sv-main-wrap" style={{ flex: 1, minWidth: 0 }}>
+          {/* Tab 1: Orders */}
+          {activeTab === 'orders' && (
+            <div className="sv-tab-orders">
+              <div className="sv-orders-scroll">
+                {loadingOrders ? (
+                  <div className="sv-empty">
+                    <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+                    </svg>
+                    <span className="sv-empty-text">Загрузка заявок...</span>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="sv-empty">
+                    <span className="sv-empty-icon">📭</span>
+                    <span className="sv-empty-text">Заявок не найдено</span>
+                  </div>
+                ) : (
+                  [...cityMap.entries()].map(([city, cityOrders]) => {
+                    const active = cityOrders.filter(o => !o.isDone);
+                    const done = cityOrders.filter(o => o.isDone);
+                    return (
+                      <div key={city} className="sv-city-group">
+                        <div className="sv-city-header">
+                          <span className="sv-city-name">{city}</span>
+                          <span className="sv-city-badge">{cityOrders.length}</span>
+                        </div>
+                        {active.length > 0 && (
+                          <>
+                            <div className="sv-status-label">
+                              <div className="sv-status-dot" style={{ background: '#F97316' }} />
+                              Активные ({active.length})
+                            </div>
+                            {active.map(o => (
+                              <OrderCardView key={o.number} card={o}
+                                expanded={expandedOrders.has(o.number)}
+                                onToggle={() => toggleOrder(o.number)} />
+                            ))}
+                          </>
+                        )}
+                        {done.length > 0 && (
+                          <>
+                            <div className="sv-status-label">
+                              <div className="sv-status-dot" style={{ background: '#22c55e' }} />
+                              Выполненные ({done.length})
+                            </div>
+                            {done.map(o => (
+                              <OrderCardView key={o.number} card={o}
+                                expanded={expandedOrders.has(o.number)}
+                                onToggle={() => toggleOrder(o.number)} />
+                            ))}
+                          </>
+                        )}
                       </div>
-                      {active.length > 0 && (
-                        <>
-                          <div className="sv-status-label">
-                            <div className="sv-status-dot" style={{ background: '#F97316' }} />
-                            Активные ({active.length})
-                          </div>
-                          {active.map(o => (
-                            <OrderCardView key={o.number} card={o}
-                              expanded={expandedOrders.has(o.number)}
-                              onToggle={() => toggleOrder(o.number)} />
-                          ))}
-                        </>
-                      )}
-                      {done.length > 0 && (
-                        <>
-                          <div className="sv-status-label">
-                            <div className="sv-status-dot" style={{ background: '#22c55e' }} />
-                            Выполненные ({done.length})
-                          </div>
-                          {done.map(o => (
-                            <OrderCardView key={o.number} card={o}
-                              expanded={expandedOrders.has(o.number)}
-                              onToggle={() => toggleOrder(o.number)} />
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
+
+              <WeeklySidebar
+                shiftRecords={shiftRecords}
+                repairs={repairs}
+                initialDateFrom={dateFrom}
+              />
             </div>
+          )}
 
-            <WeeklySidebar
-              shiftRecords={shiftRecords}
-              repairs={repairs}
-              initialDateFrom={dateFrom}
+          {/* Tab 2: Analytics */}
+          {activeTab === 'analytics' && (
+            <AnalyticsTab
+              objects={objects}
+              period={{ dateFrom, dateTo }}
+              filters={analyticsFilters}
+              onFiltersChange={setAnalyticsFilters}
+              records={shiftRecords}
+              loading={loadingRecords}
+              settings={userSettings}
             />
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Tab 2: Analytics */}
-        {activeTab === 'analytics' && (
-          <AnalyticsTab
-            objects={objects}
-            period={{ dateFrom, dateTo }}
-            filters={analyticsFilters}
-            onFiltersChange={setAnalyticsFilters}
-            reportOpen={reportOpen}
-            onToggleReport={() => setReportOpen(p => !p)}
-            records={shiftRecords}
-            loading={loadingRecords}
+        {/* Table constructor panel */}
+        {constructorOpen && activeTab === 'analytics' && (
+          <TableConstructorPanel
+            settings={userSettings}
+            onUpdate={handleSettingsUpdate}
+            onClose={() => setConstructorOpen(false)}
           />
         )}
       </div>

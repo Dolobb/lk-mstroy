@@ -73,6 +73,9 @@ export interface Trip {
   durationMin: number | null;
   distanceKm: number | null;
   volumeM3: number | null;
+  // Время в пути (мин)
+  travelToUnloadMin: number | null;  // от выхода погрузки до входа в выгрузку
+  returnToLoadMin: number | null;    // от выхода выгрузки до входа в следующую погрузку
 }
 
 // KPI для смены

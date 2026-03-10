@@ -73,16 +73,34 @@ export function buildTrips(events: ZoneEvent[]): Trip[] {
       ? Math.round((unloadedAt.getTime() - loading.enteredAt.getTime()) / 60_000)
       : null;
 
+    // Время в пути к выгрузке: от выхода из зоны погрузки до входа в зону выгрузки
+    const travelToUnloadMin = bestUnloading.enteredAt
+      ? Math.round((bestUnloading.enteredAt.getTime() - loadedAt.getTime()) / 60_000)
+      : null;
+
     trips.push({
-      tripNumber:   trips.length + 1,
-      loadedAt:     loading.exitedAt,
-      unloadedAt:   bestUnloading.exitedAt,
-      loadingZone:  loading.zoneName,
-      unloadingZone: bestUnloading.zoneName,
+      tripNumber:        trips.length + 1,
+      loadedAt:          loading.exitedAt,
+      unloadedAt:        bestUnloading.exitedAt,
+      loadingZone:       loading.zoneName,
+      unloadingZone:     bestUnloading.zoneName,
       durationMin,
-      distanceKm:   null,
-      volumeM3:     null,
+      distanceKm:        null,
+      volumeM3:          null,
+      travelToUnloadMin: travelToUnloadMin !== null && travelToUnloadMin >= 0 ? travelToUnloadMin : null,
+      returnToLoadMin:   null, // заполняется вторым проходом ниже
     });
+  }
+
+  // Второй проход: returnToLoadMin[i] = trips[i+1].loadedAt - trips[i].unloadedAt
+  // (время от выхода из зоны выгрузки до входа в следующую зону погрузки)
+  for (let i = 0; i < trips.length - 1; i++) {
+    const curUnloadedAt = trips[i]!.unloadedAt;
+    const nextLoadedAt  = trips[i + 1]!.loadedAt;
+    if (curUnloadedAt && nextLoadedAt) {
+      const returnMin = Math.round((nextLoadedAt.getTime() - curUnloadedAt.getTime()) / 60_000);
+      trips[i]!.returnToLoadMin = returnMin >= 0 ? returnMin : null;
+    }
   }
 
   return trips;

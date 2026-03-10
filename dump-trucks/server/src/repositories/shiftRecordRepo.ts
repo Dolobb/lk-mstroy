@@ -25,6 +25,8 @@ export interface ShiftRecord {
   requestNumbers: number[];
   avgLoadingDwellSec: number | null;
   avgUnloadingDwellSec: number | null;
+  avgTravelToUnloadMin: number | null;
+  avgReturnToLoadMin: number | null;
 }
 
 /**
@@ -159,6 +161,8 @@ export async function queryShiftRecords(
     request_numbers: number[] | null;
     avg_loading_dwell_sec: string | null;
     avg_unloading_dwell_sec: string | null;
+    avg_travel_to_unload_min: string | null;
+    avg_return_to_load_min: string | null;
   }>(`
     SELECT
       sr.id, sr.report_date, sr.shift_type,
@@ -171,7 +175,9 @@ export async function queryShiftRecords(
       sr.kip_pct, sr.movement_pct,
       sr.pl_id, sr.request_numbers,
       dwell.avg_loading_dwell_sec,
-      dwell.avg_unloading_dwell_sec
+      dwell.avg_unloading_dwell_sec,
+      trip_agg.avg_travel_to_unload_min,
+      trip_agg.avg_return_to_load_min
     FROM dump_trucks.shift_records sr
     LEFT JOIN LATERAL (
       SELECT
@@ -182,6 +188,13 @@ export async function queryShiftRecords(
         AND ze.report_date = sr.report_date
         AND ze.shift_type  = sr.shift_type
     ) dwell ON true
+    LEFT JOIN LATERAL (
+      SELECT
+        AVG(travel_to_unload_min) FILTER (WHERE travel_to_unload_min IS NOT NULL) AS avg_travel_to_unload_min,
+        AVG(return_to_load_min) FILTER (WHERE return_to_load_min IS NOT NULL) AS avg_return_to_load_min
+      FROM dump_trucks.trips t
+      WHERE t.shift_record_id = sr.id
+    ) trip_agg ON true
     ${where}
     ORDER BY sr.report_date DESC, sr.shift_type, sr.vehicle_id
   `, params);
@@ -210,5 +223,7 @@ export async function queryShiftRecords(
     requestNumbers: r.request_numbers ?? [],
     avgLoadingDwellSec:   r.avg_loading_dwell_sec   ? Number(r.avg_loading_dwell_sec)   : null,
     avgUnloadingDwellSec: r.avg_unloading_dwell_sec ? Number(r.avg_unloading_dwell_sec) : null,
+    avgTravelToUnloadMin: r.avg_travel_to_unload_min ? Number(r.avg_travel_to_unload_min) : null,
+    avgReturnToLoadMin:   r.avg_return_to_load_min   ? Number(r.avg_return_to_load_min)   : null,
   }));
 }
