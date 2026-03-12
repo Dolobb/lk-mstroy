@@ -8,6 +8,9 @@ import { Pool } from 'pg';
 
 dotenv.config();
 
+// Локальные запросы к бэкендам не должны идти через системный прокси
+process.env.NO_PROXY = (process.env.NO_PROXY || '') + ',localhost,127.0.0.1';
+
 const PORT = Number(process.env.ADMIN_PORT || 3005);
 const ROOT = path.resolve(__dirname, '..');
 
@@ -102,11 +105,19 @@ function startService(cfg: ServiceConfig) {
 
   appendLog(cfg.id, `[admin] Запуск: ${cfg.cmd} ${cfg.args.join(' ')}`);
 
-  const child = spawn(cfg.cmd, cfg.args, {
-    cwd: cfg.cwd,
-    env: { ...process.env, FORCE_COLOR: '1' },
-    shell: process.platform === 'win32',
-  });
+  const isWin = process.platform === 'win32';
+  const childEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: 'localhost,127.0.0.1' };
+  const child = isWin
+    ? spawn(`${cfg.cmd} ${cfg.args.join(' ')}`, [], {
+        cwd: cfg.cwd,
+        env: childEnv,
+        shell: true,
+      })
+    : spawn(cfg.cmd, cfg.args, {
+        cwd: cfg.cwd,
+        env: childEnv,
+        shell: false,
+      });
 
   processes[cfg.id] = child;
 
@@ -678,12 +689,20 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
   }
 
   const force = req.query.force === 'true';
+  const refresh = req.query.refresh === 'true';
 
   // Вычислить недостающие даты
   const allDates = allDatesInRange(from, to).reverse(); // от последней к ранней
   let missing: string[];
 
-  if (force && service === 'kip') {
+  if (refresh) {
+    // refresh-режим: фетчить ВСЕ даты в диапазоне, включая уже загруженные
+    missing = allDates;
+    if (missing.length === 0) {
+      res.json({ ok: true, message: 'Нет дат в диапазоне', missing: 0 });
+      return;
+    }
+  } else if (force && service === 'kip') {
     // force-режим: перевыгружаем только даты у которых есть vehicle_records, но нет monitoring_raw
     const [kipResult, rawResult] = await Promise.all([
       getKipDates(from, to),
@@ -793,10 +812,157 @@ app.post('/api/admin/recalc/:service', async (req, res) => {
   }
 });
 
+// ─── DB Viewer ────────────────────────────────────────────────────────────────
+
+interface DbPreset {
+  key: string;
+  label: string;
+  pool: 'kip' | 'main';
+  sql: (dateFrom: string, dateTo: string, limit: number) => { text: string; values: (string | number)[] };
+}
+
+const DB_PRESETS: DbPreset[] = [
+  {
+    key: 'kip.vehicle_records',
+    label: 'КИП записи',
+    pool: 'kip',
+    sql: (from, to, limit) => ({
+      text: `SELECT report_date::text, shift_type, vehicle_id, vehicle_model, company_name,
+                    load_efficiency_pct, utilization_ratio, engine_on_time, fuel_consumed_total, fuel_rate_fact
+             FROM vehicle_records
+             WHERE report_date BETWEEN $1 AND $2
+             ORDER BY report_date DESC, vehicle_id
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+  {
+    key: 'kip.monitoring_raw',
+    label: 'КИП raw (мета)',
+    pool: 'kip',
+    sql: (from, to, limit) => ({
+      text: `SELECT report_date::text, shift_type, vehicle_id, id_mo, vehicle_model,
+                    fetched_at::text, engine_time_sec
+             FROM monitoring_raw
+             WHERE report_date BETWEEN $1 AND $2
+             ORDER BY report_date DESC, vehicle_id
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+  {
+    key: 'dt.shift_records',
+    label: 'Смены самосвалов',
+    pool: 'main',
+    sql: (from, to, limit) => ({
+      text: `SELECT id, report_date::text, shift_type, vehicle_id, reg_number, name_mo,
+                    object_name, work_type, kip_pct, trips_count, distance_km,
+                    engine_time_sec, onsite_min, pl_id, request_numbers
+             FROM dump_trucks.shift_records
+             WHERE report_date BETWEEN $1 AND $2
+             ORDER BY report_date DESC, vehicle_id
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+  {
+    key: 'dt.trips',
+    label: 'Рейсы',
+    pool: 'main',
+    sql: (from, to, limit) => ({
+      text: `SELECT t.id, sr.report_date::text, sr.shift_type, sr.reg_number,
+                    t.loading_zone, t.unloading_zone, t.loaded_at::text, t.unloaded_at::text,
+                    t.duration_min, t.travel_to_unload_min, t.return_to_load_min, t.volume_m3
+             FROM dump_trucks.trips t
+             JOIN dump_trucks.shift_records sr ON sr.id = t.shift_record_id
+             WHERE sr.report_date BETWEEN $1 AND $2
+             ORDER BY sr.report_date DESC, t.loaded_at DESC
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+  {
+    key: 'dt.zone_events',
+    label: 'События зон',
+    pool: 'main',
+    sql: (from, to, limit) => ({
+      text: `SELECT id, report_date::text, shift_type, vehicle_id,
+                    zone_name, zone_tag, object_uid,
+                    entered_at::text, exited_at::text, duration_sec
+             FROM dump_trucks.zone_events
+             WHERE report_date BETWEEN $1 AND $2
+             ORDER BY report_date DESC, entered_at DESC
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+  {
+    key: 'dt.requests',
+    label: 'Заявки TIS',
+    pool: 'main',
+    sql: (from, to, limit) => ({
+      text: `SELECT request_id, number, status, date_create::text, date_processed::text,
+                    contact_person
+             FROM dump_trucks.requests
+             WHERE date_create BETWEEN $1::timestamp AND ($2::date + 1)::timestamp
+             ORDER BY date_create DESC, number
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+  {
+    key: 'dt.repairs',
+    label: 'Ремонты',
+    pool: 'main',
+    sql: (from, to, limit) => ({
+      text: `SELECT id, reg_number, name_mo, type, reason, date_from::text, date_to::text,
+                    object_name, notes
+             FROM dump_trucks.repairs
+             WHERE date_from BETWEEN $1 AND $2
+             ORDER BY date_from DESC
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+];
+
+app.get('/api/admin/db-tables', (_req, res) => {
+  res.json(DB_PRESETS.map(p => ({ key: p.key, label: p.label, pool: p.pool })));
+});
+
+app.get('/api/admin/db-query', async (req, res) => {
+  const table = req.query.table as string;
+  const dateFrom = req.query.dateFrom as string;
+  const dateTo = req.query.dateTo as string;
+  const limit = Math.min(Number(req.query.limit || 200), 500);
+
+  if (!table || !dateFrom || !dateTo) {
+    res.status(400).json({ error: 'table, dateFrom, dateTo обязательны' });
+    return;
+  }
+
+  const preset = DB_PRESETS.find(p => p.key === table);
+  if (!preset) {
+    res.status(400).json({ error: `Неизвестная таблица: ${table}` });
+    return;
+  }
+
+  const pool = preset.pool === 'kip' ? kipPool : mainPool;
+  const query = preset.sql(dateFrom, dateTo, limit);
+
+  try {
+    const result = await pool.query(query.text, query.values);
+    const columns = result.fields.map(f => f.name);
+    res.json({ columns, rows: result.rows, total: result.rowCount ?? 0 });
+  } catch (e) {
+    res.status(500).json({ error: String(e), columns: [], rows: [], total: 0 });
+  }
+});
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`[admin] Сервер запущен на :${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[admin] Сервер запущен на 0.0.0.0:${PORT}`);
   console.log(`[admin] Авто-запуск всех сервисов...`);
   SERVICES.forEach(cfg => startService(cfg));
 });

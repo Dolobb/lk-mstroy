@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: 'all',
     proxy: {
       '/api/vs': {
         target: 'http://localhost:3004',

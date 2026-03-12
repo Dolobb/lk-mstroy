@@ -49,6 +49,21 @@ function getTisClient(): TisClient {
   return tisClient;
 }
 
+/**
+ * Сравнивает два ПЛ: возвращает true если candidateDate ближе к targetDate чем existingDate.
+ * Предпочитает ПЛ, чей dateOutPlan ближе к целевой дате.
+ */
+function isBetterPL(
+  candidateDate: Date,
+  existingDate: Date | undefined,
+  targetDate: ReturnType<typeof dayjs>,
+): boolean {
+  if (!existingDate) return true;
+  const candidateDiff = Math.abs(dayjs(candidateDate).diff(targetDate, 'hour'));
+  const existingDiff  = Math.abs(dayjs(existingDate).diff(targetDate, 'hour'));
+  return candidateDiff < existingDiff;
+}
+
 export interface FetchJobResult {
   date: string;
   shiftType: ShiftType;
@@ -79,9 +94,11 @@ export async function runShiftFetch(
 
   logger.info(`[ShiftFetch] Start: date=${dateStr} shift=${shiftType}`);
 
-  // --- 1. Fetch ПЛ за 7 дней ---
+  // --- 1. Fetch ПЛ за 3 дня ---
+  // Окно -3 дня: ПЛ может начинаться за 1-2 дня до целевой смены.
+  // Выбор правильного ПЛ обеспечивается isBetterPL() — ближайший dateOutPlan к целевой дате.
   const toDate   = dayjs(dateStr).toDate();
-  const fromDate = dayjs(dateStr).subtract(7, 'day').toDate();
+  const fromDate = dayjs(dateStr).subtract(3, 'day').toDate();
 
   logger.info(`[ShiftFetch] Fetching route lists: ${dayjs(fromDate).format('DD.MM.YYYY')} – ${dayjs(toDate).format('DD.MM.YYYY')}`);
   let routeLists;
@@ -131,7 +148,8 @@ export async function runShiftFetch(
   // --- 5. Обработка каждого ТС ---
   // В тест-режиме используем idMO из конфига
   // В обычном режиме — берём idMO из распаршенных ПЛ
-  const vehiclesMap = new Map<number, { regNumber: string; nameMO: string; plId?: number; requestNumbers: number[] }>();
+  const targetDate = dayjs(dateStr).startOf('day');
+  const vehiclesMap = new Map<number, { regNumber: string; nameMO: string; plId?: number; requestNumbers: number[]; _dateOutPlan?: Date }>();
 
   if (config.testIdMos !== null && config.testIdMos.length > 0) {
     // Тест-режим: используем ТС из конфига, без зависимости от ПЛ
@@ -142,33 +160,38 @@ export async function runShiftFetch(
         requestNumbers: [],
       });
     }
-    // Если ТС есть и в ПЛ — обновим данные
+    // Если ТС есть и в ПЛ — выбираем ПЛ с ближайшим dateOutPlan
     for (const pl of parsedPLs) {
       for (const v of pl.vehicles) {
-        if (vehiclesMap.has(v.idMO)) {
+        if (!vehiclesMap.has(v.idMO)) continue;
+        const existing = vehiclesMap.get(v.idMO)!;
+        if (!existing.plId || isBetterPL(pl.dateOutPlan, existing._dateOutPlan, targetDate)) {
           vehiclesMap.set(v.idMO, {
             regNumber:      v.regNumber,
             nameMO:         v.nameMO,
             plId:           pl.plId,
             requestNumbers: pl.requestNumbers,
+            _dateOutPlan:   pl.dateOutPlan,
           });
         }
       }
     }
   } else {
-    // Обычный режим: ТС из ПЛ
+    // Обычный режим: ТС из ПЛ, выбираем ПЛ с ближайшим dateOutPlan к целевой дате
     for (const pl of parsedPLs) {
       const shifts = splitIntoShifts(pl.dateOutPlan, pl.dateInPlan);
       const hasTargetShift = shifts.some(s => s.shiftType === shiftType);
       if (!hasTargetShift) continue;
 
       for (const v of pl.vehicles) {
-        if (!vehiclesMap.has(v.idMO)) {
+        const existing = vehiclesMap.get(v.idMO);
+        if (!existing || isBetterPL(pl.dateOutPlan, existing._dateOutPlan, targetDate)) {
           vehiclesMap.set(v.idMO, {
             regNumber:      v.regNumber,
             nameMO:         v.nameMO,
             plId:           pl.plId,
             requestNumbers: pl.requestNumbers,
+            _dateOutPlan:   pl.dateOutPlan,
           });
         }
       }

@@ -181,12 +181,22 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
         name_mo,
         TO_CHAR(report_date, 'YYYY-MM-DD') AS report_date,
         shift_type,
-        trips_count
+        trips_count,
+        work_type,
+        movement_pct
       FROM dump_trucks.shift_records
       WHERE request_numbers @> ARRAY[$1::int]
       ORDER BY reg_number, report_date, shift_type
     `, [num]);
-    res.json({ data: result.rows });
+    const rangeResult = await pool.query(`
+      SELECT
+        TO_CHAR(MIN(report_date), 'YYYY-MM-DD') AS date_from,
+        TO_CHAR(MAX(report_date), 'YYYY-MM-DD') AS date_to
+      FROM dump_trucks.shift_records
+      WHERE request_numbers @> ARRAY[$1::int]
+    `, [num]);
+    const { date_from, date_to } = rangeResult.rows[0] ?? {};
+    res.json({ data: result.rows, dateFrom: date_from, dateTo: date_to });
   } catch (err) {
     logger.error('GET /api/dt/orders/:number/gantt error', err);
     res.status(500).json({ error: String(err) });

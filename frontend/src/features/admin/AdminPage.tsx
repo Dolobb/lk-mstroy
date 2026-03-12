@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
-import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus } from './types';
+import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search } from 'lucide-react';
+import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, DbTablePreset, DbQueryResult } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,6 +28,13 @@ function daysInRange(from: string, to: string): string[] {
 function fmtDate(iso: string): string {
   const [, m, d] = iso.split('-');
   return `${d}.${m}`;
+}
+
+function formatDbCell(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -88,6 +95,22 @@ async function startRecalc(service: 'kip' | 'dump-trucks', from: string, to: str
 
 async function cancelRecalc() {
   await fetch('/api/admin/recalc/cancel', { method: 'POST' });
+}
+
+async function fetchDbTables(): Promise<DbTablePreset[]> {
+  const res = await fetch('/api/admin/db-tables');
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function fetchDbQuery(table: string, dateFrom: string, dateTo: string): Promise<DbQueryResult> {
+  const res = await fetch(`/api/admin/db-query?table=${table}&dateFrom=${dateFrom}&dateTo=${dateTo}&limit=200`);
+  return res.json();
+}
+
+async function startRefreshFetch(service: 'kip' | 'dump-trucks', from: string, to: string) {
+  const res = await fetch(`/api/admin/fetch/${service}?from=${from}&to=${to}&refresh=true`, { method: 'POST' });
+  return res.json();
 }
 
 // ─── Service Card ─────────────────────────────────────────────────────────────
@@ -260,6 +283,16 @@ export const AdminPage: React.FC = () => {
   const [coverageTo, setCoverageTo] = useState(today());
   const [loadingCov, setLoadingCov] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [refreshMode, setRefreshMode] = useState(false);
+
+  // DB Viewer state
+  const [dbOpen, setDbOpen] = useState(false);
+  const [dbTables, setDbTables] = useState<DbTablePreset[]>([]);
+  const [dbSelectedTable, setDbSelectedTable] = useState('');
+  const [dbDateFrom, setDbDateFrom] = useState(monthStart());
+  const [dbDateTo, setDbDateTo] = useState(today());
+  const [dbResult, setDbResult] = useState<DbQueryResult | null>(null);
+  const [dbLoading, setDbLoading] = useState(false);
 
   const loadServices = async () => {
     try {
@@ -326,7 +359,32 @@ export const AdminPage: React.FC = () => {
     return () => clearInterval(t);
   }, [fetchStatus.active, fetchStatus.startedAt]);
 
+  // Load DB tables once
+  useEffect(() => {
+    fetchDbTables().then(tables => {
+      setDbTables(tables);
+      if (tables.length > 0) setDbSelectedTable(tables[0].key);
+    });
+  }, []);
+
+  const handleDbQuery = async () => {
+    if (!dbSelectedTable) return;
+    setDbLoading(true);
+    const result = await fetchDbQuery(dbSelectedTable, dbDateFrom, dbDateTo);
+    setDbResult(result);
+    setDbLoading(false);
+  };
+
   const handleStartFetch = async (service: 'kip' | 'dump-trucks') => {
+    if (refreshMode) {
+      const result = await startRefreshFetch(service, coverageFrom, coverageTo);
+      if (result.total === 0 && !result.started) {
+        alert('Нет дат в выбранном периоде.');
+        return;
+      }
+      await loadFetchStatus();
+      return;
+    }
     const result = await startFetch(service, coverageFrom, coverageTo);
     if (result.missing === 0) {
       alert('Все даты в выбранном периоде уже загружены!');
@@ -475,6 +533,16 @@ export const AdminPage: React.FC = () => {
                 Отмена
               </button>
             )}
+            <label className="flex items-center gap-1.5 ml-2 cursor-pointer select-none" style={{ fontSize: '11px' }}>
+              <input
+                type="checkbox"
+                checked={refreshMode}
+                onChange={e => setRefreshMode(e.target.checked)}
+                disabled={fetchStatus.active}
+                className="cursor-pointer accent-amber-500"
+              />
+              <span className="text-muted-foreground">Обновить все (перезагрузить существующие)</span>
+            </label>
           </div>
 
           {/* Progress bar */}
@@ -693,6 +761,102 @@ export const AdminPage: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* DB Viewer */}
+      <div>
+        <button
+          onClick={() => setDbOpen(v => !v)}
+          className="flex items-center gap-2 text-sm font-semibold mb-2 cursor-pointer bg-transparent border-none text-foreground p-0"
+        >
+          <Database className="size-4" />
+          Просмотр БД
+          {dbOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+        </button>
+        {dbOpen && (
+          <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={dbSelectedTable}
+                onChange={e => setDbSelectedTable(e.target.value)}
+                className="text-xs px-2 py-1 rounded-lg bg-muted border-none text-foreground cursor-pointer"
+                style={{ fontSize: '11px' }}
+              >
+                {dbTables.map(t => (
+                  <option key={t.key} value={t.key}>{t.label} ({t.pool})</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={dbDateFrom}
+                onChange={e => setDbDateFrom(e.target.value)}
+                className="text-xs px-2 py-1 rounded-lg bg-muted border-none text-foreground cursor-pointer"
+                style={{ fontSize: '11px' }}
+              />
+              <span className="text-xs text-muted-foreground">—</span>
+              <input
+                type="date"
+                value={dbDateTo}
+                onChange={e => setDbDateTo(e.target.value)}
+                className="text-xs px-2 py-1 rounded-lg bg-muted border-none text-foreground cursor-pointer"
+                style={{ fontSize: '11px' }}
+              />
+              <button
+                onClick={handleDbQuery}
+                disabled={dbLoading || !dbSelectedTable}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 transition-colors font-medium"
+                style={{ fontSize: '11px' }}
+              >
+                <Search className="size-3" />
+                {dbLoading ? 'Загрузка...' : 'Запрос'}
+              </button>
+              {dbResult && (
+                <span className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
+                  {dbResult.total} строк
+                </span>
+              )}
+            </div>
+
+            {dbResult?.error && (
+              <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-2" style={{ fontSize: '10px' }}>
+                {dbResult.error}
+              </div>
+            )}
+
+            {dbResult && !dbResult.error && dbResult.rows.length > 0 && (
+              <div className="overflow-auto rounded-lg border border-border/50" style={{ maxHeight: '400px' }}>
+                <table className="w-full text-left border-collapse" style={{ fontSize: '10px' }}>
+                  <thead className="sticky top-0 bg-muted z-10">
+                    <tr>
+                      {dbResult.columns.map(col => (
+                        <th key={col} className="px-2 py-1.5 font-medium text-muted-foreground whitespace-nowrap border-b border-border/50">
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dbResult.rows.map((row, i) => (
+                      <tr key={i} className="hover:bg-muted/50 transition-colors">
+                        {dbResult.columns.map(col => (
+                          <td key={col} className="px-2 py-1 whitespace-nowrap border-b border-border/30 font-mono">
+                            {formatDbCell(row[col])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {dbResult && !dbResult.error && dbResult.rows.length === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-4" style={{ fontSize: '11px' }}>
+                Нет данных за выбранный период
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Hot-reload hint */}

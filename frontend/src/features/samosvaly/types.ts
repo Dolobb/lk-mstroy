@@ -73,6 +73,14 @@ export interface GanttRecord {
   report_date: string;
   shift_type: 'shift1' | 'shift2';
   trips_count: string;
+  work_type: string;
+  movement_pct: string;
+}
+
+export interface GanttResponse {
+  data: GanttRecord[];
+  dateFrom: string | null;
+  dateTo: string | null;
 }
 
 export interface ShiftRecord {

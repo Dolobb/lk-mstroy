@@ -34,3 +34,16 @@ export interface RecalcStatus {
   done: string[];
   errors: string[];
 }
+
+export interface DbTablePreset {
+  key: string;
+  label: string;
+  pool: 'kip' | 'main';
+}
+
+export interface DbQueryResult {
+  columns: string[];
+  rows: Record<string, unknown>[];
+  total: number;
+  error?: string;
+}

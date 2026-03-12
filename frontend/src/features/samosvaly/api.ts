@@ -1,5 +1,5 @@
 import type {
-  DtObject, OrderSummary, GanttRecord,
+  DtObject, OrderSummary, GanttRecord, GanttResponse,
   ShiftRecord, TripRecord, ZoneEvent, Repair,
 } from './types';
 
@@ -21,9 +21,8 @@ export async function fetchOrders(dateFrom: string, dateTo: string): Promise<Ord
   return d.data;
 }
 
-export async function fetchOrderGantt(number: number): Promise<GanttRecord[]> {
-  const d = await get<{ data: GanttRecord[] }>(`${BASE}/orders/${number}/gantt`);
-  return d.data;
+export async function fetchOrderGantt(number: number): Promise<GanttResponse> {
+  return get<GanttResponse>(`${BASE}/orders/${number}/gantt`);
 }
 
 export async function fetchShiftRecords(params: {
