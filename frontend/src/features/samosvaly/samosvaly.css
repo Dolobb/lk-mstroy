@@ -282,7 +282,7 @@
 .sv-gantt-wrap { max-height: 0; overflow: hidden; transition: max-height .35s ease; border-top: 1px solid var(--sv-divider); }
 .sv-gantt-wrap.open { max-height: 600px; }
 .sv-gantt { background: var(--sv-gantt-bg); padding: 8px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--sv-scroll) transparent; }
-.sv-gantt table { border-collapse: collapse; width: 100%; min-width: 400px; }
+.sv-gantt table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .sv-gantt th, .sv-gantt td { padding: 3px 4px; text-align: center; font-size: 9px; border-bottom: 1px solid var(--sv-gantt-line); }
 .sv-gantt th { font-weight: 600; color: var(--sv-text-3); text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; }
 .sv-gantt th:first-child { text-align: left; padding-left: 8px; width: 150px; min-width: 150px; }
@@ -291,6 +291,24 @@
 .sv-gc { width: 100%; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; white-space: nowrap; }
 .sv-gc.f { background: var(--sv-gantt-fill-bg); border: 1px solid rgba(59,130,246,0.3); color: #60A5FA; }
 .sv-gc.f:hover { background: rgba(59,130,246,0.3); }
+/* Case 2: vehicle has PL for this order but 0 trips */
+.sv-gc.gc-warn { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.35); color: #EF4444; font-size: 11px; font-weight: 800; }
+[data-theme="light"] .sv-gc.gc-warn { background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.3); color: #DC2626; }
+/* Case 3: vehicle on object but no PL link to this order */
+.sv-gc.gc-onsite { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.35); color: #F59E0B; font-size: 11px; font-weight: 800; }
+[data-theme="light"] .sv-gc.gc-onsite { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.3); color: #D97706; }
+/* Case 3b: vehicle on another known order (→←) — purple */
+.sv-gc.gc-other-order { background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.35); color: #A78BFA; font-size: 9px; font-weight: 800; cursor: default; }
+[data-theme="light"] .sv-gc.gc-other-order { background: rgba(167,139,250,0.10); border-color: rgba(167,139,250,0.3); color: #7C3AED; }
+/* Case 1: vehicle not on object (no PL with this order) — diagonal hatching */
+.sv-gc.gc-absent {
+  background: repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.06) 3px, rgba(255,255,255,0.06) 5px);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+[data-theme="light"] .sv-gc.gc-absent {
+  background: repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 5px);
+  border-color: rgba(0,0,0,0.06);
+}
 .sv-truck-trips { font-size: 9px; color: #F97316; font-weight: 700; margin-left: 4px; }
 .sv-loading-cell { display: flex; align-items: center; justify-content: center; height: 60px; font-size: 11px; color: var(--sv-text-4); }
 .sv-gantt-corner { text-align: left !important; padding-left: 8px !important; vertical-align: middle; }
@@ -300,6 +318,10 @@
 .sv-gantt-nav-btn:disabled { opacity: 0.3; cursor: default; }
 .sv-gantt-draggable { cursor: grab; user-select: none; }
 .sv-gantt-draggable:active { cursor: grabbing; }
+.sv-gantt-empty-past { background: rgba(255,255,255,0.04); }
+[data-theme="light"] .sv-gantt-empty-past { background: rgba(0,0,0,0.04); }
+.sv-gantt-eye-btn { display: flex; align-items: center; justify-content: center; }
+.sv-gantt-eye-active { background: var(--sv-gantt-fill-bg); color: #60A5FA; border-color: rgba(59,130,246,0.3); }
 
 /* WEEKLY PANEL */
 .sv-stats-panel {
@@ -587,3 +609,122 @@ table.sv-at tr:hover { background: var(--sv-hover-bg); }
   color: var(--sv-text-2); cursor: pointer; padding: 2px 0;
 }
 .sv-constructor-col-row input { cursor: pointer; }
+
+/* ====== TAB 3: GLOBAL GANTT ====== */
+.sv-gg-wrap { overflow-x: auto; }
+.sv-gg-obj-header td {
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--sv-text-2);
+  padding: 8px 6px 4px !important;
+  border-bottom: 2px solid var(--sv-card-inner-border) !important;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  text-align: left !important;
+}
+
+/* Order dots */
+.sv-gg-dots { display: inline-flex; gap: 2px; flex-wrap: wrap; max-width: 40px; vertical-align: middle; }
+.sv-gg-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  border: 1.5px dashed var(--sv-text-4);
+  display: inline-block;
+}
+.sv-gg-dot.done {
+  background: #22c55e;
+  border: 1.5px solid #22c55e;
+}
+
+/* Expanded sub-rows per order */
+.sv-gg-sub-row td { padding: 1px 2px !important; }
+.sv-gg-sub-row td:first-child { padding-left: 20px !important; }
+.sv-gg-sub-label { font-size: 10px; color: var(--sv-text-3); display: flex; align-items: center; gap: 3px; }
+
+/* Trip popup */
+.sv-gg-popup {
+  position: fixed;
+  z-index: 9999;
+  background: #0F172A;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  padding: 8px;
+  max-height: 400px;
+  max-width: 600px;
+  overflow-y: auto;
+}
+.sv-gg-popup[data-theme="light"] {
+  background: #FFFFFF;
+  border-color: rgba(0,0,0,.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+}
+
+/* =N multi-order cell */
+.sv-gc.f.multi { font-size: 8px; color: #F97316; }
+
+/* Кружок «Без заявки» в ганте */
+.sv-gg-dot.unlinked {
+  border: 1.5px dashed var(--sv-text-3);
+  background: transparent;
+  opacity: 0.6;
+}
+
+/* Order toolbar (sort + group) */
+.sv-order-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.sv-toolbar-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--sv-divider);
+  margin: 0 4px;
+}
+
+/* Блок «Без заявки» в Orders tab */
+.sv-unlinked-group {
+  border-top: 2px dashed var(--sv-card-inner-border);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+/* "—" не на объекте */
+.sv-gc.gc-not-on-obj {
+  background: rgba(107,114,128,0.12);
+  border: 1px solid rgba(107,114,128,0.3);
+  color: #9CA3AF;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+[data-theme="light"] .sv-gc.gc-not-on-obj {
+  background: rgba(107,114,128,0.08);
+  color: #6B7280;
+}
+
+/* Инфо-попап */
+.sv-cell-info-popup {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--sv-text-2);
+  line-height: 1.5;
+  max-width: 350px;
+}
+
+/* Отслеживание присутствия на объекте */
+td.sv-obj-absent {
+  background: repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(107,114,128,0.08) 3px, rgba(107,114,128,0.08) 6px) !important;
+}
+td.sv-obj-depart {
+  border-left: 2.5px solid #EF4444 !important;
+}
+td.sv-obj-return {
+  border-right: 2.5px solid #22C55E !important;
+}
+[data-theme="light"] td.sv-obj-absent {
+  background: repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(107,114,128,0.06) 3px, rgba(107,114,128,0.06) 6px) !important;
+}

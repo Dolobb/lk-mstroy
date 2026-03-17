@@ -49,6 +49,9 @@ function isTargetVehicle(
  * Фильтрует по типу ТС (самосвал).
  * ПЛ без подходящих ТС пропускаются.
  */
+/** Статусы ПЛ, которые означают «выброшен / не использован» — игнорируем */
+const IGNORED_PL_STATUSES = new Set(['NOTUSED']);
+
 export function parsePLs(
   routeLists: TisRouteList[],
   testIdMos: number[] | null,
@@ -56,6 +59,9 @@ export function parsePLs(
   const result: ParsedPL[] = [];
 
   for (const pl of routeLists) {
+    // Пропускаем ПЛ с мусорным статусом (не использован и т.п.)
+    if (IGNORED_PL_STATUSES.has(pl.status)) continue;
+
     // Фильтрация ТС
     const vehicles: ParsedVehicle[] = (pl.ts || [])
       .filter(t => isTargetVehicle(t, testIdMos))

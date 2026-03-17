@@ -75,12 +75,23 @@ export interface GanttRecord {
   trips_count: string;
   work_type: string;
   movement_pct: string;
+  object_uid: string;
+  request_numbers: number[];
+}
+
+export interface GanttPresence {
+  reg_number: string;
+  report_date: string;
+  shift_type: 'shift1' | 'shift2';
+  request_numbers: number[] | null;
+  object_uid: string;
 }
 
 export interface GanttResponse {
   data: GanttRecord[];
   dateFrom: string | null;
   dateTo: string | null;
+  presence?: GanttPresence[];
 }
 
 export interface ShiftRecord {

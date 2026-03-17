@@ -160,24 +160,31 @@ export async function runShiftFetch(
         requestNumbers: [],
       });
     }
-    // Если ТС есть и в ПЛ — выбираем ПЛ с ближайшим dateOutPlan
+    // Если ТС есть и в ПЛ — мержим requestNumbers из всех валидных ПЛ
     for (const pl of parsedPLs) {
       for (const v of pl.vehicles) {
         if (!vehiclesMap.has(v.idMO)) continue;
         const existing = vehiclesMap.get(v.idMO)!;
+        // Мержим requestNumbers
+        for (const num of pl.requestNumbers) {
+          if (!existing.requestNumbers.includes(num)) {
+            existing.requestNumbers.push(num);
+          }
+        }
+        // plId обновляем только если этот ПЛ ближе к целевой дате
         if (!existing.plId || isBetterPL(pl.dateOutPlan, existing._dateOutPlan, targetDate)) {
-          vehiclesMap.set(v.idMO, {
-            regNumber:      v.regNumber,
-            nameMO:         v.nameMO,
-            plId:           pl.plId,
-            requestNumbers: pl.requestNumbers,
-            _dateOutPlan:   pl.dateOutPlan,
-          });
+          existing.regNumber    = v.regNumber;
+          existing.nameMO       = v.nameMO;
+          existing.plId         = pl.plId;
+          existing._dateOutPlan = pl.dateOutPlan;
         }
       }
     }
   } else {
-    // Обычный режим: ТС из ПЛ, выбираем ПЛ с ближайшим dateOutPlan к целевой дате
+    // Обычный режим: ТС из ПЛ.
+    // Машина может быть в нескольких ПЛ одновременно (разные заявки) —
+    // мержим requestNumbers из всех ПЛ, покрывающих смену.
+    // plId берём от ПЛ с ближайшим dateOutPlan к целевой дате.
     for (const pl of parsedPLs) {
       const shifts = splitIntoShifts(pl.dateOutPlan, pl.dateInPlan);
       const hasTargetShift = shifts.some(s => s.shiftType === shiftType);
@@ -185,14 +192,28 @@ export async function runShiftFetch(
 
       for (const v of pl.vehicles) {
         const existing = vehiclesMap.get(v.idMO);
-        if (!existing || isBetterPL(pl.dateOutPlan, existing._dateOutPlan, targetDate)) {
+        if (!existing) {
           vehiclesMap.set(v.idMO, {
             regNumber:      v.regNumber,
             nameMO:         v.nameMO,
             plId:           pl.plId,
-            requestNumbers: pl.requestNumbers,
+            requestNumbers: [...pl.requestNumbers],
             _dateOutPlan:   pl.dateOutPlan,
           });
+        } else {
+          // Мержим requestNumbers из всех валидных ПЛ
+          for (const num of pl.requestNumbers) {
+            if (!existing.requestNumbers.includes(num)) {
+              existing.requestNumbers.push(num);
+            }
+          }
+          // plId обновляем только если этот ПЛ ближе к целевой дате
+          if (isBetterPL(pl.dateOutPlan, existing._dateOutPlan, targetDate)) {
+            existing.regNumber    = v.regNumber;
+            existing.nameMO       = v.nameMO;
+            existing.plId         = pl.plId;
+            existing._dateOutPlan = pl.dateOutPlan;
+          }
         }
       }
     }

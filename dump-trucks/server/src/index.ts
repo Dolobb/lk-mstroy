@@ -183,7 +183,9 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
         shift_type,
         trips_count,
         work_type,
-        movement_pct
+        movement_pct,
+        object_uid,
+        request_numbers
       FROM dump_trucks.shift_records
       WHERE request_numbers @> ARRAY[$1::int]
       ORDER BY reg_number, report_date, shift_type
@@ -196,7 +198,32 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
       WHERE request_numbers @> ARRAY[$1::int]
     `, [num]);
     const { date_from, date_to } = rangeResult.rows[0] ?? {};
-    res.json({ data: result.rows, dateFrom: date_from, dateTo: date_to });
+
+    // Presence map: same vehicles × date range, regardless of request_numbers
+    // Returns ALL shifts for order vehicles (not just on the same object) — filtering done on frontend
+    let presence: { reg_number: string; report_date: string; shift_type: string; request_numbers: number[] | null; object_uid: string }[] = [];
+    if (result.rows.length > 0 && date_from && date_to) {
+      const presenceResult = await pool.query(`
+        WITH order_vehicles AS (
+          SELECT DISTINCT vehicle_id
+          FROM dump_trucks.shift_records
+          WHERE request_numbers @> ARRAY[$1::int]
+        )
+        SELECT sr.reg_number,
+               TO_CHAR(sr.report_date, 'YYYY-MM-DD') AS report_date,
+               sr.shift_type,
+               sr.request_numbers,
+               sr.object_uid
+        FROM dump_trucks.shift_records sr
+        JOIN order_vehicles ov ON sr.vehicle_id = ov.vehicle_id
+        WHERE sr.report_date BETWEEN $2::date AND $3::date
+          AND NOT (sr.request_numbers @> ARRAY[$1::int])
+        ORDER BY sr.reg_number, report_date, sr.shift_type
+      `, [num, date_from, date_to]);
+      presence = presenceResult.rows;
+    }
+
+    res.json({ data: result.rows, dateFrom: date_from, dateTo: date_to, presence });
   } catch (err) {
     logger.error('GET /api/dt/orders/:number/gantt error', err);
     res.status(500).json({ error: String(err) });

@@ -54,6 +54,8 @@ def _format_pl_number(pl_id: str) -> str:
 
 def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, report_id: int = None) -> str:
     """Build HTML string from hierarchy."""
+    from datetime import datetime
+    generated_at = datetime.now().strftime('%d.%m.%Y, %H:%M:%S')
 
     # Statistics
     total_requests = len(hierarchy)
@@ -112,10 +114,10 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.5;
-            background: #f0f2f5;
-            color: #1a1a1a;
+            background: #f0f4f8;
+            color: #0f172a;
         }}
 
         /* Fixed Header */
@@ -124,11 +126,12 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
             top: 0;
             left: 0;
             right: 0;
-            background: #1a365d;
-            color: white;
+            background: linear-gradient(135deg, #0B1120 0%, #111B2E 100%);
+            color: #F1F5F9;
             padding: 12px 20px;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            backdrop-filter: blur(16px);
         }}
 
         .header-content {{
@@ -144,6 +147,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
             font-size: 18px;
             font-weight: 600;
             white-space: nowrap;
+            color: #F1F5F9;
         }}
 
         .search-box {{
@@ -155,20 +159,23 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         .search-box input {{
             width: 100%;
             padding: 8px 12px;
-            border: none;
-            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 8px;
             font-size: 14px;
-            background: rgba(255,255,255,0.15);
-            color: white;
+            background: rgba(255,255,255,0.07);
+            color: #F1F5F9;
+            transition: all 0.2s;
         }}
 
         .search-box input::placeholder {{
-            color: rgba(255,255,255,0.6);
+            color: #64748B;
         }}
 
         .search-box input:focus {{
             outline: none;
-            background: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.12);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
         }}
 
         .header-stats {{
@@ -178,18 +185,18 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         }}
 
         .header-stats span {{
-            opacity: 0.8;
+            color: #94A3B8;
         }}
 
         .header-stats strong {{
-            color: #63b3ed;
+            color: #f97316;
         }}
 
         /* Filter Panel */
         .filter-panel {{
-            background: #1e4a7a;
+            background: rgba(15,23,42,0.85);
             padding: 12px 20px;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid rgba(255,255,255,0.07);
         }}
 
         .filter-panel-content {{
@@ -218,11 +225,11 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         }}
 
         .filter-btn {{
-            background: rgba(255,255,255,0.15);
-            border: none;
-            border-radius: 6px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 8px;
             padding: 8px 12px;
-            color: white;
+            color: #F1F5F9;
             font-size: 13px;
             cursor: pointer;
             display: flex;
@@ -230,14 +237,16 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
             gap: 8px;
             min-width: 180px;
             justify-content: space-between;
+            transition: all 0.2s;
         }}
 
         .filter-btn:hover {{
-            background: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.15);
         }}
 
         .filter-btn .count {{
-            background: #4299e1;
+            background: #f97316;
             padding: 2px 6px;
             border-radius: 10px;
             font-size: 11px;
@@ -247,9 +256,10 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
             position: absolute;
             top: 100%;
             left: 0;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            border: 1px solid rgba(0,0,0,0.08);
             min-width: 280px;
             max-height: 350px;
             z-index: 2000;
@@ -319,18 +329,21 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         }}
 
         .filter-actions .apply-btn {{
-            background: #4299e1;
+            background: #f97316;
             color: white;
+            border-radius: 6px;
         }}
 
         .filter-actions .clear-btn {{
             background: #e2e8f0;
-            color: #4a5568;
+            color: #475569;
+            border-radius: 6px;
         }}
 
         .filter-actions .select-all-btn {{
-            background: #48bb78;
+            background: #22c55e;
             color: white;
+            border-radius: 6px;
         }}
 
         .parking-time-filter {{
@@ -342,21 +355,28 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         .parking-time-filter input {{
             width: 70px;
             padding: 8px 10px;
-            border: none;
-            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 8px;
             font-size: 13px;
-            background: rgba(255,255,255,0.15);
-            color: white;
+            background: rgba(255,255,255,0.07);
+            color: #F1F5F9;
             text-align: center;
+            transition: all 0.2s;
+        }}
+
+        .parking-time-filter input:focus {{
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
         }}
 
         .parking-time-filter input::placeholder {{
-            color: rgba(255,255,255,0.5);
+            color: #64748B;
         }}
 
         .parking-time-filter span {{
             font-size: 13px;
-            color: rgba(255,255,255,0.8);
+            color: rgba(255,255,255,0.92);
         }}
 
         /* Parking groups by day */
@@ -408,30 +428,45 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
 
         .sort-bar label {{
             font-size: 13px;
-            color: #666;
+            color: #475569;
         }}
 
         .sort-bar select {{
             padding: 6px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 8px;
             font-size: 13px;
-            background: white;
+            background: rgba(255,255,255,0.75);
+            color: #0f172a;
+            transition: border-color 0.2s;
+        }}
+
+        .sort-bar select:focus {{
+            outline: none;
+            border-color: #3b82f6;
         }}
 
         .results-info {{
             font-size: 13px;
-            color: #666;
+            color: #475569;
             margin-bottom: 15px;
         }}
 
         /* Request Card */
         .request {{
-            background: white;
-            border-radius: 12px;
+            background: rgba(255,255,255,0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 16px;
             margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.08);
             overflow: hidden;
+            transition: box-shadow 0.2s;
+        }}
+
+        .request:hover {{
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }}
 
         .request.hidden {{
@@ -439,18 +474,19 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         }}
 
         .request-header {{
-            background: linear-gradient(135deg, #2c5282 0%, #1a365d 100%);
-            color: white;
+            background: linear-gradient(135deg, #0B1120 0%, #111B2E 100%);
+            color: #F1F5F9;
             padding: 16px 20px;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             gap: 15px;
+            transition: background 0.2s;
         }}
 
         .request-header:hover {{
-            background: linear-gradient(135deg, #2b4c7e 0%, #1a365d 100%);
+            background: linear-gradient(135deg, #111B2E 0%, #162236 100%);
         }}
 
         .request-title {{
@@ -477,20 +513,21 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
             font-weight: 500;
         }}
 
-        .badge-success {{ background: #48bb78; }}
-        .badge-info {{ background: #4299e1; }}
-        .badge-warning {{ background: #ed8936; }}
+        .badge-success {{ background: #22c55e; }}
+        .badge-info {{ background: #3b82f6; }}
+        .badge-warning {{ background: #f97316; }}
 
         /* V2: Увеличенный хедер заявки */
         .request-header-v2 {{
-            background: linear-gradient(135deg, #2c5282 0%, #1a365d 100%);
-            color: white;
+            background: linear-gradient(135deg, #0B1120 0%, #111B2E 100%);
+            color: #F1F5F9;
             padding: 16px 20px;
             cursor: pointer;
+            transition: background 0.2s;
         }}
 
         .request-header-v2:hover {{
-            background: linear-gradient(135deg, #2b4c7e 0%, #1a365d 100%);
+            background: linear-gradient(135deg, #111B2E 0%, #162236 100%);
         }}
 
         .request-header-top {{
@@ -556,7 +593,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
             align-items: stretch;
             gap: 16px;
             padding-top: 12px;
-            border-top: 1px solid rgba(255,255,255,0.2);
+            border-top: 1px solid rgba(255,255,255,0.1);
         }}
 
         .header-data-main {{
@@ -573,7 +610,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
 
         .header-data-item .label {{
             font-size: 11px;
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.92);
             text-transform: uppercase;
         }}
 
@@ -598,16 +635,17 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         .period-label {{
             font-size: 10px;
             text-transform: lowercase;
-            opacity: 0.7;
+            opacity: 0.92;
             min-width: 18px;
         }}
 
         .period-date {{
-            background: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.08);
             padding: 3px 10px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.07);
         }}
 
         /* Груз с весом/объёмом справа от названия */
@@ -624,7 +662,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
 
         .cargo-left .label {{
             font-size: 11px;
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.92);
             text-transform: uppercase;
         }}
 
@@ -654,11 +692,12 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
         }}
 
         .cargo-detail .cargo-value {{
-            background: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.08);
             padding: 3px 10px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.07);
         }}
 
         /* Объект затрат - справа, 35%, с разделителем */
@@ -666,7 +705,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
             flex: 0 0 35%;
             max-width: 35%;
             padding-left: 16px;
-            border-left: 1px solid rgba(255,255,255,0.25);
+            border-left: 1px solid rgba(255,255,255,0.1);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -674,7 +713,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
 
         .header-data-cost .label {{
             font-size: 11px;
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.92);
             text-transform: uppercase;
             margin-bottom: 2px;
         }}
@@ -2220,7 +2259,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
 <body>
     <div class="header">
         <div class="header-content">
-            <h1>📊 {title}</h1>
+            <h1>Создан: {generated_at} &middot; {total_requests} заявок</h1>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Поиск по номеру заявки, ПЛ или машины..." onkeyup="filterRequests()">
             </div>

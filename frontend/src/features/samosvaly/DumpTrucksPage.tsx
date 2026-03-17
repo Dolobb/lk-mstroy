@@ -398,7 +398,7 @@ function TableConstructorPanel({ settings, onUpdate, onClose }: {
 }
 
 /** Преобразует OrderSummary (raw от API) в удобный OrderCard */
-function toOrderCard(o: OrderSummary): OrderCard {
+function toOrderCard(o: OrderSummary, today: string): OrderCard {
   const ord = o.raw_json?.orders?.[0];
   const pts = ord?.route?.points ?? [];
   const cargo = ord?.nameCargo ?? '—';
@@ -419,9 +419,6 @@ function toOrderCard(o: OrderSummary): OrderCard {
   const actualTrips = Number(o.actual_trips);
   const pct = planTrips > 0 ? Math.min(100, Math.round((actualTrips / planTrips) * 100)) : 0;
 
-  // Статус: SUCCESSFULLY_COMPLETED или pct >= 100 → done
-  const isDone = o.status === 'SUCCESSFULLY_COMPLETED' || pct >= 100;
-
   // Город: берём из object_names (первый) — упрощённо
   const city = (o.object_names ?? [])[0] ?? 'Прочие';
 
@@ -430,6 +427,9 @@ function toOrderCard(o: OrderSummary): OrderCard {
   const dateToIso   = pts.length > 0 ? parseDdMmYyyy(pts[pts.length - 1]?.date) : '';
   const dateFrom = dateFromIso ? `${dateFromIso.slice(8, 10)}.${dateFromIso.slice(5, 7)}` : '—';
   const dateTo   = dateToIso   ? `${dateToIso.slice(8, 10)}.${dateToIso.slice(5, 7)}`   : '—';
+
+  // Статус: SUCCESSFULLY_COMPLETED → done; иначе dateToIso < today → done
+  const isDone = o.status === 'SUCCESSFULLY_COMPLETED' || (dateToIso !== '' && dateToIso < today);
 
   return {
     number: o.number,
@@ -553,6 +553,155 @@ function Fraction({ actual, planned, unit }: { actual: number; planned: number; 
 }
 
 // ─────────────────────────────────────────────
+//  Mini-Gantt for unlinked shifts (no request)
+// ─────────────────────────────────────────────
+function UnlinkedGantt({ shifts, dateFrom, dateTo }: {
+  shifts: ShiftRecord[];
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [hideEmpty, setHideEmpty] = useState(true);
+  const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
+
+  // Group by vehicle
+  const vehicleMap = new Map<string, { name: string; recs: ShiftRecord[] }>();
+  shifts.forEach(r => {
+    if (!vehicleMap.has(r.regNumber)) vehicleMap.set(r.regNumber, { name: r.nameMO, recs: [] });
+    vehicleMap.get(r.regNumber)!.recs.push(r);
+  });
+
+  const allDates = generateDateRange(dateFrom, dateTo);
+  const datesWithData = new Set(shifts.map(r => toDateStr(r.reportDate)));
+  const filteredDates = hideEmpty ? allDates.filter(d => datesWithData.has(d)) : allDates;
+
+  const needsNav = filteredDates.length > GANTT_PAGE_SIZE;
+  const maxOffset = needsNav ? filteredDates.length - GANTT_PAGE_SIZE : 0;
+  const visibleDates = needsNav
+    ? filteredDates.slice(scrollOffset, scrollOffset + GANTT_PAGE_SIZE)
+    : filteredDates;
+
+  // Build cell map
+  type UCell = { s1: number; s2: number; s1has: boolean; s2has: boolean };
+  const cellMap = new Map<string, Map<string, UCell>>();
+  shifts.forEach(r => {
+    const d = toDateStr(r.reportDate);
+    if (!cellMap.has(r.regNumber)) cellMap.set(r.regNumber, new Map());
+    const dm = cellMap.get(r.regNumber)!;
+    if (!dm.has(d)) dm.set(d, { s1: 0, s2: 0, s1has: false, s2has: false });
+    const c = dm.get(d)!;
+    if (r.shiftType === 'shift1') { c.s1 = r.tripsCount; c.s1has = true; }
+    else { c.s2 = r.tripsCount; c.s2has = true; }
+  });
+
+  // Total trips per vehicle
+  const totalByVeh = new Map<string, number>();
+  shifts.forEach(r => totalByVeh.set(r.regNumber, (totalByVeh.get(r.regNumber) ?? 0) + r.tripsCount));
+
+  const renderUCell = (trips: number, hasData: boolean) => {
+    if (trips > 0) return <div className="sv-gc f">{trips}</div>;
+    if (hasData) return <div className="sv-gc gc-warn" title="0 рейсов">!</div>;
+    return <div className="sv-gc gc-absent"></div>;
+  };
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!needsNav) return;
+    dragRef.current = { startX: e.clientX, startOffset: scrollOffset };
+    e.preventDefault();
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!dragRef.current) return;
+    const dx = dragRef.current.startX - e.clientX;
+    const shift = Math.round(dx / 56);
+    setScrollOffset(Math.max(0, Math.min(maxOffset, dragRef.current.startOffset + shift)));
+  };
+  const onMouseUp = () => { dragRef.current = null; };
+
+  if (vehicleMap.size === 0) return null;
+
+  return (
+    <div
+      className="sv-gantt"
+      onMouseMove={needsNav ? onMouseMove : undefined}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseUp}
+    >
+      <table>
+        <thead>
+          <tr>
+            <th className="sv-gantt-corner">
+              <span className="sv-gantt-nav-group" onMouseDown={e => e.stopPropagation()}>
+                <button
+                  className={`sv-gantt-nav-btn sv-gantt-eye-btn${hideEmpty ? ' sv-gantt-eye-active' : ''}`}
+                  onClick={() => { setHideEmpty(h => !h); setScrollOffset(0); }}
+                  title={hideEmpty ? 'Показать все дни' : 'Скрыть пустые дни'}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    {hideEmpty ? (<>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </>) : (<>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </>)}
+                  </svg>
+                </button>
+                {needsNav && (<>
+                  <button className="sv-gantt-nav-btn" disabled={scrollOffset <= 0}
+                    onClick={() => setScrollOffset(Math.max(0, scrollOffset - 1))}>&#9664;</button>
+                  <button className="sv-gantt-nav-btn" disabled={scrollOffset >= maxOffset}
+                    onClick={() => setScrollOffset(Math.min(maxOffset, scrollOffset + 1))}>&#9654;</button>
+                </>)}
+              </span>
+            </th>
+            {visibleDates.map(d => (
+              <th key={d} className="sv-gantt-date-h" colSpan={2}>{fmtDateShort(d)}</th>
+            ))}
+          </tr>
+          <tr
+            className={needsNav ? 'sv-gantt-draggable' : ''}
+            onMouseDown={onMouseDown}
+          >
+            <th style={{ width: 150, minWidth: 150 }}></th>
+            {visibleDates.map(d => (
+              <React.Fragment key={d}><th>1</th><th>2</th></React.Fragment>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[...vehicleMap.entries()]
+            .sort(([, a], [, b]) => b.recs.reduce((s, r) => s + r.tripsCount, 0) - a.recs.reduce((s, r) => s + r.tripsCount, 0))
+            .map(([reg, { name }]) => {
+              const dm = cellMap.get(reg) ?? new Map();
+              const total = totalByVeh.get(reg) ?? 0;
+              return (
+                <tr key={reg}>
+                  <td>
+                    <div className="sv-vehicle-name-cell">
+                      <span className="sv-reg-num">{reg} <span className="sv-truck-trips">[{total}]</span></span>
+                      <span className="sv-veh-model">{stripSamosvaly(name)}</span>
+                    </div>
+                  </td>
+                  {visibleDates.map(d => {
+                    const c = dm.get(d) ?? { s1: 0, s2: 0, s1has: false, s2has: false };
+                    return (
+                      <React.Fragment key={d}>
+                        <td>{renderUCell(c.s1, c.s1has)}</td>
+                        <td>{renderUCell(c.s2, c.s2has)}</td>
+                      </React.Fragment>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 //  Gantt table for an order
 // ─────────────────────────────────────────────
 /** Generate all dates between from and to (inclusive) */
@@ -569,11 +718,24 @@ function generateDateRange(from: string, to: string): string[] {
 
 const GANTT_PAGE_SIZE = 16;
 
-function GanttTable({ orderNumber }: { orderNumber: number }) {
+function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
+  orderNumber: number; dateFromIso: string; dateToIso: string;
+  ordersMap: Map<number, OrderCard>; theme: string;
+}) {
   const [resp, setResp] = useState<GanttResponse | null>(null);
   const [err, setErr] = useState(false);
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [hideEmpty, setHideEmpty] = useState(false);
   const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
+
+  type CellPopup =
+    | { kind: 'trips'; shiftRecordId: number; shiftType: string; reportDate: string; x: number; y: number }
+    | { kind: 'info'; text: string; x: number; y: number }
+    | { kind: 'orderInfo'; orders: { number: number; cargo: string; dateFrom: string; dateTo: string }[]; x: number; y: number }
+    | { kind: 'multiReq'; reqNumbers: number[]; x: number; y: number };
+
+  const [cellPopup, setCellPopup] = useState<CellPopup | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchOrderGantt(orderNumber)
@@ -581,38 +743,90 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
       .catch(() => setErr(true));
   }, [orderNumber]);
 
+  useEffect(() => { setScrollOffset(0); }, [hideEmpty]);
+
+  // Close popup on outside click
+  useEffect(() => {
+    if (!cellPopup) return;
+    const handler = (e: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) setCellPopup(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [cellPopup]);
+
   if (err) return <div className="sv-loading-cell" style={{ color: '#EF4444' }}>Ошибка загрузки</div>;
   if (!resp) return <div className="sv-loading-cell">Загрузка...</div>;
 
   const rows = resp.data;
   if (!rows.length) return <div className="sv-loading-cell">Нет данных</div>;
 
-  // Generate full date range
-  const allDates = (resp.dateFrom && resp.dateTo)
-    ? generateDateRange(resp.dateFrom, resp.dateTo)
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Yekaterinburg' }).format(new Date());
+  const datesWithData = new Set(rows.map(r => r.report_date));
+
+  // Generate full date range: union of order dates + API (shift_records) dates + data dates
+  const candidateDates: string[] = [];
+  if (dateFromIso) candidateDates.push(dateFromIso);
+  if (dateToIso) candidateDates.push(dateToIso);
+  if (resp.dateFrom) candidateDates.push(resp.dateFrom);
+  if (resp.dateTo) candidateDates.push(resp.dateTo);
+  datesWithData.forEach(d => candidateDates.push(d));
+  const rangeFrom = candidateDates.length ? candidateDates.sort()[0] : undefined;
+  const rangeTo = candidateDates.length ? candidateDates.sort()[candidateDates.length - 1] : undefined;
+  const allDates = (rangeFrom && rangeTo)
+    ? generateDateRange(rangeFrom, rangeTo)
     : [...new Set(rows.map(r => r.report_date))].sort();
 
-  const needsNav = allDates.length > GANTT_PAGE_SIZE;
+  const filteredDates = hideEmpty ? allDates.filter(d => datesWithData.has(d)) : allDates;
+  const MIN_DATE_COLS = 7;
+  const paddingCols = Math.max(0, MIN_DATE_COLS - filteredDates.length);
+
+  const needsNav = filteredDates.length > GANTT_PAGE_SIZE;
+  const maxOffset = needsNav ? filteredDates.length - GANTT_PAGE_SIZE : 0;
   const visibleDates = needsNav
-    ? allDates.slice(scrollOffset, scrollOffset + GANTT_PAGE_SIZE)
-    : allDates;
+    ? filteredDates.slice(scrollOffset, scrollOffset + GANTT_PAGE_SIZE)
+    : filteredDates;
 
   // Collect vehicles
   const vehicleSet = new Map<string, string>();
   rows.forEach(r => vehicleSet.set(r.reg_number, r.name_mo));
 
-  // Build cell map: regNumber → date → {s1, s2, s1work, s2work, s1mov, s2mov}
-  type Cell = { s1: number; s2: number; s1work: string; s2work: string; s1mov: number; s2mov: number };
+  // Determine which object_uids belong to this order (from rows with trips)
+  const orderObjectUids = new Set<string>();
+  rows.forEach(r => {
+    if (Number(r.trips_count) > 0 && r.object_uid) orderObjectUids.add(r.object_uid);
+  });
+
+  // Extended cell type
+  type Cell = {
+    s1: number; s2: number;
+    s1work: string; s2work: string;
+    s1mov: number; s2mov: number;
+    s1has: boolean; s2has: boolean;
+    s1id: number; s2id: number;
+    s1reqCount: number; s2reqCount: number;
+    s1reqNums: number[]; s2reqNums: number[];
+    s1objUid: string; s2objUid: string;
+  };
+  const DEFAULT_CELL: Cell = { s1: 0, s2: 0, s1work: '', s2work: '', s1mov: 0, s2mov: 0, s1has: false, s2has: false, s1id: 0, s2id: 0, s1reqCount: 0, s2reqCount: 0, s1reqNums: [], s2reqNums: [], s1objUid: '', s2objUid: '' };
+
   const cellMap = new Map<string, Map<string, Cell>>();
   rows.forEach(r => {
     if (!cellMap.has(r.reg_number)) cellMap.set(r.reg_number, new Map());
     const dm = cellMap.get(r.reg_number)!;
-    if (!dm.has(r.report_date)) dm.set(r.report_date, { s1: 0, s2: 0, s1work: '', s2work: '', s1mov: 0, s2mov: 0 });
+    if (!dm.has(r.report_date)) dm.set(r.report_date, { ...DEFAULT_CELL });
     const cell = dm.get(r.report_date)!;
     const trips = Number(r.trips_count);
     const mov = Math.round(Number(r.movement_pct) || 0);
-    if (r.shift_type === 'shift1') { cell.s1 = trips; cell.s1work = r.work_type || ''; cell.s1mov = mov; }
-    else { cell.s2 = trips; cell.s2work = r.work_type || ''; cell.s2mov = mov; }
+    const reqNums = r.request_numbers ?? [];
+    const reqCount = reqNums.length;
+    if (r.shift_type === 'shift1') {
+      cell.s1 = trips; cell.s1work = r.work_type || ''; cell.s1mov = mov; cell.s1has = true;
+      cell.s1id = Number(r.id); cell.s1reqCount = reqCount; cell.s1reqNums = reqNums; cell.s1objUid = r.object_uid || '';
+    } else {
+      cell.s2 = trips; cell.s2work = r.work_type || ''; cell.s2mov = mov; cell.s2has = true;
+      cell.s2id = Number(r.id); cell.s2reqCount = reqCount; cell.s2reqNums = reqNums; cell.s2objUid = r.object_uid || '';
+    }
   });
 
   // Total trips per vehicle
@@ -623,11 +837,133 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
   const totalByDate = new Map<string, number>();
   rows.forEach(r => totalByDate.set(r.report_date, (totalByDate.get(r.report_date) ?? 0) + Number(r.trips_count)));
 
+  // Presence map: "→←" only for records on the order's object(s)
+  const presenceMap = new Map<string, number[]>();
+  (resp.presence ?? []).forEach(p => {
+    if (!orderObjectUids.has(p.object_uid)) return;
+    const key = `${p.reg_number}|${p.report_date}|${p.shift_type}`;
+    const prev = presenceMap.get(key) ?? [];
+    const nums = (p.request_numbers ?? []).filter(n => n !== orderNumber);
+    presenceMap.set(key, [...new Set([...prev, ...nums])]);
+  });
+
+  // Object presence map: key → true (on order object) / false (not)
+  const objPresMap = new Map<string, boolean>();
+  rows.forEach(r => {
+    objPresMap.set(`${r.reg_number}|${r.report_date}|${r.shift_type}`, true);
+  });
+  (resp.presence ?? []).forEach(p => {
+    const key = `${p.reg_number}|${p.report_date}|${p.shift_type}`;
+    if (!objPresMap.has(key)) {
+      objPresMap.set(key, orderObjectUids.has(p.object_uid));
+    }
+  });
+
+  // Transition tracking: departure / return / absent
+  type Transition = { departure: boolean; return: boolean; absent: boolean };
+  const transitionMap = new Map<string, Transition>();
+
+  [...vehicleSet.keys()].forEach(reg => {
+    const timeline: { key: string }[] = [];
+    for (const d of allDates) {
+      timeline.push({ key: `${reg}|${d}|shift1` });
+      timeline.push({ key: `${reg}|${d}|shift2` });
+    }
+
+    const firstOnIdx = timeline.findIndex(t => objPresMap.get(t.key) === true);
+    if (firstOnIdx < 0) return;
+
+    let lastOnIdx = firstOnIdx;
+    for (let i = timeline.length - 1; i >= 0; i--) {
+      if (objPresMap.get(timeline[i]!.key) === true) { lastOnIdx = i; break; }
+    }
+
+    for (let i = firstOnIdx; i <= lastOnIdx; i++) {
+      const cur = objPresMap.get(timeline[i]!.key) === true;
+      const prev = i > 0 ? objPresMap.get(timeline[i - 1]!.key) === true : false;
+
+      const isDeparture = prev && !cur;
+      const isReturn = !prev && cur && i > firstOnIdx;
+      const isAbsent = !cur;
+
+      if (isDeparture || isReturn || isAbsent) {
+        transitionMap.set(timeline[i]!.key, {
+          departure: isDeparture,
+          return: isReturn,
+          absent: isAbsent,
+        });
+      }
+    }
+  });
+
+  /** Compute popup position from click event */
+  const popupPos = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = Math.min(rect.left, window.innerWidth - 420);
+    const y = rect.bottom + 4 > window.innerHeight - 300
+      ? Math.max(4, rect.top - 300)
+      : rect.bottom + 4;
+    return { x: Math.max(4, x), y };
+  };
+
   /** Render a single gantt cell */
-  const renderCell = (trips: number, workType: string, mov: number) => {
-    if (trips > 0) return <div className="sv-gc f">{trips}</div>;
-    if (workType === 'onsite' && mov > 0) return <div className="sv-gc f">{mov}%</div>;
-    return <div className="sv-gc"></div>;
+  const renderGanttCell = (
+    trips: number, hasData: boolean, shiftId: number, shiftType: string, reportDate: string,
+    reqCount: number, reqNums: number[], objUid: string, presKey: string,
+  ) => {
+    if (trips > 0 && reqCount > 1) {
+      const otherNums = reqNums.filter(n => n !== orderNumber);
+      return (
+        <div className="sv-gc f multi" style={{ cursor: 'pointer' }}
+          onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'multiReq', reqNumbers: otherNums, ...popupPos(e) }); }}>
+          ={trips}
+        </div>
+      );
+    }
+    if (trips > 0) {
+      return (
+        <div className="sv-gc f" style={{ cursor: 'pointer' }}
+          onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'trips', shiftRecordId: shiftId, shiftType, reportDate, ...popupPos(e) }); }}>
+          {trips}
+        </div>
+      );
+    }
+    if (hasData && orderObjectUids.has(objUid)) {
+      return (
+        <div className="sv-gc gc-warn" style={{ cursor: 'pointer' }}
+          title="На объекте, 0 рейсов"
+          onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'info', text: `Машина на объекте заявки, но 0 рейсов за эту смену (${shiftType === 'shift1' ? '1 смена' : '2 смена'}, ${fmtDateShort(reportDate)}).`, ...popupPos(e) }); }}>
+          !
+        </div>
+      );
+    }
+    if (hasData && !orderObjectUids.has(objUid)) {
+      return (
+        <div className="sv-gc gc-not-on-obj" style={{ cursor: 'pointer' }}
+          title="Есть в ПЛ, но НЕ на объекте заявки"
+          onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'info', text: `Машина в путевом листе, но НЕ на объекте заявки (${shiftType === 'shift1' ? '1 смена' : '2 смена'}, ${fmtDateShort(reportDate)}).`, ...popupPos(e) }); }}>
+          —
+        </div>
+      );
+    }
+    if (presenceMap.has(presKey)) {
+      const nums = presenceMap.get(presKey)!;
+      if (nums.length > 0) {
+        const orderInfos = nums.map(n => {
+          const o = ordersMap.get(n);
+          return { number: n, cargo: o?.cargo ?? '—', dateFrom: o?.dateFrom ?? '', dateTo: o?.dateTo ?? '' };
+        });
+        return (
+          <div className="sv-gc gc-other-order" style={{ cursor: 'pointer' }}
+            title={nums.map(n => `#${n}`).join(', ')}
+            onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'orderInfo', orders: orderInfos, ...popupPos(e) }); }}>
+            →←
+          </div>
+        );
+      }
+      return <div className="sv-gc gc-onsite" title="На объекте без заявки">?</div>;
+    }
+    return <div className="sv-gc gc-absent" title="Не на объекте"></div>;
   };
 
   // Drag-to-scroll handlers
@@ -641,12 +977,9 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
     const dx = dragRef.current.startX - e.clientX;
     const colWidth = 56;
     const shift = Math.round(dx / colWidth);
-    const mo = allDates.length - GANTT_PAGE_SIZE;
-    setScrollOffset(Math.max(0, Math.min(mo, dragRef.current.startOffset + shift)));
+    setScrollOffset(Math.max(0, Math.min(maxOffset, dragRef.current.startOffset + shift)));
   };
   const onMouseUp = () => { dragRef.current = null; };
-
-  const maxOffset = allDates.length - GANTT_PAGE_SIZE;
 
   return (
     <div
@@ -659,8 +992,24 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
         <thead>
           <tr>
             <th className="sv-gantt-corner">
-              {needsNav && (
-                <span className="sv-gantt-nav-group" onMouseDown={e => e.stopPropagation()}>
+              <span className="sv-gantt-nav-group" onMouseDown={e => e.stopPropagation()}>
+                <button
+                  className={`sv-gantt-nav-btn sv-gantt-eye-btn${hideEmpty ? ' sv-gantt-eye-active' : ''}`}
+                  onClick={() => setHideEmpty(h => !h)}
+                  title={hideEmpty ? 'Показать все дни' : 'Скрыть пустые дни'}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    {hideEmpty ? (<>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </>) : (<>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </>)}
+                  </svg>
+                </button>
+                {needsNav && (<>
                   <button
                     className="sv-gantt-nav-btn"
                     disabled={scrollOffset <= 0}
@@ -671,27 +1020,38 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
                     disabled={scrollOffset >= maxOffset}
                     onClick={() => setScrollOffset(Math.min(maxOffset, scrollOffset + 1))}
                   >&#9654;</button>
-                </span>
-              )}
+                </>)}
+              </span>
             </th>
             {visibleDates.map(d => {
               const dt = totalByDate.get(d) ?? 0;
+              const emptyPast = !datesWithData.has(d) && d < today;
               return (
-                <th key={d} className="sv-gantt-date-h" colSpan={2}>
+                <th key={d} className={`sv-gantt-date-h${emptyPast ? ' sv-gantt-empty-past' : ''}`} colSpan={2}>
                   {fmtDateShort(d)}{dt > 0 && <span className="sv-truck-trips"> [{dt}]</span>}
                 </th>
               );
             })}
+            {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+              <th key={`pad-${i}`} colSpan={2}></th>
+            ))}
           </tr>
           <tr
             className={needsNav ? 'sv-gantt-draggable' : ''}
             onMouseDown={onMouseDown}
           >
             <th style={{ width: 150, minWidth: 150 }}></th>
-            {visibleDates.map(d => (
-              <React.Fragment key={d}>
-                <th>1</th><th>2</th>
-              </React.Fragment>
+            {visibleDates.map(d => {
+              const emptyPast = !datesWithData.has(d) && d < today;
+              return (
+                <React.Fragment key={d}>
+                  <th className={emptyPast ? 'sv-gantt-empty-past' : ''}>1</th>
+                  <th className={emptyPast ? 'sv-gantt-empty-past' : ''}>2</th>
+                </React.Fragment>
+              );
+            })}
+            {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+              <React.Fragment key={`pad-${i}`}><th></th><th></th></React.Fragment>
             ))}
           </tr>
         </thead>
@@ -708,19 +1068,80 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
                   </div>
                 </td>
                 {visibleDates.map(d => {
-                  const cell = dm.get(d) ?? { s1: 0, s2: 0, s1work: '', s2work: '', s1mov: 0, s2mov: 0 };
+                  const cell = dm.get(d) ?? DEFAULT_CELL;
+                  const emptyPast = !datesWithData.has(d) && d < today;
+                  const s1key = `${reg}|${d}|shift1`;
+                  const s2key = `${reg}|${d}|shift2`;
+                  const t1 = transitionMap.get(s1key);
+                  const t2 = transitionMap.get(s2key);
+
+                  const tdClass1 = [
+                    emptyPast && 'sv-gantt-empty-past',
+                    t1?.absent && 'sv-obj-absent',
+                    t1?.departure && 'sv-obj-depart',
+                    t1?.return && 'sv-obj-return',
+                  ].filter(Boolean).join(' ');
+
+                  const tdClass2 = [
+                    emptyPast && 'sv-gantt-empty-past',
+                    t2?.absent && 'sv-obj-absent',
+                    t2?.departure && 'sv-obj-depart',
+                    t2?.return && 'sv-obj-return',
+                  ].filter(Boolean).join(' ');
+
                   return (
                     <React.Fragment key={d}>
-                      <td>{renderCell(cell.s1, cell.s1work, cell.s1mov)}</td>
-                      <td>{renderCell(cell.s2, cell.s2work, cell.s2mov)}</td>
+                      <td className={tdClass1}>{renderGanttCell(cell.s1, cell.s1has, cell.s1id, 'shift1', d, cell.s1reqCount, cell.s1reqNums, cell.s1objUid, s1key)}</td>
+                      <td className={tdClass2}>{renderGanttCell(cell.s2, cell.s2has, cell.s2id, 'shift2', d, cell.s2reqCount, cell.s2reqNums, cell.s2objUid, s2key)}</td>
                     </React.Fragment>
                   );
                 })}
+                {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+                  <React.Fragment key={`pad-${i}`}><td></td><td></td></React.Fragment>
+                ))}
               </tr>
             );
           })}
         </tbody>
       </table>
+
+      {/* Cell popup portal */}
+      {cellPopup && createPortal(
+        <div ref={popupRef} className="sv-gg-popup" data-theme={theme}
+          style={{ left: cellPopup.x, top: cellPopup.y }}
+          onClick={e => e.stopPropagation()}>
+          {cellPopup.kind === 'trips' && (
+            <ShiftSubTable shiftRecord={{ id: cellPopup.shiftRecordId, shiftType: cellPopup.shiftType, reportDate: cellPopup.reportDate } as ShiftRecord} />
+          )}
+          {cellPopup.kind === 'info' && (
+            <div className="sv-cell-info-popup">{cellPopup.text}</div>
+          )}
+          {cellPopup.kind === 'orderInfo' && (
+            <div className="sv-cell-info-popup">
+              <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 10 }}>Работа по другой заявке:</div>
+              {cellPopup.orders.map(o => (
+                <div key={o.number} style={{ fontSize: 11, marginBottom: 2 }}>
+                  <b>#{o.number}</b> — {o.cargo}{o.dateFrom ? ` \u00b7 ${o.dateFrom}\u2013${o.dateTo}` : ''}
+                </div>
+              ))}
+            </div>
+          )}
+          {cellPopup.kind === 'multiReq' && (
+            <div className="sv-cell-info-popup">
+              <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 10 }}>Работа по нескольким заявкам:</div>
+              {cellPopup.reqNumbers.map(n => {
+                const o = ordersMap.get(n);
+                return (
+                  <div key={n} style={{ fontSize: 11, marginBottom: 2 }}>
+                    <b>#{n}</b> — {o?.cargo ?? '—'}{o?.dateFrom ? ` \u00b7 ${o.dateFrom}\u2013${o.dateTo}` : ''}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -728,10 +1149,12 @@ function GanttTable({ orderNumber }: { orderNumber: number }) {
 // ─────────────────────────────────────────────
 //  Order card
 // ─────────────────────────────────────────────
-function OrderCardView({ card, expanded, onToggle }: {
+function OrderCardView({ card, expanded, onToggle, ordersMap, theme }: {
   card: OrderCard;
   expanded: boolean;
   onToggle: () => void;
+  ordersMap: Map<number, OrderCard>;
+  theme: string;
 }) {
   const pc = card.isDone ? '#22c55e' : '#3B82F6';
   // Факт: 24т и 15м³ за рейс (константа для самосвала)
@@ -801,7 +1224,7 @@ function OrderCardView({ card, expanded, onToggle }: {
         </svg>
       </div>
       <div className={`sv-gantt-wrap ${expanded ? 'open' : ''}`}>
-        {expanded && <GanttTable orderNumber={card.number} />}
+        {expanded && <GanttTable orderNumber={card.number} dateFromIso={card.dateFromIso} dateToIso={card.dateToIso} ordersMap={ordersMap} theme={theme} />}
       </div>
     </div>
   );
@@ -1035,7 +1458,9 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
 // ─────────────────────────────────────────────
 //  Analytics sub-table (trips + zone events)
 // ─────────────────────────────────────────────
-function ShiftSubTable({ shiftRecord }: { shiftRecord: ShiftRecord }) {
+function ShiftSubTable({ shiftRecord }: {
+  shiftRecord: Pick<ShiftRecord, 'id' | 'shiftType' | 'reportDate'>;
+}) {
   const [data, setData] = useState<{ trips: TripRecord[]; zoneEvents: ZoneEvent[] } | null>(null);
   const [err, setErr] = useState(false);
 
@@ -1635,14 +2060,378 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
 }
 
 // ─────────────────────────────────────────────
+//  Global Gantt tab
+// ─────────────────────────────────────────────
+
+function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
+  orderMonth: string; orders: OrderCard[]; isAllTime: boolean;
+}) {
+  const { resolvedTheme } = useTheme();
+  const [records, setRecords] = useState<ShiftRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [hideEmpty, setHideEmpty] = useState(false);
+  const [expandedVehicles, setExpandedVehicles] = useState<Set<string>>(new Set());
+  const [tripPopup, setTripPopup] = useState<{ shiftRecord: ShiftRecord; x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const params: { dateFrom?: string; dateTo?: string } = {};
+    if (!isAllTime) {
+      const [y, m] = orderMonth.split('-').map(Number);
+      params.dateFrom = `${orderMonth}-01`;
+      params.dateTo = `${y}-${String(m).padStart(2, '0')}-${String(new Date(y!, m!, 0).getDate()).padStart(2, '0')}`;
+    }
+    fetchShiftRecords(params).then(r => {
+      setRecords(r);
+      setScrollOffset(0);
+    }).finally(() => setLoading(false));
+  }, [orderMonth, isAllTime]);
+
+  // Close popup on outside click
+  useEffect(() => {
+    if (!tripPopup) return;
+    const handler = (e: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) setTripPopup(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [tripPopup]);
+
+  if (loading) return (
+    <div className="sv-empty">
+      <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+      </svg>
+      <span className="sv-empty-text">Загрузка...</span>
+    </div>
+  );
+
+  if (!records.length) return (
+    <div className="sv-empty">
+      <span className="sv-empty-icon">📭</span>
+      <span className="sv-empty-text">Нет данных за выбранный период</span>
+    </div>
+  );
+
+  const ordersMap = new Map(orders.map(o => [o.number, o]));
+
+  // All records per vehicle (for rendering complete rows)
+  const vehicleRecords = new Map<string, ShiftRecord[]>();
+  const vehicleNames = new Map<string, string>();
+  records.forEach(r => {
+    if (!vehicleRecords.has(r.regNumber)) vehicleRecords.set(r.regNumber, []);
+    vehicleRecords.get(r.regNumber)!.push(r);
+    if (!vehicleNames.has(r.regNumber)) vehicleNames.set(r.regNumber, r.nameMO ?? r.regNumber);
+  });
+
+  // Object → vehicles (same vehicle duplicated under each object it worked on)
+  const objectVehicles = new Map<string, Set<string>>();
+  records.forEach(r => {
+    const obj = r.objectName || 'Прочие';
+    if (!objectVehicles.has(obj)) objectVehicles.set(obj, new Set());
+    objectVehicles.get(obj)!.add(r.regNumber);
+  });
+
+  // Date range from records
+  const sortedDates = [...new Set(records.map(r => toDateStr(r.reportDate)))].sort();
+  const minDate = sortedDates[0]!;
+  const maxDate = sortedDates[sortedDates.length - 1]!;
+  const allDates = generateDateRange(minDate, maxDate);
+  const datesWithData = new Set(sortedDates);
+  const filteredDates = hideEmpty ? allDates.filter(d => datesWithData.has(d)) : allDates;
+  const MIN_DATE_COLS = 7;
+  const paddingCols = Math.max(0, MIN_DATE_COLS - filteredDates.length);
+
+  const needsNav = filteredDates.length > GANTT_PAGE_SIZE;
+  const maxOffset = needsNav ? filteredDates.length - GANTT_PAGE_SIZE : 0;
+  const visibleDates = needsNav
+    ? filteredDates.slice(scrollOffset, scrollOffset + GANTT_PAGE_SIZE)
+    : filteredDates;
+
+  // Total trips per date
+  const totalByDate = new Map<string, number>();
+  records.forEach(r => {
+    const d = toDateStr(r.reportDate);
+    totalByDate.set(d, (totalByDate.get(d) ?? 0) + r.tripsCount);
+  });
+
+  // Cell map builder
+  type GGCell = {
+    s1: number; s2: number;
+    s1work: string; s2work: string;
+    s1mov: number; s2mov: number;
+    s1has: boolean; s2has: boolean;
+    s1reqCount: number; s2reqCount: number;
+    s1rec?: ShiftRecord; s2rec?: ShiftRecord;
+  };
+
+  const buildCellMap = (recs: ShiftRecord[]): Map<string, GGCell> => {
+    const cm = new Map<string, GGCell>();
+    recs.forEach(r => {
+      const d = toDateStr(r.reportDate);
+      if (!cm.has(d)) cm.set(d, { s1: 0, s2: 0, s1work: '', s2work: '', s1mov: 0, s2mov: 0, s1has: false, s2has: false, s1reqCount: 0, s2reqCount: 0 });
+      const c = cm.get(d)!;
+      const rc = (r.requestNumbers ?? []).length;
+      if (r.shiftType === 'shift1') {
+        c.s1 = r.tripsCount; c.s1work = r.workType ?? ''; c.s1mov = Math.round(r.movementPct); c.s1has = true; c.s1reqCount = rc; c.s1rec = r;
+      } else {
+        c.s2 = r.tripsCount; c.s2work = r.workType ?? ''; c.s2mov = Math.round(r.movementPct); c.s2has = true; c.s2reqCount = rc; c.s2rec = r;
+      }
+    });
+    return cm;
+  };
+
+  const renderGGCell = (trips: number, workType: string, mov: number, hasData: boolean, reqCount: number, shiftRec?: ShiftRecord) => {
+    const handleClick = (e: React.MouseEvent) => {
+      if (shiftRec && (trips > 0 || hasData)) {
+        e.stopPropagation();
+        const el = e.currentTarget as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        const x = Math.min(rect.left, window.innerWidth - 520);
+        const y = rect.bottom + 4 > window.innerHeight - 420
+          ? Math.max(4, rect.top - 404)
+          : rect.bottom + 4;
+        setTripPopup({ shiftRecord: shiftRec, x: Math.max(4, x), y });
+      }
+    };
+    if (trips > 0 && reqCount > 1) return <div className="sv-gc f multi" onClick={handleClick} style={{ cursor: 'pointer' }}>={trips}</div>;
+    if (trips > 0) return <div className="sv-gc f" onClick={handleClick} style={{ cursor: 'pointer' }}>{trips}</div>;
+    if (workType === 'onsite' && mov > 0) return <div className="sv-gc f">{mov}%</div>;
+    if (hasData) return <div className="sv-gc gc-warn" title="0 рейсов" onClick={handleClick} style={{ cursor: 'pointer' }}>!</div>;
+    return <div className="sv-gc gc-absent"></div>;
+  };
+
+  const toggleExpand = (key: string) => {
+    setExpandedVehicles(prev => {
+      const s = new Set(prev);
+      if (s.has(key)) s.delete(key); else s.add(key);
+      return s;
+    });
+  };
+
+  // Drag-to-scroll
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!needsNav) return;
+    dragRef.current = { startX: e.clientX, startOffset: scrollOffset };
+    e.preventDefault();
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!dragRef.current) return;
+    const dx = dragRef.current.startX - e.clientX;
+    const colWidth = 56;
+    const shift = Math.round(dx / colWidth);
+    setScrollOffset(Math.max(0, Math.min(maxOffset, dragRef.current.startOffset + shift)));
+  };
+  const onMouseUp = () => { dragRef.current = null; };
+
+  const colSpanAll = 1 + (visibleDates.length + paddingCols) * 2;
+  const objectEntries = [...objectVehicles.entries()].sort(([a], [b]) => a.localeCompare(b));
+
+  return (
+    <div className="sv-gantt sv-gg-wrap" onMouseMove={needsNav ? onMouseMove : undefined} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+      <table>
+        <thead>
+          <tr>
+            <th className="sv-gantt-corner" style={{ width: 180, minWidth: 180 }}>
+              <span className="sv-gantt-nav-group" onMouseDown={e => e.stopPropagation()}>
+                <button
+                  className={`sv-gantt-nav-btn sv-gantt-eye-btn${hideEmpty ? ' sv-gantt-eye-active' : ''}`}
+                  onClick={() => { setHideEmpty(h => !h); setScrollOffset(0); }}
+                  title={hideEmpty ? 'Показать все дни' : 'Скрыть пустые дни'}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    {hideEmpty ? (<>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </>) : (<>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </>)}
+                  </svg>
+                </button>
+                {needsNav && (<>
+                  <button className="sv-gantt-nav-btn" disabled={scrollOffset <= 0}
+                    onClick={() => setScrollOffset(Math.max(0, scrollOffset - 1))}>&#9664;</button>
+                  <button className="sv-gantt-nav-btn" disabled={scrollOffset >= maxOffset}
+                    onClick={() => setScrollOffset(Math.min(maxOffset, scrollOffset + 1))}>&#9654;</button>
+                </>)}
+              </span>
+            </th>
+            {visibleDates.map(d => {
+              const dt = totalByDate.get(d) ?? 0;
+              return (
+                <th key={d} className="sv-gantt-date-h" colSpan={2}>
+                  {fmtDateShort(d)}{dt > 0 && <span className="sv-truck-trips"> [{dt}]</span>}
+                </th>
+              );
+            })}
+            {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+              <th key={`pad-${i}`} colSpan={2}></th>
+            ))}
+          </tr>
+          <tr className={needsNav ? 'sv-gantt-draggable' : ''} onMouseDown={onMouseDown}>
+            <th style={{ width: 180, minWidth: 180 }}></th>
+            {visibleDates.map(d => (
+              <React.Fragment key={d}><th>1</th><th>2</th></React.Fragment>
+            ))}
+            {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+              <React.Fragment key={`pad-${i}`}><th></th><th></th></React.Fragment>
+            ))}
+          </tr>
+        </thead>
+
+        {objectEntries.map(([objName, vehicleSet]) => {
+          const sortedVehicles = [...vehicleSet].sort((a, b) => {
+            const ta = (vehicleRecords.get(a) ?? []).reduce((s, r) => s + r.tripsCount, 0);
+            const tb = (vehicleRecords.get(b) ?? []).reduce((s, r) => s + r.tripsCount, 0);
+            return tb - ta;
+          });
+
+          return (
+            <tbody key={objName}>
+              <tr className="sv-gg-obj-header">
+                <td colSpan={colSpanAll}>{objName}</td>
+              </tr>
+              {sortedVehicles.map(reg => {
+                const vehRecs = vehicleRecords.get(reg) ?? [];
+                const cm = buildCellMap(vehRecs);
+                const totalTrips = vehRecs.reduce((s, r) => s + r.tripsCount, 0);
+                const nameMO = vehicleNames.get(reg) ?? reg;
+                const expandKey = `${objName}|${reg}`;
+                const isExpanded = expandedVehicles.has(expandKey);
+                const orderNums = [...new Set(vehRecs.flatMap(r => r.requestNumbers ?? []))];
+                const hasUnlinked = vehRecs.some(r => !r.requestNumbers || r.requestNumbers.length === 0);
+
+                return (
+                  <React.Fragment key={reg}>
+                    <tr>
+                      <td>
+                        <div className="sv-vehicle-name-cell">
+                          <span className="sv-reg-num">
+                            {reg}
+                            {!isAllTime && (orderNums.length > 0 || hasUnlinked) && (
+                              <span className="sv-gg-dots"
+                                onClick={e => { e.stopPropagation(); toggleExpand(expandKey); }}
+                                style={{ cursor: 'pointer', marginLeft: 4 }}>
+                                {orderNums.slice(0, 8).map(num => {
+                                  const done = ordersMap.get(num)?.isDone ?? false;
+                                  return <span key={num} className={`sv-gg-dot ${done ? 'done' : ''}`} title={`#${num}`} />;
+                                })}
+                                {hasUnlinked && <span className="sv-gg-dot unlinked" title="Без заявки" />}
+                              </span>
+                            )}
+                            {!isAllTime && <span className="sv-truck-trips"> [{totalTrips}]</span>}
+                          </span>
+                          <span className="sv-veh-model">{stripSamosvaly(nameMO)}</span>
+                        </div>
+                      </td>
+                      {visibleDates.map(d => {
+                        const cell = cm.get(d);
+                        return (
+                          <React.Fragment key={d}>
+                            <td>{cell ? renderGGCell(cell.s1, cell.s1work, cell.s1mov, cell.s1has, cell.s1reqCount, cell.s1rec) : <div className="sv-gc gc-absent"></div>}</td>
+                            <td>{cell ? renderGGCell(cell.s2, cell.s2work, cell.s2mov, cell.s2has, cell.s2reqCount, cell.s2rec) : <div className="sv-gc gc-absent"></div>}</td>
+                          </React.Fragment>
+                        );
+                      })}
+                      {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+                        <React.Fragment key={`pad-${i}`}><td></td><td></td></React.Fragment>
+                      ))}
+                    </tr>
+
+                    {/* Expanded sub-rows per order */}
+                    {isExpanded && orderNums.map(num => {
+                      const subRecs = vehRecs.filter(r => (r.requestNumbers ?? []).includes(num));
+                      const subCm = buildCellMap(subRecs);
+                      const order = ordersMap.get(num);
+                      return (
+                        <tr key={`${reg}-${num}`} className="sv-gg-sub-row">
+                          <td>
+                            <span className="sv-gg-sub-label">
+                              <span className={`sv-gg-dot ${order?.isDone ? 'done' : ''}`} />
+                              #{num}
+                            </span>
+                          </td>
+                          {visibleDates.map(d => {
+                            const cell = subCm.get(d);
+                            return (
+                              <React.Fragment key={d}>
+                                <td>{cell ? renderGGCell(cell.s1, cell.s1work, cell.s1mov, cell.s1has, 0, cell.s1rec) : <div className="sv-gc gc-absent"></div>}</td>
+                                <td>{cell ? renderGGCell(cell.s2, cell.s2work, cell.s2mov, cell.s2has, 0, cell.s2rec) : <div className="sv-gc gc-absent"></div>}</td>
+                              </React.Fragment>
+                            );
+                          })}
+                          {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+                            <React.Fragment key={`pad-${i}`}><td></td><td></td></React.Fragment>
+                          ))}
+                        </tr>
+                      );
+                    })}
+
+                    {/* Expanded sub-row: unlinked (no request) */}
+                    {isExpanded && hasUnlinked && (() => {
+                      const unlinkedRecs = vehRecs.filter(r => !r.requestNumbers || r.requestNumbers.length === 0);
+                      const subCm = buildCellMap(unlinkedRecs);
+                      return (
+                        <tr key={`${reg}-unlinked`} className="sv-gg-sub-row">
+                          <td>
+                            <span className="sv-gg-sub-label">
+                              <span className="sv-gg-dot unlinked" />
+                              Без заявки
+                            </span>
+                          </td>
+                          {visibleDates.map(d => {
+                            const cell = subCm.get(d);
+                            return (
+                              <React.Fragment key={d}>
+                                <td>{cell ? renderGGCell(cell.s1, cell.s1work, cell.s1mov, cell.s1has, 0, cell.s1rec) : <div className="sv-gc gc-absent"></div>}</td>
+                                <td>{cell ? renderGGCell(cell.s2, cell.s2work, cell.s2mov, cell.s2has, 0, cell.s2rec) : <div className="sv-gc gc-absent"></div>}</td>
+                              </React.Fragment>
+                            );
+                          })}
+                          {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+                            <React.Fragment key={`pad-${i}`}><td></td><td></td></React.Fragment>
+                          ))}
+                        </tr>
+                      );
+                    })()}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          );
+        })}
+      </table>
+
+      {/* Trip popup */}
+      {tripPopup && createPortal(
+        <div ref={popupRef} className="sv-gg-popup" data-theme={resolvedTheme}
+          style={{ left: tripPopup.x, top: tripPopup.y }}
+          onClick={e => e.stopPropagation()}>
+          <ShiftSubTable shiftRecord={tripPopup.shiftRecord} />
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 //  Main page
 // ─────────────────────────────────────────────
 export function DumpTrucksPage() {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'orders' | 'analytics'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'analytics' | 'gantt'>('orders');
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [constructorOpen, setConstructorOpen] = useState(false);
   const [groupByCargo, setGroupByCargo] = useState(false);
+  const [orderSortKey, setOrderSortKey] = useState<'pct' | 'trips' | 'distance' | 'dateFrom' | 'dateTo'>('pct');
+  const [orderSortDir, setOrderSortDir] = useState<'asc' | 'desc'>('desc');
+  const [isAllTime, setIsAllTime] = useState(false);
 
   // User settings
   const [currentUser, setCurrentUserState] = useState<string | null>(() => getCurrentUser());
@@ -1697,6 +2486,7 @@ export function DumpTrucksPage() {
 
   const [objects, setObjects] = useState<DtObject[]>([]);
   const [orders, setOrders] = useState<OrderCard[]>([]);
+  const [orderShifts, setOrderShifts] = useState<ShiftRecord[]>([]);
   const [shiftRecords, setShiftRecords] = useState<ShiftRecord[]>([]);
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -1708,7 +2498,7 @@ export function DumpTrucksPage() {
     fetchRepairs().then(setRepairs).catch(console.error);
   }, []);
 
-  // Load orders when month changes (fetch ±1 month to catch edge cases)
+  // Load orders + month shift records when month changes
   useEffect(() => {
     setLoadingOrders(true);
     const [y, m] = orderMonth.split('-').map(Number);
@@ -1716,9 +2506,14 @@ export function DumpTrucksPage() {
     const to = new Date(y!, m! + 1, 0);   // next month end
     const fromStr = isoDate(from);
     const toStr = isoDate(to);
-    fetchOrders(fromStr, toStr)
-      .then(raw => setOrders(raw.map(toOrderCard)))
-      .catch(console.error)
+    Promise.all([
+      fetchOrders(fromStr, toStr),
+      fetchShiftRecords({ dateFrom: orderMonthFrom, dateTo: orderMonthTo }),
+    ]).then(([rawOrders, shifts]) => {
+      const today = new Date().toISOString().slice(0, 10);
+      setOrders(rawOrders.map(o => toOrderCard(o, today)));
+      setOrderShifts(shifts);
+    }).catch(console.error)
       .finally(() => setLoadingOrders(false));
   }, [orderMonth]);
 
@@ -1739,6 +2534,53 @@ export function DumpTrucksPage() {
     });
   };
 
+  const sortOrders = (list: OrderCard[]): OrderCard[] => {
+    const dir = orderSortDir === 'asc' ? 1 : -1;
+    return [...list].sort((a, b) => {
+      switch (orderSortKey) {
+        case 'pct':      return (a.pct - b.pct) * dir;
+        case 'trips':    return (a.actualTrips - b.actualTrips) * dir;
+        case 'distance': return (a.routeDistance - b.routeDistance) * dir;
+        case 'dateFrom': return (a.dateFromIso || '').localeCompare(b.dateFromIso || '') * dir;
+        case 'dateTo':   return (a.dateToIso || '').localeCompare(b.dateToIso || '') * dir;
+        default:         return 0;
+      }
+    });
+  };
+
+  // ordersMap for GanttTable popup info
+  const ordersMap = React.useMemo(() => new Map(orders.map(o => [o.number, o])), [orders]);
+
+  const renderGrouped = (items: OrderCard[]) => {
+    if (!groupByCargo || items.length === 0) {
+      return items.map(o => (
+        <OrderCardView key={o.number} card={o}
+          expanded={expandedOrders.has(o.number)}
+          onToggle={() => toggleOrder(o.number)}
+          ordersMap={ordersMap} theme={theme ?? 'dark'} />
+      ));
+    }
+    const cargoMap = new Map<string, OrderCard[]>();
+    items.forEach(o => {
+      const key = o.cargo || '—';
+      if (!cargoMap.has(key)) cargoMap.set(key, []);
+      cargoMap.get(key)!.push(o);
+    });
+    return [...cargoMap.entries()].map(([cargo, groupItems]) => (
+      <div key={cargo} style={{ marginBottom: 6 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 3, marginLeft: 4 }}>
+          {cargo} ({groupItems.length})
+        </div>
+        {groupItems.map(o => (
+          <OrderCardView key={o.number} card={o}
+            expanded={expandedOrders.has(o.number)}
+            onToggle={() => toggleOrder(o.number)}
+            ordersMap={ordersMap} theme={theme ?? 'dark'} />
+        ))}
+      </div>
+    ));
+  };
+
   // Filter orders: overlap with selected month
   const monthOrders = orders.filter(o => {
     // If no dates from points, fallback: show if API returned it for this range
@@ -1755,6 +2597,16 @@ export function DumpTrucksPage() {
     cityMap.get(o.city)!.push(o);
   });
 
+  // Unlinked shifts: shift records without any request_numbers in the order month
+  const unlinkedVehicles = new Map<string, { nameMO: string; recs: ShiftRecord[] }>();
+  orderShifts
+    .filter(r => !r.requestNumbers || r.requestNumbers.length === 0)
+    .forEach(r => {
+      if (!unlinkedVehicles.has(r.regNumber))
+        unlinkedVehicles.set(r.regNumber, { nameMO: r.nameMO, recs: [] });
+      unlinkedVehicles.get(r.regNumber)!.recs.push(r);
+    });
+
   return (
     <div className="sv-root flex-1 min-h-0" data-theme={theme}>
       <div className="sv-amb sv-amb-o" />
@@ -1769,20 +2621,29 @@ export function DumpTrucksPage() {
           <button className={`sv-view-tab ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
             📊 Аналитика
           </button>
+          <button className={`sv-view-tab ${activeTab === 'gantt' ? 'active' : ''}`} onClick={() => setActiveTab('gantt')}>
+            📊 Ганта
+          </button>
         </div>
 
-        {/* Orders: month nav */}
-        {activeTab === 'orders' && (
+        {/* Orders / Gantt: month nav */}
+        {(activeTab === 'orders' || activeTab === 'gantt') && (
           <>
             <div className="sv-filter-sep" />
             <div className="sv-fg">
               <div className="sv-fg-label">Месяц</div>
-              <div className="sv-fg-row">
+              <div className="sv-fg-row" style={isAllTime && activeTab === 'gantt' ? { opacity: 0.4, pointerEvents: 'none' as const } : {}}>
                 <button className="sv-week-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }} onClick={() => shiftMonth(-1)}>‹</button>
                 <span style={{ fontSize: 12, fontWeight: 700, minWidth: 110, textAlign: 'center' }}>{fmtMonth(orderMonth)}</span>
                 <button className="sv-week-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }} onClick={() => shiftMonth(1)}>›</button>
               </div>
             </div>
+            {activeTab === 'gantt' && (
+              <button className={`sv-fb-pill ${isAllTime ? 'active' : ''}`}
+                onClick={() => setIsAllTime(p => !p)}>
+                За всё время
+              </button>
+            )}
           </>
         )}
 
@@ -1874,48 +2735,45 @@ export function DumpTrucksPage() {
                     </svg>
                     <span className="sv-empty-text">Загрузка заявок...</span>
                   </div>
-                ) : orders.length === 0 ? (
+                ) : (orders.length === 0 && unlinkedVehicles.size === 0) ? (
                   <div className="sv-empty">
                     <span className="sv-empty-icon">📭</span>
                     <span className="sv-empty-text">Заявок не найдено</span>
                   </div>
                 ) : (
-                  [...cityMap.entries()].map(([city, cityOrders]) => {
-                    const active = cityOrders.filter(o => !o.isDone);
-                    const closed = cityOrders.filter(o => o.isDone)
-                      .sort((a, b) => (b.dateToIso || '').localeCompare(a.dateToIso || ''));
+                  <>
+                  {/* Toolbar: grouping + sorting */}
+                  <div className="sv-order-toolbar">
+                    <button
+                      className={`sv-fb-pill ${groupByCargo ? 'active' : ''}`}
+                      onClick={() => setGroupByCargo(p => !p)}
+                    >
+                      По грузу
+                    </button>
+                    <span className="sv-toolbar-sep" />
+                    {([
+                      ['pct', 'Выполн.'],
+                      ['trips', 'Рейсы'],
+                      ['distance', 'Расст.'],
+                      ['dateFrom', 'Дата нач.'],
+                      ['dateTo', 'Дата кон.'],
+                    ] as ['pct' | 'trips' | 'distance' | 'dateFrom' | 'dateTo', string][]).map(([key, label]) => (
+                      <button
+                        key={key}
+                        className={`sv-fb-pill ${orderSortKey === key ? 'active' : ''}`}
+                        onClick={() => {
+                          if (orderSortKey === key) setOrderSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                          else { setOrderSortKey(key); setOrderSortDir('desc'); }
+                        }}
+                      >
+                        {label} {orderSortKey === key ? (orderSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </button>
+                    ))}
+                  </div>
 
-                    // Cargo grouping for closed orders
-                    let closedRendered: React.ReactNode;
-                    if (groupByCargo && closed.length > 0) {
-                      const cargoMap = new Map<string, OrderCard[]>();
-                      closed.forEach(o => {
-                        const key = o.cargo || '—';
-                        if (!cargoMap.has(key)) cargoMap.set(key, []);
-                        cargoMap.get(key)!.push(o);
-                      });
-                      // Sort groups by latest dateTo in group (desc)
-                      const cargoGroups = [...cargoMap.entries()]
-                        .sort(([, a], [, b]) => (b[0]?.dateToIso || '').localeCompare(a[0]?.dateToIso || ''));
-                      closedRendered = cargoGroups.map(([cargo, items]) => (
-                        <div key={cargo} style={{ marginBottom: 6 }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 3, marginLeft: 4 }}>
-                            {cargo} ({items.length})
-                          </div>
-                          {items.map(o => (
-                            <OrderCardView key={o.number} card={o}
-                              expanded={expandedOrders.has(o.number)}
-                              onToggle={() => toggleOrder(o.number)} />
-                          ))}
-                        </div>
-                      ));
-                    } else {
-                      closedRendered = closed.map(o => (
-                        <OrderCardView key={o.number} card={o}
-                          expanded={expandedOrders.has(o.number)}
-                          onToggle={() => toggleOrder(o.number)} />
-                      ));
-                    }
+                  {[...cityMap.entries()].map(([city, cityOrders]) => {
+                    const active = sortOrders(cityOrders.filter(o => !o.isDone));
+                    const closed = sortOrders(cityOrders.filter(o => o.isDone));
 
                     return (
                       <div key={city} className="sv-city-group">
@@ -1929,34 +2787,38 @@ export function DumpTrucksPage() {
                               <div className="sv-status-dot" style={{ background: '#F97316' }} />
                               Активные ({active.length})
                             </div>
-                            {active.map(o => (
-                              <OrderCardView key={o.number} card={o}
-                                expanded={expandedOrders.has(o.number)}
-                                onToggle={() => toggleOrder(o.number)} />
-                            ))}
+                            {renderGrouped(active)}
                           </>
                         )}
                         {closed.length > 0 && (
                           <>
-                            <div className="sv-status-label" style={{ justifyContent: 'space-between' }}>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <div className="sv-status-dot" style={{ background: '#22c55e' }} />
-                                Закрытые ({closed.length})
-                              </span>
-                              <button
-                                className={`sv-fb-pill ${groupByCargo ? 'active' : ''}`}
-                                style={{ fontSize: 9, padding: '2px 8px' }}
-                                onClick={e => { e.stopPropagation(); setGroupByCargo(p => !p); }}
-                              >
-                                По грузу
-                              </button>
+                            <div className="sv-status-label">
+                              <div className="sv-status-dot" style={{ background: '#22c55e' }} />
+                              Закрытые ({closed.length})
                             </div>
-                            {closedRendered}
+                            {renderGrouped(closed)}
                           </>
                         )}
                       </div>
                     );
-                  })
+                  })}
+
+                  {unlinkedVehicles.size > 0 && (
+                    <div className="sv-city-group sv-unlinked-group">
+                      <div className="sv-city-header">
+                        <span className="sv-city-name">Без заявки</span>
+                        <span className="sv-city-badge">{unlinkedVehicles.size} ТС</span>
+                      </div>
+                      <div className="sv-gantt" style={{ maxHeight: 400, overflowY: 'auto' }}>
+                        <UnlinkedGantt
+                          shifts={orderShifts.filter(r => !r.requestNumbers?.length)}
+                          dateFrom={orderMonthFrom}
+                          dateTo={orderMonthTo}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
 
@@ -1979,6 +2841,17 @@ export function DumpTrucksPage() {
               loading={loadingRecords}
               settings={userSettings}
             />
+          )}
+
+          {/* Tab 3: Global Gantt */}
+          {activeTab === 'gantt' && (
+            <div style={{ overflow: 'auto', height: '100%', scrollbarWidth: 'thin' as const, scrollbarColor: 'var(--sv-scroll) transparent' }}>
+              <GlobalGanttTab
+                orderMonth={orderMonth}
+                orders={orders}
+                isAllTime={isAllTime}
+              />
+            </div>
           )}
         </div>
 

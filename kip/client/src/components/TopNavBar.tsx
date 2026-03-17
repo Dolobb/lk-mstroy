@@ -57,7 +57,7 @@ const TopNavBar: React.FC<Props> = ({ activeNav, onNavChange }) => {
           <span className="text-primary font-bold" style={{ fontSize: '12px' }}>НПС</span>
           <span className="text-muted-foreground" style={{ fontSize: '11px' }}>/</span>
           <span className="text-foreground font-semibold tracking-wide" style={{ fontSize: '12px' }}>
-            МОСТОСТРОЙ-11
+            МОНИТОРИНГ
           </span>
         </div>
       </div>
