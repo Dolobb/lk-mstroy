@@ -43,6 +43,7 @@ export async function fetchShiftRecords(params: {
 export async function fetchShiftDetail(shiftRecordId: number): Promise<{
   trips: TripRecord[];
   zoneEvents: ZoneEvent[];
+  objectTimezone?: string;
 }> {
   return get(`${BASE}/shift-detail?shiftRecordId=${shiftRecordId}`);
 }
@@ -51,4 +52,18 @@ export async function fetchRepairs(objectName?: string): Promise<Repair[]> {
   const q = objectName ? `?objectName=${encodeURIComponent(objectName)}` : '';
   const d = await get<{ data: Repair[] }>(`${BASE}/repairs${q}`);
   return d.data;
+}
+
+export async function fetchOrderNorms(): Promise<{ request_number: number; trips_per_shift: number }[]> {
+  const d = await get<{ data: { request_number: number; trips_per_shift: number }[] }>(`${BASE}/order-norms`);
+  return d.data;
+}
+
+export async function saveOrderNorms(norms: { number: number; tripsPerShift: number }[]): Promise<void> {
+  const r = await fetch(`${BASE}/order-norms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ norms }),
+  });
+  if (!r.ok) throw new Error(`API error: ${r.status}`);
 }

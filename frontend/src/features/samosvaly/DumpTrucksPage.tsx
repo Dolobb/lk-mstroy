@@ -5,6 +5,7 @@ import './samosvaly.css';
 import {
   fetchObjects, fetchOrders, fetchOrderGantt,
   fetchShiftRecords, fetchShiftDetail, fetchRepairs,
+  fetchOrderNorms, saveOrderNorms,
 } from './api';
 import type {
   DtObject, OrderSummary, OrderCard, GanttRecord, GanttResponse,
@@ -16,12 +17,21 @@ import type {
 //  Helpers
 // ─────────────────────────────────────────────
 
-function fmtTime(iso: string | null): string {
+function fmtTime(iso: string | null, tz = 'Asia/Yekaterinburg'): string {
   if (!iso) return '—';
   try {
     const d = new Date(iso);
-    return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yekaterinburg' });
+    return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', timeZone: tz });
   } catch { return '—'; }
+}
+
+/** МСК+N метка для часового пояса */
+function tzLabel(tz: string): string {
+  const utcStr = new Date().toLocaleString('en-US', { timeZone: 'UTC' });
+  const tzStr  = new Date().toLocaleString('en-US', { timeZone: tz });
+  const offHrs = Math.round((new Date(tzStr).getTime() - new Date(utcStr).getTime()) / 3600000);
+  const msk = offHrs - 3;
+  return msk === 0 ? 'МСК' : `МСК+${msk}`;
 }
 
 function fmtDate(iso: string | null): string {
@@ -458,6 +468,8 @@ function toOrderCard(o: OrderSummary, today: string): OrderCard {
     countTs,
     notes,
     comment,
+    tripsPerVehDay: o.trips_per_veh_day ? Number(o.trips_per_veh_day) : 0,
+    pointsInBoundary: o.points_in_boundary ?? null,
   };
 }
 
@@ -480,10 +492,10 @@ function MiniDonut({ mov, size = 70 }: { mov: number; size?: number }) {
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EF4444" strokeWidth={sw}
         strokeDasharray={`${c * idle / 100} ${c * (1 - idle / 100)}`}
         strokeDashoffset={c / 4 - c * mov / 100} strokeLinecap="round" />
-      <text x={cx} y={cy + 1} textAnchor="middle" fill="var(--sv-text-1)"
-        fontSize={size * 0.14} fontWeight="800" fontFamily="DM Sans">{mov}%</text>
-      <text x={cx} y={cy + size * 0.14} textAnchor="middle" fill="var(--sv-text-4)"
-        fontSize={size * 0.086} fontWeight="500" fontFamily="DM Sans">движ.</text>
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill="var(--sv-text-1)"
+        fontSize={size * 0.19} fontWeight="800" fontFamily="DM Sans">{mov}%</text>
+      <text x={cx} y={cy + size * 0.17} textAnchor="middle" fill="var(--sv-text-3)"
+        fontSize={size * 0.1} fontWeight="600" fontFamily="DM Sans">движ.</text>
     </svg>
   );
 }
@@ -718,13 +730,69 @@ function generateDateRange(from: string, to: string): string[] {
 
 const GANTT_PAGE_SIZE = 16;
 
-function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
+type Transition = { departure: boolean; return: boolean; absent: boolean };
+
+/** Shared transition tracking: computes departure/return/absent markers for vehicles on an object timeline */
+function computeTransitions(
+  allDates: string[],
+  vehicleRegs: Iterable<string>,
+  isOnObject: (key: string) => boolean,
+): Map<string, Transition> {
+  const transitionMap = new Map<string, Transition>();
+  for (const reg of vehicleRegs) {
+    const timeline: { key: string }[] = [];
+    for (const d of allDates) {
+      timeline.push({ key: `${reg}|${d}|shift1` });
+      timeline.push({ key: `${reg}|${d}|shift2` });
+    }
+
+    const firstOnIdx = timeline.findIndex(t => isOnObject(t.key));
+    if (firstOnIdx < 0) continue;
+
+    let lastOnIdx = firstOnIdx;
+    for (let i = timeline.length - 1; i >= 0; i--) {
+      if (isOnObject(timeline[i]!.key)) { lastOnIdx = i; break; }
+    }
+
+    for (let i = firstOnIdx; i <= lastOnIdx; i++) {
+      const cur = isOnObject(timeline[i]!.key);
+      const prev = i > 0 ? isOnObject(timeline[i - 1]!.key) : false;
+
+      const isDeparture = prev && !cur;
+      const isReturn = !prev && cur && i > firstOnIdx;
+      const isAbsent = !cur;
+
+      if (isDeparture || isReturn || isAbsent) {
+        transitionMap.set(timeline[i]!.key, { departure: isDeparture, return: isReturn, absent: isAbsent });
+      }
+    }
+
+    // Suppress single-shift gaps: departure immediately followed by return (1-slot absence)
+    // e.g. ON → OFF(departure) → ON(return) — vehicle left for just 1 shift, suppress marks
+    // But ON → OFF(dep) → OFF → ... → ON(ret) — multi-shift absence, keep marks
+    for (let i = firstOnIdx; i <= lastOnIdx; i++) {
+      const t = transitionMap.get(timeline[i]!.key);
+      if (t?.departure && i + 1 <= lastOnIdx) {
+        const tNext = transitionMap.get(timeline[i + 1]!.key);
+        if (tNext?.return) {
+          // Gap is exactly 1 slot — suppress departure, absent at i, and return at i+1
+          transitionMap.delete(timeline[i]!.key);
+          transitionMap.delete(timeline[i + 1]!.key);
+        }
+      }
+    }
+  }
+  return transitionMap;
+}
+
+function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, norm }: {
   orderNumber: number; dateFromIso: string; dateToIso: string;
-  ordersMap: Map<number, OrderCard>; theme: string;
+  ordersMap: Map<number, OrderCard>; theme: string; norm: number;
 }) {
   const [resp, setResp] = useState<GanttResponse | null>(null);
   const [err, setErr] = useState(false);
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [hideEmpty, setHideEmpty] = useState(false);
   const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
 
@@ -739,7 +807,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
 
   useEffect(() => {
     fetchOrderGantt(orderNumber)
-      .then(setResp)
+      .then(r => { setResp(r); setInitialScrollDone(false); })
       .catch(() => setErr(true));
   }, [orderNumber]);
 
@@ -783,6 +851,18 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
 
   const needsNav = filteredDates.length > GANTT_PAGE_SIZE;
   const maxOffset = needsNav ? filteredDates.length - GANTT_PAGE_SIZE : 0;
+
+  // Auto-scroll so today is rightmost visible column on first load
+  if (!initialScrollDone && needsNav && filteredDates.length > 0) {
+    const todayIdx = filteredDates.indexOf(today);
+    const targetIdx = todayIdx >= 0 ? todayIdx : filteredDates.findIndex(d => d > today) - 1;
+    if (targetIdx >= 0) {
+      const offset = Math.max(0, Math.min(maxOffset, targetIdx - GANTT_PAGE_SIZE + 1));
+      if (offset !== scrollOffset) setScrollOffset(offset);
+    }
+    setInitialScrollDone(true);
+  }
+
   const visibleDates = needsNav
     ? filteredDates.slice(scrollOffset, scrollOffset + GANTT_PAGE_SIZE)
     : filteredDates;
@@ -837,6 +917,16 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
   const totalByDate = new Map<string, number>();
   rows.forEach(r => totalByDate.set(r.report_date, (totalByDate.get(r.report_date) ?? 0) + Number(r.trips_count)));
 
+  // Per-date vehicle counts with trips > 0 per shift (for planned column brackets)
+  const dateVehCounts = new Map<string, { s1: number; s2: number }>();
+  rows.forEach(r => {
+    const trips = Number(r.trips_count);
+    if (trips <= 0) return;
+    if (!dateVehCounts.has(r.report_date)) dateVehCounts.set(r.report_date, { s1: 0, s2: 0 });
+    const c = dateVehCounts.get(r.report_date)!;
+    if (r.shift_type === 'shift1') c.s1++; else c.s2++;
+  });
+
   // Presence map: "→←" only for records on the order's object(s)
   const presenceMap = new Map<string, number[]>();
   (resp.presence ?? []).forEach(p => {
@@ -859,42 +949,12 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
     }
   });
 
-  // Transition tracking: departure / return / absent
-  type Transition = { departure: boolean; return: boolean; absent: boolean };
-  const transitionMap = new Map<string, Transition>();
-
-  [...vehicleSet.keys()].forEach(reg => {
-    const timeline: { key: string }[] = [];
-    for (const d of allDates) {
-      timeline.push({ key: `${reg}|${d}|shift1` });
-      timeline.push({ key: `${reg}|${d}|shift2` });
-    }
-
-    const firstOnIdx = timeline.findIndex(t => objPresMap.get(t.key) === true);
-    if (firstOnIdx < 0) return;
-
-    let lastOnIdx = firstOnIdx;
-    for (let i = timeline.length - 1; i >= 0; i--) {
-      if (objPresMap.get(timeline[i]!.key) === true) { lastOnIdx = i; break; }
-    }
-
-    for (let i = firstOnIdx; i <= lastOnIdx; i++) {
-      const cur = objPresMap.get(timeline[i]!.key) === true;
-      const prev = i > 0 ? objPresMap.get(timeline[i - 1]!.key) === true : false;
-
-      const isDeparture = prev && !cur;
-      const isReturn = !prev && cur && i > firstOnIdx;
-      const isAbsent = !cur;
-
-      if (isDeparture || isReturn || isAbsent) {
-        transitionMap.set(timeline[i]!.key, {
-          departure: isDeparture,
-          return: isReturn,
-          absent: isAbsent,
-        });
-      }
-    }
-  });
+  // Transition tracking: departure / return / absent (using shared function)
+  const transitionMap = computeTransitions(
+    allDates,
+    vehicleSet.keys(),
+    key => objPresMap.get(key) === true,
+  );
 
   /** Compute popup position from click event */
   const popupPos = (e: React.MouseEvent) => {
@@ -906,15 +966,25 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
     return { x: Math.max(4, x), y };
   };
 
+  /** Compute norm CSS class for color coding */
+  const normClass = (trips: number, n: number): string => {
+    if (n <= 0 || trips <= 0) return '';
+    if (trips > n) return ' norm-over';
+    if (trips === n) return '';
+    if (trips >= n - 1) return ' norm-warn';
+    return ' norm-under';
+  };
+
   /** Render a single gantt cell */
   const renderGanttCell = (
     trips: number, hasData: boolean, shiftId: number, shiftType: string, reportDate: string,
     reqCount: number, reqNums: number[], objUid: string, presKey: string,
   ) => {
+    const nc = normClass(trips, norm);
     if (trips > 0 && reqCount > 1) {
       const otherNums = reqNums.filter(n => n !== orderNumber);
       return (
-        <div className="sv-gc f multi" style={{ cursor: 'pointer' }}
+        <div className={`sv-gc f multi${nc}`} style={{ cursor: 'pointer' }}
           onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'multiReq', reqNumbers: otherNums, ...popupPos(e) }); }}>
           ={trips}
         </div>
@@ -922,7 +992,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
     }
     if (trips > 0) {
       return (
-        <div className="sv-gc f" style={{ cursor: 'pointer' }}
+        <div className={`sv-gc f${nc}`} style={{ cursor: 'pointer' }}
           onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'trips', shiftRecordId: shiftId, shiftType, reportDate, ...popupPos(e) }); }}>
           {trips}
         </div>
@@ -1025,10 +1095,15 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
             </th>
             {visibleDates.map(d => {
               const dt = totalByDate.get(d) ?? 0;
+              const dvc = dateVehCounts.get(d);
+              const s1v = dvc?.s1 ?? 0;
+              const s2v = dvc?.s2 ?? 0;
+              const plannedCol = (s1v + s2v) * norm;
               const emptyPast = !datesWithData.has(d) && d < today;
               return (
                 <th key={d} className={`sv-gantt-date-h${emptyPast ? ' sv-gantt-empty-past' : ''}`} colSpan={2}>
-                  {fmtDateShort(d)}{dt > 0 && <span className="sv-truck-trips"> [{dt}]</span>}
+                  <div className="sv-col-date">{fmtDateShort(d)}</div>
+                  {dt > 0 && <div className="sv-col-sub"><span className="sv-truck-trips" title="Факт рейсов / план рейсов за день">[{dt}{norm > 0 && <>/{plannedCol}</>}]</span>{norm > 0 && <span className="sv-norm-trips" title="Кол-во ТС с рейсами: 1-я смена | 2-я смена">{s1v}|{s2v}</span>}</div>}
                 </th>
               );
             })}
@@ -1059,11 +1134,18 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
           {[...vehicleSet.entries()].map(([reg, name]) => {
             const dm = cellMap.get(reg) ?? new Map();
             const total = totalByVeh.get(reg) ?? 0;
+            // Count shifts with trips > 0 (excluding ! and →←, including =N)
+            let shiftCount = 0;
+            for (const [, cell] of dm) {
+              if (cell.s1 > 0) shiftCount++;
+              if (cell.s2 > 0) shiftCount++;
+            }
+            const plannedRow = shiftCount * norm;
             return (
               <tr key={reg}>
                 <td>
                   <div className="sv-vehicle-name-cell">
-                    <span className="sv-reg-num">{reg} <span className="sv-truck-trips">[{total}]</span></span>
+                    <span className="sv-reg-num">{reg} <span className="sv-truck-trips" title="Факт рейсов / план рейсов ТС">[{total}{norm > 0 && <>/<span style={{ color: 'var(--sv-text-4)', fontWeight: 400 }}>{plannedRow}</span></>}]</span>{norm > 0 && <span className="sv-norm-trips" title="Кол-во смен с рейсами">({shiftCount})</span>}</span>
                     <span className="sv-veh-model">{stripSamosvaly(name)}</span>
                   </div>
                 </td>
@@ -1149,18 +1231,19 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme }: {
 // ─────────────────────────────────────────────
 //  Order card
 // ─────────────────────────────────────────────
-function OrderCardView({ card, expanded, onToggle, ordersMap, theme }: {
+function OrderCardView({ card, expanded, onToggle, ordersMap, theme, norm, onNormClick }: {
   card: OrderCard;
   expanded: boolean;
   onToggle: () => void;
   ordersMap: Map<number, OrderCard>;
   theme: string;
+  norm: number;
+  onNormClick: (e: React.MouseEvent) => void;
 }) {
   const pc = card.isDone ? '#22c55e' : '#3B82F6';
   // Факт: 24т и 15м³ за рейс (константа для самосвала)
   const weightActual = Math.round(card.actualTrips * 24);
   const volActual    = Math.round(card.actualTrips * 15);
-  const tripsPerTs   = card.vehicles.length > 0 ? Math.round(card.actualTrips / card.vehicles.length * 10) / 10 : 0;
 
   return (
     <div
@@ -1172,8 +1255,8 @@ function OrderCardView({ card, expanded, onToggle, ordersMap, theme }: {
             <span>Заявка #{card.number}</span>
           </div>
           <div className="sv-order-route-two">
-            <div className="sv-route-line" title={card.routeFrom}>→ {card.routeFrom}</div>
-            <div className="sv-route-line" title={card.routeTo}>← {card.routeTo}</div>
+            <div className={`sv-route-line${card.pointsInBoundary?.[0] === false ? ' sv-route-outside' : ''}`} title={card.routeFrom + (card.pointsInBoundary?.[0] === false ? ' (вне объекта)' : '')}>→ {card.routeFrom}</div>
+            <div className={`sv-route-line${card.pointsInBoundary?.[card.pointsInBoundary.length - 1] === false ? ' sv-route-outside' : ''}`} title={card.routeTo + (card.pointsInBoundary?.[card.pointsInBoundary.length - 1] === false ? ' (вне объекта)' : '')}>← {card.routeTo}</div>
           </div>
         </div>
         <div className="sv-order-data-area">
@@ -1207,24 +1290,26 @@ function OrderCardView({ card, expanded, onToggle, ordersMap, theme }: {
                   </span>
                 )}
               </div>
-              {card.vehicles.length > 0 && (
-                <div className="sv-ow-item">
-                  <span className="sv-ow-val" style={{ color: pc }}>{tripsPerTs}</span>
-                  <span className="sv-ow-unit">рейс/ТС</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {card.vehicles.length > 0 && (
+                  <div className="sv-ow-item">
+                    <span className="sv-ow-val" style={{ color: pc }}>{card.tripsPerVehDay}</span>
+                    <span className="sv-ow-unit">рейсов ТС/смена</span>
+                  </div>
+                )}
+                <div className="sv-norm-box" onClick={onNormClick} title="Расчётные рейсы за смену">
+                  {norm}
                 </div>
-              )}
+              </div>
             </div>
           </div>
           <div className="sv-progress-bar-mini">
             <div className="sv-progress-bar-mini-fill" style={{ width: `${card.pct}%`, background: pc }} />
           </div>
         </div>
-        <svg className="sv-expand-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
       </div>
       <div className={`sv-gantt-wrap ${expanded ? 'open' : ''}`}>
-        {expanded && <GanttTable orderNumber={card.number} dateFromIso={card.dateFromIso} dateToIso={card.dateToIso} ordersMap={ordersMap} theme={theme} />}
+        {expanded && <GanttTable orderNumber={card.number} dateFromIso={card.dateFromIso} dateToIso={card.dateToIso} ordersMap={ordersMap} theme={theme} norm={norm} />}
       </div>
     </div>
   );
@@ -1235,18 +1320,15 @@ function OrderCardView({ card, expanded, onToggle, ordersMap, theme }: {
 // ─────────────────────────────────────────────
 const OBJ_COLORS = ['#F97316', '#3B82F6', '#A78BFA', '#E11D48', '#22c55e'];
 
-function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
+function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }: {
   shiftRecords: ShiftRecord[];
   repairs: Repair[];
   initialDateFrom: string;
+  effectiveNorm: (num: number) => number;
 }) {
   const [collapsedObjs, setCollapsedObjs] = useState<Set<string>>(new Set());
   const [expandedVeh, setExpandedVeh] = useState<Set<string>>(new Set());
-  const [weekOffset, setWeekOffset] = useState(() => {
-    const base = new Date(initialDateFrom + 'T00:00:00');
-    const diff = Math.floor((base.getTime() - getMonday(new Date()).getTime()) / (7 * 86400 * 1000));
-    return diff;
-  });
+  const [weekOffset, setWeekOffset] = useState(0);
   const onWeekChange = (d: number) => setWeekOffset(prev => prev + d);
 
   const mon = addDays(getMonday(new Date()), weekOffset * 7);
@@ -1322,19 +1404,26 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
           // KPI aggregates
           const trips = recs.reduce((s, r) => s + r.tripsCount, 0);
           const trucks = new Set(recs.map(r => r.regNumber)).size;
-          const kip1Recs = recs.filter(r => r.shiftType === 'shift1');
-          const kip2Recs = recs.filter(r => r.shiftType === 'shift2' && r.kipPct > 0);
+          // Donuts: only count records with trips > 0 (active work)
+          const kip1Recs = recs.filter(r => r.shiftType === 'shift1' && r.tripsCount > 0);
+          const kip2Recs = recs.filter(r => r.shiftType === 'shift2' && r.tripsCount > 0);
           const kip1Avg = kip1Recs.length ? Math.round(kip1Recs.reduce((s, r) => s + r.kipPct, 0) / kip1Recs.length) : 0;
           const mov1Avg = kip1Recs.length ? Math.round(kip1Recs.reduce((s, r) => s + r.movementPct, 0) / kip1Recs.length) : 0;
           const mov2Avg = kip2Recs.length ? Math.round(kip2Recs.reduce((s, r) => s + r.movementPct, 0) / kip2Recs.length) : 0;
           const has2 = kip2Recs.length > 0;
 
-          // Per vehicle trips
-          const vehMap = new Map<string, { name: string; trips: number }>();
+          // Per vehicle trips + planned
+          const vehMap = new Map<string, { name: string; trips: number; planned: number }>();
           recs.forEach(r => {
-            if (!vehMap.has(r.regNumber)) vehMap.set(r.regNumber, { name: r.nameMO ?? r.regNumber, trips: 0 });
-            vehMap.get(r.regNumber)!.trips += r.tripsCount;
+            if (!vehMap.has(r.regNumber)) vehMap.set(r.regNumber, { name: r.nameMO ?? r.regNumber, trips: 0, planned: 0 });
+            const v = vehMap.get(r.regNumber)!;
+            v.trips += r.tripsCount;
+            if (r.tripsCount > 0 && r.requestNumbers?.length) {
+              const norms = r.requestNumbers.map(n => effectiveNorm(n));
+              v.planned += Math.max(...norms, 0);
+            }
           });
+          const totalPlanned = [...vehMap.values()].reduce((s, v) => s + v.planned, 0);
 
           const objRepairs = weekRepairs(objName);
 
@@ -1354,7 +1443,9 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
                   </div>
                   <div className="sv-kpi-mini">
                     <div className="sv-kpi-mini-label">Рейсов</div>
-                    <div className="sv-kpi-mini-val" style={{ color: '#22c55e' }}>{trips}</div>
+                    <div className="sv-kpi-mini-val" style={{ color: '#22c55e' }}>
+                      {trips}{totalPlanned > 0 && <span style={{ color: 'var(--sv-text-4)', fontWeight: 400, fontSize: 12 }}>/{totalPlanned}</span>}
+                    </div>
                   </div>
                 </div>
 
@@ -1391,11 +1482,11 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
                   <div className="sv-donut-mini-row">
                     <div className="sv-donut-mini-wrap">
                       <div className="sv-donut-mini-label">1 смена</div>
-                      {mov1Avg > 0 ? <MiniDonut mov={mov1Avg} /> : <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>}
+                      {mov1Avg > 0 ? <MiniDonut mov={mov1Avg} size={90} /> : <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>}
                     </div>
                     <div className="sv-donut-mini-wrap">
                       <div className="sv-donut-mini-label">2 смена</div>
-                      {has2 && mov2Avg > 0 ? <MiniDonut mov={mov2Avg} /> : <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>}
+                      {has2 && mov2Avg > 0 ? <MiniDonut mov={mov2Avg} size={90} /> : <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>}
                     </div>
                   </div>
                   <div className="sv-donut-mini-legend">
@@ -1420,10 +1511,21 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
                   <div className="sv-hbar-item">
                     <div className="sv-hbar-top">
                       <span className="sv-hbar-label">Рейсы</span>
-                      <span className="sv-hbar-val">{trips}</span>
+                      <span className="sv-hbar-val">
+                        {trips}{totalPlanned > 0 && <span style={{ color: 'var(--sv-text-4)', fontWeight: 400 }}>/{totalPlanned}</span>}
+                      </span>
                     </div>
                     <div className="sv-hbar-track">
-                      <div className="sv-hbar-fill" style={{ width: `${Math.min(100, trips / Math.max(1, trips) * 100)}%`, background: 'linear-gradient(90deg,#22c55e,#4ade80)' }} />
+                      <div className="sv-hbar-fill" style={{
+                        width: `${totalPlanned > 0 ? Math.min(100, Math.round(trips / totalPlanned * 100)) : 100}%`,
+                        background: totalPlanned > 0 && trips >= totalPlanned
+                          ? 'linear-gradient(90deg,#22c55e,#4ade80)'
+                          : totalPlanned > 0 && trips >= totalPlanned * 0.7
+                            ? 'linear-gradient(90deg,#FBBF24,#FCD34D)'
+                            : totalPlanned > 0
+                              ? 'linear-gradient(90deg,#EF4444,#F87171)'
+                              : 'linear-gradient(90deg,#22c55e,#4ade80)'
+                      }} />
                     </div>
                   </div>
                 </div>
@@ -1436,15 +1538,23 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
                   <span className="arrow">▶</span> По машинам ({vehMap.size})
                 </button>
                 <div className={`sv-veh-list ${veOpen ? 'open' : ''}`}>
-                  {[...vehMap.entries()].map(([reg, { name, trips: vt }]) => (
-                    <div key={reg} className="sv-veh-bar-item">
-                      <span className="sv-veh-bar-name">{name}</span>
-                      <div className="sv-veh-bar-track">
-                        <div className="sv-veh-bar-fill" style={{ width: '100%' }} />
+                  {[...vehMap.entries()].map(([reg, { name, trips: vt, planned: vp }]) => {
+                    const pct = vp > 0 ? Math.min(100, Math.round(vt / vp * 100)) : (vt > 0 ? 100 : 0);
+                    const barColor = vp > 0
+                      ? vt >= vp ? '#22c55e' : vt >= vp - 1 ? '#FBBF24' : '#EF4444'
+                      : '#3B82F6';
+                    return (
+                      <div key={reg} className="sv-veh-bar-item">
+                        <span className="sv-veh-bar-name">{name}</span>
+                        <div className="sv-veh-bar-track">
+                          <div className="sv-veh-bar-fill" style={{ width: `${pct}%`, background: barColor }} />
+                        </div>
+                        <span className="sv-veh-bar-pct">
+                          {vt}{vp > 0 && <span style={{ color: 'var(--sv-text-4)', fontWeight: 400 }}>/{vp}</span>}
+                        </span>
                       </div>
-                      <span className="sv-veh-bar-pct">{vt}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1461,7 +1571,7 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom }: {
 function ShiftSubTable({ shiftRecord }: {
   shiftRecord: Pick<ShiftRecord, 'id' | 'shiftType' | 'reportDate'>;
 }) {
-  const [data, setData] = useState<{ trips: TripRecord[]; zoneEvents: ZoneEvent[] } | null>(null);
+  const [data, setData] = useState<{ trips: TripRecord[]; zoneEvents: ZoneEvent[]; objectTimezone?: string } | null>(null);
   const [err, setErr] = useState(false);
 
   useEffect(() => {
@@ -1475,7 +1585,8 @@ function ShiftSubTable({ shiftRecord }: {
   if (err) return <div style={{ padding: 8, fontSize: 11, color: '#EF4444' }}>Ошибка загрузки рейсов</div>;
   if (!data) return <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-4)' }}>Загрузка...</div>;
 
-  const { trips, zoneEvents } = data;
+  const { trips, zoneEvents, objectTimezone } = data;
+  const tz = objectTimezone || 'Asia/Yekaterinburg';
 
   if (!trips.length) return (
     <div style={{ padding: '6px 8px', fontSize: 10, color: 'var(--sv-text-4)' }}>
@@ -1516,11 +1627,11 @@ function ShiftSubTable({ shiftRecord }: {
 
     return {
       trip,
-      pIn:    le?.entered_at ? fmtTime(le.entered_at) : '—',
-      pOut:   trip.loaded_at   ? fmtTime(trip.loaded_at)   : '—',
+      pIn:    le?.entered_at ? fmtTime(le.entered_at, tz) : '—',
+      pOut:   trip.loaded_at   ? fmtTime(trip.loaded_at, tz)   : '—',
       pStSec: le?.duration_sec ?? null,
-      uIn:    ue?.entered_at ? fmtTime(ue.entered_at) : '—',
-      uOut:   trip.unloaded_at ? fmtTime(trip.unloaded_at) : '—',
+      uIn:    ue?.entered_at ? fmtTime(ue.entered_at, tz) : '—',
+      uOut:   trip.unloaded_at ? fmtTime(trip.unloaded_at, tz) : '—',
       uStSec: ue?.duration_sec ?? null,
     };
   });
@@ -1539,6 +1650,7 @@ function ShiftSubTable({ shiftRecord }: {
     <div className="sv-sub-table-wrap">
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sv-text-2)', marginBottom: 4 }}>
         Смена {shiftN} · {fmtDateShort(shiftRecord.reportDate)} · {trips.length} рейсов
+        <span style={{ fontWeight: 400, color: 'var(--sv-text-4)', marginLeft: 6 }}>({tzLabel(tz)})</span>
       </div>
       <table className="sv-sub-t sv-sub-t--compact">
         <thead>
@@ -2063,8 +2175,12 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
 //  Global Gantt tab
 // ─────────────────────────────────────────────
 
-function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
+function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQuery, pageSize, onPageSizeChange, sortKey }: {
   orderMonth: string; orders: OrderCard[]; isAllTime: boolean;
+  pageSize: number; onPageSizeChange: (size: number) => void;
+  sortKey: 'reg' | 'trips' | 'lastDate' | 'model';
+  effectiveNorm: (num: number) => number;
+  searchQuery: string;
 }) {
   const { resolvedTheme } = useTheme();
   const [records, setRecords] = useState<ShiftRecord[]>([]);
@@ -2075,6 +2191,8 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
   const [tripPopup, setTripPopup] = useState<{ shiftRecord: ShiftRecord; x: number; y: number } | null>(null);
   const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+
+  const PAGE_STEPS = [8, 12, 16, 24, 31] as const;
 
   useEffect(() => {
     setLoading(true);
@@ -2127,6 +2245,13 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
     if (!vehicleNames.has(r.regNumber)) vehicleNames.set(r.regNumber, r.nameMO ?? r.regNumber);
   });
 
+  // Model counts (for model sort: most common first)
+  const modelCounts = new Map<string, number>();
+  for (const [, name] of vehicleNames) {
+    const m = stripSamosvaly(name);
+    modelCounts.set(m, (modelCounts.get(m) ?? 0) + 1);
+  }
+
   // Object → vehicles (same vehicle duplicated under each object it worked on)
   const objectVehicles = new Map<string, Set<string>>();
   records.forEach(r => {
@@ -2135,6 +2260,27 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
     objectVehicles.get(obj)!.add(r.regNumber);
   });
 
+  // Search filter: keep vehicles matching reg number or order number
+  const gsq = searchQuery.trim().toLowerCase();
+  if (gsq) {
+    // Find order numbers that match search
+    const matchedOrderNums = new Set<number>();
+    for (const [num, card] of ordersMap) {
+      if (String(num).includes(gsq) || card.cargo.toLowerCase().includes(gsq)) matchedOrderNums.add(num);
+    }
+    // Find vehicles matching reg number or that worked on matched orders
+    const matchedVehicles = new Set<string>();
+    for (const [reg, recs] of vehicleRecords) {
+      if (reg.toLowerCase().includes(gsq)) { matchedVehicles.add(reg); continue; }
+      if (recs.some(r => (r.requestNumbers ?? []).some(n => matchedOrderNums.has(n)))) matchedVehicles.add(reg);
+    }
+    for (const [obj, vSet] of objectVehicles) {
+      const filtered = new Set([...vSet].filter(v => matchedVehicles.has(v)));
+      if (filtered.size === 0) objectVehicles.delete(obj);
+      else objectVehicles.set(obj, filtered);
+    }
+  }
+
   // Date range from records
   const sortedDates = [...new Set(records.map(r => toDateStr(r.reportDate)))].sort();
   const minDate = sortedDates[0]!;
@@ -2142,13 +2288,25 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
   const allDates = generateDateRange(minDate, maxDate);
   const datesWithData = new Set(sortedDates);
   const filteredDates = hideEmpty ? allDates.filter(d => datesWithData.has(d)) : allDates;
-  const MIN_DATE_COLS = 7;
-  const paddingCols = Math.max(0, MIN_DATE_COLS - filteredDates.length);
 
-  const needsNav = filteredDates.length > GANTT_PAGE_SIZE;
-  const maxOffset = needsNav ? filteredDates.length - GANTT_PAGE_SIZE : 0;
+  // Zoom scale: base=16 dates. Fewer dates → larger scale, more dates → smaller scale
+  const BASE_PAGE = 16;
+  const zoomScale = Math.min(1.5, Math.max(0.5, BASE_PAGE / pageSize));
+  const cellH = Math.round(22 * zoomScale);
+  const cellFont = Math.max(7, Math.round(10 * zoomScale));
+  const regFont = Math.max(8, Math.round(12 * zoomScale));
+  const modelFont = Math.max(6, Math.round(9 * zoomScale));
+  const dateHFont = Math.max(6, Math.round(9 * zoomScale));
+  const tripsFont = Math.max(6, Math.round(9 * zoomScale));
+  const thPad = Math.max(1, Math.round(3 * zoomScale));
+  const MIN_DATE_COLS = 4;
+  const paddingCols = Math.max(0, MIN_DATE_COLS - Math.min(filteredDates.length, pageSize));
+
+  const needsNav = filteredDates.length > pageSize;
+  const maxOffset = needsNav ? filteredDates.length - pageSize : 0;
+  const clampedOffset = Math.min(scrollOffset, Math.max(0, maxOffset));
   const visibleDates = needsNav
-    ? filteredDates.slice(scrollOffset, scrollOffset + GANTT_PAGE_SIZE)
+    ? filteredDates.slice(clampedOffset, clampedOffset + pageSize)
     : filteredDates;
 
   // Total trips per date
@@ -2184,7 +2342,15 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
     return cm;
   };
 
-  const renderGGCell = (trips: number, workType: string, mov: number, hasData: boolean, reqCount: number, shiftRec?: ShiftRecord) => {
+  const ggNormClass = (trips: number, n: number): string => {
+    if (n <= 0 || trips <= 0) return '';
+    if (trips > n) return ' norm-over';
+    if (trips === n) return '';
+    if (trips >= n - 1) return ' norm-warn';
+    return ' norm-under';
+  };
+
+  const renderGGCell = (trips: number, workType: string, mov: number, hasData: boolean, reqCount: number, shiftRec?: ShiftRecord, cellNorm = 0) => {
     const handleClick = (e: React.MouseEvent) => {
       if (shiftRec && (trips > 0 || hasData)) {
         e.stopPropagation();
@@ -2197,8 +2363,9 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
         setTripPopup({ shiftRecord: shiftRec, x: Math.max(4, x), y });
       }
     };
-    if (trips > 0 && reqCount > 1) return <div className="sv-gc f multi" onClick={handleClick} style={{ cursor: 'pointer' }}>={trips}</div>;
-    if (trips > 0) return <div className="sv-gc f" onClick={handleClick} style={{ cursor: 'pointer' }}>{trips}</div>;
+    const nc = ggNormClass(trips, cellNorm);
+    if (trips > 0 && reqCount > 1) return <div className={`sv-gc f multi${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }}>={trips}</div>;
+    if (trips > 0) return <div className={`sv-gc f${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }}>{trips}</div>;
     if (workType === 'onsite' && mov > 0) return <div className="sv-gc f">{mov}%</div>;
     if (hasData) return <div className="sv-gc gc-warn" title="0 рейсов" onClick={handleClick} style={{ cursor: 'pointer' }}>!</div>;
     return <div className="sv-gc gc-absent"></div>;
@@ -2227,29 +2394,66 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
   };
   const onMouseUp = () => { dragRef.current = null; };
 
+  const zoomIn  = () => { const i = PAGE_STEPS.indexOf(pageSize as typeof PAGE_STEPS[number]); if (i > 0) { onPageSizeChange(PAGE_STEPS[i - 1]!); setScrollOffset(0); } };
+  const zoomOut = () => { const i = PAGE_STEPS.indexOf(pageSize as typeof PAGE_STEPS[number]); if (i < PAGE_STEPS.length - 1) { onPageSizeChange(PAGE_STEPS[i + 1]!); setScrollOffset(0); } };
+
   const colSpanAll = 1 + (visibleDates.length + paddingCols) * 2;
   const objectEntries = [...objectVehicles.entries()].sort(([a], [b]) => a.localeCompare(b));
 
+  // Per-object transition maps: for each object group, track which vehicles are on that object
+  const objTransitionMaps = new Map<string, Map<string, Transition>>();
+  for (const [objName, vehicleSet] of objectEntries) {
+    // Build presence: key → true if vehicle's shift_record for that date/shift belongs to this object
+    const objPresMap = new Map<string, boolean>();
+    for (const reg of vehicleSet) {
+      for (const r of vehicleRecords.get(reg) ?? []) {
+        const key = `${reg}|${toDateStr(r.reportDate)}|${r.shiftType}`;
+        // Mark as "on this object" if the record's objectName matches the group
+        if (r.objectName === objName) {
+          objPresMap.set(key, true);
+        } else if (!objPresMap.has(key)) {
+          objPresMap.set(key, false);
+        }
+      }
+    }
+    objTransitionMaps.set(objName, computeTransitions(allDates, vehicleSet, key => objPresMap.get(key) === true));
+  }
+
+  // Check if all vehicles are expanded
+  let totalExpandable = 0;
+  for (const [, vs] of objectEntries) totalExpandable += vs.size;
+  const allExpanded = totalExpandable > 0 && expandedVehicles.size >= totalExpandable;
+
   return (
-    <div className="sv-gantt sv-gg-wrap" onMouseMove={needsNav ? onMouseMove : undefined} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+    <div className="sv-gantt sv-gg-wrap" onMouseMove={needsNav ? onMouseMove : undefined} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+      style={{ '--gg-cell-h': `${cellH}px`, '--gg-cell-font': `${cellFont}px`, '--gg-reg-font': `${regFont}px`, '--gg-model-font': `${modelFont}px`, '--gg-date-font': `${dateHFont}px`, '--gg-trips-font': `${tripsFont}px`, '--gg-th-pad': `${thPad}px` } as React.CSSProperties}>
       <table>
         <thead>
           <tr>
             <th className="sv-gantt-corner" style={{ width: 180, minWidth: 180 }}>
               <span className="sv-gantt-nav-group" onMouseDown={e => e.stopPropagation()}>
                 <button
-                  className={`sv-gantt-nav-btn sv-gantt-eye-btn${hideEmpty ? ' sv-gantt-eye-active' : ''}`}
-                  onClick={() => { setHideEmpty(h => !h); setScrollOffset(0); }}
-                  title={hideEmpty ? 'Показать все дни' : 'Скрыть пустые дни'}
+                  className={`sv-gantt-nav-btn sv-gantt-eye-btn${allExpanded ? ' sv-gantt-eye-active' : ''}`}
+                  onClick={() => {
+                    if (allExpanded) {
+                      setExpandedVehicles(new Set());
+                    } else {
+                      const allKeys = new Set<string>();
+                      for (const [on, vs] of objectEntries) {
+                        for (const r of vs) allKeys.add(`${on}|${r}`);
+                      }
+                      setExpandedVehicles(allKeys);
+                    }
+                  }}
+                  title={allExpanded ? 'Свернуть все заявки' : 'Развернуть все заявки'}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    {hideEmpty ? (<>
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
+                    {allExpanded ? (<>
+                      <polyline points="18 15 12 9 6 15" />
+                      <polyline points="18 21 12 15 6 21" />
                     </>) : (<>
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
+                      <polyline points="6 9 12 15 18 9" />
+                      <polyline points="6 15 12 21 18 15" />
                     </>)}
                   </svg>
                 </button>
@@ -2263,9 +2467,22 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
             </th>
             {visibleDates.map(d => {
               const dt = totalByDate.get(d) ?? 0;
+              // Compute column planned: for each vehicle on this date/shift with trips>0, add its norm
+              let colPlanned = 0;
+              let colS1v = 0, colS2v = 0;
+              for (const [, vRecs] of vehicleRecords) {
+                for (const r of vRecs) {
+                  if (toDateStr(r.reportDate) !== d || r.tripsCount <= 0) continue;
+                  const rNorms = (r.requestNumbers ?? []).map(n => effectiveNorm(n));
+                  const maxN = rNorms.length > 0 ? Math.max(...rNorms) : 0;
+                  colPlanned += maxN;
+                  if (r.shiftType === 'shift1') colS1v++; else colS2v++;
+                }
+              }
               return (
                 <th key={d} className="sv-gantt-date-h" colSpan={2}>
-                  {fmtDateShort(d)}{dt > 0 && <span className="sv-truck-trips"> [{dt}]</span>}
+                  <div className="sv-col-date">{fmtDateShort(d)}</div>
+                  {dt > 0 && <div className="sv-col-sub"><span className="sv-truck-trips" title="Факт рейсов / план рейсов за день">[{dt}{colPlanned > 0 && <>/{colPlanned}</>}]</span>{colPlanned > 0 && <span className="sv-norm-trips" title="Кол-во ТС с рейсами: 1-я смена | 2-я смена">{colS1v}|{colS2v}</span>}</div>}
                 </th>
               );
             })}
@@ -2286,15 +2503,69 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
 
         {objectEntries.map(([objName, vehicleSet]) => {
           const sortedVehicles = [...vehicleSet].sort((a, b) => {
-            const ta = (vehicleRecords.get(a) ?? []).reduce((s, r) => s + r.tripsCount, 0);
-            const tb = (vehicleRecords.get(b) ?? []).reduce((s, r) => s + r.tripsCount, 0);
-            return tb - ta;
+            if (sortKey === 'trips') {
+              const ta = (vehicleRecords.get(a) ?? []).reduce((s, r) => s + r.tripsCount, 0);
+              const tb = (vehicleRecords.get(b) ?? []).reduce((s, r) => s + r.tripsCount, 0);
+              return tb - ta;
+            }
+            if (sortKey === 'lastDate') {
+              const la = Math.max(...(vehicleRecords.get(a) ?? []).filter(r => r.tripsCount > 0).map(r => new Date(toDateStr(r.reportDate)).getTime()), 0);
+              const lb = Math.max(...(vehicleRecords.get(b) ?? []).filter(r => r.tripsCount > 0).map(r => new Date(toDateStr(r.reportDate)).getTime()), 0);
+              return lb - la;
+            }
+            if (sortKey === 'model') {
+              const ma = stripSamosvaly(vehicleNames.get(a));
+              const mb = stripSamosvaly(vehicleNames.get(b));
+              const ca = modelCounts.get(ma) ?? 0;
+              const cb = modelCounts.get(mb) ?? 0;
+              if (ca !== cb) return cb - ca;
+              return ma.localeCompare(mb);
+            }
+            // default: reg number alphabetically
+            return a.localeCompare(b);
           });
+          const objTransMap = objTransitionMaps.get(objName);
+
+          // Per-object trip totals by date (only vehicles in this group that worked on this object)
+          const objTripsByDate = new Map<string, number>();
+          for (const reg of vehicleSet) {
+            for (const r of vehicleRecords.get(reg) ?? []) {
+              if (r.objectName === objName) {
+                const d = toDateStr(r.reportDate);
+                objTripsByDate.set(d, (objTripsByDate.get(d) ?? 0) + r.tripsCount);
+              }
+            }
+          }
 
           return (
             <tbody key={objName}>
               <tr className="sv-gg-obj-header">
                 <td colSpan={colSpanAll}>{objName}</td>
+              </tr>
+              <tr className={`sv-gg-obj-dates${needsNav ? ' sv-gantt-draggable' : ''}`} onMouseDown={needsNav ? onMouseDown : undefined}>
+                <td></td>
+                {visibleDates.map(d => {
+                  const ot = objTripsByDate.get(d) ?? 0;
+                  // Per-object column planned
+                  let oPlanned = 0, oS1v = 0, oS2v = 0;
+                  for (const vReg of vehicleSet) {
+                    for (const r of vehicleRecords.get(vReg) ?? []) {
+                      if (toDateStr(r.reportDate) !== d || r.tripsCount <= 0 || r.objectName !== objName) continue;
+                      const rNorms = (r.requestNumbers ?? []).map(n => effectiveNorm(n));
+                      oPlanned += rNorms.length > 0 ? Math.max(...rNorms) : 0;
+                      if (r.shiftType === 'shift1') oS1v++; else oS2v++;
+                    }
+                  }
+                  return (
+                    <td key={d} colSpan={2} className="sv-gg-obj-date-cell">
+                      <div className="sv-col-date">{fmtDateShort(d)}</div>
+                      {ot > 0 && <div className="sv-col-sub"><span className="sv-truck-trips" title="Факт рейсов / план рейсов за день">[{ot}{oPlanned > 0 && <>/{oPlanned}</>}]</span>{oPlanned > 0 && <span className="sv-norm-trips" title="Кол-во ТС с рейсами: 1-я смена | 2-я смена">{oS1v}|{oS2v}</span>}</div>}
+                    </td>
+                  );
+                })}
+                {paddingCols > 0 && Array.from({ length: paddingCols }, (_, i) => (
+                  <td key={`pad-${i}`} colSpan={2}></td>
+                ))}
               </tr>
               {sortedVehicles.map(reg => {
                 const vehRecs = vehicleRecords.get(reg) ?? [];
@@ -2303,16 +2574,43 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
                 const nameMO = vehicleNames.get(reg) ?? reg;
                 const expandKey = `${objName}|${reg}`;
                 const isExpanded = expandedVehicles.has(expandKey);
-                const orderNums = [...new Set(vehRecs.flatMap(r => r.requestNumbers ?? []))];
+                const orderNums = [...new Set(vehRecs.flatMap(r => r.requestNumbers ?? []))].sort((a, b) => {
+                  const oa = ordersMap.get(a), ob = ordersMap.get(b);
+                  const da = oa?.dateFromIso ?? '', db = ob?.dateFromIso ?? '';
+                  if (da !== db) return da.localeCompare(db);
+                  const la = (oa?.dateToIso ?? '').localeCompare(oa?.dateFromIso ?? '');
+                  const lb = (ob?.dateToIso ?? '').localeCompare(ob?.dateFromIso ?? '');
+                  return lb - la;
+                });
                 const hasUnlinked = vehRecs.some(r => !r.requestNumbers || r.requestNumbers.length === 0);
+
+                // Row-level planned: count shifts with trips > 0, compute planned
+                let rowShiftCount = 0;
+                let rowPlanned = 0;
+                for (const [, cell] of cm) {
+                  const s1Nums = cell.s1rec?.requestNumbers ?? [];
+                  const s2Nums = cell.s2rec?.requestNumbers ?? [];
+                  if (cell.s1 > 0) {
+                    rowShiftCount++;
+                    const norms = s1Nums.map(n => effectiveNorm(n));
+                    rowPlanned += norms.length > 0 ? Math.max(...norms) : 0;
+                  }
+                  if (cell.s2 > 0) {
+                    rowShiftCount++;
+                    const norms = s2Nums.map(n => effectiveNorm(n));
+                    rowPlanned += norms.length > 0 ? Math.max(...norms) : 0;
+                  }
+                }
 
                 return (
                   <React.Fragment key={reg}>
-                    <tr>
+                    <tr className={isExpanded ? 'sv-gg-expanded-top' : ''}>
                       <td>
                         <div className="sv-vehicle-name-cell">
                           <span className="sv-reg-num">
                             {reg}
+                            {!isAllTime && <span className="sv-truck-trips" title="Факт рейсов / план рейсов ТС"> [{totalTrips}{rowPlanned > 0 && <>/<span style={{ color: 'var(--sv-text-4)', fontWeight: 400 }}>{rowPlanned}</span></>}]</span>}
+                            {!isAllTime && rowPlanned > 0 && <span className="sv-norm-trips" title="Кол-во смен с рейсами">({rowShiftCount})</span>}
                             {!isAllTime && (orderNums.length > 0 || hasUnlinked) && (
                               <span className="sv-gg-dots"
                                 onClick={e => { e.stopPropagation(); toggleExpand(expandKey); }}
@@ -2324,17 +2622,29 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
                                 {hasUnlinked && <span className="sv-gg-dot unlinked" title="Без заявки" />}
                               </span>
                             )}
-                            {!isAllTime && <span className="sv-truck-trips"> [{totalTrips}]</span>}
                           </span>
                           <span className="sv-veh-model">{stripSamosvaly(nameMO)}</span>
                         </div>
                       </td>
                       {visibleDates.map(d => {
                         const cell = cm.get(d);
+                        const s1key = `${reg}|${d}|shift1`;
+                        const s2key = `${reg}|${d}|shift2`;
+                        const t1 = objTransMap?.get(s1key);
+                        const t2 = objTransMap?.get(s2key);
+                        const tdCls1 = [t1?.absent && 'sv-obj-absent', t1?.departure && 'sv-obj-depart', t1?.return && 'sv-obj-return'].filter(Boolean).join(' ');
+                        const tdCls2 = [t2?.absent && 'sv-obj-absent', t2?.departure && 'sv-obj-depart', t2?.return && 'sv-obj-return'].filter(Boolean).join(' ');
+                        // Compute cellNorm for main row: if all orders have same norm → use it, else 0 (blue)
+                        const s1Norms = (cell?.s1rec?.requestNumbers ?? []).map(n => effectiveNorm(n));
+                        const s2Norms = (cell?.s2rec?.requestNumbers ?? []).map(n => effectiveNorm(n));
+                        const s1AllSame = s1Norms.length > 0 && s1Norms.every(n => n === s1Norms[0]);
+                        const s2AllSame = s2Norms.length > 0 && s2Norms.every(n => n === s2Norms[0]);
+                        const s1Norm = s1AllSame ? s1Norms[0]! : 0;
+                        const s2Norm = s2AllSame ? s2Norms[0]! : 0;
                         return (
                           <React.Fragment key={d}>
-                            <td>{cell ? renderGGCell(cell.s1, cell.s1work, cell.s1mov, cell.s1has, cell.s1reqCount, cell.s1rec) : <div className="sv-gc gc-absent"></div>}</td>
-                            <td>{cell ? renderGGCell(cell.s2, cell.s2work, cell.s2mov, cell.s2has, cell.s2reqCount, cell.s2rec) : <div className="sv-gc gc-absent"></div>}</td>
+                            <td className={tdCls1}>{cell ? renderGGCell(cell.s1, cell.s1work, cell.s1mov, cell.s1has, cell.s1reqCount, cell.s1rec, s1Norm) : <div className="sv-gc gc-absent"></div>}</td>
+                            <td className={tdCls2}>{cell ? renderGGCell(cell.s2, cell.s2work, cell.s2mov, cell.s2has, cell.s2reqCount, cell.s2rec, s2Norm) : <div className="sv-gc gc-absent"></div>}</td>
                           </React.Fragment>
                         );
                       })}
@@ -2344,24 +2654,31 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
                     </tr>
 
                     {/* Expanded sub-rows per order */}
-                    {isExpanded && orderNums.map(num => {
+                    {isExpanded && orderNums.map((num, idx) => {
                       const subRecs = vehRecs.filter(r => (r.requestNumbers ?? []).includes(num));
                       const subCm = buildCellMap(subRecs);
                       const order = ordersMap.get(num);
+                      const subNorm = effectiveNorm(num);
+                      const cargoShort = order?.cargo && order.cargo !== '—'
+                        ? (order.cargo.length > 8 ? order.cargo.slice(0, 8) + '…' : order.cargo)
+                        : '';
+                      const isLastSub = idx === orderNums.length - 1 && !hasUnlinked;
                       return (
-                        <tr key={`${reg}-${num}`} className="sv-gg-sub-row">
+                        <tr key={`${reg}-${num}`} className={`sv-gg-sub-row${isLastSub ? ' sv-gg-expanded-bottom' : ''}`}>
                           <td>
                             <span className="sv-gg-sub-label">
                               <span className={`sv-gg-dot ${order?.isDone ? 'done' : ''}`} />
                               #{num}
+                              {order && <span className="sv-gg-sub-meta"> {order.dateFrom}–{order.dateTo}</span>}
+                              {cargoShort && <span className="sv-gg-sub-cargo" title={order?.cargo}>{cargoShort}</span>}
                             </span>
                           </td>
                           {visibleDates.map(d => {
                             const cell = subCm.get(d);
                             return (
                               <React.Fragment key={d}>
-                                <td>{cell ? renderGGCell(cell.s1, cell.s1work, cell.s1mov, cell.s1has, 0, cell.s1rec) : <div className="sv-gc gc-absent"></div>}</td>
-                                <td>{cell ? renderGGCell(cell.s2, cell.s2work, cell.s2mov, cell.s2has, 0, cell.s2rec) : <div className="sv-gc gc-absent"></div>}</td>
+                                <td>{cell ? renderGGCell(cell.s1, cell.s1work, cell.s1mov, cell.s1has, 0, cell.s1rec, subNorm) : <div className="sv-gc gc-absent"></div>}</td>
+                                <td>{cell ? renderGGCell(cell.s2, cell.s2work, cell.s2mov, cell.s2has, 0, cell.s2rec, subNorm) : <div className="sv-gc gc-absent"></div>}</td>
                               </React.Fragment>
                             );
                           })}
@@ -2377,7 +2694,7 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime }: {
                       const unlinkedRecs = vehRecs.filter(r => !r.requestNumbers || r.requestNumbers.length === 0);
                       const subCm = buildCellMap(unlinkedRecs);
                       return (
-                        <tr key={`${reg}-unlinked`} className="sv-gg-sub-row">
+                        <tr key={`${reg}-unlinked`} className="sv-gg-sub-row sv-gg-expanded-bottom">
                           <td>
                             <span className="sv-gg-sub-label">
                               <span className="sv-gg-dot unlinked" />
@@ -2429,9 +2746,26 @@ export function DumpTrucksPage() {
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [constructorOpen, setConstructorOpen] = useState(false);
   const [groupByCargo, setGroupByCargo] = useState(false);
+  const [groupByStatus, setGroupByStatus] = useState(true);
   const [orderSortKey, setOrderSortKey] = useState<'pct' | 'trips' | 'distance' | 'dateFrom' | 'dateTo'>('pct');
   const [orderSortDir, setOrderSortDir] = useState<'asc' | 'desc'>('desc');
   const [isAllTime, setIsAllTime] = useState(false);
+  const GG_PAGE_STEPS = [8, 12, 16, 24, 31] as const;
+  const [ggPageSize, setGgPageSize] = useState<number>(16);
+  const [ggSortKey, setGgSortKey] = useState<'reg' | 'trips' | 'lastDate' | 'model'>('reg');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) => setCollapsedGroups(prev => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
+
+  // Norms state
+  const [orderNorms, setOrderNorms] = useState<Map<number, number>>(new Map());
+  const [localNormEdits, setLocalNormEdits] = useState<Map<number, number>>(new Map());
+  const [normPopup, setNormPopup] = useState<{ orderNumber: number; x: number; y: number } | null>(null);
+  const normPopupRef = useRef<HTMLDivElement>(null);
 
   // User settings
   const [currentUser, setCurrentUserState] = useState<string | null>(() => getCurrentUser());
@@ -2492,10 +2826,15 @@ export function DumpTrucksPage() {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingRecords, setLoadingRecords] = useState(true);
 
-  // Load objects and repairs once
+  // Load objects, repairs, and norms once
   useEffect(() => {
     fetchObjects().then(setObjects).catch(console.error);
     fetchRepairs().then(setRepairs).catch(console.error);
+    fetchOrderNorms().then(rows => {
+      const m = new Map<number, number>();
+      rows.forEach(r => m.set(r.request_number, r.trips_per_shift));
+      setOrderNorms(m);
+    }).catch(console.error);
   }, []);
 
   // Load orders + month shift records when month changes
@@ -2551,14 +2890,61 @@ export function DumpTrucksPage() {
   // ordersMap for GanttTable popup info
   const ordersMap = React.useMemo(() => new Map(orders.map(o => [o.number, o])), [orders]);
 
-  const renderGrouped = (items: OrderCard[]) => {
+  const defaultNorm = (card: OrderCard | undefined): number => {
+    if (!card || card.countTs === 0) return 0;
+    const dFrom = card.dateFromIso, dTo = card.dateToIso;
+    let durationDays = 1;
+    if (dFrom && dTo && dFrom < dTo) {
+      const ms = new Date(dTo).getTime() - new Date(dFrom).getTime();
+      durationDays = Math.max(Math.round(ms / 86400000), 1); // dTo - dFrom (not +1)
+    }
+    return Math.round(card.planTrips / card.countTs / durationDays / 2);
+  };
+
+  const effectiveNorm = (num: number): number => {
+    return localNormEdits.get(num) ?? orderNorms.get(num) ?? defaultNorm(ordersMap.get(num));
+  };
+
+  const handleSaveNorms = async () => {
+    if (localNormEdits.size === 0) return;
+    const norms = [...localNormEdits.entries()].map(([number, tripsPerShift]) => ({ number, tripsPerShift }));
+    try {
+      await saveOrderNorms(norms);
+      setOrderNorms(prev => {
+        const m = new Map(prev);
+        localNormEdits.forEach((v, k) => m.set(k, v));
+        return m;
+      });
+      setLocalNormEdits(new Map());
+    } catch (e) { console.error('Failed to save norms', e); }
+  };
+
+  // Close norm popup on outside click
+  useEffect(() => {
+    if (!normPopup) return;
+    const handler = (e: MouseEvent) => {
+      if (normPopupRef.current && !normPopupRef.current.contains(e.target as Node)) setNormPopup(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [normPopup]);
+
+  const renderOrderCard = (o: OrderCard) => (
+    <OrderCardView key={o.number} card={o}
+      expanded={expandedOrders.has(o.number)}
+      onToggle={() => toggleOrder(o.number)}
+      ordersMap={ordersMap} theme={theme ?? 'dark'}
+      norm={effectiveNorm(o.number)}
+      onNormClick={e => {
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setNormPopup({ orderNumber: o.number, x: rect.left, y: rect.bottom + 4 });
+      }} />
+  );
+
+  const renderGrouped = (items: OrderCard[], parentKey: string) => {
     if (!groupByCargo || items.length === 0) {
-      return items.map(o => (
-        <OrderCardView key={o.number} card={o}
-          expanded={expandedOrders.has(o.number)}
-          onToggle={() => toggleOrder(o.number)}
-          ordersMap={ordersMap} theme={theme ?? 'dark'} />
-      ));
+      return items.map(renderOrderCard);
     }
     const cargoMap = new Map<string, OrderCard[]>();
     items.forEach(o => {
@@ -2566,23 +2952,36 @@ export function DumpTrucksPage() {
       if (!cargoMap.has(key)) cargoMap.set(key, []);
       cargoMap.get(key)!.push(o);
     });
-    return [...cargoMap.entries()].map(([cargo, groupItems]) => (
-      <div key={cargo} style={{ marginBottom: 6 }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 3, marginLeft: 4 }}>
-          {cargo} ({groupItems.length})
+    return [...cargoMap.entries()].map(([cargo, groupItems]) => {
+      const gk = `${parentKey}|cargo:${cargo}`;
+      const collapsed = collapsedGroups.has(gk);
+      return (
+        <div key={cargo} style={{ marginBottom: 6 }}>
+          <div className="sv-group-toggle" onClick={() => toggleGroup(gk)}>
+            <span className={`sv-group-arrow${collapsed ? '' : ' open'}`}>&#9654;</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '.4px' }}>
+              {cargo} ({groupItems.length})
+            </span>
+          </div>
+          {!collapsed && groupItems.map(renderOrderCard)}
         </div>
-        {groupItems.map(o => (
-          <OrderCardView key={o.number} card={o}
-            expanded={expandedOrders.has(o.number)}
-            onToggle={() => toggleOrder(o.number)}
-            ordersMap={ordersMap} theme={theme ?? 'dark'} />
-        ))}
-      </div>
-    ));
+      );
+    });
   };
 
-  // Filter orders: overlap with selected month
+  // Search filter helper
+  const sq = searchQuery.trim().toLowerCase();
+  const matchesSearch = (o: OrderCard): boolean => {
+    if (!sq) return true;
+    if (String(o.number).includes(sq)) return true;
+    if (o.vehicles.some(v => v.toLowerCase().includes(sq))) return true;
+    if (o.cargo.toLowerCase().includes(sq)) return true;
+    return false;
+  };
+
+  // Filter orders: overlap with selected month + search
   const monthOrders = orders.filter(o => {
+    if (!matchesSearch(o)) return false;
     // If no dates from points, fallback: show if API returned it for this range
     if (!o.dateFromIso && !o.dateToIso) return true;
     const oFrom = o.dateFromIso || '0000-01-01';
@@ -2618,13 +3017,27 @@ export function DumpTrucksPage() {
           <button className={`sv-view-tab ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
             📋 Заявки
           </button>
+          <button className={`sv-view-tab ${activeTab === 'gantt' ? 'active' : ''}`} onClick={() => setActiveTab('gantt')}>
+            📅 Ганта
+          </button>
           <button className={`sv-view-tab ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
             📊 Аналитика
           </button>
-          <button className={`sv-view-tab ${activeTab === 'gantt' ? 'active' : ''}`} onClick={() => setActiveTab('gantt')}>
-            📊 Ганта
-          </button>
         </div>
+
+        {/* Search */}
+        {(activeTab === 'orders' || activeTab === 'gantt') && (
+          <>
+            <div className="sv-filter-sep" />
+            <input
+              type="text"
+              className="sv-search-input"
+              placeholder="Поиск..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </>
+        )}
 
         {/* Orders / Gantt: month nav */}
         {(activeTab === 'orders' || activeTab === 'gantt') && (
@@ -2639,9 +3052,34 @@ export function DumpTrucksPage() {
               </div>
             </div>
             {activeTab === 'gantt' && (
-              <button className={`sv-fb-pill ${isAllTime ? 'active' : ''}`}
-                onClick={() => setIsAllTime(p => !p)}>
-                За всё время
+              <>
+                <button className={`sv-fb-pill ${isAllTime ? 'active' : ''}`}
+                  onClick={() => setIsAllTime(p => !p)}>
+                  За всё время
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <button className="sv-gantt-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }}
+                    onClick={() => { const i = GG_PAGE_STEPS.indexOf(ggPageSize as typeof GG_PAGE_STEPS[number]); if (i > 0) setGgPageSize(GG_PAGE_STEPS[i - 1]!); }}
+                    disabled={ggPageSize <= GG_PAGE_STEPS[0]} title="Приблизить">+</button>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--sv-text-3)', minWidth: 24, textAlign: 'center' }}>{ggPageSize}д</span>
+                  <button className="sv-gantt-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }}
+                    onClick={() => { const i = GG_PAGE_STEPS.indexOf(ggPageSize as typeof GG_PAGE_STEPS[number]); if (i < GG_PAGE_STEPS.length - 1) setGgPageSize(GG_PAGE_STEPS[i + 1]!); }}
+                    disabled={ggPageSize >= GG_PAGE_STEPS[GG_PAGE_STEPS.length - 1]} title="Отдалить">−</button>
+                </div>
+                <div className="sv-filter-sep" />
+                <div className="sv-fg">
+                  <div className="sv-fg-label">Сортировка</div>
+                  <div className="sv-fg-row" style={{ gap: 2 }}>
+                    {([['reg', 'Госномер'], ['trips', 'Рейсы'], ['lastDate', 'Посл. выход'], ['model', 'Марка']] as const).map(([k, label]) => (
+                      <button key={k} className={`sv-fb-pill sm${ggSortKey === k ? ' active' : ''}`} onClick={() => setGgSortKey(k)}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+            {localNormEdits.size > 0 && (
+              <button className="sv-fb-pill active" onClick={handleSaveNorms}>
+                Обновить расчётные рейсы
               </button>
             )}
           </>
@@ -2745,6 +3183,12 @@ export function DumpTrucksPage() {
                   {/* Toolbar: grouping + sorting */}
                   <div className="sv-order-toolbar">
                     <button
+                      className={`sv-fb-pill ${groupByStatus ? 'active' : ''}`}
+                      onClick={() => setGroupByStatus(p => !p)}
+                    >
+                      По статусу
+                    </button>
+                    <button
                       className={`sv-fb-pill ${groupByCargo ? 'active' : ''}`}
                       onClick={() => setGroupByCargo(p => !p)}
                     >
@@ -2772,33 +3216,56 @@ export function DumpTrucksPage() {
                   </div>
 
                   {[...cityMap.entries()].map(([city, cityOrders]) => {
+                    const cityKey = `city:${city}`;
+                    const cityCollapsed = collapsedGroups.has(cityKey);
+                    if (!groupByStatus) {
+                      return (
+                        <div key={city} className="sv-city-group">
+                          <div className="sv-city-header sv-group-toggle" onClick={() => toggleGroup(cityKey)}>
+                            <span className={`sv-group-arrow${cityCollapsed ? '' : ' open'}`}>&#9654;</span>
+                            <span className="sv-city-name">{city}</span>
+                            <span className="sv-city-badge">{cityOrders.length}</span>
+                          </div>
+                          {!cityCollapsed && renderGrouped(sortOrders(cityOrders), cityKey)}
+                        </div>
+                      );
+                    }
                     const active = sortOrders(cityOrders.filter(o => !o.isDone));
                     const closed = sortOrders(cityOrders.filter(o => o.isDone));
 
                     return (
                       <div key={city} className="sv-city-group">
-                        <div className="sv-city-header">
+                        <div className="sv-city-header sv-group-toggle" onClick={() => toggleGroup(cityKey)}>
+                          <span className={`sv-group-arrow${cityCollapsed ? '' : ' open'}`}>&#9654;</span>
                           <span className="sv-city-name">{city}</span>
                           <span className="sv-city-badge">{cityOrders.length}</span>
                         </div>
-                        {active.length > 0 && (
-                          <>
-                            <div className="sv-status-label">
-                              <div className="sv-status-dot" style={{ background: '#F97316' }} />
-                              Активные ({active.length})
-                            </div>
-                            {renderGrouped(active)}
-                          </>
-                        )}
-                        {closed.length > 0 && (
-                          <>
-                            <div className="sv-status-label">
-                              <div className="sv-status-dot" style={{ background: '#22c55e' }} />
-                              Закрытые ({closed.length})
-                            </div>
-                            {renderGrouped(closed)}
-                          </>
-                        )}
+                        {!cityCollapsed && (<>
+                          {active.length > 0 && (() => {
+                            const statusKey = `${cityKey}|active`;
+                            const statusCollapsed = collapsedGroups.has(statusKey);
+                            return (<>
+                              <div className="sv-status-label sv-group-toggle" onClick={() => toggleGroup(statusKey)}>
+                                <span className={`sv-group-arrow sm${statusCollapsed ? '' : ' open'}`}>&#9654;</span>
+                                <div className="sv-status-dot" style={{ background: '#F97316' }} />
+                                Активные ({active.length})
+                              </div>
+                              {!statusCollapsed && renderGrouped(active, statusKey)}
+                            </>);
+                          })()}
+                          {closed.length > 0 && (() => {
+                            const statusKey = `${cityKey}|closed`;
+                            const statusCollapsed = collapsedGroups.has(statusKey);
+                            return (<>
+                              <div className="sv-status-label sv-group-toggle" onClick={() => toggleGroup(statusKey)}>
+                                <span className={`sv-group-arrow sm${statusCollapsed ? '' : ' open'}`}>&#9654;</span>
+                                <div className="sv-status-dot" style={{ background: '#22c55e' }} />
+                                Закрытые ({closed.length})
+                              </div>
+                              {!statusCollapsed && renderGrouped(closed, statusKey)}
+                            </>);
+                          })()}
+                        </>)}
                       </div>
                     );
                   })}
@@ -2826,6 +3293,7 @@ export function DumpTrucksPage() {
                 shiftRecords={shiftRecords}
                 repairs={repairs}
                 initialDateFrom={dateFrom}
+                effectiveNorm={effectiveNorm}
               />
             </div>
           )}
@@ -2850,6 +3318,11 @@ export function DumpTrucksPage() {
                 orderMonth={orderMonth}
                 orders={orders}
                 isAllTime={isAllTime}
+                effectiveNorm={effectiveNorm}
+                searchQuery={searchQuery}
+                pageSize={ggPageSize}
+                onPageSizeChange={setGgPageSize}
+                sortKey={ggSortKey}
               />
             </div>
           )}
@@ -2864,6 +3337,37 @@ export function DumpTrucksPage() {
           />
         )}
       </div>
+
+      {/* Norm edit popup portal */}
+      {normPopup && createPortal(
+        <div ref={normPopupRef} className="sv-gg-popup sv-norm-popup" data-theme={theme}
+          style={{ left: normPopup.x, top: normPopup.y }}
+          onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 6 }}>Расчётка (рейсов/смену)</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button className="sv-norm-btn" onClick={() => {
+              const cur = effectiveNorm(normPopup.orderNumber);
+              if (cur > 0) setLocalNormEdits(prev => { const m = new Map(prev); m.set(normPopup.orderNumber, cur - 1); return m; });
+            }}>−</button>
+            <input
+              type="number"
+              className="sv-norm-input"
+              value={effectiveNorm(normPopup.orderNumber)}
+              onChange={e => {
+                const v = Math.max(0, Math.round(Number(e.target.value) || 0));
+                setLocalNormEdits(prev => { const m = new Map(prev); m.set(normPopup.orderNumber, v); return m; });
+              }}
+              min={0}
+              style={{ width: 44, textAlign: 'center', fontSize: 13, fontWeight: 700 }}
+            />
+            <button className="sv-norm-btn" onClick={() => {
+              const cur = effectiveNorm(normPopup.orderNumber);
+              setLocalNormEdits(prev => { const m = new Map(prev); m.set(normPopup.orderNumber, cur + 1); return m; });
+            }}>+</button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

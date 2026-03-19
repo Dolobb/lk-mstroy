@@ -147,7 +147,18 @@ app.get('/api/dt/orders', async (req, res) => {
         ARRAY_AGG(DISTINCT sr.reg_number) FILTER (WHERE sr.reg_number IS NOT NULL)  AS vehicles,
         ARRAY_AGG(DISTINCT sr.name_mo)    FILTER (WHERE sr.name_mo    IS NOT NULL)  AS vehicle_names,
         ARRAY_AGG(DISTINCT sr.object_name)FILTER (WHERE sr.object_name IS NOT NULL) AS object_names,
-        COUNT(DISTINCT sr.pl_id)          FILTER (WHERE sr.pl_id IS NOT NULL)       AS pl_count
+        COUNT(DISTINCT sr.pl_id)          FILTER (WHERE sr.pl_id IS NOT NULL)       AS pl_count,
+        (SELECT ROUND(AVG(shift_rate)::numeric, 1)
+         FROM (
+           SELECT SUM(sr2.trips_count)::float / NULLIF(COUNT(DISTINCT sr2.vehicle_id), 0) AS shift_rate
+           FROM dump_trucks.shift_records sr2
+           WHERE sr2.request_numbers @> ARRAY[r.number]
+             AND sr2.trips_count > 0
+             AND ($1::date IS NULL OR sr2.report_date >= $1)
+             AND ($2::date IS NULL OR sr2.report_date <= $2)
+           GROUP BY sr2.report_date, sr2.shift_type
+         ) sub
+        ) AS trips_per_veh_day
       FROM dump_trucks.requests r
       -- INNER JOIN: берём только заявки с реальной активностью ТС в указанный период
       INNER JOIN dump_trucks.shift_records sr
@@ -158,9 +169,105 @@ app.get('/api/dt/orders', async (req, res) => {
       HAVING SUM(sr.trips_count) > 0
       ORDER BY r.number DESC
     `, [dateFrom || null, dateTo || null]);
-    res.json({ data: result.rows });
+
+    // Check route points against dt_boundary for each order
+    const rows = result.rows;
+    const objectUids = new Set<string>();
+    for (const row of rows) {
+      for (const objName of (row.object_names ?? [])) {
+        objectUids.add(objName);
+      }
+    }
+
+    // Get boundary unions per object for containment checks
+    // We need object_uid from shift_records, so grab them
+    const objUidMap = new Map<string, string>(); // object_name → object_uid
+    if (rows.length > 0) {
+      const objUidResult = await pool.query(`
+        SELECT DISTINCT object_name, object_uid
+        FROM dump_trucks.shift_records
+        WHERE object_name IS NOT NULL AND object_uid IS NOT NULL
+      `);
+      for (const r of objUidResult.rows) {
+        objUidMap.set(r.object_name, r.object_uid);
+      }
+    }
+
+    // For each order, extract latLon from route points and check against boundaries
+    for (const row of rows) {
+      const pts = row.raw_json?.orders?.[0]?.route?.points ?? [];
+      const latLons = pts.map((p: { latLon?: { lat: number; lng: number } }) => p.latLon ?? null);
+
+      // Find the object_uid for this order (from first object_name)
+      const objName = (row.object_names ?? [])[0];
+      const objUid = objName ? objUidMap.get(objName) : null;
+
+      if (objUid && latLons.some((ll: { lat: number; lng: number } | null) => ll !== null)) {
+        try {
+          const checks = await Promise.all(
+            latLons.map(async (ll: { lat: number; lng: number } | null) => {
+              if (!ll) return null;
+              const check = await pool.query(`
+                SELECT ST_Contains(
+                  (SELECT ST_Union(z.geom) FROM geo.zones z
+                   JOIN geo.zone_tags zt ON zt.zone_uid = z.uid
+                   WHERE zt.tag = 'dt_boundary'
+                     AND z.object_uid = $1),
+                  ST_SetSRID(ST_MakePoint($2, $3), 4326)
+                ) AS inside
+              `, [objUid, ll.lng, ll.lat]);
+              return check.rows[0]?.inside ?? null;
+            })
+          );
+          row.points_in_boundary = checks;
+        } catch {
+          row.points_in_boundary = null;
+        }
+      } else {
+        row.points_in_boundary = null;
+      }
+    }
+
+    res.json({ data: rows });
   } catch (err) {
     logger.error('GET /api/dt/orders error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ========================
+// Расчётные рейсы (нормы заявок)
+// ========================
+// GET /api/dt/order-norms
+app.get('/api/dt/order-norms', async (_req, res) => {
+  try {
+    const pool = getPool();
+    const result = await pool.query(`SELECT request_number, trips_per_shift FROM dump_trucks.order_norms`);
+    res.json({ data: result.rows });
+  } catch (err) {
+    logger.error('GET /api/dt/order-norms error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /api/dt/order-norms
+app.post('/api/dt/order-norms', async (req, res) => {
+  try {
+    const pool = getPool();
+    const { norms } = req.body as { norms: { number: number; tripsPerShift: number }[] };
+    if (!Array.isArray(norms) || norms.length === 0) {
+      res.status(400).json({ error: 'norms array required' }); return;
+    }
+    for (const n of norms) {
+      await pool.query(`
+        INSERT INTO dump_trucks.order_norms (request_number, trips_per_shift)
+        VALUES ($1, $2)
+        ON CONFLICT (request_number) DO UPDATE SET trips_per_shift = $2, updated_at = NOW()
+      `, [n.number, n.tripsPerShift]);
+    }
+    res.json({ status: 'ok', count: norms.length });
+  } catch (err) {
+    logger.error('POST /api/dt/order-norms error', err);
     res.status(500).json({ error: String(err) });
   }
 });
@@ -270,7 +377,7 @@ app.get('/api/dt/shift-detail', async (req, res) => {
         ORDER BY trip_number
       `, [id]),
       pool.query(`
-        SELECT vehicle_id, report_date, shift_type
+        SELECT vehicle_id, report_date, shift_type, object_timezone
         FROM dump_trucks.shift_records
         WHERE id = $1
       `, [id]),
@@ -287,7 +394,7 @@ app.get('/api/dt/shift-detail', async (req, res) => {
       ORDER BY entered_at
     `, [sr.vehicle_id, sr.report_date, sr.shift_type]);
 
-    res.json({ trips: tripsResult.rows, zoneEvents: zeResult.rows });
+    res.json({ trips: tripsResult.rows, zoneEvents: zeResult.rows, objectTimezone: sr.object_timezone || 'Asia/Yekaterinburg' });
   } catch (err) {
     logger.error('GET /api/dt/shift-detail error', err);
     res.status(500).json({ error: String(err) });
@@ -375,8 +482,8 @@ app.get('/api/dt/export/trips.csv', async (req, res) => {
         t.trip_number,
         t.loading_zone,
         t.unloading_zone,
-        TO_CHAR(t.loaded_at   AT TIME ZONE 'Asia/Yekaterinburg', 'HH24:MI') AS loaded_at,
-        TO_CHAR(t.unloaded_at AT TIME ZONE 'Asia/Yekaterinburg', 'HH24:MI') AS unloaded_at,
+        TO_CHAR(t.loaded_at   AT TIME ZONE COALESCE(sr.object_timezone, 'Asia/Yekaterinburg'), 'HH24:MI') AS loaded_at,
+        TO_CHAR(t.unloaded_at AT TIME ZONE COALESCE(sr.object_timezone, 'Asia/Yekaterinburg'), 'HH24:MI') AS unloaded_at,
         t.duration_min,
         t.distance_km,
         t.volume_m3
@@ -430,8 +537,8 @@ app.get('/api/dt/export/zone-events.csv', async (req, res) => {
         sr.object_name,
         ze.zone_name,
         ze.zone_tag,
-        TO_CHAR(ze.entered_at AT TIME ZONE 'Asia/Yekaterinburg', 'HH24:MI') AS entered_at,
-        TO_CHAR(ze.exited_at  AT TIME ZONE 'Asia/Yekaterinburg', 'HH24:MI') AS exited_at,
+        TO_CHAR(ze.entered_at AT TIME ZONE COALESCE(sr.object_timezone, 'Asia/Yekaterinburg'), 'HH24:MI') AS entered_at,
+        TO_CHAR(ze.exited_at  AT TIME ZONE COALESCE(sr.object_timezone, 'Asia/Yekaterinburg'), 'HH24:MI') AS exited_at,
         ROUND(ze.duration_sec::numeric / 60, 1) AS duration_min
       FROM dump_trucks.zone_events ze
       LEFT JOIN dump_trucks.shift_records sr

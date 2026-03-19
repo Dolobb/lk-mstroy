@@ -13,6 +13,7 @@ export interface GeoObject {
   name: string;
   smu: string | null;
   region: string | null;
+  timezone: string;
 }
 
 /**
@@ -24,8 +25,9 @@ export async function getDtObjects(pool: Pool): Promise<GeoObject[]> {
     name: string;
     smu: string | null;
     region: string | null;
+    timezone: string;
   }>(`
-    SELECT DISTINCT o.uid, o.name, o.smu, o.region
+    SELECT DISTINCT o.uid, o.name, o.smu, o.region, o.timezone
     FROM geo.objects o
     JOIN geo.zones z ON z.object_id = o.id
     JOIN geo.zone_tags zt ON zt.zone_id = z.id
@@ -34,10 +36,11 @@ export async function getDtObjects(pool: Pool): Promise<GeoObject[]> {
   `);
 
   return result.rows.map(r => ({
-    uid:    r.uid,
-    name:   r.name,
-    smu:    r.smu,
-    region: r.region,
+    uid:      r.uid,
+    name:     r.name,
+    smu:      r.smu,
+    region:   r.region,
+    timezone: r.timezone,
   }));
 }
 
@@ -124,4 +127,35 @@ export async function getAllDtZones(pool: Pool): Promise<GeoZone[]> {
       geojson,
     };
   });
+}
+
+/**
+ * Возвращает Map<objectUid, timezone> для всех объектов.
+ */
+export async function getObjectTimezones(pool: Pool): Promise<Map<string, string>> {
+  const result = await pool.query<{ uid: string; timezone: string }>(
+    'SELECT uid, timezone FROM geo.objects',
+  );
+  const map = new Map<string, string>();
+  for (const r of result.rows) {
+    map.set(r.uid, r.timezone);
+  }
+  return map;
+}
+
+/**
+ * Возвращает Map<vehicleId, objectUid> — последний известный объект для каждого ТС.
+ */
+export async function getVehicleLastObjects(pool: Pool): Promise<Map<number, string>> {
+  const result = await pool.query<{ vehicle_id: number; object_uid: string }>(`
+    SELECT DISTINCT ON (vehicle_id) vehicle_id, object_uid
+    FROM dump_trucks.shift_records
+    WHERE object_uid IS NOT NULL AND object_uid != 'unknown'
+    ORDER BY vehicle_id, report_date DESC, shift_type DESC
+  `);
+  const map = new Map<number, string>();
+  for (const r of result.rows) {
+    map.set(r.vehicle_id, r.object_uid);
+  }
+  return map;
 }

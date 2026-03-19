@@ -21,7 +21,7 @@ export interface OrderSummary {
       route?: {
         distance?: number;
         time?: number;
-        points?: Array<{ address?: string; date?: string; time?: string }>;
+        points?: Array<{ address?: string; date?: string; time?: string; latLon?: { lat: number; lng: number } }>;
       };
       objectExpend?: { code?: string; name?: string };
     }>;
@@ -34,6 +34,8 @@ export interface OrderSummary {
   vehicle_names: string[] | null;
   object_names: string[] | null;
   pl_count: string;
+  trips_per_veh_day: string | null;
+  points_in_boundary: (boolean | null)[] | null;
 }
 
 // Структуры, вычисляемые из OrderSummary
@@ -64,6 +66,8 @@ export interface OrderCard {
   isDone: boolean;
   notes: string;
   comment: string;
+  tripsPerVehDay: number;
+  pointsInBoundary: (boolean | null)[] | null;
 }
 
 export interface GanttRecord {
@@ -103,6 +107,7 @@ export interface ShiftRecord {
   nameMO: string;
   objectUid: string;
   objectName: string;
+  objectTimezone: string;
   workType: string;
   shiftStart: string | null;
   shiftEnd: string | null;

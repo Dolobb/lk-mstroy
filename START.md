@@ -1,3 +1,7 @@
+  Timezone объектов настраивается не в конфиге, а в БД (geo.objects.timezone). Можно менять через API:
+  PUT /api/geo/objects/:uid  { "timezone": "Asia/Irkutsk" }
+  Или напрямую SQL:
+  UPDATE geo.objects SET timezone = 'Asia/Irkutsk' WHERE uid = 'g-bodaybo-karer';
 # Запуск ЛК Мстрой
 
 Каждая команда — в отдельном терминале.

@@ -37,23 +37,23 @@ app.get('/api/geo/objects/:uid', async (req: Request, res: Response, next: NextF
 
 app.post('/api/geo/objects', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, smu, region } = req.body as {
-      name?: string; smu?: string; region?: string;
+    const { name, smu, region, timezone } = req.body as {
+      name?: string; smu?: string; region?: string; timezone?: string;
     };
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
-    const obj = await objectRepo.createObject({ name, smu, region });
+    const obj = await objectRepo.createObject({ name, smu, region, timezone });
     res.status(201).json(obj);
   } catch (err) { next(err); }
 });
 
 app.put('/api/geo/objects/:uid', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, smu, region } = req.body as {
-      name?: string; smu?: string | null; region?: string | null;
+    const { name, smu, region, timezone } = req.body as {
+      name?: string; smu?: string | null; region?: string | null; timezone?: string;
     };
-    const obj = await objectRepo.updateObject(req.params.uid, { name, smu, region });
+    const obj = await objectRepo.updateObject(req.params.uid, { name, smu, region, timezone });
     if (!obj) return res.status(404).json({ error: 'Not found' });
     res.json(obj);
   } catch (err) { next(err); }

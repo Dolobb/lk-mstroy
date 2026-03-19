@@ -12,6 +12,7 @@
 
 import type { TisRouteList } from '../types/tis-api';
 import type { ParsedPL, ParsedVehicle } from '../types/domain';
+import type { RouteListRecord } from '../repositories/routeListRepo';
 import { parseDdMmYyyyHhmm } from '../utils/dateFormat';
 
 /**
@@ -34,7 +35,7 @@ export function extractRequestNumber(orderDescr: string | null | undefined): num
  * В тест-режиме: по idMO из testIdMos
  * В обычном режиме: по nameMO.toLowerCase().includes('самосвал')
  */
-function isTargetVehicle(
+export function isTargetVehicle(
   vehicle: { idMO: number; nameMO: string },
   testIdMos: number[] | null,
 ): boolean {
@@ -162,4 +163,46 @@ export function splitIntoShifts(dateOutPlan: Date, dateInPlan: Date): ShiftPerio
   }
 
   return shifts;
+}
+
+/**
+ * Конвертирует RouteListRecord[] из БД в ParsedPL[].
+ * Берёт данные о ТС из rawJson.ts[], фильтрует по isTargetVehicle.
+ * requestNumbers и objectExpends уже извлечены в БД при upsert.
+ */
+export function routeListRecordsToParsedPLs(
+  records: RouteListRecord[],
+  testIdMos: number[] | null,
+): ParsedPL[] {
+  const result: ParsedPL[] = [];
+
+  for (const rec of records) {
+    const raw = rec.rawJson;
+    if (!raw) continue;
+
+    // Фильтрация ТС по типу
+    const vehicles: ParsedVehicle[] = (raw.ts || [])
+      .filter(t => isTargetVehicle(t, testIdMos))
+      .map(t => ({
+        idMO:      t.idMO,
+        regNumber: t.regNumber,
+        nameMO:    t.nameMO,
+      }));
+
+    if (vehicles.length === 0) continue;
+
+    result.push({
+      plId:            rec.id,
+      tsNumber:        rec.tsNumber,
+      dateOut:         raw.dateOut,
+      dateOutPlan:     rec.dateOutPlan,
+      dateInPlan:      rec.dateInPlan,
+      status:          rec.status,
+      vehicles,
+      requestNumbers:  rec.requestNumbers,
+      objectExpendList: rec.objectExpends,
+    });
+  }
+
+  return result;
 }

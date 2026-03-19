@@ -100,6 +100,7 @@ export interface ShiftRecordInput {
   nameMO: string;
   objectUid: string;
   objectName: string;
+  objectTimezone: string;
   workType: WorkType;
   shiftStart: Date;
   shiftEnd: Date;

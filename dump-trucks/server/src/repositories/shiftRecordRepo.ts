@@ -10,6 +10,7 @@ export interface ShiftRecord {
   nameMO: string | null;
   objectUid: string;
   objectName: string | null;
+  objectTimezone: string;
   workType: string;
   shiftStart: Date | null;
   shiftEnd: Date | null;
@@ -40,7 +41,7 @@ export async function upsertShiftRecord(
   const result = await client.query<{ id: number }>(`
     INSERT INTO dump_trucks.shift_records (
       report_date, shift_type, vehicle_id, reg_number, name_mo,
-      object_uid, object_name, work_type,
+      object_uid, object_name, object_timezone, work_type,
       shift_start, shift_end,
       engine_time_sec, moving_time_sec, distance_km,
       onsite_min, trips_count, fact_volume_m3,
@@ -49,32 +50,33 @@ export async function upsertShiftRecord(
       raw_monitoring, updated_at
     ) VALUES (
       $1, $2, $3, $4, $5,
-      $6, $7, $8,
-      $9, $10,
-      $11, $12, $13,
-      $14, $15, $16,
-      $17, $18,
-      $19, $20,
-      $21, NOW()
+      $6, $7, $8, $9,
+      $10, $11,
+      $12, $13, $14,
+      $15, $16, $17,
+      $18, $19,
+      $20, $21,
+      $22, NOW()
     )
     ON CONFLICT (report_date, shift_type, vehicle_id, object_uid) DO UPDATE SET
-      reg_number      = EXCLUDED.reg_number,
-      name_mo         = EXCLUDED.name_mo,
-      work_type       = EXCLUDED.work_type,
-      shift_start     = EXCLUDED.shift_start,
-      shift_end       = EXCLUDED.shift_end,
-      engine_time_sec = EXCLUDED.engine_time_sec,
-      moving_time_sec = EXCLUDED.moving_time_sec,
-      distance_km     = EXCLUDED.distance_km,
-      onsite_min      = EXCLUDED.onsite_min,
-      trips_count     = EXCLUDED.trips_count,
-      fact_volume_m3  = EXCLUDED.fact_volume_m3,
-      kip_pct         = EXCLUDED.kip_pct,
-      movement_pct    = EXCLUDED.movement_pct,
-      pl_id           = EXCLUDED.pl_id,
-      request_numbers = EXCLUDED.request_numbers,
-      raw_monitoring  = EXCLUDED.raw_monitoring,
-      updated_at      = NOW()
+      reg_number       = EXCLUDED.reg_number,
+      name_mo          = EXCLUDED.name_mo,
+      object_timezone  = EXCLUDED.object_timezone,
+      work_type        = EXCLUDED.work_type,
+      shift_start      = EXCLUDED.shift_start,
+      shift_end        = EXCLUDED.shift_end,
+      engine_time_sec  = EXCLUDED.engine_time_sec,
+      moving_time_sec  = EXCLUDED.moving_time_sec,
+      distance_km      = EXCLUDED.distance_km,
+      onsite_min       = EXCLUDED.onsite_min,
+      trips_count      = EXCLUDED.trips_count,
+      fact_volume_m3   = EXCLUDED.fact_volume_m3,
+      kip_pct          = EXCLUDED.kip_pct,
+      movement_pct     = EXCLUDED.movement_pct,
+      pl_id            = EXCLUDED.pl_id,
+      request_numbers  = EXCLUDED.request_numbers,
+      raw_monitoring   = EXCLUDED.raw_monitoring,
+      updated_at       = NOW()
     RETURNING id
   `, [
     input.reportDate,
@@ -84,6 +86,7 @@ export async function upsertShiftRecord(
     input.nameMO || null,
     input.objectUid,
     input.objectName || null,
+    input.objectTimezone,
     input.workType,
     input.shiftStart,
     input.shiftEnd,
@@ -146,6 +149,7 @@ export async function queryShiftRecords(
     name_mo: string | null;
     object_uid: string;
     object_name: string | null;
+    object_timezone: string;
     work_type: string;
     shift_start: Date | null;
     shift_end: Date | null;
@@ -167,7 +171,7 @@ export async function queryShiftRecords(
     SELECT
       sr.id, sr.report_date, sr.shift_type,
       sr.vehicle_id, sr.reg_number, sr.name_mo,
-      sr.object_uid, sr.object_name, sr.work_type,
+      sr.object_uid, sr.object_name, sr.object_timezone, sr.work_type,
       sr.shift_start, sr.shift_end,
       sr.engine_time_sec, sr.moving_time_sec,
       sr.distance_km, sr.onsite_min,
@@ -208,6 +212,7 @@ export async function queryShiftRecords(
     nameMO:        r.name_mo,
     objectUid:     r.object_uid,
     objectName:    r.object_name,
+    objectTimezone: r.object_timezone,
     workType:      r.work_type,
     shiftStart:    r.shift_start,
     shiftEnd:      r.shift_end,

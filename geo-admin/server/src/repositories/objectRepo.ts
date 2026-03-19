@@ -7,6 +7,7 @@ export interface GeoObject {
   name: string;
   smu: string | null;
   region: string | null;
+  timezone: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -24,7 +25,7 @@ export async function getAllObjects(): Promise<GeoObjectWithCount[]> {
   const pool = getPool();
   const { rows } = await pool.query<GeoObjectWithCount>(`
     SELECT
-      o.id, o.uid, o.name, o.smu, o.region, o.created_at, o.updated_at,
+      o.id, o.uid, o.name, o.smu, o.region, o.timezone, o.created_at, o.updated_at,
       COUNT(DISTINCT z.id)::int AS zone_count
     FROM geo.objects o
     LEFT JOIN geo.zones z ON z.object_id = o.id
@@ -38,7 +39,7 @@ export async function getObjectByUid(uid: string): Promise<ObjectWithZones | nul
   const pool = getPool();
 
   const { rows: objRows } = await pool.query<GeoObject>(
-    'SELECT id, uid, name, smu, region, created_at, updated_at FROM geo.objects WHERE uid = $1',
+    'SELECT id, uid, name, smu, region, timezone, created_at, updated_at FROM geo.objects WHERE uid = $1',
     [uid],
   );
   if (objRows.length === 0) return null;
@@ -75,22 +76,23 @@ export async function createObject(data: {
   name: string;
   smu?: string;
   region?: string;
+  timezone?: string;
 }): Promise<GeoObject> {
   const pool = getPool();
   const uid = await uniqueObjectUid(pool, data.name);
 
   const { rows } = await pool.query<GeoObject>(`
-    INSERT INTO geo.objects (uid, name, smu, region)
-    VALUES ($1, $2, $3, $4)
-    RETURNING id, uid, name, smu, region, created_at, updated_at
-  `, [uid, data.name, data.smu ?? null, data.region ?? null]);
+    INSERT INTO geo.objects (uid, name, smu, region, timezone)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id, uid, name, smu, region, timezone, created_at, updated_at
+  `, [uid, data.name, data.smu ?? null, data.region ?? null, data.timezone ?? 'Asia/Yekaterinburg']);
 
   return rows[0];
 }
 
 export async function updateObject(
   uid: string,
-  data: { name?: string; smu?: string | null; region?: string | null },
+  data: { name?: string; smu?: string | null; region?: string | null; timezone?: string },
 ): Promise<GeoObject | null> {
   const pool = getPool();
 
@@ -110,6 +112,10 @@ export async function updateObject(
     fields.push(`region = $${idx++}`);
     values.push(data.region);
   }
+  if (data.timezone !== undefined) {
+    fields.push(`timezone = $${idx++}`);
+    values.push(data.timezone);
+  }
   if (fields.length === 0) return getObjectRow(uid);
 
   fields.push(`updated_at = NOW()`);
@@ -118,7 +124,7 @@ export async function updateObject(
   const { rows } = await pool.query<GeoObject>(`
     UPDATE geo.objects SET ${fields.join(', ')}
     WHERE uid = $${idx}
-    RETURNING id, uid, name, smu, region, created_at, updated_at
+    RETURNING id, uid, name, smu, region, timezone, created_at, updated_at
   `, values);
 
   return rows[0] ?? null;
@@ -127,7 +133,7 @@ export async function updateObject(
 async function getObjectRow(uid: string): Promise<GeoObject | null> {
   const pool = getPool();
   const { rows } = await pool.query<GeoObject>(
-    'SELECT id, uid, name, smu, region, created_at, updated_at FROM geo.objects WHERE uid = $1',
+    'SELECT id, uid, name, smu, region, timezone, created_at, updated_at FROM geo.objects WHERE uid = $1',
     [uid],
   );
   return rows[0] ?? null;

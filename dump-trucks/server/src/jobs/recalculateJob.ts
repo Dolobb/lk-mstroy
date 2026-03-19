@@ -47,6 +47,7 @@ interface ShiftRecordWithRaw {
   name_mo: string | null;
   object_uid: string;
   object_name: string | null;
+  object_timezone: string | null;
   shift_start: Date | null;
   shift_end: Date | null;
   pl_id: number | null;
@@ -96,7 +97,7 @@ export async function recalculateShift(
     SELECT
       id, report_date, shift_type, vehicle_id,
       reg_number, name_mo,
-      object_uid, object_name,
+      object_uid, object_name, object_timezone,
       shift_start, shift_end,
       pl_id, request_numbers,
       raw_monitoring
@@ -189,6 +190,7 @@ export async function recalculateShift(
           nameMO:         sr.name_mo ?? '',
           objectUid,
           objectName,
+          objectTimezone: sr.object_timezone ?? 'Asia/Yekaterinburg',
           workType:       kpi.workType,
           shiftStart,
           shiftEnd,

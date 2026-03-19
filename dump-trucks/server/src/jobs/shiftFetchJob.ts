@@ -15,14 +15,15 @@ import { getEnvConfig } from '../config/env';
 import { TisClient } from '../services/tisClient';
 import { TokenPool } from '../services/tokenPool';
 import { PerVehicleRateLimiter } from '../services/rateLimiter';
-import { parsePLs, splitIntoShifts } from '../services/plParser';
+import { parsePLs, routeListRecordsToParsedPLs } from '../services/plParser';
+import { upsertRouteLists, queryRouteListsForShift } from '../repositories/routeListRepo';
 import { parseRequests } from '../services/requestParser';
 import { analyzeZones, calcOnsiteSec } from '../services/zoneAnalyzer';
 import { detectObject } from '../services/vehicleDetector';
 import { buildTrips } from '../services/tripBuilder';
 import { classifyWorkType } from '../services/workTypeClassifier';
 import { calculateKpi } from '../services/kpiCalculator';
-import { getAllDtZones } from '../repositories/filterRepo';
+import { getAllDtZones, getObjectTimezones, getVehicleLastObjects } from '../repositories/filterRepo';
 import { upsertRequests } from '../repositories/requestRepo';
 import { upsertShiftRecord } from '../repositories/shiftRecordRepo';
 import { replaceTrips } from '../repositories/tripRepo';
@@ -94,11 +95,41 @@ export async function runShiftFetch(
 
   logger.info(`[ShiftFetch] Start: date=${dateStr} shift=${shiftType}`);
 
-  // --- 1. Fetch ПЛ за 3 дня ---
-  // Окно -3 дня: ПЛ может начинаться за 1-2 дня до целевой смены.
-  // Выбор правильного ПЛ обеспечивается isBetterPL() — ближайший dateOutPlan к целевой дате.
+  const DEFAULT_TZ = 'Asia/Yekaterinburg';
+
+  // --- 0. Вычисляем номинальные границы смены в Екатеринбурге (для ПЛ и KPI) ---
+  const dateDay = dayjs(dateStr);
+  let shiftStart: Date, shiftEnd: Date;
+  if (shiftType === 'shift1') {
+    shiftStart = dateDay.hour(7).minute(30).second(0).toDate();
+    shiftEnd   = dateDay.hour(19).minute(30).second(0).toDate();
+  } else {
+    shiftStart = dateDay.hour(19).minute(30).second(0).toDate();
+    shiftEnd   = dateDay.add(1, 'day').hour(7).minute(30).second(0).toDate();
+  }
+
+  /**
+   * Вычисляет границы смены в указанном часовом поясе.
+   * Для Бодайбо (UTC+8): 07:30 Irkutsk = 04:30 Yekaterinburg → TIS получит правильное окно.
+   */
+  function computeShiftWindow(tz: string): { queryStart: Date; queryEnd: Date } {
+    if (shiftType === 'shift1') {
+      return {
+        queryStart: dayjs.tz(`${dateStr} 07:30`, tz).toDate(),
+        queryEnd:   dayjs.tz(`${dateStr} 19:30`, tz).toDate(),
+      };
+    } else {
+      const nextDay = dayjs(dateStr).add(1, 'day').format('YYYY-MM-DD');
+      return {
+        queryStart: dayjs.tz(`${dateStr} 19:30`, tz).toDate(),
+        queryEnd:   dayjs.tz(`${nextDay} 07:30`, tz).toDate(),
+      };
+    }
+  }
+
+  // --- 1. Fetch ПЛ из TIS (7-дневное окно) + upsert в БД ---
   const toDate   = dayjs(dateStr).toDate();
-  const fromDate = dayjs(dateStr).subtract(3, 'day').toDate();
+  const fromDate = dayjs(dateStr).subtract(7, 'day').toDate();
 
   logger.info(`[ShiftFetch] Fetching route lists: ${dayjs(fromDate).format('DD.MM.YYYY')} – ${dayjs(toDate).format('DD.MM.YYYY')}`);
   let routeLists;
@@ -112,9 +143,26 @@ export async function runShiftFetch(
   }
   logger.info(`[ShiftFetch] Got ${routeLists.length} route lists`);
 
-  // --- 2. Парсинг ПЛ ---
-  const parsedPLs = parsePLs(routeLists, config.testIdMos);
-  logger.info(`[ShiftFetch] Parsed ${parsedPLs.length} PLs with target vehicles`);
+  // Upsert ВСЕ ПЛ в route_lists (non-critical)
+  try {
+    const upsertedCount = await upsertRouteLists(pool, routeLists);
+    logger.info(`[ShiftFetch] Upserted ${upsertedCount} route lists to DB`);
+  } catch (err) {
+    logger.warn(`[ShiftFetch] Route lists upsert failed (non-critical): ${String(err)}`);
+  }
+
+  // --- 2. Запрос ПЛ из БД с перекрытием дат → парсинг ---
+  let parsedPLs;
+  try {
+    const dbRecords = await queryRouteListsForShift(pool, shiftStart, shiftEnd);
+    parsedPLs = routeListRecordsToParsedPLs(dbRecords, config.testIdMos);
+    logger.info(`[ShiftFetch] DB query: ${dbRecords.length} route lists overlapping shift → ${parsedPLs.length} with target vehicles`);
+  } catch (err) {
+    // Fallback: парсим из TIS-ответа как раньше
+    logger.warn(`[ShiftFetch] DB query failed, fallback to in-memory parse: ${String(err)}`);
+    parsedPLs = parsePLs(routeLists, config.testIdMos);
+    logger.info(`[ShiftFetch] Fallback parsed ${parsedPLs.length} PLs with target vehicles`);
+  }
 
   // --- 3. Fetch заявок за 2 месяца ---
   const reqFrom = dayjs(dateStr).subtract(2, 'month').toDate();
@@ -143,6 +191,21 @@ export async function runShiftFetch(
   if (allZones.length === 0) {
     logger.warn('[ShiftFetch] No dt_* zones found in DB. Skipping monitoring fetch.');
     return result;
+  }
+
+  // --- 4b. Загрузка timezone объектов и последних объектов ТС ---
+  let objectTzMap: Map<string, string>;
+  let vehicleLastObjects: Map<number, string>;
+  try {
+    [objectTzMap, vehicleLastObjects] = await Promise.all([
+      getObjectTimezones(pool),
+      getVehicleLastObjects(pool),
+    ]);
+    logger.info(`[ShiftFetch] Loaded ${objectTzMap.size} object timezones, ${vehicleLastObjects.size} vehicle→object mappings`);
+  } catch (err) {
+    logger.warn(`[ShiftFetch] Failed to load timezone data (fallback to ${DEFAULT_TZ}): ${String(err)}`);
+    objectTzMap = new Map();
+    vehicleLastObjects = new Map();
   }
 
   // --- 5. Обработка каждого ТС ---
@@ -182,14 +245,10 @@ export async function runShiftFetch(
     }
   } else {
     // Обычный режим: ТС из ПЛ.
-    // Машина может быть в нескольких ПЛ одновременно (разные заявки) —
-    // мержим requestNumbers из всех ПЛ, покрывающих смену.
+    // БД уже отфильтровала ПЛ по перекрытию дат — не нужен splitIntoShifts.
+    // Мержим requestNumbers из всех ПЛ, покрывающих смену.
     // plId берём от ПЛ с ближайшим dateOutPlan к целевой дате.
     for (const pl of parsedPLs) {
-      const shifts = splitIntoShifts(pl.dateOutPlan, pl.dateInPlan);
-      const hasTargetShift = shifts.some(s => s.shiftType === shiftType);
-      if (!hasTargetShift) continue;
-
       for (const v of pl.vehicles) {
         const existing = vehiclesMap.get(v.idMO);
         if (!existing) {
@@ -221,24 +280,22 @@ export async function runShiftFetch(
 
   logger.info(`[ShiftFetch] Vehicles to process: ${vehiclesMap.size}`);
 
-  // Определяем временные границы смены для заданной даты
-  const dateDay = dayjs(dateStr);
-  let shiftStart: Date, shiftEnd: Date;
-  if (shiftType === 'shift1') {
-    shiftStart = dateDay.hour(7).minute(30).second(0).toDate();
-    shiftEnd   = dateDay.hour(19).minute(30).second(0).toDate();
-  } else {
-    shiftStart = dateDay.hour(19).minute(30).second(0).toDate();
-    shiftEnd   = dateDay.add(1, 'day').hour(7).minute(30).second(0).toDate();
-  }
-
   // Обрабатываем ТС последовательно (rate limit)
   for (const [idMO, vehicleInfo] of vehiclesMap) {
     try {
       logger.info(`[ShiftFetch] Processing idMO=${idMO} (${vehicleInfo.nameMO})`);
 
+      // Определяем timezone: последний объект → timezone, fallback к Екатеринбургу
+      const lastObjectUid = vehicleLastObjects.get(idMO);
+      let usedTz = (lastObjectUid && objectTzMap.get(lastObjectUid)) || DEFAULT_TZ;
+      let { queryStart, queryEnd } = computeShiftWindow(usedTz);
+
+      if (usedTz !== DEFAULT_TZ) {
+        logger.info(`[ShiftFetch] idMO=${idMO}: using tz=${usedTz} (last object=${lastObjectUid}), queryWindow=${dayjs(queryStart).format('HH:mm')}–${dayjs(queryEnd).format('HH:mm')} local`);
+      }
+
       // Fetch мониторинга
-      const monitoring = await client.getMonitoringStats(idMO, shiftStart, shiftEnd);
+      let monitoring = await client.getMonitoringStats(idMO, queryStart, queryEnd);
 
       if (!monitoring) {
         logger.warn(`[ShiftFetch] No monitoring data for idMO=${idMO}`);
@@ -246,15 +303,36 @@ export async function runShiftFetch(
         continue;
       }
 
-      const track = monitoring.track || [];
+      let track = monitoring.track || [];
       logger.info(`[ShiftFetch] idMO=${idMO}: ${track.length} track points`);
 
       // Анализ зон
-      const zoneEvents = analyzeZones(track, allZones);
+      let zoneEvents = analyzeZones(track, allZones);
       logger.info(`[ShiftFetch] idMO=${idMO}: ${zoneEvents.length} zone events`);
 
       // Определение объекта
-      const objectCandidate = detectObject(track, allZones);
+      let objectCandidate = detectObject(track, allZones);
+
+      // Re-query если определённый объект имеет другой timezone
+      if (objectCandidate) {
+        const detectedTz = objectTzMap.get(objectCandidate.objectUid) || DEFAULT_TZ;
+        if (detectedTz !== usedTz) {
+          logger.info(`[ShiftFetch] idMO=${idMO}: timezone mismatch! used=${usedTz} detected=${detectedTz} (object=${objectCandidate.objectUid}). Re-querying...`);
+          usedTz = detectedTz;
+          ({ queryStart, queryEnd } = computeShiftWindow(usedTz));
+
+          monitoring = await client.getMonitoringStats(idMO, queryStart, queryEnd);
+          if (!monitoring) {
+            logger.warn(`[ShiftFetch] No monitoring data for idMO=${idMO} after re-query`);
+            result.vehiclesSkipped++;
+            continue;
+          }
+          track = monitoring.track || [];
+          zoneEvents = analyzeZones(track, allZones);
+          objectCandidate = detectObject(track, allZones);
+          logger.info(`[ShiftFetch] idMO=${idMO}: re-query done. ${track.length} track points, ${zoneEvents.length} zone events`);
+        }
+      }
 
       if (!objectCandidate && zoneEvents.length === 0) {
         logger.warn(`[ShiftFetch] idMO=${idMO}: no object detected, skipping`);
@@ -307,6 +385,7 @@ export async function runShiftFetch(
           nameMO:         vehicleInfo.nameMO,
           objectUid,
           objectName,
+          objectTimezone: (objectTzMap.get(objectUid)) || DEFAULT_TZ,
           workType:       kpi.workType,
           shiftStart,
           shiftEnd,
