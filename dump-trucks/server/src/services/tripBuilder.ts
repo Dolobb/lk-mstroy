@@ -89,18 +89,24 @@ export function buildTrips(events: ZoneEvent[]): Trip[] {
       volumeM3:          null,
       travelToUnloadMin: travelToUnloadMin !== null && travelToUnloadMin >= 0 ? travelToUnloadMin : null,
       returnToLoadMin:   null, // заполняется вторым проходом ниже
-    });
+      _loadingEnteredAt: loading.enteredAt, // internal: для расчёта returnToLoad
+    } as Trip & { _loadingEnteredAt: Date });
   }
 
-  // Второй проход: returnToLoadMin[i] = trips[i+1].loadedAt - trips[i].unloadedAt
-  // (время от выхода из зоны выгрузки до входа в следующую зону погрузки)
+  // Второй проход: returnToLoadMin[i] = trips[i+1]._loadingEnteredAt - trips[i].unloadedAt
+  // (время от выезда с выгрузки до въезда в следующую погрузку)
   for (let i = 0; i < trips.length - 1; i++) {
     const curUnloadedAt = trips[i]!.unloadedAt;
-    const nextLoadedAt  = trips[i + 1]!.loadedAt;
-    if (curUnloadedAt && nextLoadedAt) {
-      const returnMin = Math.round((nextLoadedAt.getTime() - curUnloadedAt.getTime()) / 60_000);
+    const nextEnteredAt = (trips[i + 1] as Trip & { _loadingEnteredAt?: Date })._loadingEnteredAt;
+    if (curUnloadedAt && nextEnteredAt) {
+      const returnMin = Math.round((nextEnteredAt.getTime() - curUnloadedAt.getTime()) / 60_000);
       trips[i]!.returnToLoadMin = returnMin >= 0 ? returnMin : null;
     }
+  }
+
+  // Убираем внутреннее поле
+  for (const t of trips) {
+    delete (t as any)._loadingEnteredAt;
   }
 
   return trips;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search } from 'lucide-react';
+import { DateRangePicker } from '@/components/DateRangePicker';
 import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, DbTablePreset, DbQueryResult } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -462,20 +463,10 @@ export const AdminPage: React.FC = () => {
 
           {/* Period + refresh */}
           <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="date"
-              value={coverageFrom}
-              onChange={e => setCoverageFrom(e.target.value)}
-              className="text-xs px-2 py-1 rounded-lg bg-muted border-none text-foreground cursor-pointer"
-              style={{ fontSize: '11px' }}
-            />
-            <span className="text-xs text-muted-foreground">—</span>
-            <input
-              type="date"
-              value={coverageTo}
-              onChange={e => setCoverageTo(e.target.value)}
-              className="text-xs px-2 py-1 rounded-lg bg-muted border-none text-foreground cursor-pointer"
-              style={{ fontSize: '11px' }}
+            <DateRangePicker
+              dateFrom={coverageFrom}
+              dateTo={coverageTo}
+              onRangeChange={(from, to) => { setCoverageFrom(from); setCoverageTo(to); }}
             />
             <button
               onClick={loadCoverage}

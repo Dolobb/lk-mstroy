@@ -1,0 +1,347 @@
+/* ─── DateRangePicker ─── */
+
+/* Base variables (light / Admin fallback) */
+.sv-dp-panel {
+  --dp-bg: #fff;
+  --dp-text: #0f172a;
+  --dp-muted: #64748b;
+  --dp-border: rgba(0,0,0,0.1);
+  --dp-accent: #f97316;
+  --dp-accent-light: rgba(249,115,22,0.12);
+  --dp-hover: rgba(0,0,0,0.04);
+  --dp-selected-text: #fff;
+}
+
+/* Самосвалы dark */
+.sv-root .sv-dp-panel {
+  --dp-bg: rgba(15,23,42,0.95);
+  --dp-text: #F1F5F9;
+  --dp-muted: #64748B;
+  --dp-border: rgba(255,255,255,0.07);
+  --dp-hover: rgba(255,255,255,0.05);
+}
+
+/* Самосвалы light */
+.sv-root[data-theme="light"] .sv-dp-panel {
+  --dp-bg: rgba(255,255,255,0.95);
+  --dp-text: #0F172A;
+  --dp-muted: #64748B;
+  --dp-border: rgba(0,0,0,0.06);
+  --dp-hover: rgba(0,0,0,0.03);
+}
+
+/* ── Trigger (inside sv-root inherits text color from parent) ── */
+.sv-dp-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--sv-border, rgba(0,0,0,0.1));
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.sv-dp-trigger:hover {
+  background: var(--dp-hover, rgba(0,0,0,0.04));
+}
+.sv-dp-trigger svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.sv-dp-shift-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--dp-accent, #f97316);
+  color: #fff;
+}
+
+/* ── Popover ── */
+.sv-dp-popover {
+  z-index: 9999;
+  border-radius: 14px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.08);
+  overflow: hidden;
+  animation: sv-dp-fade-in 0.15s ease-out;
+}
+
+@keyframes sv-dp-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Panel layout ── */
+.sv-dp-panel {
+  display: flex;
+  flex-direction: row;
+  background: var(--dp-bg);
+  color: var(--dp-text);
+  border-radius: 14px;
+}
+
+/* ── Sidebar ── */
+.sv-dp-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 156px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--dp-border);
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.sv-dp-preset {
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--dp-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-family: inherit;
+}
+.sv-dp-preset:hover {
+  background: var(--dp-hover);
+}
+.sv-dp-preset.active {
+  background: var(--dp-accent);
+  color: var(--dp-selected-text);
+}
+
+/* ── Shift buttons in sidebar ── */
+.sv-dp-shifts {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--dp-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sv-dp-shift-btn {
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--dp-border);
+  background: transparent;
+  color: var(--dp-text);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  font-family: inherit;
+  text-align: center;
+}
+.sv-dp-shift-btn:hover {
+  background: var(--dp-hover);
+}
+.sv-dp-shift-btn.active {
+  background: var(--dp-accent);
+  color: var(--dp-selected-text);
+  border-color: var(--dp-accent);
+}
+.sv-dp-shift-row {
+  display: flex;
+  gap: 4px;
+}
+.sv-dp-shift-row .sv-dp-shift-btn {
+  flex: 1;
+}
+
+/* ── Calendars area ── */
+.sv-dp-calendars {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── react-day-picker v9 — override via CSS variables + selectors ── */
+.sv-dp-calendars .rdp-root {
+  /* Override rdp variables */
+  --rdp-accent-color: var(--dp-accent);
+  --rdp-accent-background-color: var(--dp-accent-light);
+  --rdp-day-height: 32px;
+  --rdp-day-width: 32px;
+  --rdp-day_button-height: 30px;
+  --rdp-day_button-width: 30px;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-day_button-border: 2px solid transparent;
+  --rdp-selected-border: 2px solid transparent;
+  --rdp-months-gap: 12px;
+  --rdp-nav_button-height: 26px;
+  --rdp-nav_button-width: 26px;
+  --rdp-nav-height: 32px;
+  --rdp-outside-opacity: 0.35;
+  --rdp-today-color: var(--dp-accent);
+  --rdp-range_start-color: var(--dp-selected-text);
+  --rdp-range_start-date-background-color: var(--dp-accent);
+  --rdp-range_end-color: var(--dp-selected-text);
+  --rdp-range_end-date-background-color: var(--dp-accent);
+  --rdp-range_middle-background-color: var(--dp-accent-light);
+  --rdp-range_middle-color: var(--dp-text);
+  padding: 10px 14px 6px;
+  font-size: 13px;
+  color: var(--dp-text);
+}
+
+/* Caption (month name) */
+.sv-dp-calendars .rdp-month_caption {
+  font-size: 13px;
+  font-weight: 600;
+  height: auto;
+  text-transform: capitalize;
+}
+
+/* Chevron arrows — inherit theme color */
+.sv-dp-calendars .rdp-chevron {
+  fill: var(--dp-muted);
+}
+
+/* Nav buttons */
+.sv-dp-calendars .rdp-button_previous,
+.sv-dp-calendars .rdp-button_next {
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.sv-dp-calendars .rdp-button_previous:hover,
+.sv-dp-calendars .rdp-button_next:hover {
+  background: var(--dp-hover);
+}
+
+/* Weekday headers */
+.sv-dp-calendars .rdp-weekday {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dp-muted);
+}
+
+/* Day button text color */
+.sv-dp-calendars .rdp-day_button {
+  font-size: 13px;
+  color: var(--dp-text);
+  transition: background 0.1s;
+}
+.sv-dp-calendars .rdp-day_button:hover {
+  background: var(--dp-hover);
+}
+
+/* Outside days */
+.sv-dp-calendars .rdp-outside .rdp-day_button {
+  color: var(--dp-muted);
+}
+
+/* Selected (non-range) — remove bold/large from base */
+.sv-dp-calendars .rdp-selected {
+  font-weight: inherit;
+  font-size: inherit;
+}
+
+/* Range middle — text accent */
+.sv-dp-calendars .rdp-range_middle .rdp-day_button {
+  color: var(--dp-accent);
+  font-weight: 600;
+}
+
+/* Range start/end button */
+.sv-dp-calendars .rdp-range_start .rdp-day_button,
+.sv-dp-calendars .rdp-range_end .rdp-day_button {
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+/* Today */
+.sv-dp-calendars .rdp-today:not(.rdp-outside) {
+  color: var(--dp-accent);
+}
+.sv-dp-calendars .rdp-today .rdp-day_button {
+  font-weight: 700;
+}
+
+/* ── Footer ── */
+.sv-dp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid var(--dp-border);
+  gap: 12px;
+}
+
+.sv-dp-range-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dp-muted);
+}
+
+.sv-dp-range-input {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--dp-border);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dp-text);
+  min-width: 80px;
+  text-align: center;
+}
+
+.sv-dp-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sv-dp-cancel {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--dp-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-family: inherit;
+}
+.sv-dp-cancel:hover {
+  background: var(--dp-hover);
+}
+
+.sv-dp-apply {
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--dp-accent);
+  color: var(--dp-selected-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s;
+  font-family: inherit;
+}
+.sv-dp-apply:hover {
+  opacity: 0.9;
+}
+.sv-dp-apply:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from 'next-themes';
+import { DateRangePicker } from '@/components/DateRangePicker';
 import './samosvaly.css';
 import {
   fetchObjects, fetchOrders, fetchOrderGantt,
@@ -55,7 +56,7 @@ function toDateStr(isoDate: string): string {
 }
 
 function kipColor(v: number): string {
-  return v >= 75 ? 'sv-v-g' : v >= 50 ? 'sv-v-o' : 'sv-v-r';
+  return v >= 75 ? 'sv-v-g' : v >= 50 ? 'sv-v-b' : 'sv-v-r';
 }
 
 function avgOrDash(arr: number[]): string {
@@ -77,11 +78,13 @@ function fmtHours(sec: number): string {
   return `${h}:${String(m).padStart(2, '0')}`;
 }
 
-/** Форматирует секунды в минуты с суффиксом (для стоянок в зонах) */
+/** Форматирует секунды в h:mm (для стоянок в зонах) */
 function fmtDwell(sec: number | null): string {
   if (!sec || sec <= 0) return '—';
-  const m = Math.round(sec / 60);
-  return `${m}м`;
+  const totalMin = Math.round(sec / 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
 }
 
 /** Парсит DD.MM.YYYY → YYYY-MM-DD */
@@ -336,11 +339,66 @@ function TableConstructorPanel({ settings, onUpdate, onClose }: {
     onUpdate({ ...settings, blockOrder: order });
   };
 
+  const PRESETS: { id: string; label: string; settings: Partial<UserSettings> }[] = [
+    {
+      id: 'overview',
+      label: 'Обзор',
+      settings: {
+        blockVisibility: { identity: true, work: true, kpi: true, aggregates: false },
+        blockOrder: ['identity', 'work', 'kpi', 'aggregates'],
+        groupByRequest: true,
+        groupByShift: true,
+      },
+    },
+    {
+      id: 'full',
+      label: 'Полный',
+      settings: {
+        blockVisibility: { identity: true, work: true, kpi: true, aggregates: true },
+        blockOrder: ['identity', 'work', 'kpi', 'aggregates'],
+        groupByRequest: true,
+        groupByShift: false,
+      },
+    },
+    {
+      id: 'kpi',
+      label: 'KPI-фокус',
+      settings: {
+        blockVisibility: { identity: false, work: false, kpi: true, aggregates: true },
+        blockOrder: ['kpi', 'aggregates', 'identity', 'work'],
+        groupByRequest: false,
+        groupByShift: true,
+      },
+    },
+  ];
+
+  const applyPreset = (p: typeof PRESETS[0]) => {
+    const def = getDefaultSettings();
+    onUpdate({
+      ...def,
+      ...p.settings,
+      columnVisibility: def.columnVisibility,
+      columnOrder: def.columnOrder,
+    });
+  };
+
   return (
     <div className="sv-constructor-panel">
       <div className="sv-constructor-header">
         <span style={{ fontWeight: 700, fontSize: 13 }}>Конструктор таблицы</span>
         <button className="sv-an-right-close" style={{ position: 'static' }} onClick={onClose}>✕</button>
+      </div>
+
+      {/* Пресеты */}
+      <div className="sv-constructor-section">
+        <div className="sv-constructor-section-title">Пресеты</div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {PRESETS.map(p => (
+            <button key={p.id} className="sv-fb-pill" onClick={() => applyPreset(p)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Группировка */}
@@ -1568,8 +1626,10 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }
 // ─────────────────────────────────────────────
 //  Analytics sub-table (trips + zone events)
 // ─────────────────────────────────────────────
-function ShiftSubTable({ shiftRecord }: {
+function ShiftSubTable({ shiftRecord, shiftAgg, visibleAggCols }: {
   shiftRecord: Pick<ShiftRecord, 'id' | 'shiftType' | 'reportDate'>;
+  shiftAgg?: { engineTimeSec: number; movingTimeSec: number; onsiteMin: number; kipPct: number; movementPct: number };
+  visibleAggCols?: Set<string>; // undefined = show all
 }) {
   const [data, setData] = useState<{ trips: TripRecord[]; zoneEvents: ZoneEvent[]; objectTimezone?: string } | null>(null);
   const [err, setErr] = useState(false);
@@ -1636,6 +1696,7 @@ function ShiftSubTable({ shiftRecord }: {
     };
   });
 
+  // Averages
   const pStSecs = enriched.map(e => e.pStSec).filter((s): s is number => s !== null && s > 0);
   const uStSecs = enriched.map(e => e.uStSec).filter((s): s is number => s !== null && s > 0);
   const avgPSt = pStSecs.length ? Math.round(pStSecs.reduce((a, b) => a + b, 0) / pStSecs.length) : null;
@@ -1644,32 +1705,58 @@ function ShiftSubTable({ shiftRecord }: {
   const rtlVals = trips.map(t => t.return_to_load_min).filter((v): v is number => v !== null && v > 0);
   const avgTtu = ttuVals.length ? Math.round(ttuVals.reduce((a, b) => a + b, 0) / ttuVals.length) : null;
   const avgRtl = rtlVals.length ? Math.round(rtlVals.reduce((a, b) => a + b, 0) / rtlVals.length) : null;
-  const centerIdx = Math.floor(enriched.length / 2);
+
+  // Shift-level aggregates from zone events
+  const loadingZoneSec = zoneEvents
+    .filter(e => e.zone_tag === 'dt_loading')
+    .reduce((s, e) => s + (e.duration_sec ?? 0), 0);
+  const unloadingZoneSec = zoneEvents
+    .filter(e => e.zone_tag === 'dt_unloading')
+    .reduce((s, e) => s + (e.duration_sec ?? 0), 0);
+  const zoneTimeSec = loadingZoneSec + unloadingZoneSec;
+  const engineSec = shiftAgg?.engineTimeSec ?? 0;
+  // Travel breakdown: гружёный (to unload) + порожний (return to load), sum of all trips
+  const totalTtuSec = ttuVals.reduce((a, b) => a + b, 0) * 60;
+  const totalRtlSec = rtlVals.reduce((a, b) => a + b, 0) * 60;
+  // В пути = точная сумма из рейсов (гружёный + порожний)
+  const travelTimeSec = totalTtuSec + totalRtlSec;
+
+  // Visibility
+  const aggVis = (col: string) => !visibleAggCols || visibleAggCols.has(col);
+  const showTtu = aggVis('travelToUnload');
+  const showRtl = aggVis('returnToLoad');
+
+  // Dwell arrow color thresholds (seconds)
+  const dwellColor = (sec: number): string => {
+    const m = sec / 60;
+    return m <= 10 ? '#22c55e' : m <= 25 ? '#60A5FA' : '#EF4444';
+  };
 
   return (
     <div className="sv-sub-table-wrap">
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sv-text-2)', marginBottom: 4 }}>
-        Смена {shiftN} · {fmtDateShort(shiftRecord.reportDate)} · {trips.length} рейсов
-        <span style={{ fontWeight: 400, color: 'var(--sv-text-4)', marginLeft: 6 }}>({tzLabel(tz)})</span>
+      <div className="sv-sub-header">
+        <span className="sv-sub-title">Смена {shiftN}</span>
+        <span className="sv-sub-meta">{fmtDateShort(shiftRecord.reportDate)} · {trips.length} рейс{trips.length === 1 ? '' : trips.length < 5 ? 'а' : 'ов'}</span>
+        <span className="sv-sub-tz">{tzLabel(tz)}</span>
       </div>
-      <table className="sv-sub-t sv-sub-t--compact">
+      <div className="sv-sub-body">
+      <div className="sv-sub-table-col">
+      <table className="sv-sub-t">
         <thead>
           <tr>
-            <th rowSpan={2}>№</th>
-            <th className="blk-start" colSpan={3} style={{ fontSize: 7, color: 'var(--sv-text-4)' }}>ПОГРУЗКА</th>
-            <th className="blk-start" colSpan={3} style={{ fontSize: 7, color: 'var(--sv-text-4)' }}>ВЫГРУЗКА</th>
-            <th className="blk-start" rowSpan={2}>Ср.П</th>
-            <th rowSpan={2}>Ср.В</th>
-            <th className="blk-start" rowSpan={2}>→ Выгр.</th>
-            <th rowSpan={2}>→ Погр.</th>
+            <th className="sv-sub-th-num" rowSpan={2}>№</th>
+            <th className="sv-sub-th-group sv-sub-th-load" colSpan={3}>Погрузка</th>
+            {showTtu && <th className="sv-sub-th-col sv-sub-th-dwell sv-sub-blk-travel" rowSpan={2}>гружёный</th>}
+            <th className="sv-sub-th-group sv-sub-th-unload" colSpan={3}>Выгрузка</th>
+            {showRtl && <th className="sv-sub-th-col sv-sub-th-dwell sv-sub-blk-travel" rowSpan={2}>порожний</th>}
           </tr>
           <tr>
-            <th className="blk-start">Въезд</th>
-            <th>Выезд</th>
-            <th className="dash-l">Ст.</th>
-            <th className="blk-start">Въезд</th>
-            <th>Выезд</th>
-            <th className="dash-l">Ст.</th>
+            <th className="sv-sub-th-col sv-sub-blk-load">Въезд</th>
+            <th className="sv-sub-th-col sv-sub-th-dwell">Стоянка</th>
+            <th className="sv-sub-th-col">Выезд</th>
+            <th className="sv-sub-th-col sv-sub-blk-unload">Въезд</th>
+            <th className="sv-sub-th-col sv-sub-th-dwell">Стоянка</th>
+            <th className="sv-sub-th-col">Выезд</th>
           </tr>
         </thead>
         <tbody>
@@ -1678,30 +1765,257 @@ function ShiftSubTable({ shiftRecord }: {
             const isLast  = ri === enriched.length - 1;
             return (
               <tr key={trip.id}>
-                <td className="trip-n">{trip.trip_number}</td>
-                <td className="blk-start">
-                  {isFirst
-                    ? <><span style={{ color: '#22c55e', fontWeight: 800, marginRight: 2 }}>{'›|'}</span>{pIn}</>
-                    : pIn}
+                <td className="sv-sub-td-num">{trip.trip_number}</td>
+                <td className="sv-sub-blk-load">
+                  {isFirst ? <><span className="sv-sub-marker-start">{'›|'}</span>{pIn}</> : pIn}
+                </td>
+                <td className="sv-sub-td-dwell-cell">
+                  {pStSec && pStSec > 0 ? (
+                    <div className="sv-dwell-arrow-wrap">
+                      <span className="sv-dwell-val">{fmtDwell(pStSec)}</span>
+                      <svg className="sv-dwell-arrow" viewBox="0 0 40 6" preserveAspectRatio="none">
+                        <polyline points="5,0.5 1,3 5,5.5" fill="none" stroke={dwellColor(pStSec)} strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                        <line x1="1" y1="3" x2="39" y2="3" stroke={dwellColor(pStSec)} strokeWidth="1.2" />
+                        <polyline points="35,0.5 39,3 35,5.5" fill="none" stroke={dwellColor(pStSec)} strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  ) : <span className="sv-dwell-val sv-dwell-empty">—</span>}
                 </td>
                 <td>{pOut}</td>
-                <td className="dash-l">{fmtDwell(pStSec)}</td>
-                <td className="blk-start">{uIn}</td>
-                <td>
-                  {isLast
-                    ? <>{uOut}<span style={{ color: '#EF4444', fontWeight: 800, marginLeft: 2 }}>{'|‹'}</span></>
-                    : uOut}
+                {showTtu && (
+                  <td className="sv-sub-td-dwell-cell sv-sub-blk-travel">
+                    {trip.travel_to_unload_min && trip.travel_to_unload_min > 0 ? (
+                      <div className="sv-dwell-arrow-wrap">
+                        <span className="sv-dwell-val">{fmtDwell(Math.round(trip.travel_to_unload_min * 60))}</span>
+                        <svg className="sv-dwell-arrow" viewBox="0 0 40 6" preserveAspectRatio="none">
+                          <line x1="1" y1="3" x2="35" y2="3" stroke="#60A5FA" strokeWidth="1.2" />
+                          <polyline points="35,0.5 39,3 35,5.5" fill="none" stroke="#60A5FA" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    ) : <span className="sv-dwell-val sv-dwell-empty">—</span>}
+                  </td>
+                )}
+                <td className="sv-sub-blk-unload">{uIn}</td>
+                <td className="sv-sub-td-dwell-cell">
+                  {uStSec && uStSec > 0 ? (
+                    <div className="sv-dwell-arrow-wrap">
+                      <span className="sv-dwell-val">{fmtDwell(uStSec)}</span>
+                      <svg className="sv-dwell-arrow" viewBox="0 0 40 6" preserveAspectRatio="none">
+                        <polyline points="5,0.5 1,3 5,5.5" fill="none" stroke={dwellColor(uStSec)} strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                        <line x1="1" y1="3" x2="39" y2="3" stroke={dwellColor(uStSec)} strokeWidth="1.2" />
+                        <polyline points="35,0.5 39,3 35,5.5" fill="none" stroke={dwellColor(uStSec)} strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  ) : <span className="sv-dwell-val sv-dwell-empty">—</span>}
                 </td>
-                <td className="dash-l">{fmtDwell(uStSec)}</td>
-                <td className="blk-start">{ri === centerIdx ? fmtDwell(avgPSt) : ''}</td>
-                <td>{ri === centerIdx ? fmtDwell(avgUSt) : ''}</td>
-                <td className="blk-start">{ri === centerIdx ? (avgTtu ? `${avgTtu}м` : '—') : ''}</td>
-                <td>{ri === centerIdx ? (avgRtl ? `${avgRtl}м` : '—') : ''}</td>
+                <td>
+                  {isLast ? <>{uOut}<span className="sv-sub-marker-end">{'|‹'}</span></> : uOut}
+                </td>
+                {showRtl && (
+                  <td className="sv-sub-td-dwell-cell sv-sub-blk-travel">
+                    {trip.return_to_load_min && trip.return_to_load_min > 0 ? (
+                      <div className="sv-dwell-arrow-wrap">
+                        <span className="sv-dwell-val">{fmtDwell(Math.round(trip.return_to_load_min * 60))}</span>
+                        <svg className="sv-dwell-arrow" viewBox="0 0 40 6" preserveAspectRatio="none">
+                          <line x1="1" y1="3" x2="35" y2="3" stroke="#60A5FA" strokeWidth="1.2" />
+                          <polyline points="35,0.5 39,3 35,5.5" fill="none" stroke="#60A5FA" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    ) : <span className="sv-dwell-val sv-dwell-empty">—</span>}
+                  </td>
+                )}
               </tr>
             );
           })}
         </tbody>
+        <tfoot>
+          <tr className="sv-sub-footer">
+            <td className="sv-sub-td-num"><span className="sv-sub-foot-label">Среднее</span></td>
+            <td className="sv-sub-blk-load"></td>
+            <td className="sv-sub-foot-val">
+              {avgPSt ? (
+                <span className="sv-dwell-bar-wrap">
+                  <span className="sv-dwell-bar" style={{ background: dwellColor(avgPSt) }} />
+                  <span className="sv-dwell-avg">{fmtDwell(avgPSt)}</span>
+                </span>
+              ) : '—'}
+            </td>
+            <td></td>
+            {showTtu && (
+              <td className="sv-sub-foot-val sv-sub-blk-travel">
+                {avgTtu ? (
+                  <span className="sv-dwell-bar-wrap">
+                    <span className="sv-dwell-bar" style={{ background: '#60A5FA' }} />
+                    <span className="sv-dwell-avg">{fmtDwell(avgTtu * 60)}</span>
+                  </span>
+                ) : '—'}
+              </td>
+            )}
+            <td className="sv-sub-blk-unload"></td>
+            <td className="sv-sub-foot-val">
+              {avgUSt ? (
+                <span className="sv-dwell-bar-wrap">
+                  <span className="sv-dwell-bar" style={{ background: dwellColor(avgUSt) }} />
+                  <span className="sv-dwell-avg">{fmtDwell(avgUSt)}</span>
+                </span>
+              ) : '—'}
+            </td>
+            <td></td>
+            {showRtl && (
+              <td className="sv-sub-foot-val sv-sub-blk-travel">
+                {avgRtl ? (
+                  <span className="sv-dwell-bar-wrap">
+                    <span className="sv-dwell-bar" style={{ background: '#60A5FA' }} />
+                    <span className="sv-dwell-avg">{fmtDwell(avgRtl * 60)}</span>
+                  </span>
+                ) : '—'}
+              </td>
+            )}
+          </tr>
+        </tfoot>
       </table>
+      </div>
+      {/* Diagrams: donut + bar */}
+      {shiftAgg && <ShiftDiagrams
+        kipPct={shiftAgg.kipPct} movementPct={shiftAgg.movementPct}
+        zoneTimeSec={zoneTimeSec} travelTimeSec={travelTimeSec}
+        loadingZoneSec={loadingZoneSec} unloadingZoneSec={unloadingZoneSec}
+        totalTtuSec={totalTtuSec} totalRtlSec={totalRtlSec}
+      />}
+      </div>{/* /sv-sub-body */}
+    </div>
+  );
+}
+
+/* ── Shift diagrams (donut + bar) ─────────────────────────── */
+function ShiftDiagrams({ kipPct, movementPct, zoneTimeSec, travelTimeSec,
+  loadingZoneSec, unloadingZoneSec, totalTtuSec, totalRtlSec }: {
+  kipPct: number; movementPct: number;
+  zoneTimeSec: number; travelTimeSec: number;
+  loadingZoneSec: number; unloadingZoneSec: number;
+  totalTtuSec: number; totalRtlSec: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [tooltip, setTooltip] = useState<{ label: string; value: string } | null>(null);
+
+  // Donut arc helper (SVG arc from startAngle to endAngle, in degrees clockwise from top)
+  const r = 42; const cx = 50; const cy = 50; const sw = 7;
+  const arcPath = (startDeg: number, endDeg: number): string => {
+    if (endDeg - startDeg <= 0) return '';
+    const toRad = (d: number) => ((d - 90) * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(toRad(startDeg));
+    const y1 = cy + r * Math.sin(toRad(startDeg));
+    const x2 = cx + r * Math.cos(toRad(endDeg));
+    const y2 = cy + r * Math.sin(toRad(endDeg));
+    const large = endDeg - startDeg > 180 ? 1 : 0;
+    return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+  };
+
+  const kipAngle = Math.min(kipPct, 100) * 3.6;
+  const movAngle = Math.min(movementPct, 100) * 3.6;
+
+  // Bar proportions
+  const totalBar = zoneTimeSec + travelTimeSec;
+  const travelPct = totalBar > 0 ? (travelTimeSec / totalBar) * 100 : 50;
+  const zonePct = 100 - travelPct;
+
+  // Expanded 4-part: sub-percentages within each parent group
+  const ttuInTravel = travelTimeSec > 0 ? (totalTtuSec / travelTimeSec) * 100 : 50;
+  const rtlInTravel = 100 - ttuInTravel;
+  const loadInZone = zoneTimeSec > 0 ? (loadingZoneSec / zoneTimeSec) * 100 : 50;
+  const unloadInZone = 100 - loadInZone;
+
+  // 11h shift = 39600 sec
+  const shiftSec = 11 * 3600;
+
+  const showTip = (label: string, sec: number) => setTooltip({ label, value: fmtHours(sec) });
+  const hideTip = () => setTooltip(null);
+
+  return (
+    <div className="sv-diag">
+      {/* Donut */}
+      <div className="sv-diag-donut-wrap">
+        <svg viewBox="0 0 100 100" className="sv-diag-donut">
+          {/* KIP arc */}
+          {kipPct > 0 && (
+            <path d={arcPath(0, kipAngle)} fill="none" stroke="#8B5CF6" strokeWidth={sw}
+              strokeLinecap="round" className="sv-diag-arc"
+              onClick={() => showTip('КИП', kipPct * shiftSec / 100)}
+              onMouseLeave={hideTip} />
+          )}
+          {/* Movement arc overlay */}
+          {movementPct > 0 && (
+            <path d={arcPath(0, movAngle)} fill="none" stroke="#60A5FA" strokeWidth={sw - 2}
+              strokeLinecap="round" className="sv-diag-arc"
+              style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.3))' }}
+              onClick={() => showTip('В движении', movementPct * shiftSec / 100)}
+              onMouseLeave={hideTip} />
+          )}
+        </svg>
+        <div className="sv-diag-center">
+          <span className="sv-diag-kip-val">{Math.round(kipPct)}%</span>
+          <span className="sv-diag-kip-label">КИП</span>
+          <span className="sv-diag-mov-label">В движении</span>
+          <span className="sv-diag-mov-val">{Math.round(movementPct)}%</span>
+        </div>
+        {tooltip && (
+          <div className="sv-diag-tip">{tooltip.label}: {tooltip.value}</div>
+        )}
+      </div>
+      {/* Bar: В пути / В зонах */}
+      <div className="sv-diag-bar-section">
+        <div className="sv-diag-bar-labels">
+          <span className="sv-diag-bar-lbl">{Math.round(travelPct)}%</span>
+          <span className="sv-diag-bar-lbl">{Math.round(zonePct)}%</span>
+        </div>
+        <div className="sv-diag-bar"
+          onClick={() => showTip('В пути', travelTimeSec)}
+          onMouseLeave={hideTip}>
+          <div className="sv-diag-bar-travel sv-diag-arc" style={{ width: `${travelPct}%` }}
+            onClick={e => { e.stopPropagation(); showTip('В пути', travelTimeSec); }} />
+          <div className="sv-diag-bar-zone sv-diag-arc" style={{ width: `${zonePct}%` }}
+            onClick={e => { e.stopPropagation(); showTip('В зонах', zoneTimeSec); }} />
+        </div>
+        <div className="sv-diag-bar-legend">
+          <span>В пути</span>
+          <button className="sv-diag-expand-btn" onClick={() => setExpanded(v => !v)}
+            title={expanded ? 'Свернуть' : 'Подробнее'}>
+            <svg viewBox="0 0 10 6" width="10" height="6" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+              <polyline points="1,1 5,5 9,1" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <span>В зонах</span>
+        </div>
+        {/* Expanded 4-part bar — nested within parent proportions */}
+        {expanded && (
+          <div className="sv-diag-bar4-wrap">
+            <div className="sv-diag-bar">
+              <div className="sv-diag-b4-group" style={{ width: `${travelPct}%` }}>
+                <div className="sv-diag-b4 sv-diag-b4-ttu sv-diag-arc" style={{ width: `${ttuInTravel}%` }}
+                  onClick={() => showTip('Гружёный', totalTtuSec)} onMouseLeave={hideTip} />
+                <div className="sv-diag-b4 sv-diag-b4-rtl sv-diag-arc" style={{ width: `${rtlInTravel}%` }}
+                  onClick={() => showTip('Порожний', totalRtlSec)} onMouseLeave={hideTip} />
+              </div>
+              <div className="sv-diag-b4-group" style={{ width: `${zonePct}%` }}>
+                <div className="sv-diag-b4 sv-diag-b4-load sv-diag-arc" style={{ width: `${loadInZone}%` }}
+                  onClick={() => showTip('Погрузка', loadingZoneSec)} onMouseLeave={hideTip} />
+                <div className="sv-diag-b4 sv-diag-b4-unload sv-diag-arc" style={{ width: `${unloadInZone}%` }}
+                  onClick={() => showTip('Выгрузка', unloadingZoneSec)} onMouseLeave={hideTip} />
+              </div>
+            </div>
+            <div className="sv-diag-bar4-legend">
+              <div className="sv-diag-b4-col">
+                <span className="sv-diag-b4-leg"><span className="sv-diag-dot" style={{ background: '#60A5FA' }} />гружёный</span>
+                <span className="sv-diag-b4-leg"><span className="sv-diag-dot" style={{ background: '#93C5FD' }} />порожний</span>
+              </div>
+              <div className="sv-diag-b4-col sv-diag-b4-col-right">
+                <span className="sv-diag-b4-leg"><span className="sv-diag-dot" style={{ background: '#8B5CF6' }} />погрузка</span>
+                <span className="sv-diag-b4-leg"><span className="sv-diag-dot" style={{ background: '#C4B5FD' }} />выгрузка</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1781,8 +2095,8 @@ function renderCell(
     case 'onsiteMin': return <span className="sv-td-agg">{agg.onsiteMin > 0 ? `${agg.onsiteMin}м` : '—'}</span>;
     case 'avgLoadingDwell': return <span className="sv-td-agg">{fmtDwell(agg.avgLoad)}</span>;
     case 'avgUnloadingDwell': return <span className="sv-td-agg">{fmtDwell(agg.avgUnload)}</span>;
-    case 'travelToUnload': return <span className="sv-td-agg">{agg.avgTravelToUnload ? `${agg.avgTravelToUnload}м` : '—'}</span>;
-    case 'returnToLoad': return <span className="sv-td-agg">{agg.avgReturnToLoad ? `${agg.avgReturnToLoad}м` : '—'}</span>;
+    case 'travelToUnload': return <span className="sv-td-agg">{agg.avgTravelToUnload ? fmtDwell(Math.round(agg.avgTravelToUnload * 60)) : '—'}</span>;
+    case 'returnToLoad': return <span className="sv-td-agg">{agg.avgReturnToLoad ? fmtDwell(Math.round(agg.avgReturnToLoad * 60)) : '—'}</span>;
     case 'shiftsCount': return <span>{recs.length}</span>;
     default: return '—';
   }
@@ -1823,6 +2137,8 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [collapsedSmu, setCollapsedSmu] = useState<Set<string>>(new Set());
+  const [pinnedVehicles, setPinnedVehicles] = useState<Set<string>>(new Set());
 
   const togOrder = (key: string) => setExpanded(prev => {
     const s = new Set(prev); if (s.has(key)) s.delete(key); else s.add(key); return s;
@@ -1885,8 +2201,48 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
     });
   }
 
-  const visibleBlocks = getVisibleBlocks(settings);
-  const totalCols = countCols(settings);
+  const toggleSmu = (key: string) => setCollapsedSmu(prev => {
+    const s = new Set(prev); s.has(key) ? s.delete(key) : s.add(key); return s;
+  });
+  const togglePin = (regNumber: string) => {
+    setPinnedVehicles(prev => {
+      const s = new Set(prev); s.has(regNumber) ? s.delete(regNumber) : s.add(regNumber); return s;
+    });
+  };
+
+  // SMU grouping
+  type SmuGroup = { smu: string; vehicles: typeof vehicleRows };
+  const uidToSmu = new Map(objects.map(o => [o.uid, o.smu ?? 'Без СМУ']));
+
+  const smuGroups: SmuGroup[] = (() => {
+    const smuMap = new Map<string, typeof vehicleRows>();
+    vehicleRows.forEach(v => {
+      const smuCounts = new Map<string, number>();
+      v.allRecs.forEach(r => {
+        const smu = uidToSmu.get(r.objectUid) ?? 'Без СМУ';
+        smuCounts.set(smu, (smuCounts.get(smu) ?? 0) + 1);
+      });
+      const topSmu = [...smuCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без СМУ';
+      if (!smuMap.has(topSmu)) smuMap.set(topSmu, []);
+      smuMap.get(topSmu)!.push(v);
+    });
+    return [...smuMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([smu, vehicles]) => ({ smu, vehicles }));
+  })();
+
+  // Pinned vehicles rendered first
+  const pinnedRows = vehicleRows.filter(v => pinnedVehicles.has(v.regNumber));
+  const unpinnedSmuGroups = smuGroups.map(sg => ({
+    ...sg,
+    vehicles: sg.vehicles.filter(v => !pinnedVehicles.has(v.regNumber)),
+  })).filter(sg => sg.vehicles.length > 0);
+
+  // Aggregates block renders inside ShiftSubTable footer, not in the main table
+  const visibleBlocks = getVisibleBlocks(settings).filter(b => b !== 'aggregates');
+  const totalCols = 1 + visibleBlocks.reduce((s, b) => s + getVisibleCols(settings, b).length, 0);
+  // Visible aggregate columns (for ShiftSubTable)
+  const aggCols = new Set(getVisibleCols(settings, 'aggregates'));
 
   const SortIcon = ({ col }: { col: string }) => sortCol === col
     ? <span style={{ marginLeft: 3, fontSize: 8 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
@@ -1909,7 +2265,42 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
             <span className="sv-empty-icon">📭</span>
             <span className="sv-empty-text">Нет данных за выбранный период</span>
           </div>
-        ) : (
+        ) : (<>
+          {/* SMU summary strip */}
+          <div className="sv-smu-strip">
+            {(() => {
+              // "All" totals card
+              const allVehicles = new Set(filteredRecords.map(r => r.regNumber)).size;
+              const allTrips = filteredRecords.reduce((s, r) => s + r.tripsCount, 0);
+              const s1kips = filteredRecords.filter(r => r.shiftType === 'shift1' && r.kipPct > 0).map(r => r.kipPct);
+              const allKip = s1kips.length ? Math.round(s1kips.reduce((a, b) => a + b, 0) / s1kips.length) : 0;
+              const cards: { title: string; vehicles: number; trips: number; kip: number }[] = [
+                { title: 'Все', vehicles: allVehicles, trips: allTrips, kip: allKip },
+              ];
+              // Per-SMU cards
+              const smuCardMap = new Map<string, ShiftRecord[]>();
+              filteredRecords.forEach(r => {
+                const smu = uidToSmu.get(r.objectUid) ?? 'Без СМУ';
+                if (!smuCardMap.has(smu)) smuCardMap.set(smu, []);
+                smuCardMap.get(smu)!.push(r);
+              });
+              [...smuCardMap.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([smu, recs]) => {
+                const veh = new Set(recs.map(r => r.regNumber)).size;
+                const trips = recs.reduce((s, r) => s + r.tripsCount, 0);
+                const kips = recs.filter(r => r.shiftType === 'shift1' && r.kipPct > 0).map(r => r.kipPct);
+                const kip = kips.length ? Math.round(kips.reduce((a, b) => a + b, 0) / kips.length) : 0;
+                cards.push({ title: smu, vehicles: veh, trips, kip });
+              });
+              return cards.map(c => (
+                <div key={c.title} className="sv-smu-card">
+                  <div className="sv-smu-card-title">{c.title}</div>
+                  <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
+                  <div className="sv-smu-card-row"><span>Рейсов</span><span className="sv-smu-card-val">{c.trips}</span></div>
+                  <div className="sv-smu-card-row"><span>Ср.КИП</span><span className={`sv-smu-card-val ${c.kip > 0 ? kipColor(c.kip) : ''}`}>{c.kip > 0 ? `${c.kip}%` : '—'}</span></div>
+                </div>
+              ));
+            })()}
+          </div>
           <table className="sv-at">
             <thead>
               {/* Row 1: block headers */}
@@ -1950,18 +2341,12 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
               </tr>
             </thead>
             <tbody>
-              {vehicleRows.map((v, vi) => {
-                const k0 = `v${vi}`;
+              {/* Render a single vehicle row with its nested orders/days */}
+              {(() => {
+                const renderVehicleRow = (v: typeof vehicleRows[0], k0: string, isPinned?: boolean) => {
                 const isOpen = expanded.has(k0);
                 const allRecs = v.allRecs;
-                const totalTrips = allRecs.reduce((s, r) => s + r.tripsCount, 0);
                 const isOnsite = allRecs.some(r => r.workType === 'onsite') && allRecs.every(r => r.workType !== 'delivery');
-                // row color hint
-                const rowKip1 = Number(avgOrDash(allRecs.filter(r => r.shiftType === 'shift1').map(r => r.kipPct)).replace('—', '-1'));
-                const rowStyle: React.CSSProperties = totalTrips === 0
-                  ? { background: 'rgba(239,68,68,0.06)' }
-                  : rowKip1 >= 75 ? { background: 'rgba(34,197,94,0.04)' }
-                  : {};
 
                 const ctx0 = { regNumber: v.regNumber, nameMO: v.nameMO,
                   reqNum: [...new Set(v.orders.map(o => o.reqNum))].join(', '),
@@ -1970,12 +2355,17 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                 return (
                   <React.Fragment key={k0}>
                     <tr
-                      className={`sv-lv0 ${isOnsite ? 'sv-onsite-row' : ''}`}
-                      style={{ cursor: 'pointer', ...rowStyle }}
+                      className={`sv-lv0 ${isOnsite ? 'sv-onsite-row' : ''}${isPinned ? ' sv-pinned-row' : ''}`}
+                      style={{ cursor: 'pointer' }}
                       onClick={() => togOrder(k0)}
                     >
                       <td>
                         <div className="sv-tree-cell">
+                          <button
+                            className={`sv-pin-btn ${pinnedVehicles.has(v.regNumber) ? 'pinned' : ''}`}
+                            onClick={e => { e.stopPropagation(); togglePin(v.regNumber); }}
+                            title={pinnedVehicles.has(v.regNumber) ? 'Открепить' : 'Закрепить'}
+                          >📌</button>
                           <div className={`sv-tree-expand ${isOpen ? 'open' : ''}`}>▶</div>
                           <div className="sv-vehicle-name-cell">
                             <span className="sv-reg-num">{v.regNumber}</span>
@@ -2038,17 +2428,11 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                             const k2 = `${k1}_d${di}`;
                             const isLast2 = di === dayRows.length - 1;
                             const isDayOpen = expandedDays.has(k2);
-                            const dayTrips = dr.recs.reduce((s, r) => s + r.tripsCount, 0);
-                            const dayStyle: React.CSSProperties = dayTrips === 0
-                              ? { background: 'rgba(239,68,68,0.08)' }
-                              : (dr.recs.find(r => r.shiftType === 'shift1')?.kipPct ?? 0) >= 75
-                              ? { background: 'rgba(34,197,94,0.06)' }
-                              : {};
                             const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: ord.reqNum, objName: ord.objName };
 
                             return (
                               <React.Fragment key={k2}>
-                                <tr className="sv-lv2" style={{ cursor: 'pointer', ...dayStyle }}
+                                <tr className="sv-lv2" style={{ cursor: 'pointer' }}
                                   onClick={e => { e.stopPropagation(); togDay(k2); }}>
                                   <td>
                                     <div className="sv-tree-cell">
@@ -2073,7 +2457,9 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                                           .sort((a, b) => a.shiftType.localeCompare(b.shiftType))
                                           .map(sr => (
                                             <div key={sr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
-                                              <ShiftSubTable shiftRecord={sr} />
+                                              <ShiftSubTable shiftRecord={sr}
+                                                shiftAgg={{ engineTimeSec: sr.engineTimeSec, movingTimeSec: sr.movingTimeSec, onsiteMin: sr.onsiteMin, kipPct: sr.kipPct, movementPct: sr.movementPct }}
+                                                visibleAggCols={aggCols} />
                                             </div>
                                           ))}
                                       </div>
@@ -2113,19 +2499,13 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                         const k2 = `${k0}_d${di}`;
                         const isLast2 = di === dayRows2.length - 1;
                         const isDayOpen = expandedDays.has(k2);
-                        const dayTrips = dr.recs.reduce((s, r) => s + r.tripsCount, 0);
-                        const dayStyle: React.CSSProperties = dayTrips === 0
-                          ? { background: 'rgba(239,68,68,0.08)' }
-                          : (dr.recs.find(r => r.shiftType === 'shift1')?.kipPct ?? 0) >= 75
-                          ? { background: 'rgba(34,197,94,0.06)' }
-                          : {};
                         const reqNums = [...new Set(dr.recs.flatMap(r => r.requestNumbers ?? []))].join(', ');
                         const objNames = [...new Set(dr.recs.map(r => r.objectName ?? ''))].join('; ');
                         const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: reqNums || '—', objName: objNames || '—' };
 
                         return (
                           <React.Fragment key={k2}>
-                            <tr className="sv-lv1" style={{ cursor: 'pointer', ...dayStyle }}
+                            <tr className="sv-lv1" style={{ cursor: 'pointer' }}
                               onClick={e => { e.stopPropagation(); togDay(k2); }}>
                               <td>
                                 <div className="sv-tree-cell">
@@ -2149,7 +2529,9 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                                       .sort((a, b) => a.shiftType.localeCompare(b.shiftType))
                                       .map(sr => (
                                         <div key={sr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
-                                          <ShiftSubTable shiftRecord={sr} />
+                                          <ShiftSubTable shiftRecord={sr}
+                                            shiftAgg={{ engineTimeSec: sr.engineTimeSec, movingTimeSec: sr.movingTimeSec, onsiteMin: sr.onsiteMin, kipPct: sr.kipPct, movementPct: sr.movementPct }}
+                                            visibleAggCols={aggCols} />
                                         </div>
                                       ))}
                                   </div>
@@ -2162,10 +2544,36 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                     })()}
                   </React.Fragment>
                 );
-              })}
+                };
+
+                return (<>
+                  {/* Pinned rows */}
+                  {pinnedRows.map((v, vi) => renderVehicleRow(v, `pin_${v.regNumber}`, true))}
+
+                  {/* SMU groups */}
+                  {unpinnedSmuGroups.map((sg, si) => {
+                    const smuKey = `smu_${si}`;
+                    const smuOpen = !collapsedSmu.has(smuKey);
+                    return (
+                      <React.Fragment key={smuKey}>
+                        <tr className="sv-smu-row" onClick={() => toggleSmu(smuKey)}>
+                          <td colSpan={totalCols}>
+                            <div className="sv-smu-header">
+                              <span className={`sv-tree-expand ${smuOpen ? 'open' : ''}`}>▶</span>
+                              <span className="sv-smu-name">{sg.smu}</span>
+                              <span className="sv-smu-badge">{sg.vehicles.length} ТС</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {smuOpen && sg.vehicles.map((v, vi) => renderVehicleRow(v, `${smuKey}_v${vi}`))}
+                      </React.Fragment>
+                    );
+                  })}
+                </>);
+              })()}
             </tbody>
           </table>
-        )}
+        </>)}
       </div>
     </div>
   );
@@ -3085,40 +3493,17 @@ export function DumpTrucksPage() {
           </>
         )}
 
-        {/* Analytics: date range */}
+        {/* Analytics: date range + shift + filters */}
         {activeTab === 'analytics' && (
           <>
             <div className="sv-filter-sep" />
-            <div className="sv-fg">
-              <div className="sv-fg-label">Период</div>
-              <div className="sv-fg-row">
-                <input type="date" className="sv-fb-date"
-                  value={dateFrom}
-                  onChange={e => setDateFrom(e.target.value)} />
-                <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>
-                <input type="date" className="sv-fb-date"
-                  value={dateTo}
-                  onChange={e => setDateTo(e.target.value)} />
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Analytics-only filters */}
-        {activeTab === 'analytics' && (
-          <>
-            <div className="sv-filter-sep" />
-            <div className="sv-fg">
-              <div className="sv-fg-label">Смена</div>
-              <div className="sv-fg-row">
-                {(['all', 'shift1', 'shift2'] as const).map(s => (
-                  <button key={s} className={`sv-fb-pill ${analyticsFilters.shift === s ? 'active' : ''}`}
-                    onClick={() => setAnalyticsFilters(f => ({ ...f, shift: s }))}>
-                    {s === 'all' ? 'Все' : s === 'shift1' ? '1-я' : '2-я'}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <DateRangePicker
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onRangeChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
+              shift={analyticsFilters.shift}
+              onShiftChange={s => setAnalyticsFilters(f => ({ ...f, shift: s }))}
+            />
             <div className="sv-filter-sep" />
             <div className="sv-fg">
               <div className="sv-fg-label">Объект</div>
