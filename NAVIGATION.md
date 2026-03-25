@@ -14,6 +14,7 @@
 | Самосвалы | `dump-trucks/` | 3002 | PG17, `mstroy`, схема `dump_trucks` | Node.js / Express | Работает |
 | Состояние ТС | `vehicle-status/` | 3004 | PG17, `mstroy`, схема `vehicle_status` | Node.js / Express | Работает |
 | Гео-Администратор | `geo-admin/` | 3003 | PG17, `mstroy`, схема `geo` | Node.js / Express | Работает |
+| AI Отчёты | `ai-reports/` | 3006 | PG16 + PG17 + SQLite (читает из всех БД) | Node.js / Express / AI SDK v6 | Каркас готов |
 
 ---
 

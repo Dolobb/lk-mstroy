@@ -42,6 +42,7 @@ NAVIGATION.md → docs/*.md → исходный код
 | Состояние ТС | `vehicle-status/` | 3004 | Express + PostgreSQL 17 (`mstroy`) |
 | Гео-Администратор | `geo-admin/` | 3003 | Express + PostgreSQL 17 (`mstroy` / PostGIS) |
 | **Admin** | `admin/` | **3005** | Express (процесс-менеджер) |
+| AI Отчёты | `ai-reports/` | 3006 | Express + Vercel AI SDK v6 + Claude Haiku |
 
 ### Запуск всех сервисов — ОДНА КОМАНДА
 
@@ -77,7 +78,7 @@ cd frontend && npm run dev                             # :5173
 - **PG 17** (порт 5433): `mstroy` → `/usr/local/opt/postgresql@17/bin/psql -p 5433 -d mstroy`
 
 ### Vite proxy (`frontend/vite.config.ts`)
-`/api/kip` → :3001 | `/api/tyagachi` → :8000 | `/api/dt` → :3002 | `/api/vs` → :3004 | `/api/admin` → :3005
+`/api/kip` → :3001 | `/api/tyagachi` → :8000 | `/api/dt` → :3002 | `/api/vs` → :3004 | `/api/admin` → :3005 | `/api/reports` → :3006
 
 ### Secrets
 - `.env` в корнях подпроектов — не коммитить
@@ -95,3 +96,4 @@ cd frontend && npm run dev                             # :5173
 | Состояние ТС | `vehicle-status/docs/FRONTEND.md` | `vehicle-status/docs/PIPELINE.md` | `vehicle-status/docs/HISTORY.md` | `vehicle-status/docs/DEVGUIDE.md` |
 | Гео-Администратор | `geo-admin/docs/FRONTEND.md` | `geo-admin/docs/PIPELINE.md` | `geo-admin/docs/HISTORY.md` | `geo-admin/docs/DEVGUIDE.md` |
 | Единый фронтенд | `frontend/docs/FRONTEND.md` | `frontend/docs/PIPELINE.md` | `frontend/docs/HISTORY.md` | `frontend/docs/DEVGUIDE.md` |
+| AI Отчёты | `ai-reports/docs/FRONTEND.md` | `ai-reports/docs/PIPELINE.md` | `ai-reports/docs/HISTORY.md` | `ai-reports/docs/DEVGUIDE.md` |

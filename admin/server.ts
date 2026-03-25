@@ -66,6 +66,14 @@ const SERVICES: ServiceConfig[] = [
     cwd: path.join(ROOT, 'tyagachi'),
     port: 8000,
   },
+  {
+    id: 'ai-reports',
+    name: 'AI Отчёты',
+    cmd: 'npm',
+    args: ['run', 'dev'],
+    cwd: path.join(ROOT, 'ai-reports/server'),
+    port: 3006,
+  },
 ];
 
 // ─── Process state ────────────────────────────────────────────────────────────

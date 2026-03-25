@@ -1,0 +1,29 @@
+{
+  "name": "ai-reports-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.64",
+    "ai": "^6.0.137",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "sql.js": "^1.11.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/pg": "^8.11.0",
+    "@types/sql.js": "^1.4.9",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.0"
+  }
+}

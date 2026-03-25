@@ -37,6 +37,10 @@ export default defineConfig({
         target: 'http://localhost:3005',
         changeOrigin: true,
       },
+      '/api/reports': {
+        target: 'http://localhost:3006',
+        changeOrigin: true,
+      },
     },
   },
   build: {
