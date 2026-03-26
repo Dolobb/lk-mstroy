@@ -11,6 +11,7 @@ export const queryGeoData = tool({
     zoneType: z.enum(['dt_loading', 'dt_unloading', 'dt_boundary', 'dt_onsite']).optional().describe('Тип зоны (тег)'),
   }),
   execute: async ({ objectName, zoneType }) => {
+    console.log('[queryGeoData]', { objectName, zoneType });
     const pool = getPg17();
 
     try {
@@ -60,8 +61,10 @@ export const queryGeoData = tool({
         zones = rows;
       }
 
+      console.log('[queryGeoData] result:', { success: true, objectCount: objects.length, zoneCount: zones.length });
       return { success: true, objects, zones };
     } catch (err) {
+      console.error('[queryGeoData] error:', err);
       return { success: false, error: String(err) };
     }
   },

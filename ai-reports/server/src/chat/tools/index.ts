@@ -5,3 +5,6 @@ export { queryGeoData } from './geo';
 export { queryRepairs } from './repairs';
 export { queryVehicleRegistry } from './vehicles';
 export { generateXlsx } from './generate-xlsx';
+export { generateKipReport } from './templates/kip-report';
+export { generateDumpTruckSummary } from './templates/dump-truck-summary';
+export { generateTripDetail } from './templates/trip-detail';

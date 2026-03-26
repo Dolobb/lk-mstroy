@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"=== HTTP_PROXY ===\" && echo \"$HTTP_PROXY\" && echo \"=== HTTPS_PROXY ===\" && echo \"$HTTPS_PROXY\" && echo \"=== NO_PROXY ===\" && echo \"$NO_PROXY\" && echo \"=== npm proxy ===\" && npm config get proxy && npm config get https-proxy && echo \"=== System proxy \\(reg\\) ===\" && reg query \"HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Internet Settings\" //v ProxyEnable 2>/dev/null && reg query \"HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Internet Settings\" //v ProxyServer 2>/dev/null)"
+    ]
+  }
+}

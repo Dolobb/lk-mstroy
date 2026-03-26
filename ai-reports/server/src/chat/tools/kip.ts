@@ -19,6 +19,7 @@ export const queryKipData = tool({
     shiftType: z.string().optional().describe('Фильтр по смене (shift_type)'),
   }),
   execute: async ({ dateFrom, dateTo, regNumbers, vehicleModel, departmentUnit, companyName, shiftType }) => {
+    console.log('[queryKipData]', { dateFrom, dateTo, regNumbers, vehicleModel, departmentUnit, companyName, shiftType });
     const pool = getPg16();
 
     const conditions: string[] = ['report_date >= $1', 'report_date <= $2'];
@@ -76,8 +77,10 @@ export const queryKipData = tool({
          ORDER BY report_date, department_unit, vehicle_id`,
         params,
       );
+      console.log('[queryKipData] result:', { success: true, count: rows.length });
       return { success: true, count: rows.length, data: rows };
     } catch (err) {
+      console.error('[queryKipData] error:', err);
       return { success: false, error: String(err) };
     }
   },

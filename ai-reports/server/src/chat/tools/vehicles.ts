@@ -13,6 +13,7 @@ export const queryVehicleRegistry = tool({
     source: z.enum(['all', 'dump_trucks', 'kip']).optional().describe('Источник: all (оба), dump_trucks, kip'),
   }),
   execute: async ({ search, source = 'all' }) => {
+    console.log('[queryVehicleRegistry]', { search, source });
     const results: any[] = [];
 
     // Самосвалы из dump_trucks
@@ -82,6 +83,7 @@ export const queryVehicleRegistry = tool({
       }
     }
 
+    console.log('[queryVehicleRegistry] result:', { success: true, count: results.length });
     return {
       success: true,
       count: results.length,

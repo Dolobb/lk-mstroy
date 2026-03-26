@@ -131,19 +131,14 @@ const BLOCK_LABELS: Record<BlockId, string> = {
 const BLOCK_COLUMNS: Record<BlockId, Array<{ id: string; label: string }>> = {
   identity: [
     { id: 'requestNumber', label: '№ заявки' },
-    { id: 'objectName',   label: 'Объект' },
   ],
   work: [
     { id: 'shiftsCount',  label: 'Смены' },
-    { id: 'shift1Trips',  label: 'Рейсы 1 см.' },
-    { id: 'shift2Trips',  label: 'Рейсы 2 см.' },
-    { id: 'totalTrips',   label: 'Рейсы итого' },
+    { id: 'totalTrips',   label: 'Рейсы' },
   ],
   kpi: [
-    { id: 'kip1',         label: 'КИП 1 см.' },
-    { id: 'kip2',         label: 'КИП 2 см.' },
-    { id: 'movement1',    label: 'Движение% 1' },
-    { id: 'movement2',    label: 'Движение% 2' },
+    { id: 'kipAvg',       label: 'КИП ср.' },
+    { id: 'movementAvg',  label: 'Движение%' },
   ],
   aggregates: [
     { id: 'engineTotal',       label: 'Двиг. итого' },
@@ -2064,32 +2059,28 @@ function renderCell(
   level: 'vehicle' | 'order' | 'day',
   ctx: {
     regNumber?: string; nameMO?: string;
-    reqNum?: string; objName?: string;
+    reqNum?: string;
     date?: string;
     s1Rec?: ShiftRecord; s2Rec?: ShiftRecord;
   }
 ): React.ReactNode {
   const totalTrips = recs.reduce((s, r) => s + r.tripsCount, 0);
-  const s1Recs = recs.filter(r => r.shiftType === 'shift1');
-  const s2Recs = recs.filter(r => r.shiftType === 'shift2' && r.kipPct > 0);
-  const ak1 = avgOrDash(s1Recs.map(r => r.kipPct));
-  const am1 = avgOrDash(s1Recs.map(r => r.movementPct));
-  const ak2 = avgOrDash(s2Recs.map(r => r.kipPct));
-  const am2 = avgOrDash(s2Recs.map(r => r.movementPct));
+  const activeRecs = recs.filter(r => r.kipPct > 0);
+  const kipAvg = avgOrDash(activeRecs.map(r => r.kipPct));
+  const movAvg = avgOrDash(activeRecs.map(r => r.movementPct));
   const agg = aggRecs(recs);
-  const s1trips = s1Recs.reduce((s, r) => s + r.tripsCount, 0);
-  const s2trips = s2Recs.reduce((s, r) => s + r.tripsCount, 0);
 
   switch (colId) {
-    case 'requestNumber': return <span style={{ fontSize: 10 }}>{ctx.reqNum ?? '—'}</span>;
-    case 'objectName': return <span style={{ fontSize: 10 }}>{ctx.objName ?? '—'}</span>;
-    case 'shift1Trips': return <span style={{ fontWeight: 600 }}>{s1trips || '—'}</span>;
-    case 'shift2Trips': return <span style={{ fontWeight: 600 }}>{s2trips || '—'}</span>;
+    case 'requestNumber': {
+      const full = ctx.reqNum ?? '—';
+      const items = full.split(', ').filter(Boolean);
+      if (items.length <= 4) return <span style={{ fontSize: 10 }}>{full}</span>;
+      const truncated = items.slice(0, 4).join(', ') + ' …';
+      return <span style={{ fontSize: 10 }} title={full}>{truncated}</span>;
+    }
     case 'totalTrips': return <span style={{ fontWeight: 700, color: '#F97316' }}>{totalTrips || '—'}</span>;
-    case 'kip1': return <span className={ak1 !== '—' ? kipColor(Number(ak1)) : ''}>{ak1}</span>;
-    case 'kip2': return <span className={ak2 !== '—' ? kipColor(Number(ak2)) : ''}>{ak2}</span>;
-    case 'movement1': return <span className={am1 !== '—' ? kipColor(Number(am1)) : ''}>{am1}</span>;
-    case 'movement2': return <span className={am2 !== '—' ? kipColor(Number(am2)) : ''}>{am2}</span>;
+    case 'kipAvg': return <span className={kipAvg !== '—' ? kipColor(Number(kipAvg)) : ''}>{kipAvg}</span>;
+    case 'movementAvg': return <span className={movAvg !== '—' ? kipColor(Number(movAvg)) : ''}>{movAvg}</span>;
     case 'engineTotal': return <span className="sv-td-agg">{fmtHours(agg.engineSec)}</span>;
     case 'movingTotal': return <span className="sv-td-agg">{fmtHours(agg.movingSec)}</span>;
     case 'onsiteMin': return <span className="sv-td-agg">{agg.onsiteMin > 0 ? `${agg.onsiteMin}м` : '—'}</span>;
@@ -2189,8 +2180,8 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
         const recs = row.allRecs;
         switch (sortCol) {
           case 'totalTrips': return recs.reduce((s, r) => s + r.tripsCount, 0);
-          case 'kip1': return Number(avgOrDash(recs.filter(r => r.shiftType === 'shift1').map(r => r.kipPct)).replace('—', '0'));
-          case 'kip2': return Number(avgOrDash(recs.filter(r => r.shiftType === 'shift2').map(r => r.kipPct)).replace('—', '0'));
+          case 'kipAvg': return Number(avgOrDash(recs.filter(r => r.kipPct > 0).map(r => r.kipPct)).replace('—', '0'));
+          case 'movementAvg': return Number(avgOrDash(recs.filter(r => r.kipPct > 0).map(r => r.movementPct)).replace('—', '0'));
           case 'engineTotal': return aggRecs(recs).engineSec;
           case 'onsiteMin': return aggRecs(recs).onsiteMin;
           default: return 0;
@@ -2248,7 +2239,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
     ? <span style={{ marginLeft: 3, fontSize: 8 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
     : null;
 
-  const SORTABLE_COLS = new Set(['totalTrips', 'shift1Trips', 'shift2Trips', 'kip1', 'kip2', 'engineTotal', 'onsiteMin']);
+  const SORTABLE_COLS = new Set(['totalTrips', 'kipAvg', 'movementAvg', 'engineTotal', 'onsiteMin']);
 
   return (
     <div className="sv-tab-analytics" style={{ display: 'flex' }}>
@@ -2349,8 +2340,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                 const isOnsite = allRecs.some(r => r.workType === 'onsite') && allRecs.every(r => r.workType !== 'delivery');
 
                 const ctx0 = { regNumber: v.regNumber, nameMO: v.nameMO,
-                  reqNum: [...new Set(v.orders.map(o => o.reqNum))].join(', '),
-                  objName: [...new Set(v.orders.map(o => o.objName))].join('; ') };
+                  reqNum: [...new Set(v.orders.map(o => o.reqNum))].join(', ') };
 
                 return (
                   <React.Fragment key={k0}>
@@ -2382,7 +2372,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                     {isOpen && settings.groupByRequest && v.orders.map((ord, oi) => {
                       const k1 = `${k0}_o${oi}`;
                       const isLast1 = oi === v.orders.length - 1;
-                      const ctx1 = { reqNum: ord.reqNum, objName: ord.objName };
+                      const ctx1 = { reqNum: ord.reqNum };
 
                       type DayRow = { key: string; label: string; recs: ShiftRecord[]; badge?: string };
                       let dayRows: DayRow[];
@@ -2428,7 +2418,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                             const k2 = `${k1}_d${di}`;
                             const isLast2 = di === dayRows.length - 1;
                             const isDayOpen = expandedDays.has(k2);
-                            const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: ord.reqNum, objName: ord.objName };
+                            const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: ord.reqNum };
 
                             return (
                               <React.Fragment key={k2}>
@@ -2500,8 +2490,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                         const isLast2 = di === dayRows2.length - 1;
                         const isDayOpen = expandedDays.has(k2);
                         const reqNums = [...new Set(dr.recs.flatMap(r => r.requestNumbers ?? []))].join(', ');
-                        const objNames = [...new Set(dr.recs.map(r => r.objectName ?? ''))].join('; ');
-                        const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: reqNums || '—', objName: objNames || '—' };
+                        const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: reqNums || '—' };
 
                         return (
                           <React.Fragment key={k2}>

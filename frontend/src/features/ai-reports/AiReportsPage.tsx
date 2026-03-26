@@ -1,5 +1,6 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { Bot, FileSpreadsheet, Truck, BarChart3, Wrench, Sparkles } from 'lucide-react';
@@ -15,12 +16,12 @@ export const AiReportsPage: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState('');
 
-  const { messages, sendMessage, status, error } = useChat({
-    transport: {
-      type: 'http',
-      api: '/api/reports/chat',
-    } as any,
-  });
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: '/api/reports/chat' }),
+    [],
+  );
+
+  const { messages, sendMessage, status, error } = useChat({ transport });
 
   const isLoading = status === 'submitted' || status === 'streaming';
 

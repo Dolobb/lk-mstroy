@@ -48,6 +48,7 @@
   --sv-sub-border: rgba(34,197,94,0.15);
   --sv-sub-divider: rgba(34,197,94,0.1);
   --sv-sub-dash: rgba(34,197,94,0.15);
+  --sv-thead-bg: #0F1829;
 
   display: flex;
   flex-direction: column;
@@ -106,6 +107,7 @@
   --sv-sub-border: rgba(34,197,94,0.12);
   --sv-sub-divider: rgba(34,197,94,0.08);
   --sv-sub-dash: rgba(34,197,94,0.12);
+  --sv-thead-bg: #EDF2F8;
 }
 
 .sv-root[data-theme="light"] .sv-fb-select option {
@@ -439,7 +441,7 @@
 .sv-an-table-wrap { overflow: auto; scrollbar-width: thin; scrollbar-color: var(--sv-scroll) transparent; flex: 1; }
 
 table.sv-at { width: 100%; border-collapse: collapse; font-size: 14px; }
-table.sv-at thead { position: sticky; top: 0; z-index: 5; }
+table.sv-at thead { position: sticky; top: 0; z-index: 5; background: var(--sv-thead-bg, #0F1829); }
 table.sv-at th {
   padding: 6px 7px; font-weight: 600; color: var(--sv-text-2);
   text-align: center; font-size: 13px; text-transform: uppercase;

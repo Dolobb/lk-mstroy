@@ -15,6 +15,7 @@ export const queryDumpTruckData = tool({
     shiftType: z.enum(['shift1', 'shift2']).optional().describe('Фильтр по смене'),
   }),
   execute: async ({ dateFrom, dateTo, objectName, regNumbers, shiftType }) => {
+    console.log('[queryDumpTruckData]', { dateFrom, dateTo, objectName, regNumbers, shiftType });
     const pool = getPg17();
 
     const conditions: string[] = ['sr.report_date >= $1', 'sr.report_date <= $2'];
@@ -72,8 +73,10 @@ export const queryDumpTruckData = tool({
          ORDER BY sr.report_date, sr.reg_number, sr.shift_type`,
         params,
       );
+      console.log('[queryDumpTruckData] result:', { success: true, count: rows.length });
       return { success: true, count: rows.length, data: rows };
     } catch (err) {
+      console.error('[queryDumpTruckData] error:', err);
       return { success: false, error: String(err) };
     }
   },
@@ -91,6 +94,7 @@ export const queryDumpTruckTrips = tool({
     regNumber: z.string().optional().describe('Госномер'),
   }),
   execute: async ({ shiftRecordId, dateFrom, dateTo, regNumber }) => {
+    console.log('[queryDumpTruckTrips]', { shiftRecordId, dateFrom, dateTo, regNumber });
     const pool = getPg17();
 
     try {
@@ -111,8 +115,10 @@ export const queryDumpTruckTrips = tool({
       }
 
       const { rows: trips } = await pool.query(tripsQuery, params);
+      console.log('[queryDumpTruckTrips] result:', { success: true, count: trips.length });
       return { success: true, count: trips.length, data: trips };
     } catch (err) {
+      console.error('[queryDumpTruckTrips] error:', err);
       return { success: false, error: String(err) };
     }
   },

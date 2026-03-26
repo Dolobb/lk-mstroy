@@ -25,6 +25,7 @@ export const queryTyagachiData = tool({
     stabilityStatus: z.enum(['stable', 'in_progress']).optional().describe('Статус стабильности заявки'),
   }),
   execute: async ({ dateFrom, dateTo, regNumber, requestNumber, stabilityStatus }) => {
+    console.log('[queryTyagachiData]', { dateFrom, dateTo, regNumber, requestNumber, stabilityStatus });
     try {
       const db = await getSqlite();
 
@@ -90,6 +91,7 @@ export const queryTyagachiData = tool({
       const stableCount = requests.filter((r: any) => r.stability_status === 'stable').length;
       const inProgressCount = requests.filter((r: any) => r.stability_status === 'in_progress').length;
 
+      console.log('[queryTyagachiData] result:', { success: true, requests: requests.length, routeLists: routeLists.length });
       return {
         success: true,
         summary: {
@@ -102,6 +104,7 @@ export const queryTyagachiData = tool({
         routeLists: { count: routeLists.length, data: routeLists },
       };
     } catch (err) {
+      console.error('[queryTyagachiData] error:', err);
       return { success: false, error: String(err) };
     }
   },

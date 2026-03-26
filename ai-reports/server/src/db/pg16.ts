@@ -10,6 +10,7 @@ export function getPg16(): Pool {
       port: config.pg16.port,
       database: config.pg16.database,
       user: config.pg16.user,
+      password: config.pg16.password,
       max: 5,
     });
   }

@@ -10,6 +10,7 @@ export function getPg17(): Pool {
       port: config.pg17.port,
       database: config.pg17.database,
       user: config.pg17.user,
+      password: config.pg17.password,
       max: 5,
     });
   }

@@ -13,6 +13,7 @@ export const queryRepairs = tool({
     objectName: z.string().optional().describe('Фильтр по объекту'),
   }),
   execute: async ({ dateFrom, dateTo, regNumbers, objectName }) => {
+    console.log('[queryRepairs]', { dateFrom, dateTo, regNumbers, objectName });
     const pool = getPg17();
 
     const conditions: string[] = [
@@ -42,8 +43,10 @@ export const queryRepairs = tool({
          ORDER BY r.date_from`,
         params,
       );
+      console.log('[queryRepairs] result:', { success: true, count: rows.length });
       return { success: true, count: rows.length, data: rows };
     } catch (err) {
+      console.error('[queryRepairs] error:', err);
       return { success: false, error: String(err) };
     }
   },
