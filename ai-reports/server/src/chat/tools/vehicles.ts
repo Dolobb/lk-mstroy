@@ -1,57 +1,91 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { getPg17 } from '../../db/pg17';
+import { getPg16 } from '../../db/pg16';
 
 export const queryVehicleRegistry = tool({
   description:
-    'Получить реестр ТС: госномер, название, модель, тип, принадлежность к СМУ/филиалу. ' +
-    'Полезно для группировки данных по подразделению или типу техники. ' +
-    'Источник: PostgreSQL mstroy, таблица geo.objects + TIS API vehicle cache.',
+    'Получить реестр ТС из двух источников: самосвалы (dump_trucks.shift_records) и КИП (kip_vehicles.vehicle_records). ' +
+    'Возвращает: госномер, название/модель, компания, подразделение, источник данных. ' +
+    'Используй для группировки данных или поиска ТС по госномеру.',
   inputSchema: z.object({
-    vehicleType: z.string().optional().describe('Тип ТС (самосвал, тягач, бульдозер, экскаватор и др.)'),
-    smu: z.string().optional().describe('Подразделение СМУ'),
-    search: z.string().optional().describe('Поиск по госномеру или названию'),
+    search: z.string().optional().describe('Поиск по госномеру или названию ТС'),
+    source: z.enum(['all', 'dump_trucks', 'kip']).optional().describe('Источник: all (оба), dump_trucks, kip'),
   }),
-  execute: async ({ vehicleType, smu, search }) => {
-    // TODO: Определить единый источник реестра ТС
-    // Варианты:
-    //   1. Таблица в mstroy (если есть)
-    //   2. TIS API getMonitoringObjects кеш
-    //   3. Собрать из shift_records + vehicle_records уникальные ТС
-    //
-    // Пока — заглушка, собирающая уникальные ТС из shift_records самосвалов
+  execute: async ({ search, source = 'all' }) => {
+    const results: any[] = [];
 
-    const pool = getPg17();
+    // Самосвалы из dump_trucks
+    if (source === 'all' || source === 'dump_trucks') {
+      try {
+        const pool = getPg17();
+        const dtConditions: string[] = [];
+        const dtParams: unknown[] = [];
+        let idx = 1;
 
-    try {
-      const conditions: string[] = [];
-      const params: unknown[] = [];
-      let idx = 1;
+        if (search) {
+          dtConditions.push(`(sr.reg_number ILIKE $${idx} OR sr.name_mo ILIKE $${idx})`);
+          dtParams.push(`%${search}%`);
+          idx++;
+        }
 
-      if (search) {
-        conditions.push(`(sr.reg_number ILIKE $${idx} OR sr.name_mo ILIKE $${idx})`);
-        params.push(`%${search}%`);
-        idx++;
+        const dtWhere = dtConditions.length ? `WHERE ${dtConditions.join(' AND ')}` : '';
+
+        const { rows } = await pool.query(
+          `SELECT DISTINCT
+             sr.reg_number,
+             sr.name_mo AS vehicle_name,
+             sr.vehicle_id AS id_mo,
+             'dump_trucks' AS source
+           FROM dump_trucks.shift_records sr
+           ${dtWhere}
+           ORDER BY sr.reg_number`,
+          dtParams,
+        );
+        results.push(...rows);
+      } catch (err) {
+        // Пропускаем если PG17 недоступен
       }
-
-      const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-
-      const { rows } = await pool.query(
-        `SELECT DISTINCT sr.reg_number, sr.name_mo, sr.vehicle_id
-         FROM dump_trucks.shift_records sr
-         ${where}
-         ORDER BY sr.reg_number`,
-        params,
-      );
-
-      return {
-        success: true,
-        count: rows.length,
-        data: rows,
-        note: 'Это временная реализация. Полный реестр ТС с типом и СМУ нужно настроить.',
-      };
-    } catch (err) {
-      return { success: false, error: String(err) };
     }
+
+    // КИП из vehicle_records
+    if (source === 'all' || source === 'kip') {
+      try {
+        const pool = getPg16();
+        const kipConditions: string[] = [];
+        const kipParams: unknown[] = [];
+        let idx = 1;
+
+        if (search) {
+          kipConditions.push(`(vr.vehicle_id ILIKE $${idx} OR vr.vehicle_model ILIKE $${idx})`);
+          kipParams.push(`%${search}%`);
+          idx++;
+        }
+
+        const kipWhere = kipConditions.length ? `WHERE ${kipConditions.join(' AND ')}` : '';
+
+        const { rows } = await pool.query(
+          `SELECT DISTINCT
+             vr.vehicle_id AS reg_number,
+             vr.vehicle_model AS vehicle_name,
+             vr.company_name,
+             vr.department_unit,
+             'kip' AS source
+           FROM vehicle_records vr
+           ${kipWhere}
+           ORDER BY vr.vehicle_id`,
+          kipParams,
+        );
+        results.push(...rows);
+      } catch (err) {
+        // Пропускаем если PG16 недоступен
+      }
+    }
+
+    return {
+      success: true,
+      count: results.length,
+      data: results,
+    };
   },
 });

@@ -53,12 +53,20 @@ export const queryDumpTruckData = tool({
          LEFT JOIN LATERAL (
            SELECT AVG(ze.duration_sec) AS avg_loading_sec
            FROM dump_trucks.zone_events ze
-           WHERE ze.shift_record_id = sr.id AND ze.zone_tag = 'dt_loading'
+           WHERE ze.vehicle_id = sr.vehicle_id
+             AND ze.report_date = sr.report_date
+             AND ze.shift_type = sr.shift_type
+             AND ze.object_uid = sr.object_uid
+             AND ze.zone_tag = 'dt_loading'
          ) avg_load ON true
          LEFT JOIN LATERAL (
            SELECT AVG(ze.duration_sec) AS avg_unloading_sec
            FROM dump_trucks.zone_events ze
-           WHERE ze.shift_record_id = sr.id AND ze.zone_tag = 'dt_unloading'
+           WHERE ze.vehicle_id = sr.vehicle_id
+             AND ze.report_date = sr.report_date
+             AND ze.shift_type = sr.shift_type
+             AND ze.object_uid = sr.object_uid
+             AND ze.zone_tag = 'dt_unloading'
          ) avg_unload ON true
          WHERE ${conditions.join(' AND ')}
          ORDER BY sr.report_date, sr.reg_number, sr.shift_type`,
