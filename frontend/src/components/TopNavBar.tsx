@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Settings, Sun, Moon, Map, Wrench, Terminal, Sparkles } from 'lucide-react';
+import { Home, Settings, Sun, Moon, Map, Wrench, Terminal, Sparkles, FileSpreadsheet } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { DumpTruckIcon, SemiTruckIcon } from './dashboard/VehicleIcons';
 
@@ -53,8 +53,16 @@ const TopNavBar: React.FC = () => {
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
           style={{ fontSize: '11px', textDecoration: 'none' }}
         >
+          <FileSpreadsheet className="size-3.5" />
+          <span>Отчёты</span>
+        </Link>
+        <Link
+          to="/ai-demo"
+          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
+          style={{ fontSize: '11px', textDecoration: 'none' }}
+        >
           <Sparkles className="size-3.5" />
-          <span>Отчёты AI</span>
+          <span>AI Demo</span>
         </Link>
         <Link
           to="/admin"

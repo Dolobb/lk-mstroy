@@ -3,13 +3,13 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { Bot, FileSpreadsheet, Truck, BarChart3, Wrench, Sparkles } from 'lucide-react';
+import { Bot, Sparkles, Zap, Database, Shield, TrendingUp } from 'lucide-react';
 
 const EXAMPLE_PROMPTS = [
-  { icon: FileSpreadsheet, text: 'Сводка КИП по всей технике за прошлую неделю' },
-  { icon: Truck, text: 'Рейсы самосвалов на Тобольске за эту неделю' },
-  { icon: BarChart3, text: 'Покажи ТС с расходом топлива выше нормы за февраль' },
-  { icon: Wrench, text: 'Сколько самосвалов было в ремонте за последний месяц' },
+  { icon: Zap, text: 'Какие возможности откроет AI-конструктор?' },
+  { icon: Database, text: 'Какие данные уже собраны в системе?' },
+  { icon: TrendingUp, text: 'Как AI-помощник экономит время?' },
+  { icon: Shield, text: 'Как устроена система и безопасность?' },
 ];
 
 export const AiReportsPage: React.FC = () => {
@@ -59,11 +59,11 @@ export const AiReportsPage: React.FC = () => {
 
             <div className="text-center max-w-md">
               <h2 className="text-lg font-semibold text-foreground mb-2">
-                AI-конструктор отчётов
+                Ассистент НПС
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Опишите какой отчёт вам нужен — система достанет данные из баз
-                и сгенерирует готовый Excel-файл.
+                Демо-версия AI-помощника. Расскажу о возможностях системы,
+                подключённых данных и планах по автоматизации отчётности.
               </p>
             </div>
 

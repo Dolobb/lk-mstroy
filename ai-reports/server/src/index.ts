@@ -3,6 +3,8 @@ import cors from 'cors';
 import fs from 'fs';
 import { config } from './config';
 import { chatHandler } from './chat/handler';
+import { metaHandler } from './reports/meta';
+import { generateHandler } from './reports/generate';
 import { closePg16 } from './db/pg16';
 import { closePg17 } from './db/pg17';
 import { closeSqlite } from './db/sqlite';
@@ -16,6 +18,11 @@ app.use(express.json());
 app.get('/api/reports/health', (_req, res) => {
   res.json({ status: 'ok', service: 'ai-reports', port: config.port });
 });
+
+// ─── Report constructor ─────────────────────────────────────────────────────
+
+app.get('/api/reports/meta', metaHandler);
+app.post('/api/reports/generate', generateHandler);
 
 // ─── Chat endpoint (SSE streaming) ──────────────────────────────────────────
 
