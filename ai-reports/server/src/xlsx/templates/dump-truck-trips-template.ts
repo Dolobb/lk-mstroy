@@ -1,22 +1,141 @@
 import ExcelJS from 'exceljs';
-import type { DateShiftGroup, VehicleGroup } from '../../reports/queries/dump-trucks';
+import type { DateShiftGroup, VehicleGroup, TripDetail } from '../../reports/queries/dump-trucks';
 import {
   mediumBorder, doubleBorder, dottedBorder, thinBorder,
   headerFill, centerAlign,
   DT_HEADER_BLUE, DT_DATE_BLUE,
-  DT_DATE_FONT, DT_HEADER_FONT, DT_DATA_FONT, DT_DWELL_FONT, DT_DWELL_ITALIC_FONT,
-  DT_DATE_ROW_HEIGHT, DT_ROW_HEIGHT,
+  DT_DATE_FONT, DT_HEADER_FONT, DT_DATA_FONT, DT_DWELL_FONT,
+  DT_DATE_ROW_HEIGHT, DT_ROW_HEIGHT, DT_ZONE_FONT,
   dtEnterAlign, dtDwellAlign, dtExitAlign,
 } from '../styles';
 
-// Aggregate column IDs (after fixed + zone columns)
+const DT_INCOMPLETE_FONT: Partial<ExcelJS.Font> = { name: 'Calibri', size: 14, color: { argb: 'FF808080' } };
+const DT_INCOMPLETE_DWELL_FONT: Partial<ExcelJS.Font> = { name: 'Calibri', size: 13, color: { argb: 'FF808080' } };
+
+const DT_OBJECT_FILL = 'FFE2EFDA';
+
+// Aggregate column IDs
 const AGGREGATE_IDS = ['avg_loading_dwell', 'avg_unloading_dwell', 'avg_travel_load_unload', 'avg_travel_unload_load', 'comment'];
-// Zone column IDs
 const ZONE_IDS = ['loading_zone', 'unloading_zone'];
 
-// Object sub-header style
-const DT_OBJECT_FILL = 'FFE2EFDA'; // light green
-const DT_INCOMPLETE_FONT: Partial<ExcelJS.Font> = { name: 'Calibri', size: 14, color: { argb: 'FF808080' } };
+// ─── Dynamic column layout ──────────────────────────────────────────────────
+
+interface ColLayout {
+  // Fixed positions
+  numCol: number;       // №
+  regCol: number;       // Гос. номер
+  tripsCol: number;     // Кол-во рейсов
+  shiftStartCol: number; // Начало смены (0 if excluded)
+
+  // Погрузка block
+  loadEnterCol: number;  // 0 if excluded
+  loadDwellCol: number;
+  loadExitCol: number;
+  loadStartCol: number;  // first col of block
+  loadEndCol: number;    // last col of block
+
+  // Гружёный
+  loadedTravelCol: number; // 0 if excluded
+
+  // Выгрузка block
+  unloadEnterCol: number;
+  unloadDwellCol: number;
+  unloadExitCol: number;
+  unloadStartCol: number;
+  unloadEndCol: number;
+
+  // Порожний
+  emptyTravelCol: number; // 0 if excluded
+
+  shiftEndCol: number;   // 0 if excluded
+
+  // Zone columns
+  zoneCols: { id: string; col: number }[];
+
+  // Aggregate columns
+  aggCols: { id: string; col: number }[];
+
+  totalCols: number;
+
+  // Width map: col → width
+  widths: Map<number, number>;
+}
+
+function buildLayout(columns: string[]): ColLayout {
+  const has = (id: string) => columns.includes(id);
+  let col = 1;
+
+  const numCol = col++;
+  const regCol = col++;
+  const tripsCol = col++;
+  const shiftStartCol = has('shift_start') ? col++ : 0;
+
+  // Погрузка block
+  const loadStartCol = col;
+  const loadEnterCol = has('loading_enter') ? col++ : 0;
+  const loadDwellCol = has('loading_dwell') ? col++ : 0;
+  const loadExitCol = has('loading_exit') ? col++ : 0;
+  const loadEndCol = col - 1;
+
+  // Гружёный
+  const loadedTravelCol = has('loaded_travel') ? col++ : 0;
+
+  // Выгрузка block
+  const unloadStartCol = col;
+  const unloadEnterCol = has('unloading_enter') ? col++ : 0;
+  const unloadDwellCol = has('unloading_dwell') ? col++ : 0;
+  const unloadExitCol = has('unloading_exit') ? col++ : 0;
+  const unloadEndCol = col - 1;
+
+  // Порожний
+  const emptyTravelCol = has('empty_travel') ? col++ : 0;
+
+  const shiftEndCol = has('shift_end') ? col++ : 0;
+
+  // Zone columns
+  const zoneCols: { id: string; col: number }[] = [];
+  for (const id of ZONE_IDS) {
+    if (has(id)) { zoneCols.push({ id, col: col++ }); }
+  }
+
+  // Aggregate columns
+  const aggCols: { id: string; col: number }[] = [];
+  for (const id of AGGREGATE_IDS) {
+    if (has(id)) { aggCols.push({ id, col: col++ }); }
+  }
+
+  const totalCols = col - 1;
+
+  // Build widths
+  const widths = new Map<number, number>();
+  widths.set(numCol, 6.14);
+  widths.set(regCol, 23.71);
+  widths.set(tripsCol, 12.29);
+  if (shiftStartCol) widths.set(shiftStartCol, 12.29);
+  if (loadEnterCol) widths.set(loadEnterCol, 9.71);
+  if (loadDwellCol) widths.set(loadDwellCol, 10.71);
+  if (loadExitCol) widths.set(loadExitCol, 10.43);
+  if (loadedTravelCol) widths.set(loadedTravelCol, 10);
+  if (unloadEnterCol) widths.set(unloadEnterCol, 12.29);
+  if (unloadDwellCol) widths.set(unloadDwellCol, 10.71);
+  if (unloadExitCol) widths.set(unloadExitCol, 12.29);
+  if (emptyTravelCol) widths.set(emptyTravelCol, 10);
+  if (shiftEndCol) widths.set(shiftEndCol, 12.29);
+  for (const z of zoneCols) widths.set(z.col, 18); // will be auto-resized
+  for (const a of aggCols) widths.set(a.col, 12.29);
+
+  return {
+    numCol, regCol, tripsCol, shiftStartCol,
+    loadEnterCol, loadDwellCol, loadExitCol, loadStartCol, loadEndCol,
+    loadedTravelCol,
+    unloadEnterCol, unloadDwellCol, unloadExitCol, unloadStartCol, unloadEndCol,
+    emptyTravelCol,
+    shiftEndCol,
+    zoneCols, aggCols, totalCols, widths,
+  };
+}
+
+// ─── Main build function ────────────────────────────────────────────────────
 
 export async function buildDtTripsXlsx(
   data: DateShiftGroup[],
@@ -24,136 +143,110 @@ export async function buildDtTripsXlsx(
 ): Promise<ExcelJS.Workbook> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Рейсы');
+  const L = buildLayout(columns);
 
-  const selectedZones = ZONE_IDS.filter(id => columns.includes(id));
-  const selectedAggregates = AGGREGATE_IDS.filter(id => columns.includes(id));
-
-  // Column layout:
-  // A=№, B=Гос. номер, C=Кол-во рейсов, D=Начало смены
-  // E=Въезд(П), F=Стоянка(П), G=Выезд(П)
-  // H=Въезд(В), I=Стоянка(В), J=Выезд(В)
-  // K=Конец смены
-  // Then zone columns, then aggregates
-  const fixedCols = 11; // A-K
-  const zoneStartCol = fixedCols + 1; // L+
-  const aggStartCol = zoneStartCol + selectedZones.length;
-  const totalCols = fixedCols + selectedZones.length + selectedAggregates.length;
-
-  // Column widths
-  const widths = [6.14, 23.71, 12.29, 12.29, 9.71, 10.71, 10.43, 12.29, 10.71, 12.29, 12.29];
-  for (const _ of selectedZones) widths.push(18);
-  for (const _ of selectedAggregates) widths.push(12.29);
-  widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  // Set column widths
+  for (const [col, w] of L.widths) {
+    ws.getColumn(col).width = w;
+  }
 
   let rowIdx = 1;
   const merges: [number, number, number, number][] = [];
 
   for (const group of data) {
-    // ─── Date+Shift header row ────────────────────────────────────
+    // ─── Date+Shift header row ──────────────────────────────────
     const dateLabel = formatDateShort(group.date);
-    ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
+    ws.mergeCells(rowIdx, 1, rowIdx, L.totalCols);
     const dateCell = ws.getCell(rowIdx, 1);
     dateCell.value = `${dateLabel} — ${group.shiftLabel}`;
     dateCell.font = DT_DATE_FONT;
     dateCell.fill = headerFill(DT_DATE_BLUE);
     dateCell.alignment = centerAlign;
-    for (let c = 1; c <= totalCols; c++) {
+    for (let c = 1; c <= L.totalCols; c++) {
       ws.getCell(rowIdx, c).border = {
-        top: mediumBorder,
-        bottom: mediumBorder,
+        top: mediumBorder, bottom: mediumBorder,
         left: c === 1 ? mediumBorder : undefined,
-        right: c === totalCols ? mediumBorder : undefined,
+        right: c === L.totalCols ? mediumBorder : undefined,
       };
     }
     ws.getRow(rowIdx).height = DT_DATE_ROW_HEIGHT;
     rowIdx++;
 
-    // ─── Column headers (row 1) ───────────────────────────────────
+    // ─── Column headers ─────────────────────────────────────────
     const h1Row = rowIdx;
-    const hStyle = {
-      font: DT_HEADER_FONT,
-      fill: headerFill(DT_HEADER_BLUE),
-      alignment: centerAlign,
-    };
+    const hStyle = { font: DT_HEADER_FONT, fill: headerFill(DT_HEADER_BLUE), alignment: centerAlign };
 
-    // A-D: merge with row below
-    const fixedHeaders = ['№', 'Гос. номер', 'Кол-во рейсов', 'Начало смены'];
-    for (let i = 0; i < 4; i++) {
-      ws.mergeCells(h1Row, i + 1, h1Row + 1, i + 1);
-      const cell = ws.getCell(h1Row, i + 1);
-      cell.value = fixedHeaders[i];
-      Object.assign(cell, hStyle);
-    }
-
-    // E-G: "Погрузка"
-    ws.mergeCells(h1Row, 5, h1Row, 7);
-    Object.assign(ws.getCell(h1Row, 5), hStyle);
-    ws.getCell(h1Row, 5).value = 'Погрузка';
-
-    // H-J: "Выгрузка"
-    ws.mergeCells(h1Row, 8, h1Row, 10);
-    Object.assign(ws.getCell(h1Row, 8), hStyle);
-    ws.getCell(h1Row, 8).value = 'Выгрузка';
-
-    // K: "Конец смены" merge with row below
-    ws.mergeCells(h1Row, 11, h1Row + 1, 11);
-    Object.assign(ws.getCell(h1Row, 11), hStyle);
-    ws.getCell(h1Row, 11).value = 'Конец смены';
-
-    // Zone headers (merge with row below)
-    const zoneLabels: Record<string, string> = {
-      loading_zone: 'Зона погрузки',
-      unloading_zone: 'Зона выгрузки',
-    };
-    for (let i = 0; i < selectedZones.length; i++) {
-      const col = zoneStartCol + i;
+    // Helper: set header with 2-row merge
+    const setHeader2Row = (col: number, label: string) => {
+      if (!col) return;
       ws.mergeCells(h1Row, col, h1Row + 1, col);
-      const cell = ws.getCell(h1Row, col);
-      cell.value = zoneLabels[selectedZones[i]] || selectedZones[i];
-      Object.assign(cell, hStyle);
+      Object.assign(ws.getCell(h1Row, col), hStyle);
+      ws.getCell(h1Row, col).value = label;
+    };
+
+    setHeader2Row(L.numCol, '№');
+    setHeader2Row(L.regCol, 'Гос. номер');
+    setHeader2Row(L.tripsCol, 'Кол-во рейсов');
+    setHeader2Row(L.shiftStartCol, 'Начало смены');
+    setHeader2Row(L.loadedTravelCol, 'Гружёный');
+    setHeader2Row(L.emptyTravelCol, 'Порожний');
+    setHeader2Row(L.shiftEndCol, 'Конец смены');
+
+    // Погрузка merged header (if any loading cols exist)
+    const loadCols = [L.loadEnterCol, L.loadDwellCol, L.loadExitCol].filter(c => c > 0);
+    if (loadCols.length > 0) {
+      if (loadCols.length > 1) ws.mergeCells(h1Row, loadCols[0], h1Row, loadCols[loadCols.length - 1]);
+      Object.assign(ws.getCell(h1Row, loadCols[0]), hStyle);
+      ws.getCell(h1Row, loadCols[0]).value = 'Погрузка';
     }
 
-    // Aggregate headers (merge with row below)
+    // Выгрузка merged header
+    const unloadCols = [L.unloadEnterCol, L.unloadDwellCol, L.unloadExitCol].filter(c => c > 0);
+    if (unloadCols.length > 0) {
+      if (unloadCols.length > 1) ws.mergeCells(h1Row, unloadCols[0], h1Row, unloadCols[unloadCols.length - 1]);
+      Object.assign(ws.getCell(h1Row, unloadCols[0]), hStyle);
+      ws.getCell(h1Row, unloadCols[0]).value = 'Выгрузка';
+    }
+
+    // Zone + aggregate headers
+    const zoneLabels: Record<string, string> = { loading_zone: 'Зона погрузки', unloading_zone: 'Зона выгрузки' };
+    for (const z of L.zoneCols) setHeader2Row(z.col, zoneLabels[z.id] || z.id);
+
     const aggLabels: Record<string, string> = {
-      avg_loading_dwell: 'Средняя стоянка П',
-      avg_unloading_dwell: 'Средняя стоянка В',
-      avg_travel_load_unload: 'Ср. путь П→В',
-      avg_travel_unload_load: 'Ср. путь В→П',
-      comment: 'Комментарий',
+      avg_loading_dwell: 'Средняя стоянка П', avg_unloading_dwell: 'Средняя стоянка В',
+      avg_travel_load_unload: 'Ср. путь П→В', avg_travel_unload_load: 'Ср. путь В→П', comment: 'Комментарий',
     };
-    for (let i = 0; i < selectedAggregates.length; i++) {
-      const col = aggStartCol + i;
-      ws.mergeCells(h1Row, col, h1Row + 1, col);
-      const cell = ws.getCell(h1Row, col);
-      cell.value = aggLabels[selectedAggregates[i]] || selectedAggregates[i];
-      Object.assign(cell, hStyle);
-    }
+    for (const a of L.aggCols) setHeader2Row(a.col, aggLabels[a.id] || a.id);
 
-    applyHeaderBorders(ws, h1Row, totalCols);
+    applyHeaderBorders(ws, h1Row, L);
     ws.getRow(h1Row).height = DT_ROW_HEIGHT;
     ws.getRow(h1Row).outlineLevel = 1;
     rowIdx++;
 
-    // ─── Column headers (row 2): sub-headers ──────────────────────
-    const subHeaders = ['Въезд', 'Стоянка', 'Выезд'];
-    for (let i = 0; i < 3; i++) {
-      Object.assign(ws.getCell(rowIdx, 5 + i), hStyle);
-      ws.getCell(rowIdx, 5 + i).value = subHeaders[i];
-      Object.assign(ws.getCell(rowIdx, 8 + i), hStyle);
-      ws.getCell(rowIdx, 8 + i).value = subHeaders[i];
+    // Sub-headers row
+    const subMap = [
+      { col: L.loadEnterCol, label: 'Въезд' },
+      { col: L.loadDwellCol, label: 'Стоянка' },
+      { col: L.loadExitCol, label: 'Выезд' },
+      { col: L.unloadEnterCol, label: 'Въезд' },
+      { col: L.unloadDwellCol, label: 'Стоянка' },
+      { col: L.unloadExitCol, label: 'Выезд' },
+    ];
+    for (const { col, label } of subMap) {
+      if (!col) continue;
+      Object.assign(ws.getCell(rowIdx, col), hStyle);
+      ws.getCell(rowIdx, col).value = label;
     }
-    applyHeaderBorders(ws, rowIdx, totalCols);
+    applyHeaderBorders(ws, rowIdx, L);
     ws.getRow(rowIdx).height = DT_ROW_HEIGHT;
     ws.getRow(rowIdx).outlineLevel = 1;
     rowIdx++;
 
-    // ─── Flatten all vehicles across objects for numbering ────────
+    // ─── Data rows ──────────────────────────────────────────────
     const allVehicles: { vehicle: VehicleGroup; objectName: string }[] = [];
     const multipleObjects = group.objects.length > 1;
     for (const obj of group.objects) {
-      for (const v of obj.vehicles) {
-        allVehicles.push({ vehicle: v, objectName: obj.object_name });
-      }
+      for (const v of obj.vehicles) allVehicles.push({ vehicle: v, objectName: obj.object_name });
     }
 
     let vehicleNum = 0;
@@ -164,21 +257,20 @@ export async function buildDtTripsXlsx(
       const isFirstVehicle = vi === 0;
       const isLastVehicle = vi === allVehicles.length - 1;
 
-      // ─── Object sub-header (if multiple objects) ──────────────
+      // Object sub-header
       if (multipleObjects && objectName !== currentObject) {
         currentObject = objectName;
-        ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
+        ws.mergeCells(rowIdx, 1, rowIdx, L.totalCols);
         const objCell = ws.getCell(rowIdx, 1);
         objCell.value = objectName;
         objCell.font = { name: 'Calibri', size: 14, bold: true };
         objCell.fill = headerFill(DT_OBJECT_FILL);
         objCell.alignment = centerAlign;
-        for (let c = 1; c <= totalCols; c++) {
+        for (let c = 1; c <= L.totalCols; c++) {
           ws.getCell(rowIdx, c).border = {
-            top: mediumBorder,
-            bottom: thinBorder,
+            top: mediumBorder, bottom: thinBorder,
             left: c === 1 ? mediumBorder : undefined,
-            right: c === totalCols ? mediumBorder : undefined,
+            right: c === L.totalCols ? mediumBorder : undefined,
           };
         }
         ws.getRow(rowIdx).height = DT_ROW_HEIGHT;
@@ -197,122 +289,134 @@ export async function buildDtTripsXlsx(
         const isLastTrip = ti === tripCount - 1;
         const isIncomplete = trip.status !== 'complete';
 
-        // Per-trip data: Въезд → Стоянка → Выезд
-        ws.getCell(r, 5).value = trip.loading_enter;
-        ws.getCell(r, 6).value = trip.loading_dwell;
-        ws.getCell(r, 7).value = trip.loading_exit;
-        ws.getCell(r, 8).value = trip.unloading_enter;
-        ws.getCell(r, 9).value = trip.unloading_dwell;
-        ws.getCell(r, 10).value = trip.unloading_exit;
+        // Write per-trip values
+        writeTripData(ws, r, L, trip, vehicle, isIncomplete);
 
         // Reg number on every row
-        ws.getCell(r, 2).value = vehicle.reg_number;
+        ws.getCell(r, L.regCol).value = vehicle.reg_number;
 
-        // Zone columns (per-trip)
-        for (let zi = 0; zi < selectedZones.length; zi++) {
-          const col = zoneStartCol + zi;
-          const val = selectedZones[zi] === 'loading_zone'
-            ? trip.loading_zone_name
-            : trip.unloading_zone_name;
-          ws.getCell(r, col).value = val;
-        }
-
-        // ─── Fonts ───────────────────────────────────────────────
-        const dataFont = isIncomplete ? DT_INCOMPLETE_FONT : DT_DATA_FONT;
-        const dwellFont = isIncomplete ? DT_INCOMPLETE_FONT : DT_DWELL_FONT;
-        const dwellItalicFont = isIncomplete ? DT_INCOMPLETE_FONT : DT_DWELL_ITALIC_FONT;
-
-        for (const c of [1, 2, 3, 4, 11]) ws.getCell(r, c).font = dataFont;
-        ws.getCell(r, 5).font = dataFont;      // Въезд П
-        ws.getCell(r, 6).font = dwellFont;     // Стоянка П (13pt)
-        ws.getCell(r, 7).font = dataFont;      // Выезд П
-        ws.getCell(r, 8).font = dataFont;      // Въезд В
-        ws.getCell(r, 9).font = dwellItalicFont; // Стоянка В (13pt italic)
-        ws.getCell(r, 10).font = dataFont;     // Выезд В
-        // Zone + aggregate columns
-        for (let c = fixedCols + 1; c <= totalCols; c++) {
-          ws.getCell(r, c).font = dataFont;
-        }
-
-        // ─── Alignment ──────────────────────────────────────────
-        for (let c = 1; c <= totalCols; c++) {
-          const cell = ws.getCell(r, c);
-          if (c === 5 || c === 8) cell.alignment = dtEnterAlign;
-          else if (c === 6 || c === 9) cell.alignment = dtDwellAlign;
-          else if (c === 7 || c === 10) cell.alignment = dtExitAlign;
-          else cell.alignment = centerAlign;
-        }
-
-        // ─── Borders ────────────────────────────────────────────
-        applyDataRowBorders(ws, r, totalCols, {
-          isFirstTrip,
-          isLastTrip,
-          isFirstVehicle: isFirstVehicle && ti === 0,
+        // Borders
+        applyDataRowBorders(ws, r, L, {
+          isFirstTrip, isLastTrip, isFirstVehicle: isFirstVehicle && ti === 0,
           isLastVehicle: isLastVehicle && isLastTrip,
         });
 
         ws.getRow(r).height = DT_ROW_HEIGHT;
         ws.getRow(r).outlineLevel = isFirstTrip ? 1 : 2;
-
         rowIdx++;
       }
 
       const endRow = rowIdx - 1;
 
       // Vehicle-level data on first row
-      ws.getCell(startRow, 1).value = vehicleNum;
-      ws.getCell(startRow, 3).value = vehicle.trips_count;
-      ws.getCell(startRow, 4).value = vehicle.shift_start;
-      ws.getCell(startRow, 11).value = vehicle.shift_end;
+      ws.getCell(startRow, L.numCol).value = vehicleNum;
+      ws.getCell(startRow, L.tripsCol).value = vehicle.trips_count;
+      if (L.shiftStartCol) ws.getCell(startRow, L.shiftStartCol).value = vehicle.shift_start;
+      if (L.shiftEndCol) ws.getCell(startRow, L.shiftEndCol).value = vehicle.shift_end;
 
-      // Aggregate values on first row
-      const aggValues: Record<string, string | number> = {
+      // Aggregate values
+      const aggMap: Record<string, string | number> = {
         avg_loading_dwell: vehicle.avg_loading_dwell > 0 ? formatMinutes(vehicle.avg_loading_dwell) : '',
         avg_unloading_dwell: vehicle.avg_unloading_dwell > 0 ? formatMinutes(vehicle.avg_unloading_dwell) : '',
         avg_travel_load_unload: vehicle.avg_travel_load_unload > 0 ? formatMinutes(vehicle.avg_travel_load_unload) : '',
         avg_travel_unload_load: vehicle.avg_travel_unload_load > 0 ? formatMinutes(vehicle.avg_travel_unload_load) : '',
         comment: '',
       };
-      for (let i = 0; i < selectedAggregates.length; i++) {
-        const col = aggStartCol + i;
-        ws.getCell(startRow, col).value = aggValues[selectedAggregates[i]] ?? '';
+      for (const a of L.aggCols) {
+        ws.getCell(startRow, a.col).value = aggMap[a.id] ?? '';
       }
 
-      // Vertical merges (only if >1 trip)
+      // Vertical merges
       if (tripCount > 1) {
-        const mergeCols = [1, 3, 4, 11];
-        for (let i = 0; i < selectedAggregates.length; i++) {
-          mergeCols.push(aggStartCol + i);
-        }
-        for (const col of mergeCols) {
-          merges.push([startRow, col, endRow, col]);
-        }
+        const mergeCols = [L.numCol, L.tripsCol, L.shiftStartCol, L.shiftEndCol, ...L.aggCols.map(a => a.col)].filter(c => c > 0);
+        for (const col of mergeCols) merges.push([startRow, col, endRow, col]);
       }
     }
   }
 
-  // Apply all merges
+  // Apply merges
   for (const [r1, c1, r2, c2] of merges) {
-    try { ws.mergeCells(r1, c1, r2, c2); } catch { /* skip conflicts */ }
+    try { ws.mergeCells(r1, c1, r2, c2); } catch { /* skip */ }
   }
 
-  // Outline: summary rows above details
+  // Auto-size zone columns
+  for (const z of L.zoneCols) {
+    let maxLen = 10;
+    for (let r = 1; r <= rowIdx; r++) {
+      const val = ws.getCell(r, z.col).value;
+      if (val) maxLen = Math.max(maxLen, String(val).length);
+    }
+    ws.getColumn(z.col).width = Math.min(maxLen * 1.2 + 2, 40);
+  }
+
   ws.properties.outlineLevelRow = 2;
   ws.properties.outlineProperties = { summaryBelow: false };
 
   return wb;
 }
 
+// ─── Write trip data into row ───────────────────────────────────────────────
+
+function writeTripData(
+  ws: ExcelJS.Worksheet, r: number, L: ColLayout,
+  trip: TripDetail, vehicle: VehicleGroup, isIncomplete: boolean,
+) {
+  // Fonts for trip columns (E-J area): gray if incomplete
+  const tripFont = isIncomplete ? DT_INCOMPLETE_FONT : DT_DATA_FONT;
+  const tripDwellFont = isIncomplete ? DT_INCOMPLETE_DWELL_FONT : DT_DWELL_FONT;
+
+  // Trip data
+  const tripCells: { col: number; val: string; font: Partial<ExcelJS.Font>; align: Partial<ExcelJS.Alignment> }[] = [
+    { col: L.loadEnterCol, val: trip.loading_enter, font: tripFont, align: dtEnterAlign },
+    { col: L.loadDwellCol, val: trip.loading_dwell, font: tripDwellFont, align: dtDwellAlign },
+    { col: L.loadExitCol, val: trip.loading_exit, font: tripFont, align: dtExitAlign },
+    { col: L.loadedTravelCol, val: trip.loaded_travel, font: DT_DATA_FONT, align: centerAlign },
+    { col: L.unloadEnterCol, val: trip.unloading_enter, font: tripFont, align: dtEnterAlign },
+    { col: L.unloadDwellCol, val: trip.unloading_dwell, font: tripDwellFont, align: dtDwellAlign },
+    { col: L.unloadExitCol, val: trip.unloading_exit, font: tripFont, align: dtExitAlign },
+    { col: L.emptyTravelCol, val: trip.empty_travel, font: DT_DATA_FONT, align: centerAlign },
+  ];
+
+  for (const { col, val, font, align } of tripCells) {
+    if (!col) continue;
+    const cell = ws.getCell(r, col);
+    cell.value = val;
+    cell.font = font;
+    cell.alignment = align;
+  }
+
+  // Non-trip columns: always normal font
+  const fixedCells = [L.numCol, L.regCol, L.tripsCol, L.shiftStartCol, L.shiftEndCol];
+  for (const col of fixedCells) {
+    if (!col) continue;
+    ws.getCell(r, col).font = DT_DATA_FONT;
+    ws.getCell(r, col).alignment = centerAlign;
+  }
+
+  // Zone columns: smaller font
+  const zoneMap: Record<string, string> = { loading_zone: trip.loading_zone_name, unloading_zone: trip.unloading_zone_name };
+  for (const z of L.zoneCols) {
+    const cell = ws.getCell(r, z.col);
+    cell.value = zoneMap[z.id] || '';
+    cell.font = DT_ZONE_FONT;
+    cell.alignment = centerAlign;
+  }
+
+  // Aggregate columns: normal font
+  for (const a of L.aggCols) {
+    ws.getCell(r, a.col).font = DT_DATA_FONT;
+    ws.getCell(r, a.col).alignment = centerAlign;
+  }
+}
+
 // ─── Border helpers ─────────────────────────────────────────────────────────
 
-function applyHeaderBorders(ws: ExcelJS.Worksheet, row: number, totalCols: number) {
-  for (let c = 1; c <= totalCols; c++) {
-    const cell = ws.getCell(row, c);
-    cell.border = {
-      top: mediumBorder,
-      bottom: thinBorder,
-      left: (c === 1 || c === 5 || c === 11) ? mediumBorder : thinBorder,
-      right: (c === 2 || c === 7 || c === 10 || c === totalCols) ? mediumBorder : thinBorder,
+function applyHeaderBorders(ws: ExcelJS.Worksheet, row: number, L: ColLayout) {
+  for (let c = 1; c <= L.totalCols; c++) {
+    ws.getCell(row, c).border = {
+      top: mediumBorder, bottom: thinBorder,
+      left: (c === 1 || c === L.loadStartCol || c === L.unloadStartCol || c === L.shiftEndCol) ? mediumBorder : thinBorder,
+      right: (c === L.regCol || c === L.loadEndCol || c === L.unloadEndCol || c === L.totalCols) ? mediumBorder : thinBorder,
     };
   }
 }
@@ -324,55 +428,55 @@ interface DataRowBorderOpts {
   isLastVehicle: boolean;
 }
 
-function applyDataRowBorders(
-  ws: ExcelJS.Worksheet,
-  row: number,
-  totalCols: number,
-  opts: DataRowBorderOpts,
-) {
-  for (let c = 1; c <= totalCols; c++) {
-    const cell = ws.getCell(row, c);
-
+function applyDataRowBorders(ws: ExcelJS.Worksheet, row: number, L: ColLayout, opts: DataRowBorderOpts) {
+  for (let c = 1; c <= L.totalCols; c++) {
     let top: Partial<ExcelJS.Border> = thinBorder;
     let bottom: Partial<ExcelJS.Border> = thinBorder;
     let left: Partial<ExcelJS.Border> = thinBorder;
     let right: Partial<ExcelJS.Border> = thinBorder;
 
-    // Outer left/right: medium
+    // Outer edges: medium
     if (c === 1) left = mediumBorder;
-    if (c === totalCols) right = mediumBorder;
+    if (c === L.totalCols) right = mediumBorder;
 
-    // B right: medium
-    if (c === 2) right = mediumBorder;
+    // After Гос. номер: medium
+    if (c === L.regCol) right = mediumBorder;
 
-    // Погрузка (E-G): medium left E, medium right G
-    if (c === 5) left = mediumBorder;
-    if (c === 7) right = mediumBorder;
+    // Погрузка block boundaries
+    if (c === L.loadStartCol && L.loadEnterCol) left = mediumBorder;
+    if (c === L.loadEndCol && L.loadExitCol) right = mediumBorder;
 
-    // Выгрузка (H-J): medium right J
-    if (c === 10) right = mediumBorder;
+    // Выгрузка block boundaries
+    if (c === L.unloadStartCol && L.unloadEnterCol) left = mediumBorder;
+    if (c === L.unloadEndCol && L.unloadExitCol) right = mediumBorder;
 
-    // K left: medium
-    if (c === 11) left = mediumBorder;
+    // Shift end left: medium
+    if (c === L.shiftEndCol) left = mediumBorder;
 
     // Dotted inside Погрузка
-    if (c === 5) right = dottedBorder;
-    if (c === 6) { left = dottedBorder; right = dottedBorder; }
+    if (L.loadEnterCol && c === L.loadEnterCol && L.loadDwellCol) right = dottedBorder;
+    if (L.loadDwellCol && c === L.loadDwellCol) {
+      if (L.loadEnterCol) left = dottedBorder;
+      if (L.loadExitCol) right = dottedBorder;
+    }
 
     // Thin inside Выгрузка
-    if (c === 8) right = thinBorder;
-    if (c === 9) { left = thinBorder; right = thinBorder; }
+    if (L.unloadEnterCol && c === L.unloadEnterCol && L.unloadDwellCol) right = thinBorder;
+    if (L.unloadDwellCol && c === L.unloadDwellCol) {
+      left = thinBorder;
+      right = thinBorder;
+    }
 
     // Double between vehicles
     if (opts.isFirstTrip && !opts.isFirstVehicle) top = doubleBorder;
     if (opts.isLastTrip && !opts.isLastVehicle) bottom = doubleBorder;
 
-    // Last vehicle: medium bottom on K+ columns
-    if (opts.isLastTrip && opts.isLastVehicle && c >= 11) {
-      bottom = mediumBorder;
+    // Last vehicle: medium bottom on shift_end+
+    if (opts.isLastTrip && opts.isLastVehicle) {
+      if (L.shiftEndCol && c >= L.shiftEndCol) bottom = mediumBorder;
     }
 
-    cell.border = { top, bottom, left, right };
+    ws.getCell(row, c).border = { top, bottom, left, right };
   }
 }
 
@@ -383,8 +487,10 @@ function formatDateShort(ymd: string): string {
   return `${d}.${m}`;
 }
 
+/** Format minutes as h:mm (for aggregates) */
 function formatMinutes(minutes: number): string {
-  const m = Math.floor(minutes);
-  const s = Math.round((minutes - m) * 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const totalMin = Math.round(minutes);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
 }

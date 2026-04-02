@@ -40,6 +40,8 @@ export interface TripDetail {
   unloading_exit: string;
   unloading_dwell: string;
   unloading_zone_name: string;
+  loaded_travel: string;   // loading_exit → unloading_enter
+  empty_travel: string;    // unloading_exit → next loading_enter
 }
 
 // ─── Internal query row types ───────────────────────────────────────────────
@@ -135,7 +137,7 @@ export async function queryDtTripsData(
     ORDER BY sr.id, ze.entered_at
   `, filters.vehicles?.length ? [...params, filters.vehicles] : params);
 
-  // Build zone events index: shift_record_id → events sorted by entered_at
+  // Build zone events index
   const zeByShift = new Map<number, { loading: ZoneEventRow[]; unloading: ZoneEventRow[] }>();
   for (const ze of zeResult.rows) {
     if (!zeByShift.has(ze.shift_record_id)) {
@@ -153,18 +155,12 @@ export async function queryDtTripsData(
     const dsKey = `${row.report_date}|${row.shift_type}`;
     if (!grouped.has(dsKey)) grouped.set(dsKey, new Map());
     const objectMap = grouped.get(dsKey)!;
-
     const objKey = row.object_name || 'Без объекта';
     if (!objectMap.has(objKey)) objectMap.set(objKey, new Map());
     const vehicleMap = objectMap.get(objKey)!;
-
     const vKey = `${row.reg_number}|${row.shift_record_id}`;
-    if (!vehicleMap.has(vKey)) {
-      vehicleMap.set(vKey, { sr: row, trips: [] });
-    }
-    if (row.trip_number != null) {
-      vehicleMap.get(vKey)!.trips.push(row);
-    }
+    if (!vehicleMap.has(vKey)) vehicleMap.set(vKey, { sr: row, trips: [] });
+    if (row.trip_number != null) vehicleMap.get(vKey)!.trips.push(row);
   }
 
   // Build final structure
@@ -173,7 +169,6 @@ export async function queryDtTripsData(
   for (const [dsKey, objectMap] of grouped) {
     const [date, shiftType] = dsKey.split('|');
     const shiftLabel = shiftType === 'shift1' ? 'Смена 1' : 'Смена 2';
-
     const objects: ObjectGroup[] = [];
 
     for (const [objectName, vehicleMap] of objectMap) {
@@ -182,10 +177,28 @@ export async function queryDtTripsData(
       for (const [, { sr, trips }] of vehicleMap) {
         const zones = zeByShift.get(sr.shift_record_id) || { loading: [], unloading: [] };
 
-        // Chronological matching of loading ↔ unloading events
+        // Chronological matching
         const tripDetails = matchZoneEvents(zones.loading, zones.unloading);
 
-        // Compute averages from zone events
+        // Compute loaded_travel and empty_travel between sequential trips
+        for (let i = 0; i < tripDetails.length; i++) {
+          const t = tripDetails[i];
+          // loaded_travel: loading_exit → unloading_enter (same trip)
+          t.loaded_travel = diffHHMM(t.loading_exit, t.unloading_enter);
+          // empty_travel: unloading_exit → next trip loading_enter
+          if (i < tripDetails.length - 1) {
+            t.empty_travel = diffHHMM(t.unloading_exit, tripDetails[i + 1].loading_enter);
+          }
+        }
+
+        // Shift start/end from actual events
+        const actualStart = tripDetails.length > 0 && tripDetails[0].loading_enter
+          ? tripDetails[0].loading_enter
+          : sr.shift_start || '';
+        const lastWithExit = [...tripDetails].reverse().find(t => t.unloading_exit);
+        const actualEnd = lastWithExit?.unloading_exit || sr.shift_end || '';
+
+        // Compute averages
         const loadDurations = zones.loading.map(z => Number(z.duration_min)).filter(v => v > 0);
         const unloadDurations = zones.unloading.map(z => Number(z.duration_min)).filter(v => v > 0);
         const travelTo = trips.map(t => Number(t.travel_to_unload_min)).filter(v => v > 0);
@@ -195,8 +208,8 @@ export async function queryDtTripsData(
           reg_number: sr.reg_number,
           name_mo: sr.name_mo || sr.reg_number,
           trips_count: sr.trips_count || trips.length,
-          shift_start: sr.shift_start || '',
-          shift_end: sr.shift_end || '',
+          shift_start: actualStart,
+          shift_end: actualEnd,
           avg_loading_dwell: avg(loadDurations),
           avg_unloading_dwell: avg(unloadDurations),
           avg_travel_load_unload: avg(travelTo),
@@ -206,6 +219,7 @@ export async function queryDtTripsData(
             status: 'complete' as TripStatus,
             loading_enter: '', loading_exit: '', loading_dwell: '', loading_zone_name: '',
             unloading_enter: '', unloading_exit: '', unloading_dwell: '', unloading_zone_name: '',
+            loaded_travel: '', empty_travel: '',
           }],
         });
       }
@@ -221,17 +235,10 @@ export async function queryDtTripsData(
 
 // ─── Chronological matching ─────────────────────────────────────────────────
 
-/**
- * Match loading and unloading zone events chronologically.
- * A loading event is paired with the next unloading event.
- * If two loadings in a row → first one = "no_unloading".
- * If unloading without preceding loading → "no_loading".
- */
 function matchZoneEvents(
   loading: ZoneEventRow[],
   unloading: ZoneEventRow[],
 ): TripDetail[] {
-  // Merge into unified timeline
   interface TaggedEvent {
     type: 'loading' | 'unloading';
     event: ZoneEventRow;
@@ -242,7 +249,6 @@ function matchZoneEvents(
     ...unloading.map(e => ({ type: 'unloading' as const, event: e })),
   ];
 
-  // Sort by entered_at (HH:MM string comparison works for same-day)
   allEvents.sort((a, b) => a.event.entered_at.localeCompare(b.event.entered_at));
 
   const trips: TripDetail[] = [];
@@ -251,28 +257,23 @@ function matchZoneEvents(
 
   for (const item of allEvents) {
     if (item.type === 'loading') {
-      // If we already have a pending loading, it has no unloading pair
       if (pendingLoading) {
         tripNum++;
         trips.push(makeTripDetail(tripNum, 'no_unloading', pendingLoading, null));
       }
       pendingLoading = item.event;
     } else {
-      // Unloading event
       if (pendingLoading) {
-        // Complete pair
         tripNum++;
         trips.push(makeTripDetail(tripNum, 'complete', pendingLoading, item.event));
         pendingLoading = null;
       } else {
-        // Unloading without loading
         tripNum++;
         trips.push(makeTripDetail(tripNum, 'no_loading', null, item.event));
       }
     }
   }
 
-  // Trailing loading without unloading
   if (pendingLoading) {
     tripNum++;
     trips.push(makeTripDetail(tripNum, 'no_unloading', pendingLoading, null));
@@ -292,12 +293,14 @@ function makeTripDetail(
     status,
     loading_enter: load?.entered_at || '',
     loading_exit: load?.exited_at || '',
-    loading_dwell: load ? formatMin(Number(load.duration_min)) : '',
+    loading_dwell: load ? formatHourMin(Number(load.duration_min)) : '',
     loading_zone_name: load?.zone_name || '',
     unloading_enter: unload?.entered_at || '',
     unloading_exit: unload?.exited_at || '',
-    unloading_dwell: unload ? formatMin(Number(unload.duration_min)) : '',
+    unloading_dwell: unload ? formatHourMin(Number(unload.duration_min)) : '',
     unloading_zone_name: unload?.zone_name || '',
+    loaded_travel: '',
+    empty_travel: '',
   };
 }
 
@@ -334,8 +337,22 @@ function avg(nums: number[]): number {
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
 }
 
-function formatMin(minutes: number): string {
-  const m = Math.floor(minutes);
-  const s = Math.round((minutes - m) * 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+/** Format minutes as h:mm */
+function formatHourMin(minutes: number): string {
+  const totalMin = Math.round(minutes);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+/** Diff two HH:MM strings, return h:mm */
+function diffHHMM(from: string, to: string): string {
+  if (!from || !to) return '';
+  const [fh, fm] = from.split(':').map(Number);
+  const [th, tm] = to.split(':').map(Number);
+  const diffMin = (th * 60 + tm) - (fh * 60 + fm);
+  if (diffMin < 0) return '';
+  const h = Math.floor(diffMin / 60);
+  const m = diffMin % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
 }

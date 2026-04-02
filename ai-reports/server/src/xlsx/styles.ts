@@ -47,7 +47,7 @@ export const DT_DATE_FONT: Partial<Font> = { name: 'Calibri', size: 16, bold: tr
 export const DT_HEADER_FONT: Partial<Font> = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
 export const DT_DATA_FONT: Partial<Font> = { name: 'Calibri', size: 14 };
 export const DT_DWELL_FONT: Partial<Font> = { name: 'Calibri', size: 13 };
-export const DT_DWELL_ITALIC_FONT: Partial<Font> = { name: 'Calibri', size: 13, italic: true };
+export const DT_ZONE_FONT: Partial<Font> = { name: 'Calibri', size: 12 };
 
 // DT row heights
 export const DT_DATE_ROW_HEIGHT = 33.75;

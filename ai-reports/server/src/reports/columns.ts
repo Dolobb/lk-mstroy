@@ -32,19 +32,24 @@ export const KIP_COLUMNS: ColumnDef[] = [
 // ─── Самосвалы — рейсы ──────────────────────────────────────────────────────
 
 export const DT_TRIPS_COLUMNS: ColumnDef[] = [
-  // Fixed trip data
+  // Fixed (always shown)
   { id: 'reg_number',        label: 'Гос. номер',              group: 'Основные',    defaultIncluded: true, fixed: true, width: 24 },
   { id: 'trips_count',       label: 'Кол-во рейсов',           group: 'Основные',    defaultIncluded: true, fixed: true, width: 12 },
-  { id: 'shift_start',       label: 'Начало смены',             group: 'Основные',    defaultIncluded: true, fixed: true, width: 12 },
+  // Customizable (default included)
+  { id: 'shift_start',       label: 'Начало смены',             group: 'Основные',    defaultIncluded: true,  width: 12 },
   // Погрузка: Въезд → Стоянка → Выезд
-  { id: 'loading_enter',     label: 'Погрузка: Въезд',          group: 'Погрузка',    defaultIncluded: true, fixed: true, width: 10 },
-  { id: 'loading_dwell',     label: 'Погрузка: Стоянка',        group: 'Погрузка',    defaultIncluded: true, fixed: true, width: 11 },
-  { id: 'loading_exit',      label: 'Погрузка: Выезд',          group: 'Погрузка',    defaultIncluded: true, fixed: true, width: 10 },
+  { id: 'loading_enter',     label: 'Погрузка: Въезд',          group: 'Погрузка',    defaultIncluded: true,  width: 10 },
+  { id: 'loading_dwell',     label: 'Погрузка: Стоянка',        group: 'Погрузка',    defaultIncluded: true,  width: 11 },
+  { id: 'loading_exit',      label: 'Погрузка: Выезд',          group: 'Погрузка',    defaultIncluded: true,  width: 10 },
+  // Путь (между погрузкой и выгрузкой)
+  { id: 'loaded_travel',     label: 'Гружёный',                  group: 'Путь',       defaultIncluded: false, width: 10 },
   // Выгрузка: Въезд → Стоянка → Выезд
-  { id: 'unloading_enter',   label: 'Выгрузка: Въезд',          group: 'Выгрузка',    defaultIncluded: true, fixed: true, width: 12 },
-  { id: 'unloading_dwell',   label: 'Выгрузка: Стоянка',        group: 'Выгрузка',    defaultIncluded: true, fixed: true, width: 11 },
-  { id: 'unloading_exit',    label: 'Выгрузка: Выезд',          group: 'Выгрузка',    defaultIncluded: true, fixed: true, width: 12 },
-  { id: 'shift_end',         label: 'Конец смены',               group: 'Основные',    defaultIncluded: true, fixed: true, width: 12 },
+  { id: 'unloading_enter',   label: 'Выгрузка: Въезд',          group: 'Выгрузка',    defaultIncluded: true,  width: 12 },
+  { id: 'unloading_dwell',   label: 'Выгрузка: Стоянка',        group: 'Выгрузка',    defaultIncluded: true,  width: 11 },
+  { id: 'unloading_exit',    label: 'Выгрузка: Выезд',          group: 'Выгрузка',    defaultIncluded: true,  width: 12 },
+  // Путь (после выгрузки)
+  { id: 'empty_travel',      label: 'Порожний',                  group: 'Путь',       defaultIncluded: false, width: 10 },
+  { id: 'shift_end',         label: 'Конец смены',               group: 'Основные',    defaultIncluded: true,  width: 12 },
   // Zone names (per-trip)
   { id: 'loading_zone',      label: 'Зона погрузки',             group: 'Зоны',       defaultIncluded: false, width: 18 },
   { id: 'unloading_zone',    label: 'Зона выгрузки',             group: 'Зоны',       defaultIncluded: false, width: 18 },
