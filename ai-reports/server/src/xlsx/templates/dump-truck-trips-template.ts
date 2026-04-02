@@ -302,7 +302,9 @@ export async function buildDtTripsXlsx(
         });
 
         ws.getRow(r).height = DT_ROW_HEIGHT;
-        ws.getRow(r).outlineLevel = isFirstTrip ? 1 : 2;
+        ws.getRow(r).outlineLevel = multipleObjects
+          ? (isFirstTrip ? 2 : 3)
+          : (isFirstTrip ? 1 : 2);
         rowIdx++;
       }
 
@@ -349,7 +351,8 @@ export async function buildDtTripsXlsx(
     ws.getColumn(z.col).width = Math.min(maxLen * 1.2 + 2, 40);
   }
 
-  ws.properties.outlineLevelRow = 2;
+  const maxOutline = data.some(g => g.objects.length > 1) ? 3 : 2;
+  ws.properties.outlineLevelRow = maxOutline;
   ws.properties.outlineProperties = { summaryBelow: false };
 
   return wb;
