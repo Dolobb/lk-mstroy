@@ -36,6 +36,8 @@ export async function buildDtTripsXlsx(
 
   // Track merges to apply after writing all data
   const merges: [number, number, number, number][] = [];
+  // Track outline groups: [firstDataRow, lastDataRow] per date+shift section
+  const outlineGroups: [number, number][] = [];
 
   for (const group of data) {
     // ─── Date+Shift header row ────────────────────────────────────
@@ -50,6 +52,7 @@ export async function buildDtTripsXlsx(
     rowIdx++;
 
     // ─── Header row 1 (level 1) ─────────────────────────────────
+    const sectionStartRow = rowIdx; // first row after date header (for outline grouping)
     const h1Row = rowIdx;
     const hStyle = {
       font: headerFont('Calibri', 11),
@@ -172,6 +175,11 @@ export async function buildDtTripsXlsx(
       }
 
       // Vertical merges for vehicle block (only if >1 trip)
+      // Track last data row for outline grouping
+      if (vehicle === group.vehicles[group.vehicles.length - 1]) {
+        outlineGroups.push([sectionStartRow, rowIdx - 1]);
+      }
+
       if (tripCount > 1) {
         // Columns that get merged: A(1), C(3), D(4), K(11) + aggregate columns
         const mergeCols = [1, 3, 4, 11];
@@ -194,8 +202,15 @@ export async function buildDtTripsXlsx(
     }
   }
 
-  // Freeze below first data section headers (row 4 of first section)
-  ws.views = [{ state: 'frozen', ySplit: 4, xSplit: 0 }];
+  // Outline grouping: rows within each date+shift section are collapsible
+  for (const [startRow, endRow] of outlineGroups) {
+    for (let r = startRow; r <= endRow; r++) {
+      ws.getRow(r).outlineLevel = 1;
+    }
+  }
+  // Summary rows (date headers) are above the detail rows
+  ws.properties.outlineLevelRow = 1;
+  ws.properties.outlineProperties = { summaryBelow: false };
 
   return wb;
 }

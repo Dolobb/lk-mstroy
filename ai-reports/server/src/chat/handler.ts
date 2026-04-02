@@ -21,7 +21,7 @@ export async function chatHandler(req: Request, res: Response) {
       messages,
     });
 
-    pipeUIMessageStreamToResponse({ response: res, stream: result.uiMessageStream });
+    pipeUIMessageStreamToResponse({ response: res, stream: result.toUIMessageStream() });
   } catch (err) {
     console.error('[ai-reports] Chat error:', err);
     if (!res.headersSent) {
