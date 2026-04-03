@@ -11,9 +11,15 @@ const navItems: { id: string; path: string; label: string; icon: React.Component
   { id: 'dump',     path: '/samosvaly', label: 'САМОСВАЛЫ',   icon: DumpTruckIcon },
 ];
 
+const isLocal = () => {
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1';
+};
+
 const TopNavBar: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { pathname } = useLocation();
+  const local = isLocal();
 
   return (
     <nav className="flex items-center justify-between px-3 h-10 glass-card shrink-0">
@@ -64,14 +70,16 @@ const TopNavBar: React.FC = () => {
           <Sparkles className="size-3.5" />
           <span>AI Demo</span>
         </Link>
-        <Link
-          to="/admin"
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
-          style={{ fontSize: '11px', textDecoration: 'none' }}
-        >
-          <Terminal className="size-3.5" />
-          <span>Серверы</span>
-        </Link>
+        {local && (
+          <Link
+            to="/admin"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
+            style={{ fontSize: '11px', textDecoration: 'none' }}
+          >
+            <Terminal className="size-3.5" />
+            <span>Серверы</span>
+          </Link>
+        )}
         <Link
           to="/vehicle-status"
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
@@ -80,16 +88,18 @@ const TopNavBar: React.FC = () => {
           <Wrench className="size-3.5" />
           <span>Состояние ТС</span>
         </Link>
-        <a
-          href={`http://${window.location.hostname}:3003/admin`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
-          style={{ fontSize: '11px', textDecoration: 'none' }}
-        >
-          <Map className="size-3.5" />
-          <span>Гео</span>
-        </a>
+        {local && (
+          <a
+            href={`http://${window.location.hostname}:3003/admin`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors border-none"
+            style={{ fontSize: '11px', textDecoration: 'none' }}
+          >
+            <Map className="size-3.5" />
+            <span>Гео</span>
+          </a>
+        )}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors cursor-pointer bg-transparent border-none"

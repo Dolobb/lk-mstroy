@@ -43,7 +43,11 @@ const App: React.FC = () => {
         <Route path="/vehicle-status" element={<VehicleStatusPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/ai-demo" element={<AiReportsPage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin" element={
+          ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+            ? <AdminPage />
+            : <Navigate to="/" replace />
+        } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
