@@ -18,6 +18,8 @@ export const ReportsPage: React.FC = () => {
   const [meta, setMeta] = useState<ReportMeta | null>(null);
   const [included, setIncluded] = useState<string[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({});
+  const [splitByDays, setSplitByDays] = useState(false);
+  const [splitByShifts, setSplitByShifts] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +60,8 @@ export const ReportsPage: React.FC = () => {
         dateTo,
         columns: included,
         filters,
+        splitByDays: reportType === 'kip' ? splitByDays : undefined,
+        splitByShifts: reportType === 'kip' ? splitByShifts : undefined,
       });
       downloadBlob(blob, `report_${reportType}_${dateFrom}_${dateTo}.xlsx`);
     } catch (err: any) {
@@ -109,8 +113,39 @@ export const ReportsPage: React.FC = () => {
 
       {/* Block 3: Actions */}
       <div className="glass-card rounded-[18px] px-4 py-3 shrink-0 flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">
-          {included.length} столбцов выбрано
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-muted-foreground">
+            {included.length} столбцов выбрано
+          </span>
+
+          {reportType === 'kip' && (
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={splitByDays}
+                  onChange={e => {
+                    setSplitByDays(e.target.checked);
+                    if (!e.target.checked) setSplitByShifts(false);
+                  }}
+                  className="size-3.5 accent-primary cursor-pointer"
+                />
+                <span className="text-xs text-foreground">По дням</span>
+              </label>
+
+              {splitByDays && (
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={splitByShifts}
+                    onChange={e => setSplitByShifts(e.target.checked)}
+                    className="size-3.5 accent-primary cursor-pointer"
+                  />
+                  <span className="text-xs text-foreground">По сменам</span>
+                </label>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
