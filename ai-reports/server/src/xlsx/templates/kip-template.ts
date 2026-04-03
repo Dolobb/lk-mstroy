@@ -5,7 +5,9 @@ import {
   KIP_DARK_BLUE, KIP_MED_BLUE, KIP_LIGHT_BLUE, KIP_GROUP_BLUE,
 } from '../styles';
 
-// DB field → column label for headers
+// ─── Constants ─────────────────────────────────────────────────────
+
+// DB field → column label
 const METRIC_LABELS: Record<string, string> = {
   utilization_ratio: 'КИП, %',
   total_stay_time: 'Вр. на объекте',
@@ -31,59 +33,102 @@ const METRIC_FORMAT: Record<string, { numFmt: string; transform: (v: number) => 
   fuel_variance:       { numFmt: '0.00',        transform: v => v },
 };
 
-// Percent-color IDs
-const PERCENT_IDS = new Set(['utilization_ratio', 'load_efficiency_pct']);
+// Which metrics are percentages (averaged on aggregation)
+const PCT_METRICS = new Set(['utilization_ratio', 'load_efficiency_pct', 'fuel_variance']);
+// Which metrics are percentage-colored
+const PERCENT_COLOR_IDS = new Set(['utilization_ratio', 'load_efficiency_pct']);
 const LOAD_IDS = new Set(['load_efficiency_pct']);
 
+// ─── Fonts (all +3pt from original) ───────────────────────────────
+
+const TITLE_SIZE = 14;  // was 11
+const HDR_SIZE = 10;    // was 7
+const DATA_SIZE = 10;   // was 7
+const DATA_ROW_H = 32;  // was 22.5
+const SUB_HDR_H = 49;   // was 34
+
+// ─── Color helper ──────────────────────────────────────────────────
+
 function getPercentColor(transformed: number, metricId: string): string | undefined {
-  if (transformed === 0 && LOAD_IDS.has(metricId)) return undefined; // standard text for 0% load
-  if (transformed <= 0.49) return 'FFFF0000';  // red
-  if (transformed >= 0.7) return 'FF00B050';   // green
-  return 'FF2F5496';                            // dark blue (49-70%)
+  if (transformed === 0 && LOAD_IDS.has(metricId)) return undefined;
+  if (transformed <= 0.49) return 'FFFF0000';
+  if (transformed >= 0.7) return 'FF00B050';
+  return 'FF2F5496';
 }
+
+// ─── Options interface ─────────────────────────────────────────────
+
+export interface KipBuildOptions {
+  splitByDays?: boolean;
+  splitByShifts?: boolean;
+}
+
+// ─── Prepared row for rendering ────────────────────────────────────
+
+interface PreparedRow {
+  model: string;
+  regNumber: string;
+  site: string;
+  colB: string | number;    // seq number, date, or date+shift
+  shift1: Record<string, number>;
+  shift2: Record<string, number>;  // empty in singleShift mode
+}
+
+// ─── Main build function ───────────────────────────────────────────
 
 export async function buildKipXlsx(
   data: KipRow[],
   columns: string[],
   dateFrom: string,
   dateTo: string,
+  options?: KipBuildOptions,
 ): Promise<ExcelJS.Workbook> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('КИП');
 
-  // Determine which metric columns are selected
+  const byDays = options?.splitByDays ?? false;
+  const byShifts = byDays && (options?.splitByShifts ?? false);
+  const singleShiftMode = byShifts; // one metric set per row
+
   const metricCols = columns.filter(c => c in METRIC_LABELS);
 
-  // Fixed columns: A=№, B=№п/п, C=Марка/гос.№, D=Объект строительства
+  // Fixed columns: A=№, B=№п/п or Date, C=Марка/гос.№, D=Объект строительства
   const fixedCount = 4;
+  const shiftSets = singleShiftMode ? 1 : 2;
   const metricsPerShift = metricCols.length;
-  const totalCols = fixedCount + metricsPerShift * 2;
+  const totalCols = fixedCount + metricsPerShift * shiftSets;
 
-  // Column widths
-  ws.getColumn(1).width = 5;   // №
-  ws.getColumn(2).width = 5;   // №п/п
-  ws.getColumn(3).width = 32;  // Марка/гос.№ (wider for model + reg)
-  ws.getColumn(4).width = 22;  // Объект строительства
-  for (let i = 0; i < metricsPerShift * 2; i++) {
-    ws.getColumn(fixedCount + 1 + i).width = 10;
+  // Column widths (scaled +43%)
+  ws.getColumn(1).width = 7;    // №
+  ws.getColumn(2).width = 10;   // №п/п / date
+  ws.getColumn(3).width = 46;   // Марка/гос.№
+  ws.getColumn(4).width = 31;   // Объект строительства
+  for (let i = 0; i < metricsPerShift * shiftSets; i++) {
+    ws.getColumn(fixedCount + 1 + i).width = 14;
   }
 
-  // ─── Row 1-2: Title ───────────────────────────────────────────────
+  // ─── Prepare data ─────────────────────────────────────────────
+  const { groups, colBHeader } = prepareData(data, metricCols, byDays, byShifts);
+
+  // ─── Row 1-2: Title ───────────────────────────────────────────
   const fmtFrom = formatDate(dateFrom);
   const fmtTo = formatDate(dateTo);
   ws.mergeCells(1, 1, 2, totalCols);
   const titleCell = ws.getCell(1, 1);
   titleCell.value = `Выработка техники на АО Мостострой-11 в период с ${fmtFrom} по ${fmtTo}`;
-  titleCell.font = { name: 'Arial Narrow', bold: true, size: 11 };
+  titleCell.font = { name: 'Arial Narrow', bold: true, size: TITLE_SIZE };
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  // ─── Row 3: empty ─────────────────────────────────────────────────
-  // ─── Row 4: Level 1 headers ───────────────────────────────────────
+  // ─── Row 4: Level 1 headers ───────────────────────────────────
   const hRow = 4;
-  const hStyle = { font: headerFont('Arial Narrow', 7), fill: headerFill(KIP_DARK_BLUE), alignment: centerAlign, border: allThinBorders };
+  const hStyle = {
+    font: headerFont('Arial Narrow', HDR_SIZE),
+    fill: headerFill(KIP_DARK_BLUE),
+    alignment: centerAlign,
+    border: allThinBorders,
+  };
 
-  // Fixed headers (merge 4-5)
-  const fixedHeaders = ['№', '№ п/п', 'Марка / гос.№', 'Объект строительства'];
+  const fixedHeaders = ['№', colBHeader, 'Марка / гос.№', 'Объект строительства'];
   for (let i = 0; i < fixedCount; i++) {
     ws.mergeCells(hRow, i + 1, hRow + 1, i + 1);
     const cell = ws.getCell(hRow, i + 1);
@@ -91,54 +136,212 @@ export async function buildKipXlsx(
     Object.assign(cell, hStyle);
   }
 
-  // "1 смена" merged header
-  if (metricsPerShift > 0) {
-    const s1Start = fixedCount + 1;
-    const s1End = fixedCount + metricsPerShift;
-    ws.mergeCells(hRow, s1Start, hRow, s1End);
-    const s1Cell = ws.getCell(hRow, s1Start);
-    s1Cell.value = '1 смена';
-    Object.assign(s1Cell, { font: headerFont('Arial Narrow', 7), fill: headerFill(KIP_MED_BLUE), alignment: centerAlign, border: allThinBorders });
+  if (singleShiftMode) {
+    // Single merged header for metrics
+    if (metricsPerShift > 0) {
+      const start = fixedCount + 1;
+      const end = fixedCount + metricsPerShift;
+      ws.mergeCells(hRow, start, hRow, end);
+      const cell = ws.getCell(hRow, start);
+      cell.value = 'Метрики';
+      Object.assign(cell, { ...hStyle, fill: headerFill(KIP_MED_BLUE) });
+    }
+  } else {
+    // "1 смена" header
+    if (metricsPerShift > 0) {
+      const s1Start = fixedCount + 1;
+      const s1End = fixedCount + metricsPerShift;
+      ws.mergeCells(hRow, s1Start, hRow, s1End);
+      const s1Cell = ws.getCell(hRow, s1Start);
+      s1Cell.value = '1 смена';
+      Object.assign(s1Cell, { ...hStyle, fill: headerFill(KIP_MED_BLUE) });
+    }
+    // "2 смена" header
+    if (metricsPerShift > 0) {
+      const s2Start = fixedCount + metricsPerShift + 1;
+      const s2End = fixedCount + metricsPerShift * 2;
+      ws.mergeCells(hRow, s2Start, hRow, s2End);
+      const s2Cell = ws.getCell(hRow, s2Start);
+      s2Cell.value = '2 смена';
+      Object.assign(s2Cell, hStyle);
+    }
   }
 
-  // "2 смена" merged header
-  if (metricsPerShift > 0) {
-    const s2Start = fixedCount + metricsPerShift + 1;
-    const s2End = fixedCount + metricsPerShift * 2;
-    ws.mergeCells(hRow, s2Start, hRow, s2End);
-    const s2Cell = ws.getCell(hRow, s2Start);
-    s2Cell.value = '2 смена';
-    Object.assign(s2Cell, hStyle);
-  }
-
-  // ─── Row 5: Level 2 headers (metric names) ────────────────────────
+  // ─── Row 5: Sub-headers (metric names) ────────────────────────
   const subRow = hRow + 1;
-  for (let s = 0; s < 2; s++) {
-    const offset = fixedCount + s * metricsPerShift;
-    const fillColor = s === 0 ? KIP_MED_BLUE : KIP_DARK_BLUE;
+  if (singleShiftMode) {
     for (let i = 0; i < metricsPerShift; i++) {
-      const col = offset + i + 1;
+      const col = fixedCount + i + 1;
       const cell = ws.getCell(subRow, col);
       cell.value = METRIC_LABELS[metricCols[i]] || metricCols[i];
-      cell.font = headerFont('Arial Narrow', 7);
-      cell.fill = headerFill(fillColor);
+      cell.font = headerFont('Arial Narrow', HDR_SIZE);
+      cell.fill = headerFill(KIP_MED_BLUE);
       cell.alignment = centerAlign;
       cell.border = allThinBorders;
     }
+  } else {
+    for (let s = 0; s < 2; s++) {
+      const offset = fixedCount + s * metricsPerShift;
+      const fillColor = s === 0 ? KIP_MED_BLUE : KIP_DARK_BLUE;
+      for (let i = 0; i < metricsPerShift; i++) {
+        const col = offset + i + 1;
+        const cell = ws.getCell(subRow, col);
+        cell.value = METRIC_LABELS[metricCols[i]] || metricCols[i];
+        cell.font = headerFont('Arial Narrow', HDR_SIZE);
+        cell.fill = headerFill(fillColor);
+        cell.alignment = centerAlign;
+        cell.border = allThinBorders;
+      }
+    }
   }
-  ws.getRow(subRow).height = 34;
+  ws.getRow(subRow).height = SUB_HDR_H;
 
-  // ─── Data rows: group by vehicle_model ────────────────────────────
+  // ─── Data rows ────────────────────────────────────────────────
+  let rowIdx = 6;
+  let globalNum = 0;
 
-  // Pivot: model → vehicle_id → date → { morning, evening }
-  interface VehicleDateEntry { morning?: KipRow; evening?: KipRow }
-  const tree = new Map<string, Map<string, Map<string, VehicleDateEntry>>>();
+  for (const [model, rows] of groups) {
+    // Type group header
+    ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
+    const typeCell = ws.getCell(rowIdx, 1);
+    typeCell.value = `Тип: ${model}`;
+    typeCell.font = headerFont('Arial Narrow', HDR_SIZE);
+    typeCell.fill = headerFill(KIP_GROUP_BLUE);
+    typeCell.alignment = centerAlign;
+    typeCell.border = allThinBorders;
+    rowIdx++;
+
+    // Organization placeholder
+    ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
+    const orgCell = ws.getCell(rowIdx, 1);
+    orgCell.value = 'Организация [плейсхолдер]';
+    orgCell.font = { name: 'Arial Narrow', bold: true, size: HDR_SIZE, color: { argb: 'FF000000' } };
+    orgCell.fill = headerFill(KIP_LIGHT_BLUE);
+    orgCell.alignment = centerAlign;
+    orgCell.border = allThinBorders;
+    rowIdx++;
+
+    for (const pr of rows) {
+      globalNum++;
+      const row = ws.getRow(rowIdx);
+      row.height = DATA_ROW_H;
+
+      // Column A: global number
+      ws.getCell(rowIdx, 1).value = globalNum;
+
+      // Column B: seq number, date, or date+shift
+      ws.getCell(rowIdx, 2).value = pr.colB;
+
+      // Column C: rich text — model | **regNumber**
+      ws.getCell(rowIdx, 3).value = buildVehicleRichText(pr.model, pr.regNumber);
+
+      // Column D: site
+      ws.getCell(rowIdx, 4).value = pr.site;
+
+      // Metrics
+      if (singleShiftMode) {
+        writeMetricCells(ws, rowIdx, fixedCount, metricCols, pr.shift1);
+      } else {
+        writeMetricCells(ws, rowIdx, fixedCount, metricCols, pr.shift1);
+        writeMetricCells(ws, rowIdx, fixedCount + metricsPerShift, metricCols, pr.shift2);
+      }
+
+      // Base style for all cells
+      for (let c = 1; c <= totalCols; c++) {
+        const cell = ws.getCell(rowIdx, c);
+        if (!cell.font || !cell.font.color) {
+          cell.font = { name: 'Arial Narrow', size: DATA_SIZE };
+        }
+        cell.alignment = centerAlign;
+        cell.border = allThinBorders;
+      }
+      // Left-align text columns
+      ws.getCell(rowIdx, 3).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      ws.getCell(rowIdx, 4).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+
+      rowIdx++;
+    }
+  }
+
+  // Freeze panes below headers
+  ws.views = [{ state: 'frozen', ySplit: 5, xSplit: 0 }];
+
+  return wb;
+}
+
+// ─── Data preparation ──────────────────────────────────────────────
+
+function prepareData(
+  data: KipRow[],
+  metricCols: string[],
+  byDays: boolean,
+  byShifts: boolean,
+): { groups: Map<string, PreparedRow[]>; colBHeader: string } {
+  // Determine column B header
+  let colBHeader: string;
+  if (byShifts) colBHeader = 'Дата / Смена';
+  else if (byDays) colBHeader = 'Дата';
+  else colBHeader = '№ п/п';
+
+  if (byShifts) {
+    return { groups: prepareSplitByShifts(data, metricCols), colBHeader };
+  }
+  if (byDays) {
+    return { groups: prepareSplitByDays(data, metricCols), colBHeader };
+  }
+  return { groups: prepareAggregated(data, metricCols), colBHeader };
+}
+
+// Mode 1: Aggregated — one row per vehicle
+function prepareAggregated(data: KipRow[], metricCols: string[]): Map<string, PreparedRow[]> {
+  // Group: model → vid → { mornings: KipRow[], evenings: KipRow[] }
+  const tree = new Map<string, Map<string, { model: string; site: string; mornings: KipRow[]; evenings: KipRow[] }>>();
+
+  for (const row of data) {
+    const model = row.vehicle_model || 'Прочие';
+    const vid = row.vehicle_id;
+    if (!tree.has(model)) tree.set(model, new Map());
+    const vMap = tree.get(model)!;
+    if (!vMap.has(vid)) {
+      vMap.set(vid, { model, site: row.department_unit, mornings: [], evenings: [] });
+    }
+    const bucket = vMap.get(vid)!;
+    // Keep latest site name
+    if (row.department_unit) bucket.site = row.department_unit;
+    if (row.shift_type === 'morning') bucket.mornings.push(row);
+    else bucket.evenings.push(row);
+  }
+
+  const groups = new Map<string, PreparedRow[]>();
+  let localNum = 0;
+
+  for (const [model, vMap] of tree) {
+    const rows: PreparedRow[] = [];
+    for (const [vid, bucket] of vMap) {
+      localNum++;
+      rows.push({
+        model: bucket.model,
+        regNumber: vid,
+        site: bucket.site,
+        colB: localNum,
+        shift1: aggregateMetrics(bucket.mornings, metricCols),
+        shift2: aggregateMetrics(bucket.evenings, metricCols),
+      });
+    }
+    groups.set(model, rows);
+  }
+
+  return groups;
+}
+
+// Mode 2: Split by days — one row per vehicle per date
+function prepareSplitByDays(data: KipRow[], metricCols: string[]): Map<string, PreparedRow[]> {
+  const tree = new Map<string, Map<string, Map<string, { morning?: KipRow; evening?: KipRow }>>>();
 
   for (const row of data) {
     const model = row.vehicle_model || 'Прочие';
     const vid = row.vehicle_id;
     const date = row.report_date;
-
     if (!tree.has(model)) tree.set(model, new Map());
     const vMap = tree.get(model)!;
     if (!vMap.has(vid)) vMap.set(vid, new Map());
@@ -149,116 +352,120 @@ export async function buildKipXlsx(
     else entry.evening = row;
   }
 
-  let rowIdx = 6; // start after headers
-  let globalNum = 0;
+  const groups = new Map<string, PreparedRow[]>();
 
   for (const [model, vMap] of tree) {
-    // Type group header
-    ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
-    const typeCell = ws.getCell(rowIdx, 1);
-    typeCell.value = `Тип: ${model}`;
-    typeCell.font = headerFont('Arial Narrow', 7);
-    typeCell.fill = headerFill(KIP_GROUP_BLUE);
-    typeCell.alignment = centerAlign;
-    typeCell.border = allThinBorders;
-    rowIdx++;
-
-    // Organization placeholder sub-header
-    ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
-    const orgCell = ws.getCell(rowIdx, 1);
-    orgCell.value = 'Организация [плейсхолдер]';
-    orgCell.font = { name: 'Arial Narrow', bold: true, size: 7, color: { argb: 'FF000000' } };
-    orgCell.fill = headerFill(KIP_LIGHT_BLUE);
-    orgCell.alignment = centerAlign;
-    orgCell.border = allThinBorders;
-    rowIdx++;
-
-    let localNum = 0;
+    const rows: PreparedRow[] = [];
     for (const [vid, dateMap] of vMap) {
-      for (const [, entry] of dateMap) {
-        globalNum++;
-        localNum++;
-        const row = ws.getRow(rowIdx);
-        row.height = 22.5;
-
-        ws.getCell(rowIdx, 1).value = globalNum;
-        ws.getCell(rowIdx, 2).value = localNum;
-
-        // Column C: model + гос.№
-        const vModel = entry.morning?.vehicle_model || entry.evening?.vehicle_model || '';
-        ws.getCell(rowIdx, 3).value = vModel ? `${vModel} гос.№ ${vid}` : vid;
-
-        // Column D: department_unit (construction site)
-        ws.getCell(rowIdx, 4).value = entry.morning?.department_unit || entry.evening?.department_unit || '';
-
-        // Shift 1 metrics
-        writeMetrics(ws, rowIdx, fixedCount, metricCols, entry.morning);
-        // Shift 2 metrics
-        writeMetrics(ws, rowIdx, fixedCount + metricsPerShift, metricCols, entry.evening);
-
-        // Style all data cells
-        for (let c = 1; c <= totalCols; c++) {
-          const cell = ws.getCell(rowIdx, c);
-          if (!cell.font || !cell.font.color) {
-            cell.font = { name: 'Arial Narrow', size: 7 };
-          }
-          cell.alignment = centerAlign;
-          cell.border = allThinBorders;
-        }
-        // Left-align text columns C, D
-        ws.getCell(rowIdx, 3).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
-        ws.getCell(rowIdx, 4).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
-
-        rowIdx++;
+      for (const [date, entry] of dateMap) {
+        const src = entry.morning || entry.evening!;
+        rows.push({
+          model: src.vehicle_model || model,
+          regNumber: vid,
+          site: src.department_unit || '',
+          colB: formatDateShort(date),
+          shift1: rowToMetrics(entry.morning, metricCols),
+          shift2: rowToMetrics(entry.evening, metricCols),
+        });
       }
+    }
+    groups.set(model, rows);
+  }
+
+  return groups;
+}
+
+// Mode 3: Split by days + shifts — one row per vehicle per date per shift
+function prepareSplitByShifts(data: KipRow[], metricCols: string[]): Map<string, PreparedRow[]> {
+  const tree = new Map<string, Map<string, { model: string; entries: { date: string; shift: string; row: KipRow }[] }>>();
+
+  for (const row of data) {
+    const model = row.vehicle_model || 'Прочие';
+    const vid = row.vehicle_id;
+    if (!tree.has(model)) tree.set(model, new Map());
+    const vMap = tree.get(model)!;
+    if (!vMap.has(vid)) vMap.set(vid, { model, entries: [] });
+    vMap.get(vid)!.entries.push({
+      date: row.report_date,
+      shift: row.shift_type === 'morning' ? '1см' : '2см',
+      row,
+    });
+  }
+
+  const groups = new Map<string, PreparedRow[]>();
+
+  for (const [model, vMap] of tree) {
+    const rows: PreparedRow[] = [];
+    for (const [vid, bucket] of vMap) {
+      for (const e of bucket.entries) {
+        rows.push({
+          model: e.row.vehicle_model || model,
+          regNumber: vid,
+          site: e.row.department_unit || '',
+          colB: `${formatDateShort(e.date)} ${e.shift}`,
+          shift1: rowToMetrics(e.row, metricCols),
+          shift2: {},
+        });
+      }
+    }
+    groups.set(model, rows);
+  }
+
+  return groups;
+}
+
+// ─── Aggregation helpers ───────────────────────────────────────────
+
+function aggregateMetrics(rows: KipRow[], metricCols: string[]): Record<string, number> {
+  if (rows.length === 0) return {};
+  const result: Record<string, number> = {};
+
+  for (const id of metricCols) {
+    const values = rows.map(r => (r as any)[id] as number).filter(v => typeof v === 'number');
+    if (values.length === 0) { result[id] = 0; continue; }
+
+    if (PCT_METRICS.has(id)) {
+      // Average for percentages
+      const nonZero = values.filter(v => v > 0);
+      result[id] = nonZero.length > 0
+        ? nonZero.reduce((a, b) => a + b, 0) / nonZero.length
+        : 0;
+    } else {
+      // Sum for hours/fuel
+      result[id] = values.reduce((a, b) => a + b, 0);
     }
   }
 
-  // Freeze panes below headers
-  ws.views = [{ state: 'frozen', ySplit: 5, xSplit: 0 }];
-
-  return wb;
+  return result;
 }
 
-// ─── Write metrics for one shift ───────────────────────────────────
+function rowToMetrics(row: KipRow | undefined, metricCols: string[]): Record<string, number> {
+  if (!row) return {};
+  const result: Record<string, number> = {};
+  for (const id of metricCols) {
+    result[id] = (row as any)[id] ?? 0;
+  }
+  return result;
+}
 
-function writeMetrics(
+// ─── Write metric cells ───────────────────────────────────────────
+
+function writeMetricCells(
   ws: ExcelJS.Worksheet,
   rowIdx: number,
   colOffset: number,
   metricCols: string[],
-  shiftData?: KipRow,
+  metrics: Record<string, number>,
 ) {
   for (let i = 0; i < metricCols.length; i++) {
     const col = colOffset + i + 1;
     const metricId = metricCols[i];
     const cell = ws.getCell(rowIdx, col);
     const fmt = METRIC_FORMAT[metricId];
+    const raw = metrics[metricId];
 
-    if (!shiftData) {
+    if (raw === undefined || (typeof raw === 'number' && Object.keys(metrics).length === 0)) {
       cell.value = '';
-      continue;
-    }
-
-    const raw = (shiftData as any)[metricId];
-    if (typeof raw !== 'number' || raw === 0) {
-      // For time columns: 0 hours → write 0 as Excel time
-      if (fmt && fmt.numFmt.includes('[h]') && typeof raw === 'number') {
-        cell.value = 0;
-        cell.numFmt = fmt.numFmt;
-      } else if (typeof raw === 'number' && raw === 0) {
-        cell.value = 0;
-        if (fmt) cell.numFmt = fmt.numFmt;
-      } else {
-        cell.value = '';
-      }
-      // Color for zero percentage
-      if (PERCENT_IDS.has(metricId) && typeof raw === 'number') {
-        const color = getPercentColor(0, metricId);
-        if (color) {
-          cell.font = { name: 'Arial Narrow', size: 7, bold: true, color: { argb: color } };
-        }
-      }
       continue;
     }
 
@@ -267,18 +474,41 @@ function writeMetrics(
     if (fmt) cell.numFmt = fmt.numFmt;
 
     // Color for percentage columns
-    if (PERCENT_IDS.has(metricId)) {
+    if (PERCENT_COLOR_IDS.has(metricId)) {
       const color = getPercentColor(transformed, metricId);
       cell.font = color
-        ? { name: 'Arial Narrow', size: 7, bold: true, color: { argb: color } }
-        : { name: 'Arial Narrow', size: 7, bold: true };
+        ? { name: 'Arial Narrow', size: DATA_SIZE, bold: true, color: { argb: color } }
+        : { name: 'Arial Narrow', size: DATA_SIZE, bold: true };
     }
   }
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────
+// ─── Rich text: model | **regNumber** ──────────────────────────────
+
+function buildVehicleRichText(model: string, regNumber: string): ExcelJS.CellRichTextValue {
+  if (!model) {
+    return {
+      richText: [
+        { text: regNumber, font: { name: 'Arial Narrow', size: DATA_SIZE, bold: true } },
+      ],
+    };
+  }
+  return {
+    richText: [
+      { text: `${model} | `, font: { name: 'Arial Narrow', size: DATA_SIZE } },
+      { text: regNumber, font: { name: 'Arial Narrow', size: DATA_SIZE, bold: true } },
+    ],
+  };
+}
+
+// ─── Formatters ────────────────────────────────────────────────────
 
 function formatDate(ymd: string): string {
   const [y, m, d] = ymd.split('-');
   return `${d}.${m}.${y}`;
+}
+
+function formatDateShort(ymd: string): string {
+  const [, m, d] = ymd.split('-');
+  return `${d}.${m}`;
 }

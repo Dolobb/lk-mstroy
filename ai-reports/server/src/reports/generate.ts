@@ -15,6 +15,8 @@ interface GenerateBody {
     vehicles?: string[];
     shiftType?: string;
   };
+  splitByDays?: boolean;
+  splitByShifts?: boolean;
 }
 
 export async function generateHandler(req: Request, res: Response) {
@@ -38,7 +40,10 @@ export async function generateHandler(req: Request, res: Response) {
         return res.status(404).json({ error: 'Нет данных за выбранный период' });
       }
 
-      workbook = await buildKipXlsx(data, body.columns, body.dateFrom, body.dateTo);
+      workbook = await buildKipXlsx(data, body.columns, body.dateFrom, body.dateTo, {
+        splitByDays: body.splitByDays,
+        splitByShifts: body.splitByShifts,
+      });
     } else if (body.reportType === 'dump-truck-trips') {
       const data = await queryDtTripsData(body.dateFrom, body.dateTo, {
         objectUid: body.filters.objectUid,
