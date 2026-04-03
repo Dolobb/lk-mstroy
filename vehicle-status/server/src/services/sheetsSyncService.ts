@@ -103,6 +103,136 @@ export interface SyncResult {
   errors: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Диагностика: анализ структуры xlsx без записи в БД
+// ---------------------------------------------------------------------------
+export interface TabDiagnostic {
+  sheetName: string;
+  displayName: string;
+  found: boolean;
+  totalRows: number;
+  headerFound: boolean;
+  headerRowIdx: number | null;
+  headerColumns: string[];       // все заголовки найденной строки
+  plateColIdx: number | null;
+  statusColIdx: number | null;
+  parsedRows: number;
+  skippedEmpty: number;
+  uniqueStatuses: string[];      // все уникальные значения статуса
+  sampleRows: { plate: string; status: string; broken: boolean }[];
+}
+
+export interface DiagnosticResult {
+  allSheetNames: string[];       // все вкладки в файле
+  tabs: TabDiagnostic[];
+  unmatchedSheets: string[];     // вкладки файла, не включённые в SHEET_TABS
+}
+
+export async function runDiagnostic(): Promise<DiagnosticResult> {
+  const config = getEnvConfig();
+  const credsPath = path.resolve(__dirname, '../../', config.googleCredsPath);
+  const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8')) as {
+    client_email: string;
+    private_key: string;
+  };
+
+  const auth = new google.auth.JWT({
+    email: creds.client_email,
+    key: creds.private_key,
+    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  });
+
+  const xlsxBuffer = await downloadXlsx(config.googleSheetId, auth);
+  const workbook = XLSX.read(xlsxBuffer, { type: 'buffer' });
+
+  const allSheetNames = workbook.SheetNames;
+  const matchedSheets = new Set<string>();
+  const tabs: TabDiagnostic[] = [];
+
+  for (const tab of SHEET_TABS) {
+    const sheetName = allSheetNames.find(n => n.trim() === tab.sheetName.trim());
+
+    if (!sheetName) {
+      tabs.push({
+        sheetName: tab.sheetName,
+        displayName: tab.displayName,
+        found: false,
+        totalRows: 0,
+        headerFound: false,
+        headerRowIdx: null,
+        headerColumns: [],
+        plateColIdx: null,
+        statusColIdx: null,
+        parsedRows: 0,
+        skippedEmpty: 0,
+        uniqueStatuses: [],
+        sampleRows: [],
+      });
+      continue;
+    }
+
+    matchedSheets.add(sheetName);
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' }) as string[][];
+
+    const header = findHeaderRow(rows);
+    const statuses = new Set<string>();
+    const parsed: { plate: string; status: string; broken: boolean }[] = [];
+    let skippedEmpty = 0;
+
+    if (header) {
+      const { headerRowIdx, plateIdx, statusIdx } = header;
+      for (let i = headerRowIdx + 1; i < rows.length; i++) {
+        const row = rows[i];
+        const plate = String(row[plateIdx] ?? '').trim().toUpperCase();
+        const status = String(row[statusIdx] ?? '').trim();
+
+        if (!plate || plate === '0' || plate === 'NAN' || plate === 'UNDEFINED') {
+          skippedEmpty++;
+          continue;
+        }
+
+        statuses.add(status || '(пусто)');
+        parsed.push({ plate, status, broken: isBroken(status) });
+      }
+    }
+
+    // Заголовки строки-шапки (для отладки)
+    const headerColumns = header
+      ? rows[header.headerRowIdx].map(h => String(h).trim()).filter(Boolean)
+      : [];
+
+    // Если заголовок не найден — покажем первые 5 строк для отладки
+    const sampleRows = header
+      ? parsed.slice(0, 5)
+      : rows.slice(0, 5).map(r => ({
+          plate: String(r[0] ?? '').trim(),
+          status: String(r[1] ?? '').trim(),
+          broken: false,
+        }));
+
+    tabs.push({
+      sheetName: tab.sheetName,
+      displayName: tab.displayName,
+      found: true,
+      totalRows: rows.length,
+      headerFound: !!header,
+      headerRowIdx: header?.headerRowIdx ?? null,
+      headerColumns,
+      plateColIdx: header?.plateIdx ?? null,
+      statusColIdx: header?.statusIdx ?? null,
+      parsedRows: parsed.length,
+      skippedEmpty,
+      uniqueStatuses: [...statuses].sort(),
+      sampleRows,
+    });
+  }
+
+  const unmatchedSheets = allSheetNames.filter(n => !matchedSheets.has(n));
+
+  return { allSheetNames, tabs, unmatchedSheets };
+}
+
 export async function runSync(): Promise<SyncResult> {
   const config  = getEnvConfig();
   // GOOGLE_CREDS_PATH задаётся относительно корня server/ (где лежит .env).

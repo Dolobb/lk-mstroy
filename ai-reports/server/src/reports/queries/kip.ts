@@ -32,7 +32,8 @@ export async function queryKipData(
   const params: any[] = [dateFrom, dateTo];
   let idx = 3;
 
-  let where = `WHERE report_date BETWEEN $1 AND $2`;
+  let where = `WHERE report_date BETWEEN $1 AND $2
+    AND (utilization_ratio > 0 OR total_stay_time > 0 OR engine_on_time > 0)`;
 
   if (filters.departments?.length) {
     where += ` AND department_unit = ANY($${idx}::varchar[])`;

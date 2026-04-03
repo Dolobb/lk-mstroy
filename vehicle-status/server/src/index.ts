@@ -3,7 +3,7 @@ import cors from 'cors';
 import { getEnvConfig } from './config/env';
 import { getPool, closePool } from './config/database';
 import { queryAll } from './repositories/vehicleStatusRepo';
-import { runSync, type SyncResult } from './services/sheetsSyncService';
+import { runSync, runDiagnostic, type SyncResult } from './services/sheetsSyncService';
 
 const app = express();
 app.use(cors());
@@ -77,6 +77,20 @@ app.post('/api/vs/vehicle-status/sync', (req, res) => {
 // GET /api/vs/vehicle-status/sync-status
 app.get('/api/vs/vehicle-status/sync-status', (_req, res) => {
   res.json({ lastSync, lastResult, inProgress: syncInProgress });
+});
+
+// ========================
+// Диагностика парсинга xlsx
+// ========================
+// GET /api/vs/vehicle-status/diagnostic
+app.get('/api/vs/vehicle-status/diagnostic', async (_req, res) => {
+  try {
+    const result = await runDiagnostic();
+    res.json(result);
+  } catch (err) {
+    console.error('[Diagnostic] Failed', err);
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 // ========================
