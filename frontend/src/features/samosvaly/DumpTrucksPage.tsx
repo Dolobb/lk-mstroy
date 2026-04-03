@@ -131,6 +131,7 @@ const BLOCK_LABELS: Record<BlockId, string> = {
 const BLOCK_COLUMNS: Record<BlockId, Array<{ id: string; label: string }>> = {
   identity: [
     { id: 'requestNumber', label: '№ заявки' },
+    { id: 'organization', label: 'Организация' },
   ],
   work: [
     { id: 'shiftsCount',  label: 'Смены' },
@@ -2077,6 +2078,11 @@ function renderCell(
       if (items.length <= 4) return <span style={{ fontSize: 10 }}>{full}</span>;
       const truncated = items.slice(0, 4).join(', ') + ' …';
       return <span style={{ fontSize: 10 }} title={full}>{truncated}</span>;
+    }
+    case 'organization': {
+      const orgSet = new Set(recs.map(r => r.organization).filter(Boolean));
+      const orgStr = orgSet.size > 0 ? Array.from(orgSet).join(', ') : '—';
+      return <span style={{ fontSize: 10 }}>{orgStr}</span>;
     }
     case 'totalTrips': return <span style={{ fontWeight: 700, color: '#F97316' }}>{totalTrips || '—'}</span>;
     case 'kipAvg': return <span className={kipAvg !== '—' ? kipColor(Number(kipAvg)) : ''}>{kipAvg}</span>;

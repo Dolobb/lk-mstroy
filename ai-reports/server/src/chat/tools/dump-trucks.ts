@@ -42,6 +42,7 @@ export const queryDumpTruckData = tool({
       const { rows } = await pool.query(
         `SELECT
            sr.id, sr.vehicle_id, sr.reg_number, sr.name_mo,
+           sr.organization,
            sr.report_date, sr.shift_type, sr.object_name,
            sr.kip_pct, sr.movement_pct,
            sr.engine_time_sec, sr.moving_time_sec,

@@ -8,6 +8,7 @@ export interface ShiftRecord {
   vehicleId: number;
   regNumber: string | null;
   nameMO: string | null;
+  organization: string | null;
   objectUid: string;
   objectName: string | null;
   objectTimezone: string;
@@ -41,6 +42,7 @@ export async function upsertShiftRecord(
   const result = await client.query<{ id: number }>(`
     INSERT INTO dump_trucks.shift_records (
       report_date, shift_type, vehicle_id, reg_number, name_mo,
+      organization,
       object_uid, object_name, object_timezone, work_type,
       shift_start, shift_end,
       engine_time_sec, moving_time_sec, distance_km,
@@ -50,17 +52,19 @@ export async function upsertShiftRecord(
       raw_monitoring, updated_at
     ) VALUES (
       $1, $2, $3, $4, $5,
-      $6, $7, $8, $9,
-      $10, $11,
-      $12, $13, $14,
-      $15, $16, $17,
-      $18, $19,
-      $20, $21,
-      $22, NOW()
+      $6,
+      $7, $8, $9, $10,
+      $11, $12,
+      $13, $14, $15,
+      $16, $17, $18,
+      $19, $20,
+      $21, $22,
+      $23, NOW()
     )
     ON CONFLICT (report_date, shift_type, vehicle_id, object_uid) DO UPDATE SET
       reg_number       = EXCLUDED.reg_number,
       name_mo          = EXCLUDED.name_mo,
+      organization     = EXCLUDED.organization,
       object_timezone  = EXCLUDED.object_timezone,
       work_type        = EXCLUDED.work_type,
       shift_start      = EXCLUDED.shift_start,
@@ -84,6 +88,7 @@ export async function upsertShiftRecord(
     input.vehicleId,
     input.regNumber || null,
     input.nameMO || null,
+    input.organization || null,
     input.objectUid,
     input.objectName || null,
     input.objectTimezone,
@@ -147,6 +152,7 @@ export async function queryShiftRecords(
     vehicle_id: string;
     reg_number: string | null;
     name_mo: string | null;
+    organization: string | null;
     object_uid: string;
     object_name: string | null;
     object_timezone: string;
@@ -170,7 +176,7 @@ export async function queryShiftRecords(
   }>(`
     SELECT
       sr.id, sr.report_date, sr.shift_type,
-      sr.vehicle_id, sr.reg_number, sr.name_mo,
+      sr.vehicle_id, sr.reg_number, sr.name_mo, sr.organization,
       sr.object_uid, sr.object_name, sr.object_timezone, sr.work_type,
       sr.shift_start, sr.shift_end,
       sr.engine_time_sec, sr.moving_time_sec,
@@ -210,6 +216,7 @@ export async function queryShiftRecords(
     vehicleId:     Number(r.vehicle_id),
     regNumber:     r.reg_number,
     nameMO:        r.name_mo,
+    organization:  r.organization,
     objectUid:     r.object_uid,
     objectName:    r.object_name,
     objectTimezone: r.object_timezone,

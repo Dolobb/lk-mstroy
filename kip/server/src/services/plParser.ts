@@ -3,6 +3,7 @@ import type { VehicleTask } from '../types/domain';
 import { splitIntoShifts } from './shiftSplitter';
 import { filterVehicles } from './vehicleFilter';
 import { parseDdMmYyyyHhmm } from '../utils/dateFormat';
+import { getOrgByIdMO } from './orgLookup';
 
 /**
  * Extract request number from orderDescr field.
@@ -60,7 +61,7 @@ export function buildVehicleTasks(routeLists: TisRouteList[]): VehicleTask[] {
           category: vehicle.category,
           garageNumber: vehicle.garageNumber,
           plId: pl.id,
-          companyName: pl.tsType || '',
+          companyName: getOrgByIdMO(vehicle.idMO) || pl.tsType || '',
           shift,
           requestNumbers,
         });

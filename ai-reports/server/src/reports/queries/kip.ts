@@ -5,6 +5,7 @@ export interface KipRow {
   shift_type: string;
   vehicle_id: string;
   vehicle_model: string;
+  company_name: string;
   department_unit: string;
   utilization_ratio: number;
   load_efficiency_pct: number;
@@ -20,6 +21,7 @@ export interface KipRow {
 interface KipFilters {
   departments?: string[];
   vehicles?: string[];
+  companyName?: string;
   shiftType?: string;
 }
 
@@ -45,6 +47,11 @@ export async function queryKipData(
     params.push(filters.vehicles);
     idx++;
   }
+  if (filters.companyName) {
+    where += ` AND company_name ILIKE $${idx}`;
+    params.push(`%${filters.companyName}%`);
+    idx++;
+  }
   if (filters.shiftType && filters.shiftType !== 'all') {
     where += ` AND shift_type = $${idx}`;
     params.push(filters.shiftType);
@@ -57,6 +64,7 @@ export async function queryKipData(
       shift_type,
       vehicle_id,
       vehicle_model,
+      COALESCE(company_name, '') AS company_name,
       department_unit,
       utilization_ratio,
       load_efficiency_pct,
@@ -69,7 +77,7 @@ export async function queryKipData(
       fuel_variance
     FROM vehicle_records
     ${where}
-    ORDER BY vehicle_model, department_unit, vehicle_id, report_date, shift_type
+    ORDER BY vehicle_model, company_name, department_unit, vehicle_id, report_date, shift_type
   `, params);
 
   // NUMERIC → Number() (PG returns strings for NUMERIC)
@@ -78,6 +86,7 @@ export async function queryKipData(
     shift_type: r.shift_type,
     vehicle_id: r.vehicle_id,
     vehicle_model: r.vehicle_model || '',
+    company_name: r.company_name || '',
     department_unit: r.department_unit || '',
     utilization_ratio: Number(r.utilization_ratio) || 0,
     load_efficiency_pct: Number(r.load_efficiency_pct) || 0,

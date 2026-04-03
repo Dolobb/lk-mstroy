@@ -69,6 +69,7 @@ interface PreparedRow {
   model: string;
   regNumber: string;
   site: string;
+  companyName: string;
   colB: string | number;    // seq number, date, or date+shift
   shift1: Record<string, number>;
   shift2: Record<string, number>;  // empty in singleShift mode
@@ -211,17 +212,26 @@ export async function buildKipXlsx(
     typeCell.border = allThinBorders;
     rowIdx++;
 
-    // Organization placeholder
-    ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
-    const orgCell = ws.getCell(rowIdx, 1);
-    orgCell.value = 'Организация [плейсхолдер]';
-    orgCell.font = { name: 'Arial Narrow', bold: true, size: HDR_SIZE, color: { argb: 'FF000000' } };
-    orgCell.fill = headerFill(KIP_LIGHT_BLUE);
-    orgCell.alignment = centerAlign;
-    orgCell.border = allThinBorders;
-    rowIdx++;
-
+    // Sub-group by organization
+    const orgGroups = new Map<string, PreparedRow[]>();
     for (const pr of rows) {
+      const org = pr.companyName || 'Без организации';
+      if (!orgGroups.has(org)) orgGroups.set(org, []);
+      orgGroups.get(org)!.push(pr);
+    }
+
+    for (const [orgName, orgRows] of orgGroups) {
+      // Organization sub-header
+      ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
+      const orgCell = ws.getCell(rowIdx, 1);
+      orgCell.value = orgName;
+      orgCell.font = { name: 'Arial Narrow', bold: true, size: HDR_SIZE, color: { argb: 'FF000000' } };
+      orgCell.fill = headerFill(KIP_LIGHT_BLUE);
+      orgCell.alignment = centerAlign;
+      orgCell.border = allThinBorders;
+      rowIdx++;
+
+    for (const pr of orgRows) {
       globalNum++;
       const row = ws.getRow(rowIdx);
       row.height = DATA_ROW_H;
@@ -261,6 +271,7 @@ export async function buildKipXlsx(
 
       rowIdx++;
     }
+    } // end orgGroups
   }
 
   // Freeze panes below headers
@@ -295,7 +306,7 @@ function prepareData(
 // Mode 1: Aggregated — one row per vehicle
 function prepareAggregated(data: KipRow[], metricCols: string[]): Map<string, PreparedRow[]> {
   // Group: model → vid → { mornings: KipRow[], evenings: KipRow[] }
-  const tree = new Map<string, Map<string, { model: string; site: string; mornings: KipRow[]; evenings: KipRow[] }>>();
+  const tree = new Map<string, Map<string, { model: string; site: string; companyName: string; mornings: KipRow[]; evenings: KipRow[] }>>();
 
   for (const row of data) {
     const model = row.vehicle_model || 'Прочие';
@@ -303,11 +314,12 @@ function prepareAggregated(data: KipRow[], metricCols: string[]): Map<string, Pr
     if (!tree.has(model)) tree.set(model, new Map());
     const vMap = tree.get(model)!;
     if (!vMap.has(vid)) {
-      vMap.set(vid, { model, site: row.department_unit, mornings: [], evenings: [] });
+      vMap.set(vid, { model, site: row.department_unit, companyName: row.company_name || '', mornings: [], evenings: [] });
     }
     const bucket = vMap.get(vid)!;
     // Keep latest site name
     if (row.department_unit) bucket.site = row.department_unit;
+    if (row.company_name) bucket.companyName = row.company_name;
     if (row.shift_type === 'morning') bucket.mornings.push(row);
     else bucket.evenings.push(row);
   }
@@ -323,6 +335,7 @@ function prepareAggregated(data: KipRow[], metricCols: string[]): Map<string, Pr
         model: bucket.model,
         regNumber: vid,
         site: bucket.site,
+        companyName: bucket.companyName,
         colB: localNum,
         shift1: aggregateMetrics(bucket.mornings, metricCols),
         shift2: aggregateMetrics(bucket.evenings, metricCols),
@@ -363,6 +376,7 @@ function prepareSplitByDays(data: KipRow[], metricCols: string[]): Map<string, P
           model: src.vehicle_model || model,
           regNumber: vid,
           site: src.department_unit || '',
+          companyName: src.company_name || '',
           colB: formatDateShort(date),
           shift1: rowToMetrics(entry.morning, metricCols),
           shift2: rowToMetrics(entry.evening, metricCols),
@@ -402,6 +416,7 @@ function prepareSplitByShifts(data: KipRow[], metricCols: string[]): Map<string,
           model: e.row.vehicle_model || model,
           regNumber: vid,
           site: e.row.department_unit || '',
+          companyName: e.row.company_name || '',
           colB: `${formatDateShort(e.date)} ${e.shift}`,
           shift1: rowToMetrics(e.row, metricCols),
           shift2: {},

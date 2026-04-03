@@ -154,7 +154,7 @@ export const generateKipReport = tool({
       // --- Determine columns ---
       const activeCols: ColKey[] = (includeColumns as ColKey[] | undefined) || [...STANDARD_COLS];
 
-      // --- Group data: vehicleType → department → vehicle → { shift1: avg, shift2: avg } ---
+      // --- Group data: vehicleType → organization → department → vehicle → { shift1: avg, shift2: avg } ---
       type VehicleAgg = {
         model: string;
         company: string;
@@ -163,16 +163,19 @@ export const generateKipReport = tool({
         shift2: Record<ColKey, { sum: number; count: number }>;
       };
 
-      const grouped = new Map<string, Map<string, Map<string, VehicleAgg>>>();
+      const grouped = new Map<string, Map<string, Map<string, Map<string, VehicleAgg>>>>();
 
       for (const row of rows) {
         const vType = parseVehicleType(row.vehicle_model);
+        const org = row.company_name || 'Без организации';
         const dept = row.department_unit || 'Без подразделения';
         const vid = row.vehicle_id;
         const shift = row.shift_type === 'shift1' ? 'shift1' : 'shift2';
 
         if (!grouped.has(vType)) grouped.set(vType, new Map());
-        const deptMap = grouped.get(vType)!;
+        const orgMap = grouped.get(vType)!;
+        if (!orgMap.has(org)) orgMap.set(org, new Map());
+        const deptMap = orgMap.get(org)!;
         if (!deptMap.has(dept)) deptMap.set(dept, new Map());
         const vMap = deptMap.get(dept)!;
 
@@ -184,7 +187,7 @@ export const generateKipReport = tool({
           };
           vMap.set(vid, {
             model: row.vehicle_model,
-            company: row.company_name,
+            company: org,
             department: dept,
             shift1: emptyAgg(),
             shift2: emptyAgg(),
@@ -291,7 +294,7 @@ export const generateKipReport = tool({
       let currentRow = 5;
       let vehicleNum = 0;
 
-      for (const [vType, deptMap] of grouped) {
+      for (const [vType, orgMap] of grouped) {
         // Vehicle type group row
         const typeRow = ws.getRow(currentRow);
         typeRow.getCell(1).value = vType;
@@ -300,13 +303,22 @@ export const generateKipReport = tool({
         typeRow.height = 22;
         currentRow++;
 
+        for (const [org, deptMap] of orgMap) {
+          // Organization group row
+          const orgRow = ws.getRow(currentRow);
+          orgRow.getCell(1).value = org;
+          ws.mergeCells(`A${currentRow}:${colLetter(totalCols)}${currentRow}`);
+          fillRow(orgRow, COLORS.groupLight, COLORS.textDark, true, 10);
+          orgRow.height = 20;
+          currentRow++;
+
         for (const [dept, vMap] of deptMap) {
           // Department group row
           const deptRow = ws.getRow(currentRow);
-          deptRow.getCell(1).value = dept;
+          deptRow.getCell(1).value = `  ${dept}`;
           ws.mergeCells(`A${currentRow}:${colLetter(totalCols)}${currentRow}`);
-          fillRow(deptRow, COLORS.groupLight, COLORS.textDark, true, 10);
-          deptRow.height = 20;
+          fillCell(deptRow.getCell(1), COLORS.bgAlt, COLORS.textDark, true, 9);
+          deptRow.height = 18;
           currentRow++;
 
           for (const [vid, agg] of vMap) {
@@ -369,6 +381,7 @@ export const generateKipReport = tool({
             currentRow++;
           }
         }
+        } // end orgMap
       }
 
       // --- Borders ---

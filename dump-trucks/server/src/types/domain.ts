@@ -98,6 +98,7 @@ export interface ShiftRecordInput {
   vehicleId: number;
   regNumber: string;
   nameMO: string;
+  organization: string | null;
   objectUid: string;
   objectName: string;
   objectTimezone: string;

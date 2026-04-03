@@ -18,6 +18,7 @@ import { getAllDtZones } from '../repositories/filterRepo';
 import { upsertShiftRecord } from '../repositories/shiftRecordRepo';
 import { replaceTrips } from '../repositories/tripRepo';
 import { replaceZoneEvents } from '../repositories/zoneEventRepo';
+import { getOrgByIdMO } from '../services/orgLookup';
 import { logger } from '../utils/logger';
 import type { ShiftType, GeoZone } from '../types/domain';
 
@@ -188,6 +189,7 @@ export async function recalculateShift(
           vehicleId:      sr.vehicle_id,
           regNumber:      sr.reg_number ?? '',
           nameMO:         sr.name_mo ?? '',
+          organization:   getOrgByIdMO(sr.vehicle_id),
           objectUid,
           objectName,
           objectTimezone: sr.object_timezone ?? 'Asia/Yekaterinburg',

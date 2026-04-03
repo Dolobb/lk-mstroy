@@ -13,6 +13,7 @@
 import { getPool } from '../config/database';
 import { getEnvConfig } from '../config/env';
 import { TisClient } from '../services/tisClient';
+import { getOrgByIdMO } from '../services/orgLookup';
 import { TokenPool } from '../services/tokenPool';
 import { PerVehicleRateLimiter } from '../services/rateLimiter';
 import { parsePLs, routeListRecordsToParsedPLs } from '../services/plParser';
@@ -383,6 +384,7 @@ export async function runShiftFetch(
           vehicleId:      idMO,
           regNumber:      vehicleInfo.regNumber,
           nameMO:         vehicleInfo.nameMO,
+          organization:   getOrgByIdMO(idMO),
           objectUid,
           objectName,
           objectTimezone: (objectTzMap.get(objectUid)) || DEFAULT_TZ,
