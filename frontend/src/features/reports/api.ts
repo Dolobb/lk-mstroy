@@ -19,6 +19,8 @@ export async function generateReport(config: {
   dateTo: string;
   columns: string[];
   filters: ReportFilters;
+  splitByDays?: boolean;
+  splitByShifts?: boolean;
 }): Promise<Blob> {
   const r = await fetch(`${BASE}/generate`, {
     method: 'POST',
