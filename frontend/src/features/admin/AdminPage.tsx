@@ -59,7 +59,7 @@ async function serviceAction(id: string, action: 'start' | 'stop' | 'restart') {
 
 async function fetchCoverage(from: string, to: string): Promise<DataCoverage> {
   const res = await fetch(`/api/admin/data-coverage?from=${from}&to=${to}`);
-  if (!res.ok) return { kip: [], dumpTrucks: [] };
+  if (!res.ok) return { kip: [], dumpTrucks: [], rawDates: [] };
   return res.json();
 }
 

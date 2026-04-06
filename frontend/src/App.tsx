@@ -28,7 +28,24 @@ const KipPage: React.FC = () => {
   );
 };
 
+// const MAINTENANCE_NOTICE = 'На сервере ведутся технические работы, актуальные данные недоступны';
+
 const App: React.FC = () => {
+  // const location = useLocation();
+
+  // React.useEffect(() => {
+  //   const wasShown = sessionStorage.getItem('maintenance_notice_shown') === 'true';
+  //   if (!wasShown) {
+  //     alert(MAINTENANCE_NOTICE);
+  //     sessionStorage.setItem('maintenance_notice_shown', 'true');
+  //     return;
+  //   }
+
+  //   if (['/', '/kip', '/tyagachi', '/samosvaly'].includes(location.pathname)) {
+  //     alert(MAINTENANCE_NOTICE);
+  //   }
+  // }, [location.pathname]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-b from-background via-[var(--background-gradient-mid)] to-[var(--background-gradient-end)]">
       <div className="px-3 pt-3 shrink-0">
