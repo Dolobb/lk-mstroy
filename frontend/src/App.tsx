@@ -9,6 +9,7 @@ import { VehicleStatusPage } from './features/vehicle-status';
 import { AdminPage } from './features/admin';
 import { AiReportsPage } from './features/ai-reports';
 import { ReportsPage } from './features/reports';
+import { AnalyticsPage } from './features/analytics';
 
 const KipPage: React.FC = () => {
   const { theme } = useTheme();
@@ -57,6 +58,7 @@ const App: React.FC = () => {
         <Route path="/kip" element={<KipPage />} />
         <Route path="/tyagachi/*" element={<TyagachiPage />} />
         <Route path="/samosvaly" element={<DumpTrucksPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/vehicle-status" element={<VehicleStatusPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/ai-demo" element={<AiReportsPage />} />
