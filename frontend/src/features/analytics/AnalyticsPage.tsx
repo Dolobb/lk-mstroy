@@ -244,67 +244,25 @@ export function AnalyticsPage() {
   type GroupEntry = { groupName: string; vehicles: UnifiedVehicleRow[] };
 
   const groups: GroupEntry[] = React.useMemo(() => {
-    // First, separate DT delivery / DT onsite / DST
-    const dtDelivery: UnifiedVehicleRow[] = [];
-    const dtOnsite: UnifiedVehicleRow[] = [];
-    const dstByDept = new Map<string, UnifiedVehicleRow[]>();
-
+    const gMap = new Map<string, UnifiedVehicleRow[]>();
     sortedRows.forEach(v => {
+      let group: string;
       if (v.source === 'dump_truck') {
-        const allOnsite = v.records.every(r => r.workType === 'onsite');
-        if (allOnsite) dtOnsite.push(v);
-        else dtDelivery.push(v);
+        const objCounts = new Map<string, number>();
+        v.records.forEach(r => {
+          const name = r.objectName ?? 'Без объекта';
+          objCounts.set(name, (objCounts.get(name) ?? 0) + 1);
+        });
+        group = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
       } else {
-        const dept = v.departmentUnit || 'Без подразделения';
-        if (!dstByDept.has(dept)) dstByDept.set(dept, []);
-        dstByDept.get(dept)!.push(v);
+        group = v.departmentUnit || 'Без подразделения';
       }
+      if (!gMap.has(group)) gMap.set(group, []);
+      gMap.get(group)!.push(v);
     });
-
-    const result: GroupEntry[] = [];
-
-    // DT delivery — sub-grouped by objectName
-    if (dtDelivery.length > 0) {
-      const objMap = new Map<string, UnifiedVehicleRow[]>();
-      dtDelivery.forEach(v => {
-        const objCounts = new Map<string, number>();
-        v.records.forEach(r => {
-          const name = r.objectName ?? 'Без объекта';
-          objCounts.set(name, (objCounts.get(name) ?? 0) + 1);
-        });
-        const topObj = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
-        if (!objMap.has(topObj)) objMap.set(topObj, []);
-        objMap.get(topObj)!.push(v);
-      });
-      [...objMap.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .forEach(([obj, vehicles]) => result.push({ groupName: `Самосвалы доставка · ${obj}`, vehicles }));
-    }
-
-    // DT onsite
-    if (dtOnsite.length > 0) {
-      const objMap = new Map<string, UnifiedVehicleRow[]>();
-      dtOnsite.forEach(v => {
-        const objCounts = new Map<string, number>();
-        v.records.forEach(r => {
-          const name = r.objectName ?? 'Без объекта';
-          objCounts.set(name, (objCounts.get(name) ?? 0) + 1);
-        });
-        const topObj = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
-        if (!objMap.has(topObj)) objMap.set(topObj, []);
-        objMap.get(topObj)!.push(v);
-      });
-      [...objMap.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .forEach(([obj, vehicles]) => result.push({ groupName: `Самосвалы по месту · ${obj}`, vehicles }));
-    }
-
-    // DST by department
-    [...dstByDept.entries()]
+    return [...gMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([dept, vehicles]) => result.push({ groupName: dept, vehicles }));
-
-    return result;
+      .map(([groupName, vehicles]) => ({ groupName, vehicles }));
   }, [sortedRows]);
 
   // ─── Summary strip ──────────────────────────────────
@@ -640,7 +598,14 @@ export function AnalyticsPage() {
                                         </div>
                                       ))
                                     ) : rec.source === 'dst' ? (
-                                      <DstShiftDetail rec={rec} />
+                                      <div style={{ display: 'flex', gap: 12, flex: 1 }}>
+                                        <div style={{ flex: '0 0 auto' }}>
+                                          <DstShiftDetail rec={rec} />
+                                        </div>
+                                        <div style={{ flex: '1 1 300px', minWidth: 0 }}>
+                                          <EmptyGanttBar />
+                                        </div>
+                                      </div>
                                     ) : (
                                       <div style={{ padding: 12, fontSize: 11, color: 'var(--sv-text-3)' }}>
                                         Детали недоступны
@@ -720,6 +685,69 @@ function DstShiftDetail({ rec }: { rec: UnifiedRecord }) {
       {rec.idleTimeH != null && rec.idleTimeH > 0 && (
         <div><span style={{ opacity: 0.6 }}>Простой:</span> {rec.idleTimeH.toFixed(1)}ч</div>
       )}
+    </div>
+  );
+}
+
+// ─── Empty Gantt Bar (placeholder for DST) ────────────
+
+const EMPTY_Y_TICKS = [100, 75, 50, 25, 0];
+const EMPTY_X_LABELS = ['07:30', '09:30', '11:30', '13:30', '15:30', '17:30', '19:30'];
+
+function EmptyGanttBar() {
+  return (
+    <div className="sv-shift-gantt">
+      <div className="sv-shift-gantt-body">
+        {/* Y-axis */}
+        <div className="sv-shift-gantt-yaxis">
+          {EMPTY_Y_TICKS.map(pct => (
+            <span key={pct} style={{ top: `${100 - pct}%` }}>{pct}%</span>
+          ))}
+        </div>
+
+        {/* Main chart — empty grid */}
+        <div className="sv-shift-gantt-main">
+          <div className="sv-shift-gantt-chart" style={{ gridTemplateColumns: 'repeat(24, 1fr)' }}>
+            {EMPTY_Y_TICKS.map(pct => (
+              <div key={pct} className="sv-shift-gantt-gridline" style={{ top: `${100 - pct}%` }} />
+            ))}
+            {/* Empty bars — just placeholders */}
+            {Array.from({ length: 24 }, (_, i) => (
+              <div key={i} className="sv-shift-gantt-bar" />
+            ))}
+          </div>
+
+          {/* X-axis */}
+          <div className="sv-shift-gantt-xaxis">
+            {EMPTY_X_LABELS.map((label, i) => (
+              <div key={i} className="sv-shift-gantt-tick" style={{ left: `${(i / (EMPTY_X_LABELS.length - 1)) * 100}%` }}>
+                <div className="sv-shift-gantt-tick-line" />
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Legend + fetch button */}
+      <div className="sv-shift-gantt-legend" style={{ justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span><span style={{ color: '#8B5CF6' }}>&#9632;</span> КИП</span>
+          <span><span style={{ color: '#60A5FA' }}>&#9632;</span> в движении</span>
+        </div>
+        <button
+          type="button"
+          style={{
+            fontSize: 9, padding: '2px 8px', borderRadius: 4,
+            border: '1px solid rgba(96,165,250,0.3)',
+            background: 'rgba(96,165,250,0.08)',
+            color: '#60A5FA', cursor: 'pointer',
+          }}
+          title="Выгрузить подробные данные для диаграммы"
+        >
+          Выгрузить подробно
+        </button>
+      </div>
     </div>
   );
 }
