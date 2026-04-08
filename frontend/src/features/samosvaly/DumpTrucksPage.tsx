@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import { useTheme } from 'next-themes';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import './samosvaly.css';
+import { MiniBar } from '@/components/MiniBar';
+import { ShiftChip } from '@/components/ShiftChip';
+import { ShiftGanttBar } from '@/components/ShiftGanttBar';
+import { abbreviateOrg } from './orgAbbrev';
 import {
   fetchObjects, fetchOrders, fetchOrderGantt,
   fetchShiftRecords, fetchShiftDetail, fetchRepairs,
@@ -138,8 +142,7 @@ const BLOCK_COLUMNS: Record<BlockId, Array<{ id: string; label: string }>> = {
     { id: 'totalTrips',   label: 'Рейсы' },
   ],
   kpi: [
-    { id: 'kipAvg',       label: 'КИП ср.' },
-    { id: 'movementAvg',  label: 'Движение%' },
+    { id: 'kipBar',       label: 'КИП' },
   ],
   aggregates: [
     { id: 'engineTotal',       label: 'Двиг. итого' },
@@ -2063,30 +2066,68 @@ function renderCell(
     reqNum?: string;
     date?: string;
     s1Rec?: ShiftRecord; s2Rec?: ShiftRecord;
-  }
+  },
+  cargoMap?: Map<number, string>
 ): React.ReactNode {
   const totalTrips = recs.reduce((s, r) => s + r.tripsCount, 0);
   const activeRecs = recs.filter(r => r.kipPct > 0);
-  const kipAvg = avgOrDash(activeRecs.map(r => r.kipPct));
-  const movAvg = avgOrDash(activeRecs.map(r => r.movementPct));
   const agg = aggRecs(recs);
 
   switch (colId) {
     case 'requestNumber': {
-      const full = ctx.reqNum ?? '—';
-      const items = full.split(', ').filter(Boolean);
-      if (items.length <= 4) return <span style={{ fontSize: 10 }}>{full}</span>;
-      const truncated = items.slice(0, 4).join(', ') + ' …';
-      return <span style={{ fontSize: 10 }} title={full}>{truncated}</span>;
+      const allNums = [...new Set(recs.flatMap(r => r.requestNumbers ?? []))];
+      if (!allNums.length) return <span style={{ fontSize: 10 }}>—</span>;
+      // Group by cargo
+      const byCargo = new Map<string, number[]>();
+      allNums.forEach(n => {
+        const cargo = cargoMap?.get(n) || '';
+        const key = cargo || '__none__';
+        if (!byCargo.has(key)) byCargo.set(key, []);
+        byCargo.get(key)!.push(n);
+      });
+      const parts: string[] = [];
+      byCargo.forEach((nums, key) => {
+        const numStr = nums.map(n => `№${n}`).join(', ');
+        parts.push(key === '__none__' ? numStr : `${numStr} (${key})`);
+      });
+      const fullText = parts.join('; ');
+      // Limit to 3 request numbers displayed
+      if (allNums.length <= 3) return <span style={{ fontSize: 10 }}>{fullText}</span>;
+      // Truncated: show first 3
+      const firstNums = allNums.slice(0, 3);
+      const firstByCargo = new Map<string, number[]>();
+      firstNums.forEach(n => {
+        const cargo = cargoMap?.get(n) || '';
+        const key = cargo || '__none__';
+        if (!firstByCargo.has(key)) firstByCargo.set(key, []);
+        firstByCargo.get(key)!.push(n);
+      });
+      const shortParts: string[] = [];
+      firstByCargo.forEach((nums, key) => {
+        const numStr = nums.map(n => `№${n}`).join(', ');
+        shortParts.push(key === '__none__' ? numStr : `${numStr} (${key})`);
+      });
+      const truncated = shortParts.join('; ') + ' …';
+      return <span style={{ fontSize: 10 }} title={fullText}>{truncated}</span>;
     }
     case 'organization': {
       const orgSet = new Set(recs.map(r => r.organization).filter(Boolean));
-      const orgStr = orgSet.size > 0 ? Array.from(orgSet).join(', ') : '—';
-      return <span style={{ fontSize: 10 }}>{orgStr}</span>;
+      if (orgSet.size === 0) return <span style={{ fontSize: 10 }}>—</span>;
+      const fullNames = Array.from(orgSet);
+      const abbrevs = fullNames.map(o => abbreviateOrg(o!));
+      const abbrevStr = abbrevs.join(', ');
+      const fullStr = fullNames.join(', ');
+      return <span style={{ fontSize: 10 }} title={fullStr}>{abbrevStr}</span>;
     }
     case 'totalTrips': return <span style={{ fontWeight: 700, color: '#F97316' }}>{totalTrips || '—'}</span>;
-    case 'kipAvg': return <span className={kipAvg !== '—' ? kipColor(Number(kipAvg)) : ''}>{kipAvg}</span>;
-    case 'movementAvg': return <span className={movAvg !== '—' ? kipColor(Number(movAvg)) : ''}>{movAvg}</span>;
+    case 'kipBar': {
+      const kipVals = activeRecs.map(r => r.kipPct).filter(x => x > 0);
+      const movVals = activeRecs.map(r => r.movementPct).filter(x => x > 0);
+      const kipVal = kipVals.length ? Math.round(kipVals.reduce((a, b) => a + b, 0) / kipVals.length) : 0;
+      const movVal = movVals.length ? Math.round(movVals.reduce((a, b) => a + b, 0) / movVals.length) : 0;
+      if (!kipVal && !movVal) return <span>—</span>;
+      return <MiniBar primary={{ value: kipVal, label: 'КИП' }} secondary={{ value: movVal, label: 'Движение' }} />;
+    }
     case 'engineTotal': return <span className="sv-td-agg">{fmtHours(agg.engineSec)}</span>;
     case 'movingTotal': return <span className="sv-td-agg">{fmtHours(agg.movingSec)}</span>;
     case 'onsiteMin': return <span className="sv-td-agg">{agg.onsiteMin > 0 ? `${agg.onsiteMin}м` : '—'}</span>;
@@ -2121,7 +2162,7 @@ const BLOCK_HEADER_COLORS: Record<BlockId, string> = {
   aggregates: 'sv-th-g5',
 };
 
-function AnalyticsTab({ objects, period, filters, onFiltersChange, records, loading, settings }: {
+function AnalyticsTab({ objects, period, filters, onFiltersChange, records, loading, settings, cargoMap }: {
   objects: DtObject[];
   period: PeriodState;
   filters: AnalyticsFilters;
@@ -2129,18 +2170,16 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
   records: ShiftRecord[];
   loading: boolean;
   settings: UserSettings;
+  cargoMap: Map<number, string>;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [selectedChip, setSelectedChip] = useState<string | null>(null);
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [collapsedSmu, setCollapsedSmu] = useState<Set<string>>(new Set());
   const [pinnedVehicles, setPinnedVehicles] = useState<Set<string>>(new Set());
 
   const togOrder = (key: string) => setExpanded(prev => {
-    const s = new Set(prev); if (s.has(key)) s.delete(key); else s.add(key); return s;
-  });
-  const togDay = (key: string) => setExpandedDays(prev => {
     const s = new Set(prev); if (s.has(key)) s.delete(key); else s.add(key); return s;
   });
 
@@ -2186,8 +2225,10 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
         const recs = row.allRecs;
         switch (sortCol) {
           case 'totalTrips': return recs.reduce((s, r) => s + r.tripsCount, 0);
-          case 'kipAvg': return Number(avgOrDash(recs.filter(r => r.kipPct > 0).map(r => r.kipPct)).replace('—', '0'));
-          case 'movementAvg': return Number(avgOrDash(recs.filter(r => r.kipPct > 0).map(r => r.movementPct)).replace('—', '0'));
+          case 'kipBar': {
+            const vals = recs.filter(r => r.kipPct > 0).map(r => r.kipPct);
+            return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+          }
           case 'engineTotal': return aggRecs(recs).engineSec;
           case 'onsiteMin': return aggRecs(recs).onsiteMin;
           default: return 0;
@@ -2245,7 +2286,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
     ? <span style={{ marginLeft: 3, fontSize: 8 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
     : null;
 
-  const SORTABLE_COLS = new Set(['totalTrips', 'kipAvg', 'movementAvg', 'engineTotal', 'onsiteMin']);
+  const SORTABLE_COLS = new Set(['totalTrips', 'kipBar', 'engineTotal', 'onsiteMin']);
 
   return (
     <div className="sv-tab-analytics" style={{ display: 'flex' }}>
@@ -2340,6 +2381,72 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
             <tbody>
               {/* Render a single vehicle row with its nested orders/days */}
               {(() => {
+                type ChipData = { key: string; date: string; shift: 0 | 1 | 2; trips: number; kip: number; movement: number; workType: string; engineHours?: number };
+
+                function buildChips(recs: ShiftRecord[], regNumber: string, groupByShift: boolean): ChipData[] {
+                  const sorted = [...recs].sort((a, b) =>
+                    toDateStr(a.reportDate).localeCompare(toDateStr(b.reportDate)) || a.shiftType.localeCompare(b.shiftType)
+                  );
+                  if (groupByShift) {
+                    // Group by day — one chip per day
+                    const dayMap = new Map<string, ShiftRecord[]>();
+                    sorted.forEach(r => {
+                      const d = toDateStr(r.reportDate);
+                      if (!dayMap.has(d)) dayMap.set(d, []);
+                      dayMap.get(d)!.push(r);
+                    });
+                    return [...dayMap.entries()].map(([d, dayRecs]) => {
+                      const trips = dayRecs.reduce((s, r) => s + r.tripsCount, 0);
+                      const kipVals = dayRecs.filter(r => r.kipPct > 0).map(r => r.kipPct);
+                      const avgKip = kipVals.length ? kipVals.reduce((a, b) => a + b, 0) / kipVals.length : 0;
+                      const movVals = dayRecs.filter(r => r.movementPct > 0).map(r => r.movementPct);
+                      const avgMov = movVals.length ? movVals.reduce((a, b) => a + b, 0) / movVals.length : 0;
+                      const engSec = dayRecs.reduce((s, r) => s + r.engineTimeSec, 0);
+                      const wt = dayRecs.some(r => r.workType === 'onsite') && dayRecs.every(r => r.workType !== 'delivery') ? 'onsite' : 'delivery';
+                      return {
+                        key: `${regNumber}_${d}`,
+                        date: fmtDateShort(d),
+                        shift: 0 as const,
+                        trips,
+                        kip: avgKip,
+                        movement: avgMov,
+                        workType: wt,
+                        engineHours: Math.round(engSec / 3600),
+                      };
+                    });
+                  } else {
+                    // One chip per shift
+                    return sorted.map(r => {
+                      const d = toDateStr(r.reportDate);
+                      return {
+                        key: `${regNumber}_${d}_${r.shiftType}`,
+                        date: fmtDateShort(d),
+                        shift: (r.shiftType === 'shift1' ? 1 : 2) as 1 | 2,
+                        trips: r.tripsCount,
+                        kip: r.kipPct,
+                        movement: r.movementPct,
+                        workType: r.workType ?? 'delivery',
+                        engineHours: Math.round(r.engineTimeSec / 3600),
+                      };
+                    });
+                  }
+                }
+
+                function findRecsForChip(chipKey: string, recs: ShiftRecord[]): ShiftRecord[] {
+                  // key format: "regNumber_YYYY-MM-DD" (day) or "regNumber_YYYY-MM-DD_shiftN" (shift)
+                  const parts = chipKey.split('_');
+                  if (parts.length >= 3 && (parts[parts.length - 1] === 'shift1' || parts[parts.length - 1] === 'shift2')) {
+                    const shiftType = parts[parts.length - 1] as string;
+                    const date = parts[parts.length - 2] as string;
+                    return recs.filter(r => toDateStr(r.reportDate) === date && r.shiftType === shiftType)
+                      .sort((a, b) => a.shiftType.localeCompare(b.shiftType));
+                  }
+                  // Day key — return all shifts for that date
+                  const date = parts[parts.length - 1] as string;
+                  return recs.filter(r => toDateStr(r.reportDate) === date)
+                    .sort((a, b) => a.shiftType.localeCompare(b.shiftType));
+                }
+
                 const renderVehicleRow = (v: typeof vehicleRows[0], k0: string, isPinned?: boolean) => {
                 const isOpen = expanded.has(k0);
                 const allRecs = v.allRecs;
@@ -2371,171 +2478,70 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                         </div>
                       </td>
                       {visibleBlocks.map(b => getVisibleCols(settings, b).map((colId, ci) => (
-                        <td key={`${b}_${colId}`} className={ci === 0 ? 'sv-blk-first' : undefined}>{renderCell(colId, allRecs, 'vehicle', ctx0)}</td>
+                        <td key={`${b}_${colId}`} className={ci === 0 ? 'sv-blk-first' : undefined}>{renderCell(colId, allRecs, 'vehicle', ctx0, cargoMap)}</td>
                       )))}
                     </tr>
 
-                    {isOpen && settings.groupByRequest && v.orders.map((ord, oi) => {
-                      const k1 = `${k0}_o${oi}`;
-                      const isLast1 = oi === v.orders.length - 1;
-                      const ctx1 = { reqNum: ord.reqNum };
+                    {/* Chip strip row */}
+                    {isOpen && (
+                      <tr className="sv-chip-row">
+                        <td colSpan={totalCols}>
+                          {settings.groupByRequest ? (
+                            v.orders.map(ord => {
+                              const chips = buildChips(ord.records, v.regNumber, settings.groupByShift);
+                              return (
+                                <div key={ord.reqNum} className="sv-chip-group">
+                                  <div className="sv-chip-group-label">
+                                    #{ord.reqNum} {cargoMap.get(Number(ord.reqNum)) ? `(${cargoMap.get(Number(ord.reqNum))})` : ''} · {ord.objName}
+                                  </div>
+                                  <div className="sv-chip-strip">
+                                    {chips.map(c => (
+                                      <ShiftChip key={c.key} {...c}
+                                        isSelected={selectedChip === c.key}
+                                        onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="sv-chip-strip">
+                              {buildChips(allRecs, v.regNumber, settings.groupByShift).map(c => (
+                                <ShiftChip key={c.key} {...c}
+                                  isSelected={selectedChip === c.key}
+                                  onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
 
-                      type DayRow = { key: string; label: string; recs: ShiftRecord[]; badge?: string };
-                      let dayRows: DayRow[];
-                      if (settings.groupByShift) {
-                        const dayMap = new Map<string, ShiftRecord[]>();
-                        ord.records.forEach(r => {
-                          const key = toDateStr(r.reportDate);
-                          if (!dayMap.has(key)) dayMap.set(key, []);
-                          dayMap.get(key)!.push(r);
-                        });
-                        dayRows = [...dayMap.entries()].sort(([a], [b]) => a.localeCompare(b))
-                          .map(([d, r]) => ({ key: d, label: fmtDateShort(d), recs: r, badge: r.length > 1 ? '2 см.' : undefined }));
-                      } else {
-                        dayRows = [...ord.records]
-                          .sort((a, b) => toDateStr(a.reportDate).localeCompare(toDateStr(b.reportDate)) || a.shiftType.localeCompare(b.shiftType))
-                          .map(r => ({
-                            key: `${toDateStr(r.reportDate)}_${r.shiftType}`,
-                            label: `${fmtDateShort(r.reportDate)} · ${r.shiftType === 'shift1' ? '1 см.' : '2 см.'}`,
-                            recs: [r],
-                          }));
-                      }
-
+                    {/* ShiftSubTable for selected chip */}
+                    {selectedChip && isOpen && (() => {
+                      const chipRecs = findRecsForChip(selectedChip, allRecs);
+                      if (!chipRecs.length) return null;
                       return (
-                        <React.Fragment key={k1}>
-                          <tr className="sv-lv1" style={{ cursor: 'pointer' }}
-                            onClick={e => { e.stopPropagation(); togOrder(k1); }}>
-                            <td>
-                              <div className="sv-tree-cell">
-                                <div className="sv-tree-indent">
-                                  <div className={`sv-tree-pipe ${isLast1 ? 'last' : 'branch'}`} />
+                        <tr className="sv-sub-row">
+                          <td colSpan={totalCols}>
+                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                              {chipRecs.map(sr => (
+                                <div key={sr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
+                                  {sr.workType === 'onsite'
+                                    ? <ShiftGanttBar shiftRecordId={sr.id} timezone={sr.objectTimezone} />
+                                    : <ShiftSubTable shiftRecord={sr}
+                                        shiftAgg={{ engineTimeSec: sr.engineTimeSec, movingTimeSec: sr.movingTimeSec,
+                                          onsiteMin: sr.onsiteMin, kipPct: sr.kipPct, movementPct: sr.movementPct }}
+                                        visibleAggCols={aggCols} />
+                                  }
                                 </div>
-                                <div className={`sv-tree-expand ${expanded.has(k1) ? 'open' : ''}`}>▶</div>
-                                <span className="sv-tree-label">#{ord.reqNum} · {ord.objName}</span>
-                                {dayRows.length > 1 && <span className="sv-lv-badge days">{dayRows.length} дн.</span>}
-                              </div>
-                            </td>
-                            {visibleBlocks.map(b => getVisibleCols(settings, b).map((colId, ci) => (
-                              <td key={`${b}_${colId}`} className={ci === 0 ? 'sv-blk-first' : undefined}>{renderCell(colId, ord.records, 'order', ctx1)}</td>
-                            )))}
-                          </tr>
-
-                          {expanded.has(k1) && dayRows.map((dr, di) => {
-                            const k2 = `${k1}_d${di}`;
-                            const isLast2 = di === dayRows.length - 1;
-                            const isDayOpen = expandedDays.has(k2);
-                            const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: ord.reqNum };
-
-                            return (
-                              <React.Fragment key={k2}>
-                                <tr className="sv-lv2" style={{ cursor: 'pointer' }}
-                                  onClick={e => { e.stopPropagation(); togDay(k2); }}>
-                                  <td>
-                                    <div className="sv-tree-cell">
-                                      <div className="sv-tree-indent">
-                                        <div className={`sv-tree-pipe ${isLast1 ? '' : 'line'}`} />
-                                        <div className={`sv-tree-pipe ${isLast2 ? 'last' : 'branch'}`} />
-                                      </div>
-                                      <div className={`sv-tree-expand ${isDayOpen ? 'open' : ''}`}>▶</div>
-                                      <span className="sv-tree-label">{dr.label}</span>
-                                      {dr.badge && <span className="sv-lv-badge shifts">{dr.badge}</span>}
-                                    </div>
-                                  </td>
-                                  {visibleBlocks.map(b => getVisibleCols(settings, b).map((colId, ci) => (
-                                    <td key={`${b}_${colId}`} className={ci === 0 ? 'sv-blk-first' : undefined}>{renderCell(colId, dr.recs, 'day', ctx2)}</td>
-                                  )))}
-                                </tr>
-                                {isDayOpen && (
-                                  <tr className="sv-sub-row">
-                                    <td colSpan={totalCols}>
-                                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                        {dr.recs
-                                          .sort((a, b) => a.shiftType.localeCompare(b.shiftType))
-                                          .map(sr => (
-                                            <div key={sr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
-                                              <ShiftSubTable shiftRecord={sr}
-                                                shiftAgg={{ engineTimeSec: sr.engineTimeSec, movingTimeSec: sr.movingTimeSec, onsiteMin: sr.onsiteMin, kipPct: sr.kipPct, movementPct: sr.movementPct }}
-                                                visibleAggCols={aggCols} />
-                                            </div>
-                                          ))}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </React.Fragment>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
                       );
-                    })}
-
-                    {/* Flat days (no groupByRequest) */}
-                    {isOpen && !settings.groupByRequest && (() => {
-                      type DayRow2 = { key: string; label: string; recs: ShiftRecord[]; badge?: string };
-                      let dayRows2: DayRow2[];
-                      if (settings.groupByShift) {
-                        const dayMap = new Map<string, ShiftRecord[]>();
-                        allRecs.forEach(r => {
-                          const key = toDateStr(r.reportDate);
-                          if (!dayMap.has(key)) dayMap.set(key, []);
-                          dayMap.get(key)!.push(r);
-                        });
-                        dayRows2 = [...dayMap.entries()].sort(([a], [b]) => a.localeCompare(b))
-                          .map(([d, r]) => ({ key: d, label: fmtDateShort(d), recs: r, badge: r.length > 1 ? '2 см.' : undefined }));
-                      } else {
-                        dayRows2 = [...allRecs]
-                          .sort((a, b) => toDateStr(a.reportDate).localeCompare(toDateStr(b.reportDate)) || a.shiftType.localeCompare(b.shiftType))
-                          .map(r => ({
-                            key: `${toDateStr(r.reportDate)}_${r.shiftType}`,
-                            label: `${fmtDateShort(r.reportDate)} · ${r.shiftType === 'shift1' ? '1 см.' : '2 см.'}`,
-                            recs: [r],
-                          }));
-                      }
-                      return dayRows2.map((dr, di) => {
-                        const k2 = `${k0}_d${di}`;
-                        const isLast2 = di === dayRows2.length - 1;
-                        const isDayOpen = expandedDays.has(k2);
-                        const reqNums = [...new Set(dr.recs.flatMap(r => r.requestNumbers ?? []))].join(', ');
-                        const ctx2 = { date: toDateStr(dr.recs[0].reportDate), reqNum: reqNums || '—' };
-
-                        return (
-                          <React.Fragment key={k2}>
-                            <tr className="sv-lv1" style={{ cursor: 'pointer' }}
-                              onClick={e => { e.stopPropagation(); togDay(k2); }}>
-                              <td>
-                                <div className="sv-tree-cell">
-                                  <div className="sv-tree-indent">
-                                    <div className={`sv-tree-pipe ${isLast2 ? 'last' : 'branch'}`} />
-                                  </div>
-                                  <div className={`sv-tree-expand ${isDayOpen ? 'open' : ''}`}>▶</div>
-                                  <span className="sv-tree-label">{dr.label}</span>
-                                  {dr.badge && <span className="sv-lv-badge shifts">{dr.badge}</span>}
-                                </div>
-                              </td>
-                              {visibleBlocks.map(b => getVisibleCols(settings, b).map(colId => (
-                                <td key={`${b}_${colId}`}>{renderCell(colId, dr.recs, 'day', ctx2)}</td>
-                              )))}
-                            </tr>
-                            {isDayOpen && (
-                              <tr className="sv-sub-row">
-                                <td colSpan={totalCols}>
-                                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                    {dr.recs
-                                      .sort((a, b) => a.shiftType.localeCompare(b.shiftType))
-                                      .map(sr => (
-                                        <div key={sr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
-                                          <ShiftSubTable shiftRecord={sr}
-                                            shiftAgg={{ engineTimeSec: sr.engineTimeSec, movingTimeSec: sr.movingTimeSec, onsiteMin: sr.onsiteMin, kipPct: sr.kipPct, movementPct: sr.movementPct }}
-                                            visibleAggCols={aggCols} />
-                                        </div>
-                                      ))}
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      });
                     })()}
                   </React.Fragment>
                 );
@@ -3293,6 +3299,13 @@ export function DumpTrucksPage() {
   // ordersMap for GanttTable popup info
   const ordersMap = React.useMemo(() => new Map(orders.map(o => [o.number, o])), [orders]);
 
+  // cargoMap: request number → cargo name (for analytics table)
+  const reqCargoMap = React.useMemo(() => {
+    const m = new Map<number, string>();
+    orders.forEach(o => m.set(o.number, o.cargo || ''));
+    return m;
+  }, [orders]);
+
   const defaultNorm = (card: OrderCard | undefined): number => {
     if (!card || card.countTs === 0) return 0;
     const dFrom = card.dateFromIso, dTo = card.dateToIso;
@@ -3688,6 +3701,7 @@ export function DumpTrucksPage() {
               records={shiftRecords}
               loading={loadingRecords}
               settings={userSettings}
+              cargoMap={reqCargoMap}
             />
           )}
 

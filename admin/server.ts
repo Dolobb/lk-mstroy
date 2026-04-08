@@ -8,8 +8,14 @@ import { Pool } from 'pg';
 
 dotenv.config();
 
-// Локальные запросы к бэкендам не должны идти через системный прокси
-process.env.NO_PROXY = (process.env.NO_PROXY || '') + ',localhost,127.0.0.1';
+// Локальные запросы к бэкендам не должны идти через системный прокси.
+// Node.js built-in fetch() НЕ уважает NO_PROXY — удаляем http_proxy/https_proxy целиком.
+// Admin-сервер общается только с localhost-бэкендами, внешний прокси не нужен.
+delete process.env.http_proxy;
+delete process.env.https_proxy;
+delete process.env.HTTP_PROXY;
+delete process.env.HTTPS_PROXY;
+process.env.NO_PROXY = '*';
 
 const PORT = Number(process.env.ADMIN_PORT || 3005);
 const ROOT = path.resolve(__dirname, '..');
@@ -572,6 +578,165 @@ async function runDTRecalc(dates: string[]) {
   recalcProgress.service = null;
 }
 
+// ─── Segment fetch queue ──────────────────────────────────────────────────────
+
+interface SegmentDateResult {
+  date: string;
+  totalVehicles: number;
+  vehiclesWithSegments: number;
+  totalSegments: number;
+  vehicles: Array<{
+    regNumber: string;
+    shiftType: string;
+    segmentCount: number;
+  }>;
+}
+
+interface SegmentProgress {
+  active: boolean;
+  queue: string[];
+  current: string | null;
+  startedAt: number | null;
+  done: string[];
+  errors: string[];
+  cancelRequested: boolean;
+  results: SegmentDateResult[];
+}
+
+const segmentProgress: SegmentProgress = {
+  active: false,
+  queue: [],
+  current: null,
+  startedAt: null,
+  done: [],
+  errors: [],
+  cancelRequested: false,
+  results: [],
+};
+
+async function runDTSegmentQueue(dates: string[], force: boolean) {
+  segmentProgress.active = true;
+  segmentProgress.done = [];
+  segmentProgress.errors = [];
+  segmentProgress.cancelRequested = false;
+  segmentProgress.queue = [...dates];
+  segmentProgress.results = [];
+
+  for (const date of dates) {
+    if (segmentProgress.cancelRequested) break;
+
+    segmentProgress.current = date;
+    segmentProgress.startedAt = Date.now();
+    segmentProgress.queue = segmentProgress.queue.filter(d => d !== date);
+
+    try {
+      const forceParam = force ? '&force=true' : '';
+
+      // Fire both shifts — catch individual fetch errors
+      let shift1Ok = false;
+      let shift2Ok = false;
+      try {
+        const r1 = await fetch(`http://localhost:3002/api/dt/admin/fetch-segments?date=${date}&shift=shift1${forceParam}`, { method: 'POST' });
+        shift1Ok = r1.ok;
+      } catch (e) {
+        segmentProgress.errors.push(`${date}/shift1: Самосвалы (:3002) не отвечают — ${e instanceof Error ? e.message : String(e)}`);
+      }
+
+      if (segmentProgress.cancelRequested) break;
+      await new Promise(r => setTimeout(r, 1000));
+
+      try {
+        const r2 = await fetch(`http://localhost:3002/api/dt/admin/fetch-segments?date=${date}&shift=shift2${forceParam}`, { method: 'POST' });
+        shift2Ok = r2.ok;
+      } catch (e) {
+        segmentProgress.errors.push(`${date}/shift2: Самосвалы (:3002) не отвечают — ${e instanceof Error ? e.message : String(e)}`);
+      }
+
+      if (!shift1Ok && !shift2Ok) {
+        // Both shifts failed to even start — skip polling
+        continue;
+      }
+
+      // Segment fetch is async (~12 min), poll for completion.
+      // For force mode: count segments and wait until count stabilizes.
+      // For normal mode: wait until at least 1 segment appears.
+      if (force) {
+        // Force: segments may already exist. Fire-and-forget with a short wait.
+        // The DT server does the heavy lifting; just wait a reasonable time to track progress.
+        const deadline = Date.now() + 15 * 60 * 1000;
+        let lastCount = -1;
+        let stableChecks = 0;
+        await new Promise(r => setTimeout(r, 10_000)); // initial wait
+        while (Date.now() < deadline) {
+          if (segmentProgress.cancelRequested) break;
+          try {
+            const res = await mainPool.query(
+              `SELECT COUNT(*)::int AS cnt FROM dump_trucks.shift_segments ss
+               JOIN dump_trucks.shift_records sr ON sr.id = ss.shift_record_id
+               WHERE sr.report_date = $1`,
+              [date],
+            );
+            const count: number = res.rows[0]?.cnt ?? 0;
+            if (count > 0 && count === lastCount) {
+              stableChecks++;
+              if (stableChecks >= 2) break; // stable for ~60s → done
+            } else {
+              stableChecks = 0;
+            }
+            lastCount = count;
+          } catch { /* ignore poll errors */ }
+          await new Promise(r => setTimeout(r, 30_000));
+        }
+      } else {
+        // Normal: wait for first segment to appear
+        const result = await waitForDate(
+          mainPool,
+          `SELECT 1 FROM dump_trucks.shift_segments ss
+           JOIN dump_trucks.shift_records sr ON sr.id = ss.shift_record_id
+           WHERE sr.report_date = $1 LIMIT 1`,
+          [date],
+          15 * 60 * 1000,
+          () => segmentProgress.cancelRequested,
+          30_000,
+        );
+        if (result === 'cancelled') break;
+      }
+
+      segmentProgress.done.push(date);
+
+      // Fetch detailed results for this date
+      try {
+        const detailRes = await fetch(`http://localhost:3002/api/dt/admin/segment-results?date=${date}`);
+        if (detailRes.ok) {
+          const detail = await detailRes.json() as {
+            totalVehicles: number;
+            vehiclesWithSegments: number;
+            totalSegments: number;
+            vehicles: Array<{ regNumber: string; shiftType: string; segmentCount: number }>;
+          };
+          segmentProgress.results.push({
+            date,
+            totalVehicles: detail.totalVehicles,
+            vehiclesWithSegments: detail.vehiclesWithSegments,
+            totalSegments: detail.totalSegments,
+            vehicles: detail.vehicles.map(v => ({
+              regNumber: v.regNumber,
+              shiftType: v.shiftType,
+              segmentCount: v.segmentCount,
+            })),
+          });
+        }
+      } catch { /* don't fail the queue for a results query */ }
+    } catch (e) {
+      segmentProgress.errors.push(`${date}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  segmentProgress.active = false;
+  segmentProgress.current = null;
+  segmentProgress.startedAt = null;
+}
+
 // ─── Express app ──────────────────────────────────────────────────────────────
 
 const app = express();
@@ -818,6 +983,56 @@ app.post('/api/admin/recalc/:service', async (req, res) => {
   } else {
     runDTRecalc(dates).catch(console.error);
   }
+});
+
+// ─── Segment fetch endpoints ──────────────────────────────────────────────────
+
+app.get('/api/admin/fetch-segments/status', (_req, res) => {
+  res.json({
+    active:    segmentProgress.active,
+    current:   segmentProgress.current,
+    startedAt: segmentProgress.startedAt,
+    queue:     segmentProgress.queue,
+    done:      segmentProgress.done,
+    errors:    segmentProgress.errors,
+    results:   segmentProgress.results,
+  });
+});
+
+app.post('/api/admin/fetch-segments/cancel', (_req, res) => {
+  if (!segmentProgress.active) {
+    res.json({ ok: true, message: 'Нет активной загрузки сегментов' });
+    return;
+  }
+  segmentProgress.cancelRequested = true;
+  res.json({ ok: true, message: 'Отмена загрузки сегментов запрошена' });
+});
+
+app.post('/api/admin/fetch-segments', async (req, res) => {
+  const from  = req.query.from as string;
+  const to    = req.query.to as string;
+  const force = req.query.force === 'true';
+
+  if (!from || !to) {
+    res.status(400).json({ error: '"from" и "to" обязательны (YYYY-MM-DD)' });
+    return;
+  }
+  if (segmentProgress.active) {
+    res.status(409).json({ error: 'Уже выполняется загрузка сегментов' });
+    return;
+  }
+
+  // Use dates that have onsite shift_records
+  const existingResult = await getDumpTrucksDates(from, to);
+  const dates = existingResult.dates.sort().reverse();
+
+  if (dates.length === 0) {
+    res.json({ ok: true, message: 'Нет данных самосвалов в выбранном периоде', count: 0 });
+    return;
+  }
+
+  res.json({ ok: true, started: true, count: dates.length, dates, force });
+  runDTSegmentQueue(dates, force).catch(console.error);
 });
 
 // ─── DB Viewer ────────────────────────────────────────────────────────────────

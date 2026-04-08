@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
-import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, DbTablePreset, DbQueryResult } from './types';
+import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, DbTablePreset, DbQueryResult } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -112,6 +112,21 @@ async function fetchDbQuery(table: string, dateFrom: string, dateTo: string): Pr
 async function startRefreshFetch(service: 'kip' | 'dump-trucks', from: string, to: string) {
   const res = await fetch(`/api/admin/fetch/${service}?from=${from}&to=${to}&refresh=true`, { method: 'POST' });
   return res.json();
+}
+
+async function fetchSegmentStatus(): Promise<SegmentFetchStatus> {
+  const res = await fetch('/api/admin/fetch-segments/status');
+  if (!res.ok) return { active: false, current: null, startedAt: null, queue: [], done: [], errors: [] };
+  return res.json();
+}
+
+async function startSegmentFetch(from: string, to: string, force: boolean) {
+  const res = await fetch(`/api/admin/fetch-segments?from=${from}&to=${to}${force ? '&force=true' : ''}`, { method: 'POST' });
+  return res.json();
+}
+
+async function cancelSegmentFetch() {
+  await fetch('/api/admin/fetch-segments/cancel', { method: 'POST' });
 }
 
 // ─── Service Card ─────────────────────────────────────────────────────────────
@@ -285,6 +300,11 @@ export const AdminPage: React.FC = () => {
   const [loadingCov, setLoadingCov] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [refreshMode, setRefreshMode] = useState(false);
+  const [segmentStatus, setSegmentStatus] = useState<SegmentFetchStatus>({
+    active: false, current: null, startedAt: null, queue: [], done: [], errors: [],
+  });
+  const [segmentElapsed, setSegmentElapsed] = useState(0);
+  const [segResultsOpen, setSegResultsOpen] = useState(false);
 
   // DB Viewer state
   const [dbOpen, setDbOpen] = useState(false);
@@ -325,6 +345,11 @@ export const AdminPage: React.FC = () => {
     setRecalcStatus(s);
   };
 
+  const loadSegmentStatus = async () => {
+    const s = await fetchSegmentStatus();
+    setSegmentStatus(s);
+  };
+
   useEffect(() => {
     loadServices();
     const t = setInterval(loadServices, 3000);
@@ -359,6 +384,25 @@ export const AdminPage: React.FC = () => {
     }, 1000);
     return () => clearInterval(t);
   }, [fetchStatus.active, fetchStatus.startedAt]);
+
+  // Поллинг статуса сегментов каждые 10с
+  useEffect(() => {
+    const t = setInterval(loadSegmentStatus, 10000);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Счётчик секунд для текущей даты сегментов
+  useEffect(() => {
+    if (!segmentStatus.active || !segmentStatus.startedAt) {
+      setSegmentElapsed(0);
+      return;
+    }
+    setSegmentElapsed(Math.floor((Date.now() - segmentStatus.startedAt) / 1000));
+    const t = setInterval(() => {
+      setSegmentElapsed(Math.floor((Date.now() - (segmentStatus.startedAt ?? Date.now())) / 1000));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [segmentStatus.active, segmentStatus.startedAt]);
 
   // Load DB tables once
   useEffect(() => {
@@ -422,6 +466,20 @@ export const AdminPage: React.FC = () => {
     await loadRecalcStatus();
   };
 
+  const handleStartSegmentFetch = async (force: boolean) => {
+    const result = await startSegmentFetch(coverageFrom, coverageTo, force);
+    if (result.count === 0) {
+      alert('Нет данных самосвалов в выбранном периоде.');
+      return;
+    }
+    await loadSegmentStatus();
+  };
+
+  const handleCancelSegmentFetch = async () => {
+    await cancelSegmentFetch();
+    await loadSegmentStatus();
+  };
+
   const allDays = daysInRange(coverageFrom, coverageTo);
   const kipSet = new Set(coverage?.kip ?? []);
   const dtSet = new Set(coverage?.dumpTrucks ?? []);
@@ -436,6 +494,9 @@ export const AdminPage: React.FC = () => {
   const isKipRecalcing = recalcStatus.active && recalcStatus.service === 'kip';
   const isDTRecalcing  = recalcStatus.active && recalcStatus.service === 'dump-trucks';
   const totalRecalc = recalcStatus.done.length + recalcStatus.queue.length + (recalcStatus.current ? 1 : 0);
+
+  const isSegmentFetching = segmentStatus.active;
+  const totalSegments = segmentStatus.done.length + segmentStatus.queue.length + (segmentStatus.current ? 1 : 0);
 
   return (
     <div className="flex flex-col h-full overflow-auto p-3 gap-4">
@@ -749,6 +810,129 @@ export const AdminPage: React.FC = () => {
             <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
               Последний пересчёт: {recalcStatus.done.length} дн. выполнено
               {recalcStatus.errors.length > 0 ? `, ${recalcStatus.errors.length} ошибок` : ''}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Segment fetch (Gantt) */}
+      <div>
+        <h2 className="text-sm font-semibold mb-2">Загрузка сегментов (Gantt onsite)</h2>
+        <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
+          <div className="text-xs text-muted-foreground" style={{ fontSize: '11px' }}>
+            Загрузить 30-мин сегменты для onsite-машин (24 слайса на смену).
+            Требует TIS API. Период — тот же, что и для покрытия данных.
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleStartSegmentFetch(false)}
+              disabled={isSegmentFetching}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium ${
+                isSegmentFetching
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-violet-500/15 text-violet-600 hover:bg-violet-500/25'
+              } disabled:opacity-50`}
+              style={{ fontSize: '11px' }}
+            >
+              {isSegmentFetching && <RotateCcw className="size-3 animate-spin" />}
+              Загрузить сегменты
+            </button>
+            <button
+              onClick={() => handleStartSegmentFetch(true)}
+              disabled={isSegmentFetching}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium bg-amber-500/15 text-amber-600 hover:bg-amber-500/25 disabled:opacity-50"
+              style={{ fontSize: '11px' }}
+            >
+              Перезагрузить (force)
+            </button>
+            {isSegmentFetching && (
+              <button
+                onClick={handleCancelSegmentFetch}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                style={{ fontSize: '11px' }}
+              >
+                <XCircle className="size-3" />
+                Отмена
+              </button>
+            )}
+          </div>
+
+          {isSegmentFetching && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between" style={{ fontSize: '11px' }}>
+                <span className="text-muted-foreground">
+                  Загружается: <span className="text-foreground font-mono">
+                    {segmentStatus.current ? fmtDate(segmentStatus.current) : '...'}
+                  </span>
+                  {segmentElapsed > 0 && (
+                    <span className="text-muted-foreground ml-1.5">
+                      {segmentElapsed < 60
+                        ? `${segmentElapsed}с`
+                        : `${Math.floor(segmentElapsed / 60)}м ${segmentElapsed % 60}с`}
+                    </span>
+                  )}
+                </span>
+                <span className="text-muted-foreground">
+                  {segmentStatus.done.length} из {totalSegments} дн.
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                  style={{ width: totalSegments > 0 ? `${(segmentStatus.done.length / totalSegments) * 100}%` : '0%' }}
+                />
+              </div>
+              {segmentStatus.queue.length > 0 && (
+                <div className="text-muted-foreground" style={{ fontSize: '10px' }}>
+                  В очереди: {segmentStatus.queue.slice(0, 5).map(fmtDate).join(', ')}
+                  {segmentStatus.queue.length > 5 ? ` ...ещё ${segmentStatus.queue.length - 5}` : ''}
+                </div>
+              )}
+            </div>
+          )}
+
+          {segmentStatus.errors.length > 0 && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-2" style={{ fontSize: '10px' }}>
+              {segmentStatus.errors.slice(-3).map((e, i) => <div key={i}>{e}</div>)}
+            </div>
+          )}
+
+          {(segmentStatus.results?.length ?? 0) > 0 && (
+            <div>
+              <button
+                onClick={() => setSegResultsOpen(v => !v)}
+                className="flex items-center gap-1.5 text-xs cursor-pointer bg-transparent border-none text-foreground p-0 hover:text-primary transition-colors"
+                style={{ fontSize: '11px' }}
+              >
+                {segResultsOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                Результаты ({segmentStatus.results!.length} дат)
+              </button>
+              {segResultsOpen && (
+                <div className="mt-1.5 flex flex-col gap-2 bg-muted/40 rounded-lg p-2" style={{ fontSize: '11px' }}>
+                  {segmentStatus.results!.map(r => (
+                    <div key={r.date}>
+                      <div className="font-medium">
+                        {fmtDate(r.date)} — {r.vehiclesWithSegments} машин, {r.totalSegments} сегм.
+                      </div>
+                      <div className="pl-3 text-muted-foreground" style={{ fontSize: '10px' }}>
+                        {r.vehicles.filter(v => v.segmentCount > 0).map(v => (
+                          <div key={`${v.regNumber}-${v.shiftType}`}>
+                            {v.regNumber} ({v.shiftType === 'shift1' ? 'день' : 'ночь'}) — {v.segmentCount} сегм.
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isSegmentFetching && segmentStatus.done.length > 0 && (
+            <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
+              Последняя загрузка: {segmentStatus.done.length} дн. выполнено
+              {segmentStatus.errors.length > 0 ? `, ${segmentStatus.errors.length} ошибок` : ''}
             </div>
           )}
         </div>

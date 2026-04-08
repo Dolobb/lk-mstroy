@@ -4,9 +4,11 @@ import { getEnvConfig } from './config/env';
 import { getPool, closePool } from './config/database';
 import { startScheduler } from './jobs/scheduler';
 import { runShiftFetch } from './jobs/shiftFetchJob';
+import { runSegmentFetch } from './jobs/segmentFetchJob';
 import { recalculateShift } from './jobs/recalculateJob';
 import { queryShiftRecords } from './repositories/shiftRecordRepo';
 import { getDtObjects } from './repositories/filterRepo';
+import { querySegments } from './repositories/segmentRepo';
 import { logger } from './utils/logger';
 import type { ShiftType } from './types/domain';
 import { stringify } from './utils/csv';
@@ -572,6 +574,94 @@ app.get('/api/dt/export/zone-events.csv', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
+});
+
+// ========================
+// Сегменты смены (30-мин Gantt slices)
+// ========================
+// GET /api/dt/shift-segments?shiftRecordId=123
+app.get('/api/dt/shift-segments', async (req, res) => {
+  try {
+    const pool = getPool();
+    const id = req.query['shiftRecordId'];
+    if (!id) { res.status(400).json({ error: 'shiftRecordId required' }); return; }
+    const segments = await querySegments(pool, Number(id));
+    res.json({ data: segments, total: segments.length });
+  } catch (err) {
+    logger.error('GET /api/dt/shift-segments error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ========================
+// Результаты загруженных сегментов за дату
+// ========================
+// GET /api/dt/admin/segment-results?date=YYYY-MM-DD
+app.get('/api/dt/admin/segment-results', async (req, res) => {
+  const dateStr = req.query['date'] as string;
+  if (!dateStr) { res.status(400).json({ error: 'date required' }); return; }
+
+  try {
+    const pool = getPool();
+    const result = await pool.query(`
+      SELECT sr.id, sr.reg_number, sr.shift_type, sr.work_type,
+             COUNT(ss.id)::int AS segment_count,
+             COALESCE(SUM(ss.engine_time_sec), 0)::int AS total_engine_sec,
+             COALESCE(SUM(ss.moving_time_sec), 0)::int AS total_moving_sec,
+             COUNT(CASE WHEN ss.in_boundary THEN 1 END)::int AS boundary_segments
+      FROM dump_trucks.shift_records sr
+      LEFT JOIN dump_trucks.shift_segments ss ON ss.shift_record_id = sr.id
+      WHERE sr.report_date = $1 AND sr.work_type = 'onsite'
+      GROUP BY sr.id, sr.reg_number, sr.shift_type, sr.work_type
+      ORDER BY sr.shift_type, sr.reg_number
+    `, [dateStr]);
+
+    res.json({
+      date: dateStr,
+      vehicles: result.rows.map(r => ({
+        shiftRecordId: r.id,
+        regNumber: r.reg_number || '—',
+        shiftType: r.shift_type,
+        segmentCount: r.segment_count,
+        totalEngineSec: r.total_engine_sec,
+        totalMovingSec: r.total_moving_sec,
+        boundarySegments: r.boundary_segments,
+      })),
+      totalVehicles: result.rows.length,
+      totalSegments: result.rows.reduce((s: number, r: { segment_count: number }) => s + r.segment_count, 0),
+      vehiclesWithSegments: result.rows.filter((r: { segment_count: number }) => r.segment_count > 0).length,
+    });
+  } catch (err) {
+    logger.error('GET /api/dt/admin/segment-results error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ========================
+// Ручной запуск загрузки сегментов
+// ========================
+// POST /api/dt/admin/fetch-segments?date=2026-04-05&shift=shift1&force=true
+app.post('/api/dt/admin/fetch-segments', (req, res) => {
+  const dateStr  = req.query['date'] as string;
+  const shiftStr = req.query['shift'] as string;
+  const force    = req.query['force'] === 'true';
+
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    res.status(400).json({ error: 'date param required (YYYY-MM-DD)' });
+    return;
+  }
+  if (!shiftStr || !['shift1', 'shift2'].includes(shiftStr)) {
+    res.status(400).json({ error: 'shift param required (shift1 | shift2)' });
+    return;
+  }
+
+  const shiftType = shiftStr as ShiftType;
+
+  res.json({ status: 'started', date: dateStr, shift: shiftType, force });
+
+  runSegmentFetch({ dateStr, shiftType, force })
+    .then(result => logger.info('[Admin] Segment fetch complete', result))
+    .catch(err   => logger.error('[Admin] Segment fetch error', err));
 });
 
 // ========================

@@ -1,6 +1,6 @@
 import type {
   DtObject, OrderSummary, GanttRecord, GanttResponse,
-  ShiftRecord, TripRecord, ZoneEvent, Repair,
+  ShiftRecord, TripRecord, ZoneEvent, Repair, ShiftSegment,
 } from './types';
 
 const BASE = '/api/dt';
@@ -56,6 +56,11 @@ export async function fetchRepairs(objectName?: string): Promise<Repair[]> {
 
 export async function fetchOrderNorms(): Promise<{ request_number: number; trips_per_shift: number }[]> {
   const d = await get<{ data: { request_number: number; trips_per_shift: number }[] }>(`${BASE}/order-norms`);
+  return d.data;
+}
+
+export async function fetchShiftSegments(shiftRecordId: number): Promise<ShiftSegment[]> {
+  const d = await get<{ data: ShiftSegment[] }>(`${BASE}/shift-segments?shiftRecordId=${shiftRecordId}`);
   return d.data;
 }
 

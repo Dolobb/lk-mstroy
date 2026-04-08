@@ -11,11 +11,16 @@
 
 ```
 frontend/src/features/samosvaly/
-├── DumpTrucksPage.tsx  — главная страница (единый компонент ~3100 строк)
+├── DumpTrucksPage.tsx  — главная страница (единый компонент ~2900 строк)
 ├── api.ts              — функции запросов к /api/dt/*
 ├── types.ts            — TypeScript-интерфейсы
 ├── samosvaly.css       — все стили компонента (CSS-переменные + классы sv-*)
+├── orgAbbrev.ts        — сокращения организаций
 └── index.ts            — реэкспорт DumpTrucksPage
+
+frontend/src/components/
+├── ShiftChip.tsx        — inline-чип смены (для AnalyticsTab)
+└── MiniBar.tsx          — двойной мини-бар КИП/движение
 ```
 
 ---
@@ -149,7 +154,67 @@ frontend/src/features/samosvaly/
 
 ### AnalyticsTab
 
-Вкладка «Аналитика» — трёхуровневая таблица с группировкой ТС → заявка → день → смена.
+Вкладка «Аналитика» — таблица ТС с inline-чипами смен.
+
+**Иерархия:** ТС (sv-lv0) → чип-полоска (sv-chip-row) → ShiftSubTable (sv-sub-row).
+
+**State:**
+
+| Имя | Тип | Описание |
+|-----|-----|----------|
+| `expanded` | `Set<string>` | Раскрытые строки ТС (показ чип-полоски) |
+| `selectedChip` | `string \| null` | Ключ выбранного чипа (`regNumber_date` или `regNumber_date_shiftN`) |
+| `sortCol` / `sortDir` | `string \| null`, `'asc' \| 'desc'` | Сортировка столбцов |
+| `collapsedSmu` | `Set<string>` | Свёрнутые СМУ-группы |
+| `pinnedVehicles` | `Set<string>` | Закреплённые ТС (sticky вверху) |
+
+**Чип-полоска:** при клике на строку ТС раскрывается `<tr className="sv-chip-row">` с colspan на все столбцы. Внутри — чипы (ShiftChip) для каждой смены/дня.
+
+**Режимы группировки чипов (тоглы в TableConstructorPanel):**
+
+| groupByRequest | groupByShift | Результат |
+|----------------|-------------|-----------|
+| true | false | Чипы сгруппированы по заявкам, один чип = одна смена |
+| true | true | Чипы сгруппированы по заявкам, один чип = один день (агрегат смен) |
+| false | false | Все чипы в одной полоске, один чип = одна смена |
+| false | true | Все чипы в одной полоске, один чип = один день |
+
+**Клик по чипу:** выделяет оранжевой рамкой, раскрывает ShiftSubTable ниже. Повторный клик — деселект. Только один чип активен.
+
+---
+
+### ShiftChip
+
+Компактный inline-чип для одной смены или дня.
+
+**Файл:** `frontend/src/components/ShiftChip.tsx`
+
+**Props:**
+
+| Prop | Тип | Описание |
+|------|-----|----------|
+| `date` | `string` | Дата ("01.04") |
+| `shift` | `0 \| 1 \| 2` | 0 = агрегат дня, 1/2 = смена |
+| `trips` | `number` | Кол-во рейсов |
+| `kip` | `number` | КИП % |
+| `movement` | `number` | Движение % |
+| `workType` | `string` | `'delivery'` / `'onsite'` |
+| `engineHours` | `number?` | Часы двигателя (для onsite) |
+| `isSelected` | `boolean` | Выделен ли чип |
+| `onClick` | `() => void` | Обработчик клика |
+
+**Визуал:** `~130×22px`, inline-flex. Содержимое: `дата · смена · рейсы/часы · мини-бар КИП`. Onsite-вариант: dashed border, часы вместо рейсов.
+
+**CSS-классы:** `.sv-chip`, `.sv-chip.selected`, `.sv-chip.onsite`, `.sv-chip-bar`, `.sv-chip-bar-fill`
+
+---
+
+### Вспомогательные функции (внутри AnalyticsTab IIFE)
+
+| Функция | Описание |
+|---------|----------|
+| `buildChips(recs, regNumber, groupByShift)` | ShiftRecord[] → ChipData[]. При groupByShift=true агрегирует по дням |
+| `findRecsForChip(chipKey, recs)` | Ключ чипа → ShiftRecord[]. Парсит формат `reg_date` или `reg_date_shift` |
 
 ---
 

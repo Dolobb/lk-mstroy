@@ -10,6 +10,7 @@
  *    построить рейсы → KPI → upsert в БД (транзакция)
  */
 
+import { runSegmentFetch } from './segmentFetchJob';
 import { getPool } from '../config/database';
 import { getEnvConfig } from '../config/env';
 import { TisClient } from '../services/tisClient';
@@ -281,6 +282,8 @@ export async function runShiftFetch(
 
   logger.info(`[ShiftFetch] Vehicles to process: ${vehiclesMap.size}`);
 
+  const onsiteRecordIds: number[] = [];
+
   // Обрабатываем ТС последовательно (rate limit)
   for (const [idMO, vehicleInfo] of vehiclesMap) {
     try {
@@ -419,6 +422,10 @@ export async function runShiftFetch(
         await dbClient.query('COMMIT');
         result.vehiclesProcessed++;
         logger.info(`[ShiftFetch] idMO=${idMO}: saved. kip=${kpi.kipPct}% trips=${trips.length} workType=${workType}`);
+
+        if (kpi.workType === 'onsite') {
+          onsiteRecordIds.push(shiftRecordId);
+        }
       } catch (dbErr) {
         await dbClient.query('ROLLBACK');
         throw dbErr;
@@ -432,6 +439,14 @@ export async function runShiftFetch(
       result.errors.push(msg);
       result.vehiclesSkipped++;
     }
+  }
+
+  // Fire-and-forget: trigger segment fetch for onsite records
+  if (onsiteRecordIds.length > 0) {
+    logger.info(`[ShiftFetch] Triggering segment fetch for ${onsiteRecordIds.length} onsite records`);
+    runSegmentFetch({ shiftRecordIds: onsiteRecordIds })
+      .then(segResult => logger.info('[ShiftFetch] Segment fetch complete', segResult))
+      .catch(err => logger.error('[ShiftFetch] Segment fetch failed', err));
   }
 
   logger.info(`[ShiftFetch] Done: processed=${result.vehiclesProcessed} skipped=${result.vehiclesSkipped} errors=${result.errors.length}`);

@@ -35,6 +35,28 @@ export interface RecalcStatus {
   errors: string[];
 }
 
+export interface SegmentDateResult {
+  date: string;
+  totalVehicles: number;
+  vehiclesWithSegments: number;
+  totalSegments: number;
+  vehicles: Array<{
+    regNumber: string;
+    shiftType: string;
+    segmentCount: number;
+  }>;
+}
+
+export interface SegmentFetchStatus {
+  active: boolean;
+  current: string | null;
+  startedAt: number | null;
+  queue: string[];
+  done: string[];
+  errors: string[];
+  results?: SegmentDateResult[];
+}
+
 export interface DbTablePreset {
   key: string;
   label: string;

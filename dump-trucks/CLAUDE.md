@@ -23,6 +23,8 @@ curl -X POST "http://localhost:3002/api/dt/admin/fetch?date=YYYY-MM-DD&shift=shi
 | `server/src/services/tripBuilder.ts` | ZoneEvent[] → пары loading/unloading → Trip[] |
 | `server/src/services/kpiCalculator.ts` | Формула КПИ смены |
 | `server/src/services/tisClient.ts` | TIS API клиент |
+| `server/src/jobs/segmentFetchJob.ts` | 30-мин сегменты для onsite Gantt |
+| `server/src/repositories/segmentRepo.ts` | CRUD shift_segments |
 | `server/src/index.ts` | Express routes |
 
 ## ⚠️ Gotchas
@@ -46,6 +48,7 @@ PG17 `:5433`, база `mstroy`, схема `dump_trucks`:
 - `trips` — рейсы (FK → shift_records)
 - `zone_events` — факты нахождения в геозонах (FK → shift_records)
 - `requests` — заявки TIS
+- `shift_segments` — 30-мин сегменты onsite-машин (FK → shift_records, CASCADE)
 - `repairs` — ремонты (заполняется вручную)
 
 ## Фронтенд

@@ -2,7 +2,7 @@
  * KPI Calculator для самосвалов.
  * Считает:
  *   - kipPct:        engine_time / shift_duration * 100
- *   - movementPct:   moving_time / engine_time * 100
+ *   - movementPct:   moving_time / shift_duration * 100
  *   - onsiteMin:     секунды в dt_boundary / 60
  *   - tripsCount:    кол-во рейсов
  *   - factVolumeM3:  суммарный объём из рейсов (если известен)
@@ -26,9 +26,7 @@ export function calculateKpi(params: {
 
   const kipPct = Math.min(100, Number(((engineTimeSec / shiftDurationSec) * 100).toFixed(2)));
 
-  const movementPct = engineTimeSec > 0
-    ? Math.min(100, Number(((movingTimeSec / engineTimeSec) * 100).toFixed(2)))
-    : 0;
+  const movementPct = Math.min(100, Number(((movingTimeSec / shiftDurationSec) * 100).toFixed(2)));
 
   const onsiteMin = Math.round(onsiteSec / 60);
 

@@ -411,6 +411,47 @@ factVolumeM3     = sum(trip.volumeM3 ?? 0)  [всегда 0, т.к. volumeM3 = n
 
 ---
 
+## 12. Segment Pipeline (`segmentFetchJob.ts`)
+
+**Назначение:** загрузка 30-мин сегментов смены для onsite-машин (Gantt-визуализация).
+
+**Триггер:** автоматически из `shiftFetchJob` (fire-and-forget) для всех записей с `workType='onsite'`. Также ручной запуск: `POST /api/dt/admin/fetch-segments?date=...&shift=...&force=true`.
+
+**Алгоритм:**
+
+1. Найти onsite shift_records (по IDs или по дате+смене)
+2. Пропустить записи с существующими сегментами (если не `force`)
+3. Загрузить dt_boundary зоны из БД
+4. Создать TisClient с отдельным rate limiter
+5. Параллельная обработка ТС (concurrency = min(кол-во токенов, кол-во записей)):
+   - 24 последовательных вызова `getMonitoringStats(idMO, segStart, segEnd)` (30-мин окна)
+   - `analyzeZones(track, objectBoundaryZones)` → `in_boundary`
+   - При ошибке TIS → сегмент с нулями (все 24 должны быть)
+6. Сохранение в транзакции: `replaceSegments(client, recordId, segments)`
+
+**Время:** ~12 мин на все onsite-ТС (параллельно до 18 машин, каждая = 24 × 30с rate limit).
+
+**Таблица `shift_segments`:**
+
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| `shift_record_id` | BIGINT FK | → shift_records.id ON DELETE CASCADE |
+| `segment_index` | SMALLINT | 0..23 (30-мин слот) |
+| `segment_start/end` | TIMESTAMPTZ | Границы 30-мин окна |
+| `engine_time_sec` | INTEGER | Моточасы в окне |
+| `moving_time_sec` | INTEGER | Время движения в окне |
+| `in_boundary` | BOOLEAN | Были ли трек-точки в dt_boundary |
+| `distance_km` | NUMERIC(8,2) | Пробег в окне |
+| `track_points_count` | INTEGER | Кол-во трек-точек |
+
+**4 состояния Gantt (определяются фронтом):**
+- Работа: `engine > 0 AND in_boundary AND moving > 0`
+- Стоянка на объекте: `engine > 0 AND in_boundary AND moving == 0`
+- Перемещение: `engine > 0 AND !in_boundary AND moving > 0`
+- Простой вне: всё остальное
+
+---
+
 ## Промежуточные структуры данных (domain.ts)
 
 ### ParsedPL

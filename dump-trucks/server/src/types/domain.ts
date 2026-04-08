@@ -91,6 +91,18 @@ export interface ShiftKpi {
   workType: WorkType;
 }
 
+// 30-минутный сегмент смены (для Gantt onsite-машин)
+export interface ShiftSegment {
+  segmentIndex: number;     // 0..23
+  segmentStart: Date;
+  segmentEnd: Date;
+  engineTimeSec: number;
+  movingTimeSec: number;
+  inBoundary: boolean;
+  distanceKm: number;
+  trackPointsCount: number;
+}
+
 // Запись для upsert в shift_records
 export interface ShiftRecordInput {
   reportDate: Date;

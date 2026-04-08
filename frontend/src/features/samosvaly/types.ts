@@ -154,6 +154,17 @@ export interface UserSettings {
   groupByShift: boolean;     // true = две смены в одной строке (агрегат); false = каждая смена отдельно
 }
 
+export interface ShiftSegment {
+  segmentIndex: number;     // 0..23
+  segmentStart: string;     // ISO timestamp
+  segmentEnd: string;
+  engineTimeSec: number;
+  movingTimeSec: number;
+  inBoundary: boolean;
+  distanceKm: number;
+  trackPointsCount: number;
+}
+
 export interface ZoneEvent {
   id: number;
   vehicle_id: number;

@@ -99,3 +99,20 @@ Admin fetch асинхронный, UI не знает когда он заве�
   - **Поиск:** в табах «Заявки» и «Ганта». Фильтрует по номеру заявки, госномеру, грузу.
   - **GanttTable авто-прокрутка:** при раскрытии заявки прокручивается к сегодняшнему дню (крайний правый столбец).
   - **GlobalGanttTab:** раскрытая сводная строка подсвечивается полупрозрачным фоном. Зум-контрол — абсолютное позиционирование (не прилипает при скролле).
+
+- **2026-04-07: Sprint 3 — Gantt Backend (30-мин сегменты для onsite-машин).**
+  - **Миграция:** `008_shift_segments.sql` — таблица `dump_trucks.shift_segments` (24 × 30-мин слайса на смену). UNIQUE index на `(shift_record_id, segment_index)`, FK с CASCADE.
+  - **Тип:** `ShiftSegment` в `domain.ts` — segmentIndex, segmentStart/End, engineTimeSec, movingTimeSec, inBoundary, distanceKm, trackPointsCount.
+  - **Репозиторий:** `segmentRepo.ts` — `replaceSegments` (DELETE+INSERT в транзакции), `querySegments`, `getRecordIdsWithSegments`.
+  - **Job:** `segmentFetchJob.ts` — параллельная загрузка сегментов для onsite-записей. 24 вызова getMonitoringStats × N ТС с concurrency pool. analyzeZones для in_boundary. Fire-and-forget из shiftFetchJob.
+  - **Интеграция:** `shiftFetchJob.ts` — после COMMIT собирает onsite recordIds, запускает runSegmentFetch асинхронно.
+  - **API:** `GET /api/dt/shift-segments?shiftRecordId=N` (публичный), `POST /api/dt/admin/fetch-segments?date=&shift=&force=` (admin).
+
+- **2026-04-06: Sprint 2 — Inline Chips.** Замена вложенных строк в аналитике на компактные чипы.
+  - **Удалено:** вложенная иерархия `sv-lv1` (заявка) → `sv-lv2` (день) → ShiftSubTable. Состояние `expandedDays`, функция `togDay()`. ~160 строк вложенных `<tr>`.
+  - **Добавлено:** компонент `ShiftChip` (`frontend/src/components/ShiftChip.tsx`) — inline-чип смены с мини-баром КИП. Props: date, shift, trips, kip, movement, workType, engineHours, isSelected, onClick.
+  - **Добавлено:** CSS-классы `.sv-chip-row`, `.sv-chip-group`, `.sv-chip-group-label`, `.sv-chip-strip`, `.sv-chip`, `.sv-chip.selected`, `.sv-chip.onsite`, `.sv-chip-bar`, `.sv-chip-bar-fill` + light theme overrides.
+  - **Изменено:** `renderVehicleRow()` в AnalyticsTab — после строки ТС (`sv-lv0`) раскрывается одна строка `sv-chip-row` с `colSpan=all`. Внутри: при `groupByRequest=true` — чипы сгруппированы по заявкам с лейблами `#reqNum (cargo) · objName`; при `false` — все чипы в одной полоске.
+  - **Добавлено:** функция `buildChips(recs, regNumber, groupByShift)` — генерирует данные чипов. При `groupByShift=true`: один чип на день (агрегат смен, средний КИП). При `false`: один чип на смену.
+  - **Добавлено:** функция `findRecsForChip(chipKey, allRecs)` — по ключу чипа (`reg_date` или `reg_date_shiftN`) находит ShiftRecord[].
+  - **Изменено:** состояние `expandedDays` → `selectedChip` (`string | null`). Клик по чипу → ShiftSubTable ниже. Только один чип активен одновременно.

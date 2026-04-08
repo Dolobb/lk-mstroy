@@ -176,18 +176,19 @@ export async function queryDtTripsData(
 
       for (const [, { sr, trips }] of vehicleMap) {
         const zones = zeByShift.get(sr.shift_record_id) || { loading: [], unloading: [] };
+        const isNightShift = sr.shift_type === 'shift2';
 
         // Chronological matching
-        const tripDetails = matchZoneEvents(zones.loading, zones.unloading);
+        const tripDetails = matchZoneEvents(zones.loading, zones.unloading, isNightShift);
 
         // Compute loaded_travel and empty_travel between sequential trips
         for (let i = 0; i < tripDetails.length; i++) {
           const t = tripDetails[i];
           // loaded_travel: loading_exit → unloading_enter (same trip)
-          t.loaded_travel = diffHHMM(t.loading_exit, t.unloading_enter);
+          t.loaded_travel = diffHHMM(t.loading_exit, t.unloading_enter, isNightShift);
           // empty_travel: unloading_exit → next trip loading_enter
           if (i < tripDetails.length - 1) {
-            t.empty_travel = diffHHMM(t.unloading_exit, tripDetails[i + 1].loading_enter);
+            t.empty_travel = diffHHMM(t.unloading_exit, tripDetails[i + 1].loading_enter, isNightShift);
           }
         }
 
@@ -238,6 +239,7 @@ export async function queryDtTripsData(
 function matchZoneEvents(
   loading: ZoneEventRow[],
   unloading: ZoneEventRow[],
+  nightShift: boolean,
 ): TripDetail[] {
   interface TaggedEvent {
     type: 'loading' | 'unloading';
@@ -249,7 +251,11 @@ function matchZoneEvents(
     ...unloading.map(e => ({ type: 'unloading' as const, event: e })),
   ];
 
-  allEvents.sort((a, b) => a.event.entered_at.localeCompare(b.event.entered_at));
+  allEvents.sort((a, b) => {
+    const left = hhmmToMinutes(a.event.entered_at, nightShift);
+    const right = hhmmToMinutes(b.event.entered_at, nightShift);
+    return left - right;
+  });
 
   const trips: TripDetail[] = [];
   let tripNum = 0;
@@ -332,6 +338,14 @@ export async function queryDtFilters(dateFrom: string, dateTo: string) {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Convert HH:MM to minutes, for night shift times before 12:00 are next day (+24h) */
+function hhmmToMinutes(hhmm: string, nightShift: boolean): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  let minutes = h * 60 + m;
+  if (nightShift && h < 12) minutes += 24 * 60;
+  return minutes;
+}
+
 function avg(nums: number[]): number {
   if (nums.length === 0) return 0;
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
@@ -346,11 +360,11 @@ function formatHourMin(minutes: number): string {
 }
 
 /** Diff two HH:MM strings, return h:mm */
-function diffHHMM(from: string, to: string): string {
+function diffHHMM(from: string, to: string, nightShift: boolean): string {
   if (!from || !to) return '';
-  const [fh, fm] = from.split(':').map(Number);
-  const [th, tm] = to.split(':').map(Number);
-  const diffMin = (th * 60 + tm) - (fh * 60 + fm);
+  const fromMin = hhmmToMinutes(from, nightShift);
+  const toMin = hhmmToMinutes(to, nightShift);
+  const diffMin = toMin - fromMin;
   if (diffMin < 0) return '';
   const h = Math.floor(diffMin / 60);
   const m = diffMin % 60;
