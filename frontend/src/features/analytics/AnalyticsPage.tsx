@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTheme } from 'next-themes';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
@@ -38,24 +39,48 @@ function kipColor(v: number): string {
 
 const TYPE_FILTERS: { key: string; label: string }[] = [
   { key: 'all', label: 'Все' },
-  { key: 'dump_truck', label: 'Самосвалы' },
-  { key: 'crane', label: 'Краны' },
-  { key: 'bulldozer', label: 'Бульдозеры' },
-  { key: 'roller', label: 'Катки' },
-  { key: 'excavator', label: 'Экскаваторы' },
+  { key: 'dt_delivery', label: 'Самосв. доставка' },
+  { key: 'dt_onsite', label: 'Самосв. по месту' },
+  { key: 'crane_auto', label: 'Краны авт.' },
+  { key: 'crane_crawler', label: 'Краны гусен.' },
+  { key: 'crane_pneumo', label: 'Краны пневмо.' },
+  { key: 'bulldozer', label: 'Бульдозер' },
+  { key: 'roller', label: 'Каток' },
+  { key: 'loader', label: 'Погрузчик' },
+  { key: 'exc_crawler', label: 'Экск. гусен.' },
+  { key: 'exc_wheeled', label: 'Экск. колесный' },
+  { key: 'exc_loader', label: 'Экск.-погрузчик' },
 ];
 
-function matchesTypeFilter(row: UnifiedVehicleRow, filter: string): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'dump_truck') return row.source === 'dump_truck';
+function matchesTypeFilter(row: UnifiedVehicleRow, filters: Set<string>): boolean {
+  if (filters.has('all')) return true;
   const vt = row.vehicleType.toLowerCase();
-  switch (filter) {
-    case 'crane': return vt.includes('кран');
-    case 'bulldozer': return vt.includes('бульдозер');
-    case 'roller': return vt.includes('каток');
-    case 'excavator': return vt.includes('экскаватор');
-    default: return true;
+  for (const f of filters) {
+    switch (f) {
+      case 'dt_delivery':
+        if (row.source === 'dump_truck') {
+          const hasDelivery = row.records.some(r => r.workType === 'delivery');
+          if (hasDelivery) return true;
+        }
+        break;
+      case 'dt_onsite':
+        if (row.source === 'dump_truck') {
+          const hasOnsite = row.records.some(r => r.workType === 'onsite');
+          if (hasOnsite) return true;
+        }
+        break;
+      case 'crane_auto': if (vt.includes('краны автомобильные')) return true; break;
+      case 'crane_crawler': if (vt.includes('краны гусеничные')) return true; break;
+      case 'crane_pneumo': if (vt.includes('краны пневмоколёсные')) return true; break;
+      case 'bulldozer': if (vt.includes('бульдозер')) return true; break;
+      case 'roller': if (vt.includes('каток')) return true; break;
+      case 'loader': if (vt === 'погрузчик') return true; break;
+      case 'exc_crawler': if (vt === 'экскаватор гусеничный') return true; break;
+      case 'exc_wheeled': if (vt === 'экскаватор колесный') return true; break;
+      case 'exc_loader': if (vt === 'экскаватор-погрузчик') return true; break;
+    }
   }
+  return false;
 }
 
 // ─── Defaults ───────────────────────────────────────────
@@ -67,11 +92,22 @@ const DEFAULT_DATE_TO = _today.toISOString().slice(0, 10);
 // ─── Component ──────────────────────────────────────────
 
 export function AnalyticsPage() {
+  const { resolvedTheme } = useTheme();
   const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
   const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
   const [shift, setShift] = useState<'all' | 'shift1' | 'shift2'>('all');
-  const [vehicleFilter, setVehicleFilter] = useState('all');
+  const [vehicleFilters, setVehicleFilters] = useState<Set<string>>(new Set(['all']));
   const [searchQuery, setSearchQuery] = useState('');
+
+  const toggleFilter = (key: string) => {
+    setVehicleFilters(prev => {
+      if (key === 'all') return new Set(['all']);
+      const next = new Set(prev);
+      next.delete('all');
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next.size === 0 ? new Set(['all']) : next;
+    });
+  };
 
   const [dtRows, setDtRows] = useState<UnifiedVehicleRow[]>([]);
   const [dstRows, setDstRows] = useState<UnifiedVehicleRow[]>([]);
@@ -147,7 +183,7 @@ export function AnalyticsPage() {
     let merged = [...dtRows, ...dstRows];
 
     // Type filter
-    merged = merged.filter(r => matchesTypeFilter(r, vehicleFilter));
+    merged = merged.filter(r => matchesTypeFilter(r, vehicleFilters));
 
     // Shift filter: for DT rows, filter records; for DST rows, apply on lazy details
     if (shift !== 'all') {
@@ -182,7 +218,7 @@ export function AnalyticsPage() {
     }
 
     return merged;
-  }, [dtRows, dstRows, vehicleFilter, shift, searchQuery]);
+  }, [dtRows, dstRows, vehicleFilters, shift, searchQuery]);
 
   // ─── Sort ───────────────────────────────────────────
 
@@ -208,26 +244,67 @@ export function AnalyticsPage() {
   type GroupEntry = { groupName: string; vehicles: UnifiedVehicleRow[] };
 
   const groups: GroupEntry[] = React.useMemo(() => {
-    const gMap = new Map<string, UnifiedVehicleRow[]>();
+    // First, separate DT delivery / DT onsite / DST
+    const dtDelivery: UnifiedVehicleRow[] = [];
+    const dtOnsite: UnifiedVehicleRow[] = [];
+    const dstByDept = new Map<string, UnifiedVehicleRow[]>();
+
     sortedRows.forEach(v => {
-      let group: string;
       if (v.source === 'dump_truck') {
-        // Use objectName from the most frequent object
+        const allOnsite = v.records.every(r => r.workType === 'onsite');
+        if (allOnsite) dtOnsite.push(v);
+        else dtDelivery.push(v);
+      } else {
+        const dept = v.departmentUnit || 'Без подразделения';
+        if (!dstByDept.has(dept)) dstByDept.set(dept, []);
+        dstByDept.get(dept)!.push(v);
+      }
+    });
+
+    const result: GroupEntry[] = [];
+
+    // DT delivery — sub-grouped by objectName
+    if (dtDelivery.length > 0) {
+      const objMap = new Map<string, UnifiedVehicleRow[]>();
+      dtDelivery.forEach(v => {
         const objCounts = new Map<string, number>();
         v.records.forEach(r => {
           const name = r.objectName ?? 'Без объекта';
           objCounts.set(name, (objCounts.get(name) ?? 0) + 1);
         });
-        group = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
-      } else {
-        group = v.departmentUnit || 'Без подразделения';
-      }
-      if (!gMap.has(group)) gMap.set(group, []);
-      gMap.get(group)!.push(v);
-    });
-    return [...gMap.entries()]
+        const topObj = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
+        if (!objMap.has(topObj)) objMap.set(topObj, []);
+        objMap.get(topObj)!.push(v);
+      });
+      [...objMap.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([obj, vehicles]) => result.push({ groupName: `Самосвалы доставка · ${obj}`, vehicles }));
+    }
+
+    // DT onsite
+    if (dtOnsite.length > 0) {
+      const objMap = new Map<string, UnifiedVehicleRow[]>();
+      dtOnsite.forEach(v => {
+        const objCounts = new Map<string, number>();
+        v.records.forEach(r => {
+          const name = r.objectName ?? 'Без объекта';
+          objCounts.set(name, (objCounts.get(name) ?? 0) + 1);
+        });
+        const topObj = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
+        if (!objMap.has(topObj)) objMap.set(topObj, []);
+        objMap.get(topObj)!.push(v);
+      });
+      [...objMap.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([obj, vehicles]) => result.push({ groupName: `Самосвалы по месту · ${obj}`, vehicles }));
+    }
+
+    // DST by department
+    [...dstByDept.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([groupName, vehicles]) => ({ groupName, vehicles }));
+      .forEach(([dept, vehicles]) => result.push({ groupName: dept, vehicles }));
+
+    return result;
   }, [sortedRows]);
 
   // ─── Summary strip ──────────────────────────────────
@@ -367,7 +444,7 @@ export function AnalyticsPage() {
   const totalCols = 1 + COLUMNS.length;
 
   return (
-    <div className="sv-root" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 16px', minHeight: 0, overflow: 'hidden' }}>
+    <div className="sv-root" data-theme={resolvedTheme} style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 16px', minHeight: 0, overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--sv-text-1)' }}>Аналитика</h2>
@@ -380,12 +457,12 @@ export function AnalyticsPage() {
           onShiftChange={setShift}
         />
 
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {TYPE_FILTERS.map(f => (
             <button
               key={f.key}
-              className={`sv-view-tab ${vehicleFilter === f.key ? 'active' : ''}`}
-              onClick={() => setVehicleFilter(f.key)}
+              className={`sv-view-tab ${vehicleFilters.has(f.key) ? 'active' : ''}`}
+              onClick={() => toggleFilter(f.key)}
               style={{ fontSize: 11, padding: '4px 10px' }}
             >
               {f.label}
