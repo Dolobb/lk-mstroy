@@ -355,6 +355,14 @@ export function AnalyticsPage() {
 
   function renderCell(colId: string, row: UnifiedVehicleRow): React.ReactNode {
     switch (colId) {
+      case 'requestNumber': {
+        const allNums = [...new Set(row.records.flatMap(r => r.requestNumbers ?? []))];
+        if (!allNums.length) return <span style={{ fontSize: 10 }}>—</span>;
+        const text = allNums.map(n => `№${n}`).join(', ');
+        if (allNums.length <= 3) return <span style={{ fontSize: 10 }}>{text}</span>;
+        const short = allNums.slice(0, 3).map(n => `№${n}`).join(', ') + ' …';
+        return <span style={{ fontSize: 10 }} title={text}>{short}</span>;
+      }
       case 'vehicleType':
         return <span style={{ fontSize: 10 }}>{row.vehicleType}</span>;
       case 'organization': {
@@ -389,13 +397,14 @@ export function AnalyticsPage() {
   // ─── Columns ────────────────────────────────────────
 
   const COLUMNS = [
+    { id: 'requestNumber', label: '№ заявки', sortable: false, maxW: 110 },
     { id: 'vehicleType', label: 'Тип', sortable: false },
     { id: 'organization', label: 'Организация', sortable: false },
     { id: 'shiftsCount', label: 'Смены', sortable: true },
     { id: 'tripsOrFuel', label: 'Рейсы / Расход', sortable: true },
     { id: 'kipBar', label: 'КИП', sortable: true },
     { id: 'engineTotal', label: 'Двиг. итого', sortable: true },
-  ];
+  ] as const;
 
   // ─── Render ─────────────────────────────────────────
 
@@ -489,7 +498,10 @@ export function AnalyticsPage() {
                     key={col.id}
                     className="sv-th-sub"
                     onClick={col.sortable ? () => handleSort(col.id) : undefined}
-                    style={col.sortable ? { cursor: 'pointer' } : {}}
+                    style={{
+                      ...(col.sortable ? { cursor: 'pointer' } : {}),
+                      ...('maxW' in col && col.maxW ? { maxWidth: col.maxW, overflow: 'hidden', textOverflow: 'ellipsis' } : {}),
+                    }}
                   >
                     {col.label}
                     {col.sortable && <SortIcon col={col.id} />}
@@ -543,7 +555,9 @@ export function AnalyticsPage() {
                               </div>
                             </td>
                             {COLUMNS.map(col => (
-                              <td key={col.id}>{renderCell(col.id, v)}</td>
+                              <td key={col.id} style={'maxW' in col && col.maxW ? { maxWidth: col.maxW, overflow: 'hidden', textOverflow: 'ellipsis' } : undefined}>
+                                {renderCell(col.id, v)}
+                              </td>
                             ))}
                           </tr>
 
