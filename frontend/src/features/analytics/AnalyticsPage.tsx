@@ -10,8 +10,11 @@ import {
   fetchUnifiedData,
   fetchKipVehicleDetails,
   kipDetailToUnified,
+  fetchKipSegments,
+  fetchKipSegmentProgress,
+  triggerKipSegmentFetch,
 } from './api';
-import type { UnifiedVehicleRow, UnifiedRecord } from './types';
+import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress } from './types';
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -125,6 +128,9 @@ export function AnalyticsPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
+  // KIP segments state
+  const [kipSegProgress, setKipSegProgress] = useState<KipSegmentProgress | null>(null);
+
   // ─── Fetch data ─────────────────────────────────────
 
   useEffect(() => {
@@ -176,6 +182,22 @@ export function AnalyticsPage() {
       });
     }
   }, [dateFrom, dateTo, dstDetails, loadingDetails]);
+
+  // ─── KIP Segment progress polling ─────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const p = await fetchKipSegmentProgress();
+        if (!cancelled) setKipSegProgress(p);
+      } catch { /* KIP not running */ }
+    };
+
+    poll();
+    const t = setInterval(poll, 5000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, []);
 
   // ─── Merged & filtered rows ─────────────────────────
 
@@ -356,7 +378,9 @@ export function AnalyticsPage() {
   function renderCell(colId: string, row: UnifiedVehicleRow): React.ReactNode {
     switch (colId) {
       case 'requestNumber': {
-        const allNums = [...new Set(row.records.flatMap(r => r.requestNumbers ?? []))];
+        const fromRecords = row.records.flatMap(r => r.requestNumbers ?? []);
+        const fromRow = row.requestNumbers ?? [];
+        const allNums = [...new Set([...fromRecords, ...fromRow])];
         if (!allNums.length) return <span style={{ fontSize: 10 }}>—</span>;
         const text = allNums.map(n => `№${n}`).join(', ');
         if (allNums.length <= 3) return <span style={{ fontSize: 10 }}>{text}</span>;
@@ -469,6 +493,30 @@ export function AnalyticsPage() {
       {error && (
         <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, marginBottom: 8, color: '#EF4444', fontSize: 12 }}>
           {error}
+        </div>
+      )}
+
+      {/* KIP Segment progress strip */}
+      {kipSegProgress && (kipSegProgress.active.length > 0 || kipSegProgress.queue.length > 0) && (
+        <div style={{
+          padding: '6px 12px', marginBottom: 8, borderRadius: 8, fontSize: 11,
+          background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+        }}>
+          <svg className="sv-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+          </svg>
+          {kipSegProgress.active.map(j => (
+            <span key={`${j.vehicleId}-${j.date}-${j.shift}`} style={{ color: 'var(--sv-text-2)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--sv-text-1)' }}>{j.vehicleId}</span>
+              {' '}{j.segmentsDone}/24
+            </span>
+          ))}
+          {kipSegProgress.queue.length > 0 && (
+            <span style={{ color: 'var(--sv-text-3)' }}>
+              +{kipSegProgress.queue.length} в очереди
+            </span>
+          )}
         </div>
       )}
 
@@ -612,14 +660,7 @@ export function AnalyticsPage() {
                                         </div>
                                       ))
                                     ) : rec.source === 'dst' ? (
-                                      <div style={{ display: 'flex', gap: 12, flex: 1 }}>
-                                        <div style={{ flex: '0 0 auto' }}>
-                                          <DstShiftDetail rec={rec} />
-                                        </div>
-                                        <div style={{ flex: '1 1 300px', minWidth: 0 }}>
-                                          <EmptyGanttBar />
-                                        </div>
-                                      </div>
+                                      <DstGanttSection rec={rec} />
                                     ) : (
                                       <div style={{ padding: 12, fontSize: 11, color: 'var(--sv-text-3)' }}>
                                         Детали недоступны
@@ -703,65 +744,125 @@ function DstShiftDetail({ rec }: { rec: UnifiedRecord }) {
   );
 }
 
-// ─── Empty Gantt Bar (placeholder for DST) ────────────
+// ─── DST Gantt Section ───────────────────────────────────
 
-const EMPTY_Y_TICKS = [100, 75, 50, 25, 0];
-const EMPTY_X_LABELS = ['07:30', '09:30', '11:30', '13:30', '15:30', '17:30', '19:30'];
-
-function EmptyGanttBar() {
+function EmptyGanttDiagram({ onFetch, fetching }: { onFetch: () => void; fetching: boolean }) {
+  const Y_TICKS = [100, 75, 50, 25, 0];
+  const SHIFT_LABELS = ['', '+2ч', '+4ч', '+6ч', '+8ч', '+10ч'];
   return (
-    <div className="sv-shift-gantt">
+    <div className="sv-shift-gantt" style={{ opacity: 0.5 }}>
       <div className="sv-shift-gantt-body">
-        {/* Y-axis */}
         <div className="sv-shift-gantt-yaxis">
-          {EMPTY_Y_TICKS.map(pct => (
+          {Y_TICKS.map(pct => (
             <span key={pct} style={{ top: `${100 - pct}%` }}>{pct}%</span>
           ))}
         </div>
-
-        {/* Main chart — empty grid */}
         <div className="sv-shift-gantt-main">
-          <div className="sv-shift-gantt-chart" style={{ gridTemplateColumns: 'repeat(24, 1fr)' }}>
-            {EMPTY_Y_TICKS.map(pct => (
+          <div className="sv-shift-gantt-chart">
+            {Y_TICKS.map(pct => (
               <div key={pct} className="sv-shift-gantt-gridline" style={{ top: `${100 - pct}%` }} />
             ))}
-            {/* Empty bars — just placeholders */}
             {Array.from({ length: 24 }, (_, i) => (
               <div key={i} className="sv-shift-gantt-bar" />
             ))}
           </div>
-
-          {/* X-axis */}
           <div className="sv-shift-gantt-xaxis">
-            {EMPTY_X_LABELS.map((label, i) => (
-              <div key={i} className="sv-shift-gantt-tick" style={{ left: `${(i / (EMPTY_X_LABELS.length - 1)) * 100}%` }}>
+            {SHIFT_LABELS.map((lbl, i) => (
+              <div key={i} className="sv-shift-gantt-tick" style={{ left: `${(i * 4 / 24) * 100}%` }}>
                 <div className="sv-shift-gantt-tick-line" />
-                <span>{label}</span>
+                <span>{lbl}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
-
-      {/* Legend + fetch button */}
-      <div className="sv-shift-gantt-legend" style={{ justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span><span style={{ color: '#8B5CF6' }}>&#9632;</span> КИП</span>
-          <span><span style={{ color: '#60A5FA' }}>&#9632;</span> в движении</span>
-        </div>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <button
-          type="button"
+          onClick={onFetch}
+          disabled={fetching}
           style={{
-            fontSize: 9, padding: '2px 8px', borderRadius: 4,
-            border: '1px solid rgba(96,165,250,0.3)',
-            background: 'rgba(96,165,250,0.08)',
-            color: '#60A5FA', cursor: 'pointer',
+            fontSize: 11,
+            cursor: fetching ? 'default' : 'pointer',
+            border: '1px solid currentColor',
+            borderRadius: 4,
+            background: 'rgba(139,92,246,0.1)',
+            color: 'inherit',
+            padding: '3px 10px',
+            opacity: fetching ? 0.6 : 1,
           }}
-          title="Выгрузить подробные данные для диаграммы"
         >
-          Выгрузить подробно
+          {fetching ? 'Выгрузка...' : 'Выгрузить'}
         </button>
       </div>
     </div>
   );
 }
+
+function DstGanttSection({ rec }: { rec: UnifiedRecord }) {
+  const kipShift = rec.shiftType === 'shift1' ? 'morning' : 'evening';
+  const dateStr = rec.reportDate.split('T')[0] ?? rec.reportDate;
+
+  const [segments, setSegments] = useState<KipSegment[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
+
+  const loadSegments = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    fetchKipSegments(rec.regNumber, dateStr, kipShift)
+      .then(segs => setSegments(segs))
+      .catch(err => setError(String(err)))
+      .finally(() => setLoading(false));
+  }, [rec.regNumber, dateStr, kipShift]);
+
+  useEffect(() => { loadSegments(); }, [loadSegments]);
+
+  const handleTriggerFetch = useCallback(() => {
+    setFetching(true);
+    triggerKipSegmentFetch(rec.regNumber, dateStr, kipShift)
+      .then(() => {
+        // Poll until segments appear
+        const poll = setInterval(() => {
+          fetchKipSegments(rec.regNumber, dateStr, kipShift).then(segs => {
+            if (segs && segs.length > 0) {
+              clearInterval(poll);
+              setSegments(segs);
+              setFetching(false);
+            }
+          });
+        }, 3000);
+        // Stop polling after 3 minutes
+        setTimeout(() => { clearInterval(poll); setFetching(false); }, 180_000);
+      })
+      .catch(err => {
+        setError(String(err));
+        setFetching(false);
+      });
+  }, [rec.regNumber, dateStr, kipShift]);
+
+  return (
+    <div style={{ display: 'flex', gap: 12, flex: 1 }}>
+      <div style={{ flex: '0 0 auto' }}>
+        <DstShiftDetail rec={rec} />
+      </div>
+      <div style={{ flex: '1 1 300px', minWidth: 0, position: 'relative' }}>
+        {loading ? (
+          <div className="sv-shift-gantt-empty">Загрузка сегментов...</div>
+        ) : error ? (
+          <div className="sv-shift-gantt-empty" style={{ color: '#ef4444' }}>
+            Ошибка: {error}{' '}
+            <button onClick={loadSegments} style={{ fontSize: 10, marginLeft: 6, cursor: 'pointer', border: '1px solid currentColor', borderRadius: 4, background: 'transparent', color: 'inherit', padding: '1px 6px' }}>
+              Повторить
+            </button>
+          </div>
+        ) : segments && segments.length > 0 ? (
+          <ShiftGanttBar segments={segments} />
+        ) : (
+          <EmptyGanttDiagram onFetch={handleTriggerFetch} fetching={fetching} />
+        )}
+      </div>
+    </div>
+  );
+}
+

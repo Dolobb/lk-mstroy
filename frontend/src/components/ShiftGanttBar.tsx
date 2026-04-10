@@ -2,9 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { fetchShiftSegments, fetchShiftDetail } from '@/features/samosvaly/api';
 import type { ShiftSegment, ZoneEvent } from '@/features/samosvaly/types';
 
+/** Minimal segment shape accepted from KIP (no inBoundary) */
+export interface GanttSegment {
+  segmentIndex: number;
+  segmentStart: string;
+  segmentEnd: string;
+  engineTimeSec: number;
+  movingTimeSec: number;
+  distanceKm: number;
+  trackPointsCount: number;
+}
+
 interface ShiftGanttBarProps {
-  shiftRecordId: number;
+  /** DT mode: fetch segments by shift_record_id */
+  shiftRecordId?: number;
   timezone?: string;
+  /** Direct mode: render pre-loaded segments (e.g. from KIP) */
+  segments?: GanttSegment[];
 }
 
 const SEGMENT_DURATION = 1800; // 30 min in seconds
@@ -65,14 +79,19 @@ function computeOutsideIntervals(
   return intervals;
 }
 
-export function ShiftGanttBar({ shiftRecordId, timezone = 'Asia/Yekaterinburg' }: ShiftGanttBarProps) {
-  const [segments, setSegments] = useState<ShiftSegment[] | null>(null);
+export function ShiftGanttBar({ shiftRecordId, timezone = 'Asia/Yekaterinburg', segments: directSegments }: ShiftGanttBarProps) {
+  const [fetchedSegments, setFetchedSegments] = useState<ShiftSegment[] | null>(null);
   const [zoneEvents, setZoneEvents] = useState<ZoneEvent[] | null>(null);
   const [error, setError] = useState(false);
 
+  // Direct mode: skip fetching
+  const isDirectMode = !!directSegments;
+
   useEffect(() => {
+    if (isDirectMode || shiftRecordId == null) return;
+
     let cancelled = false;
-    setSegments(null);
+    setFetchedSegments(null);
     setZoneEvents(null);
     setError(false);
 
@@ -82,13 +101,15 @@ export function ShiftGanttBar({ shiftRecordId, timezone = 'Asia/Yekaterinburg' }
     ])
       .then(([segs, detail]) => {
         if (cancelled) return;
-        setSegments(segs);
+        setFetchedSegments(segs);
         setZoneEvents(detail.zoneEvents ?? []);
       })
       .catch(() => { if (!cancelled) setError(true); });
 
     return () => { cancelled = true; };
-  }, [shiftRecordId]);
+  }, [shiftRecordId, isDirectMode]);
+
+  const segments: GanttSegment[] | null = isDirectMode ? (directSegments ?? null) : fetchedSegments;
 
   if (error) return <div className="sv-shift-gantt-empty">Ошибка загрузки сегментов</div>;
   if (segments === null) return <div className="sv-shift-gantt-empty">Загрузка сегментов...</div>;
@@ -98,7 +119,7 @@ export function ShiftGanttBar({ shiftRecordId, timezone = 'Asia/Yekaterinburg' }
   const shiftEndMs = new Date(segments[segments.length - 1].segmentEnd).getTime();
   const totalSegs = segments.length;
 
-  const outsideIntervals = zoneEvents
+  const outsideIntervals = (!isDirectMode && zoneEvents)
     ? computeOutsideIntervals(zoneEvents, shiftStartMs, shiftEndMs)
     : [];
 

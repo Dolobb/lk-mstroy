@@ -29,6 +29,23 @@ const KipPage: React.FC = () => {
   );
 };
 
+const GeoAdminPage: React.FC = () => {
+  const host = window.location.hostname;
+  const isTunnel = host.includes('.devtunnels.ms') || host.includes('.loca.lt') || host.includes('.ngrok') || host.includes('.trycloudflare.com');
+  const geoAdminUrl = isTunnel
+    ? `${window.location.origin.replace('5173', '3003')}/admin`
+    : `http://${host}:3003/admin`;
+  return (
+    <div className="flex-1 min-h-0">
+      <iframe
+        src={geoAdminUrl}
+        className="w-full h-full border-0"
+        title="Гео-Администратор"
+      />
+    </div>
+  );
+};
+
 // const MAINTENANCE_NOTICE = 'На сервере ведутся технические работы, актуальные данные недоступны';
 
 const App: React.FC = () => {
@@ -56,17 +73,14 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/kip" element={<KipPage />} />
+        <Route path="/geo-admin" element={<GeoAdminPage />} />
         <Route path="/tyagachi/*" element={<TyagachiPage />} />
         <Route path="/samosvaly" element={<DumpTrucksPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/vehicle-status" element={<VehicleStatusPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/ai-demo" element={<AiReportsPage />} />
-        <Route path="/admin" element={
-          ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
-            ? <AdminPage />
-            : <Navigate to="/" replace />
-        } />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

@@ -3,6 +3,8 @@ import type { ShiftRecord } from '@/features/samosvaly/types';
 import type {
   KipWeeklyVehicle,
   KipVehicleDetail,
+  KipSegment,
+  KipSegmentProgress,
   UnifiedRecord,
   UnifiedVehicleRow,
 } from './types';
@@ -34,6 +36,35 @@ export async function fetchKipVehicleDetails(
 ): Promise<KipVehicleDetail[]> {
   const q = new URLSearchParams({ from, to });
   return get<KipVehicleDetail[]>(`${KIP_BASE}/vehicles/${encodeURIComponent(vehicleId)}/details?${q}`);
+}
+
+// ─── KIP Segments API ───────────────────────────────────
+
+export async function triggerKipSegmentFetch(
+  vehicleId: string,
+  date: string,
+  shiftType: string,
+): Promise<{ status: string }> {
+  const r = await fetch(`${KIP_BASE}/segments/fetch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ vehicleId, date, shiftType }),
+  });
+  if (!r.ok) throw new Error(`Segment fetch error: ${r.status}`);
+  return r.json();
+}
+
+export async function fetchKipSegments(
+  vehicleId: string,
+  date: string,
+  shift: string,
+): Promise<KipSegment[]> {
+  const q = new URLSearchParams({ vehicleId, date, shift });
+  return get<KipSegment[]>(`${KIP_BASE}/segments?${q}`);
+}
+
+export async function fetchKipSegmentProgress(): Promise<KipSegmentProgress> {
+  return get<KipSegmentProgress>(`${KIP_BASE}/segments/progress`);
 }
 
 // ─── Converters ─────────────────────────────────────────
@@ -145,6 +176,7 @@ export function kipWeeklyToVehicleRow(kv: KipWeeklyVehicle): UnifiedVehicleRow {
     engineTotalSec: kv.avg_engine_on_time * 3600 * kv.record_count,
     kipVehicleId: kv.vehicle_id,
     departmentUnit: kv.department_unit,
+    requestNumbers: kv.request_numbers ?? [],
   };
 }
 

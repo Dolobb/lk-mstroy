@@ -1035,6 +1035,122 @@ app.post('/api/admin/fetch-segments', async (req, res) => {
   runDTSegmentQueue(dates, force).catch(console.error);
 });
 
+// ─── KIP Segments proxy ──────────────────────────────────────────────────────
+
+app.get('/api/admin/kip-segments/status', async (_req, res) => {
+  try {
+    const r = await fetch('http://localhost:3001/api/segments/progress');
+    if (!r.ok) { res.status(r.status).json({ error: `KIP returned ${r.status}` }); return; }
+    res.json(await r.json());
+  } catch (e) {
+    res.status(502).json({ error: `KIP не отвечает: ${e instanceof Error ? e.message : String(e)}` });
+  }
+});
+
+// Bulk KIP segment fetch — iterate dates × shifts, enqueue all vehicles
+interface KipSegBulkProgress {
+  active: boolean;
+  queue: string[];       // dates pending
+  current: string | null;
+  done: string[];
+  errors: string[];
+  cancelRequested: boolean;
+  totalEnqueued: number;
+  totalSkipped: number;
+}
+
+const kipSegBulk: KipSegBulkProgress = {
+  active: false, queue: [], current: null, done: [], errors: [],
+  cancelRequested: false, totalEnqueued: 0, totalSkipped: 0,
+};
+
+async function runKipSegBulk(dates: string[], force: boolean) {
+  kipSegBulk.active = true;
+  kipSegBulk.done = [];
+  kipSegBulk.errors = [];
+  kipSegBulk.cancelRequested = false;
+  kipSegBulk.queue = [...dates];
+  kipSegBulk.totalEnqueued = 0;
+  kipSegBulk.totalSkipped = 0;
+
+  for (const date of dates) {
+    if (kipSegBulk.cancelRequested) break;
+
+    kipSegBulk.current = date;
+    kipSegBulk.queue = kipSegBulk.queue.filter(d => d !== date);
+
+    const forceQ = force ? '&force=true' : '';
+    for (const shift of ['morning', 'evening']) {
+      if (kipSegBulk.cancelRequested) break;
+      try {
+        const r = await fetch(`http://localhost:3001/api/segments/fetch-all?date=${date}&shift=${shift}${forceQ}`, { method: 'POST' });
+        if (r.ok) {
+          const body = await r.json() as { enqueued: number; skipped: number };
+          kipSegBulk.totalEnqueued += body.enqueued;
+          kipSegBulk.totalSkipped += body.skipped;
+        } else {
+          kipSegBulk.errors.push(`${date}/${shift}: HTTP ${r.status}`);
+        }
+      } catch (e) {
+        kipSegBulk.errors.push(`${date}/${shift}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
+    kipSegBulk.done.push(date);
+  }
+
+  kipSegBulk.active = false;
+  kipSegBulk.current = null;
+}
+
+app.get('/api/admin/kip-segments/bulk-status', (_req, res) => {
+  res.json({
+    active: kipSegBulk.active,
+    current: kipSegBulk.current,
+    queue: kipSegBulk.queue,
+    done: kipSegBulk.done,
+    errors: kipSegBulk.errors,
+    totalEnqueued: kipSegBulk.totalEnqueued,
+    totalSkipped: kipSegBulk.totalSkipped,
+  });
+});
+
+app.post('/api/admin/kip-segments/fetch', async (req, res) => {
+  const from = req.query.from as string;
+  const to = req.query.to as string;
+  const force = req.query.force === 'true';
+
+  if (!from || !to) {
+    res.status(400).json({ error: '"from" и "to" обязательны' });
+    return;
+  }
+  if (kipSegBulk.active) {
+    res.status(409).json({ error: 'Уже выполняется выгрузка КИП-сегментов' });
+    return;
+  }
+
+  // Get dates that have vehicle_records in KIP
+  const existing = await getKipDates(from, to);
+  const dates = existing.dates.sort().reverse();
+
+  if (dates.length === 0) {
+    res.json({ ok: true, message: 'Нет данных КИП за этот период', count: 0 });
+    return;
+  }
+
+  res.json({ ok: true, started: true, count: dates.length, dates, force });
+  runKipSegBulk(dates, force).catch(console.error);
+});
+
+app.post('/api/admin/kip-segments/cancel', (_req, res) => {
+  if (!kipSegBulk.active) {
+    res.json({ ok: true, message: 'Нет активной выгрузки' });
+    return;
+  }
+  kipSegBulk.cancelRequested = true;
+  res.json({ ok: true, message: 'Отмена запрошена' });
+});
+
 // ─── DB Viewer ────────────────────────────────────────────────────────────────
 
 interface DbPreset {
@@ -1069,6 +1185,21 @@ const DB_PRESETS: DbPreset[] = [
              FROM monitoring_raw
              WHERE report_date BETWEEN $1 AND $2
              ORDER BY report_date DESC, vehicle_id
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
+  {
+    key: 'kip.segments',
+    label: 'КИП сегменты',
+    pool: 'kip',
+    sql: (from, to, limit) => ({
+      text: `SELECT vehicle_id, report_date::text, shift_type, segment_index,
+                    segment_start::text, segment_end::text,
+                    engine_time_sec, moving_time_sec, distance_km, track_points_count
+             FROM kip_shift_segments
+             WHERE report_date BETWEEN $1 AND $2
+             ORDER BY report_date DESC, vehicle_id, segment_index
              LIMIT $3`,
       values: [from, to, limit],
     }),

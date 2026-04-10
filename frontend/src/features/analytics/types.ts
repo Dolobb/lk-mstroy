@@ -57,6 +57,36 @@ export interface UnifiedVehicleRow {
   // Для lazy-loading ДСТ деталей
   kipVehicleId?: string;
   departmentUnit?: string;
+  // Pre-loaded request numbers (KIP weekly provides them without expand)
+  requestNumbers?: number[];
+}
+
+// KIP Segment types (for Gantt diagrams)
+
+export interface KipSegment {
+  segmentIndex: number;
+  segmentStart: string;
+  segmentEnd: string;
+  engineTimeSec: number;
+  movingTimeSec: number;
+  distanceKm: number;
+  trackPointsCount: number;
+}
+
+export interface KipSegmentJob {
+  vehicleId: string;
+  date: string;
+  shift: string;
+  status: 'queued' | 'running' | 'done' | 'error';
+  segmentsDone: number;
+  error?: string;
+}
+
+export interface KipSegmentProgress {
+  queue: KipSegmentJob[];
+  active: KipSegmentJob[];
+  completed: KipSegmentJob[];
+  maxConcurrent: number;
 }
 
 // KIP API response types

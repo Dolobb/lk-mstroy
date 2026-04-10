@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
-import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, DbTablePreset, DbQueryResult } from './types';
+import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, KipSegmentProgress, DbTablePreset, DbQueryResult } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -306,6 +306,18 @@ export const AdminPage: React.FC = () => {
   const [segmentElapsed, setSegmentElapsed] = useState(0);
   const [segResultsOpen, setSegResultsOpen] = useState(false);
 
+  // KIP Segment progress (per-vehicle from KIP server)
+  const [kipSegProgress, setKipSegProgress] = useState<KipSegmentProgress>({
+    queue: [], active: [], completed: [], maxConcurrent: 1,
+  });
+
+  // KIP Segment bulk fetch (admin-managed queue of dates)
+  const [kipSegBulk, setKipSegBulk] = useState({
+    active: false, current: null as string | null, queue: [] as string[],
+    done: [] as string[], errors: [] as string[],
+    totalEnqueued: 0, totalSkipped: 0,
+  });
+
   // DB Viewer state
   const [dbOpen, setDbOpen] = useState(false);
   const [dbTables, setDbTables] = useState<DbTablePreset[]>([]);
@@ -404,6 +416,23 @@ export const AdminPage: React.FC = () => {
     return () => clearInterval(t);
   }, [segmentStatus.active, segmentStatus.startedAt]);
 
+  // Poll KIP segment progress every 5s (per-vehicle + bulk)
+  useEffect(() => {
+    const loadKipSeg = async () => {
+      try {
+        const [r1, r2] = await Promise.all([
+          fetch('/api/admin/kip-segments/status'),
+          fetch('/api/admin/kip-segments/bulk-status'),
+        ]);
+        if (r1.ok) setKipSegProgress(await r1.json());
+        if (r2.ok) setKipSegBulk(await r2.json());
+      } catch { /* KIP/admin not running */ }
+    };
+    loadKipSeg();
+    const t = setInterval(loadKipSeg, 5000);
+    return () => clearInterval(t);
+  }, []);
+
   // Load DB tables once
   useEffect(() => {
     fetchDbTables().then(tables => {
@@ -478,6 +507,23 @@ export const AdminPage: React.FC = () => {
   const handleCancelSegmentFetch = async () => {
     await cancelSegmentFetch();
     await loadSegmentStatus();
+  };
+
+  const handleKipSegFetch = async (force: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/kip-segments/fetch?from=${coverageFrom}&to=${coverageTo}${force ? '&force=true' : ''}`, { method: 'POST' });
+      const body = await res.json();
+      if (body.count === 0) {
+        alert('Нет данных КИП за выбранный период. Сначала выполните загрузку КИП.');
+        return;
+      }
+    } catch (e) {
+      alert(`Ошибка: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const handleKipSegCancel = async () => {
+    await fetch('/api/admin/kip-segments/cancel', { method: 'POST' });
   };
 
   const allDays = daysInRange(coverageFrom, coverageTo);
@@ -933,6 +979,133 @@ export const AdminPage: React.FC = () => {
             <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
               Последняя загрузка: {segmentStatus.done.length} дн. выполнено
               {segmentStatus.errors.length > 0 ? `, ${segmentStatus.errors.length} ошибок` : ''}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* KIP Segments — bulk fetch + progress */}
+      <div>
+        <h2 className="text-sm font-semibold mb-2">КИП Сегменты (ДСТ диаграммы)</h2>
+        <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
+          <div className="text-xs text-muted-foreground" style={{ fontSize: '11px' }}>
+            Загрузить 30-мин сегменты для диаграмм ДСТ-техники (24 слайса на смену).
+            Период — тот же, что и для покрытия данных. ~12 мин на ТС (параллельно по числу токенов).
+          </div>
+
+          {/* Bulk fetch buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleKipSegFetch(false)}
+              disabled={kipSegBulk.active}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium ${
+                kipSegBulk.active
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-blue-500/15 text-blue-600 hover:bg-blue-500/25'
+              } disabled:opacity-50`}
+              style={{ fontSize: '11px' }}
+            >
+              {kipSegBulk.active && <RotateCcw className="size-3 animate-spin" />}
+              Загрузить сегменты
+            </button>
+            <button
+              onClick={() => handleKipSegFetch(true)}
+              disabled={kipSegBulk.active}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium bg-amber-500/15 text-amber-600 hover:bg-amber-500/25 disabled:opacity-50"
+              style={{ fontSize: '11px' }}
+            >
+              Перезагрузить (force)
+            </button>
+            {kipSegBulk.active && (
+              <button
+                onClick={handleKipSegCancel}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                style={{ fontSize: '11px' }}
+              >
+                <XCircle className="size-3" />
+                Отмена
+              </button>
+            )}
+          </div>
+
+          {/* Bulk progress */}
+          {kipSegBulk.active && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between" style={{ fontSize: '11px' }}>
+                <span className="text-muted-foreground">
+                  Ставим в очередь: <span className="text-foreground font-mono">
+                    {kipSegBulk.current ? fmtDate(kipSegBulk.current) : '...'}
+                  </span>
+                </span>
+                <span className="text-muted-foreground">
+                  {kipSegBulk.done.length} из {kipSegBulk.done.length + kipSegBulk.queue.length + (kipSegBulk.current ? 1 : 0)} дн.
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                  style={{
+                    width: (() => {
+                      const total = kipSegBulk.done.length + kipSegBulk.queue.length + (kipSegBulk.current ? 1 : 0);
+                      return total > 0 ? `${(kipSegBulk.done.length / total) * 100}%` : '0%';
+                    })(),
+                  }}
+                />
+              </div>
+              {kipSegBulk.totalEnqueued > 0 && (
+                <div className="text-muted-foreground" style={{ fontSize: '10px' }}>
+                  Поставлено: {kipSegBulk.totalEnqueued} ТС, пропущено: {kipSegBulk.totalSkipped}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!kipSegBulk.active && (kipSegBulk.totalEnqueued > 0 || kipSegBulk.done.length > 0) && (
+            <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
+              Последний запуск: {kipSegBulk.done.length} дн., поставлено {kipSegBulk.totalEnqueued} ТС, пропущено {kipSegBulk.totalSkipped}
+              {kipSegBulk.errors.length > 0 ? `, ${kipSegBulk.errors.length} ошибок` : ''}
+            </div>
+          )}
+
+          {kipSegBulk.errors.length > 0 && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-2" style={{ fontSize: '10px' }}>
+              {kipSegBulk.errors.slice(-3).map((e, i) => <div key={i}>{e}</div>)}
+            </div>
+          )}
+
+          {/* Per-vehicle realtime progress from KIP server */}
+          {(kipSegProgress.active.length > 0 || kipSegProgress.queue.length > 0) && (
+            <div className="border-t pt-2 mt-1" style={{ borderColor: 'var(--border)' }}>
+              <div className="text-xs font-medium mb-1" style={{ fontSize: '11px' }}>
+                Выгрузка ТС ({kipSegProgress.active.length} актив. + {kipSegProgress.queue.length} очередь):
+              </div>
+              {kipSegProgress.active.map(j => (
+                <div key={`${j.vehicleId}-${j.date}-${j.shift}`} className="flex items-center gap-2" style={{ fontSize: '11px' }}>
+                  <span className="font-mono">{j.vehicleId}</span>
+                  <span className="text-muted-foreground">{fmtDate(j.date)} {j.shift === 'morning' ? 'день' : 'ночь'}</span>
+                  <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden" style={{ maxWidth: 100 }}>
+                    <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${(j.segmentsDone / 24) * 100}%` }} />
+                  </div>
+                  <span className="text-muted-foreground">{j.segmentsDone}/24</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {kipSegProgress.completed.length > 0 && kipSegProgress.active.length === 0 && kipSegProgress.queue.length === 0 && (
+            <div className="flex flex-col gap-0.5">
+              <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
+                Завершено (последние):
+              </div>
+              {kipSegProgress.completed.slice(-5).map(j => (
+                <div key={`${j.vehicleId}-${j.date}-${j.shift}`} className="flex items-center gap-2" style={{ fontSize: '10px' }}>
+                  <span className="font-mono">{j.vehicleId}</span>
+                  <span className="text-muted-foreground">{fmtDate(j.date)} {j.shift === 'morning' ? 'день' : 'ночь'}</span>
+                  <span className={j.status === 'done' ? 'text-green-500' : 'text-destructive'}>
+                    {j.status === 'done' ? '24/24' : j.error ?? 'ошибка'}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>

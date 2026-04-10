@@ -288,6 +288,116 @@ app.post('/api/admin/fetch', async (req, res) => {
   res.json({ status: 'started', date });
 });
 
+// ─── KIP Segments ────────────────────────────────────────
+
+// Trigger segment fetch for a vehicle/date/shift
+app.post('/api/segments/fetch', async (req, res) => {
+  const { vehicleId, date, shiftType } = req.body as {
+    vehicleId?: string;
+    date?: string;
+    shiftType?: string;
+  };
+
+  if (!vehicleId || !date || !shiftType) {
+    res.status(400).json({ error: 'vehicleId, date, shiftType required' });
+    return;
+  }
+
+  try {
+    const { enqueue } = await import('./jobs/segmentProgress');
+    const job = enqueue(vehicleId, date, shiftType);
+    // Kick off queue processing
+    await import('./jobs/segmentFetchJob');
+    res.json({ status: job.status, vehicleId, date, shiftType });
+  } catch (err) {
+    logger.error('[Segments] Fetch trigger error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Bulk: enqueue ALL vehicles with records for a date/shift
+app.post('/api/segments/fetch-all', async (req, res) => {
+  const date = req.query.date as string | undefined;
+  const shift = req.query.shift as string | undefined;
+  const force = req.query.force === 'true';
+
+  if (!date || !shift) {
+    res.status(400).json({ error: 'date, shift query params required' });
+    return;
+  }
+
+  try {
+    const pool = getPool();
+
+    // Find all vehicles with records for this date/shift
+    const result = await pool.query<{ vehicle_id: string }>(
+      `SELECT DISTINCT vehicle_id FROM vehicle_records
+       WHERE report_date = $1 AND shift_type = $2 AND engine_on_time > 0`,
+      [date, shift],
+    );
+
+    if (result.rows.length === 0) {
+      res.json({ enqueued: 0, message: 'No vehicles with records for this date/shift' });
+      return;
+    }
+
+    const { enqueue } = await import('./jobs/segmentProgress');
+    const { hasSegments } = await import('./repositories/segmentRepo');
+
+    let enqueued = 0;
+    let skipped = 0;
+    for (const row of result.rows) {
+      // Skip if already has segments (unless force)
+      if (!force) {
+        const exists = await hasSegments(pool, row.vehicle_id, date, shift);
+        if (exists) { skipped++; continue; }
+      }
+      enqueue(row.vehicle_id, date, shift);
+      enqueued++;
+    }
+
+    // Kick off queue processing
+    await import('./jobs/segmentFetchJob');
+
+    res.json({ enqueued, skipped, total: result.rows.length });
+  } catch (err) {
+    logger.error('[Segments] Bulk fetch error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get segments for a vehicle/date/shift
+app.get('/api/segments', async (req, res) => {
+  const vehicleId = req.query.vehicleId as string | undefined;
+  const date = req.query.date as string | undefined;
+  const shift = req.query.shift as string | undefined;
+
+  if (!vehicleId || !date || !shift) {
+    res.status(400).json({ error: 'vehicleId, date, shift required' });
+    return;
+  }
+
+  try {
+    const { querySegments } = await import('./repositories/segmentRepo');
+    const segments = await querySegments(getPool(), vehicleId, date, shift);
+    res.json(segments);
+  } catch (err) {
+    logger.error('[Segments] Query error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get segment fetch progress
+app.get('/api/segments/progress', async (_req, res) => {
+  try {
+    const { getProgress } = await import('./jobs/segmentProgress');
+    res.json(getProgress());
+  } catch (err) {
+    logger.error('[Segments] Progress error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // SPA fallback: any non-API route serves index.html
 app.get('*', (_req, res) => {
   res.sendFile(path.join(clientBuildPath, 'index.html'));

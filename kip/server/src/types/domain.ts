@@ -126,6 +126,18 @@ export interface FilterOptions {
   departments: string[];
 }
 
+// KIP Segment types
+
+export interface KipShiftSegment {
+  segmentIndex: number;
+  segmentStart: Date;
+  segmentEnd: Date;
+  engineTimeSec: number;
+  movingTimeSec: number;
+  distanceKm: number;
+  trackPointsCount: number;
+}
+
 // Geozone types
 
 export interface GeozoneResult {

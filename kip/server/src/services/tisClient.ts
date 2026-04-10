@@ -29,6 +29,10 @@ export class TisClient {
     this.rateLimiter = options.rateLimiter;
   }
 
+  get tokens(): TokenPool {
+    return this.tokenPool;
+  }
+
   /**
    * All API calls: POST {baseUrl}?token=...&format=json&command=...&params
    * Empty body, all params in query string.
@@ -138,6 +142,62 @@ export class TisClient {
         toDate: formatDateTimeParam(toDate),
       },
     );
+  }
+
+  /**
+   * Direct request with a specific token — no rate limiter, no token rotation.
+   * Used for parallel segment fetching (24 tokens × 24 segments).
+   * On 429/404: returns null. On timeout: retries with backoff.
+   */
+  async getMonitoringStatsDirect(
+    token: string,
+    idMO: number,
+    fromDate: Date,
+    toDate: Date,
+  ): Promise<TisMonitoringStats | null> {
+    const params = new URLSearchParams({
+      token,
+      format: 'json',
+      command: 'getMonitoringStats',
+      idMO: String(idMO),
+      fromDate: formatDateTimeParam(fromDate),
+      toDate: formatDateTimeParam(toDate),
+    });
+    const url = `${this.baseUrl}?${params}`;
+
+    for (let attempt = 0; attempt <= MAX_RETRY_TIMEOUT; attempt++) {
+      try {
+        const response = await axios.post<TisMonitoringStats>(url, null, { timeout: 30_000 });
+        return response.data;
+      } catch (err) {
+        const axiosErr = err as AxiosError;
+
+        if (axiosErr.response?.status === 404) {
+          return null;
+        }
+
+        if (axiosErr.response?.status === 429) {
+          logger.warn(`[Direct] 429 for idMO=${idMO}, token ${token.slice(0, 6)}...`);
+          return null;
+        }
+
+        if (axiosErr.code === 'ECONNABORTED' || axiosErr.code === 'ETIMEDOUT') {
+          if (attempt < MAX_RETRY_TIMEOUT) {
+            const waitMs = BACKOFF_TIMEOUT_BASE_MS * Math.pow(2, attempt);
+            logger.warn(`[Direct] Timeout idMO=${idMO} seg, retry ${attempt + 1}/${MAX_RETRY_TIMEOUT} in ${waitMs}ms`);
+            await this.sleep(waitMs);
+            continue;
+          }
+          logger.error(`[Direct] Timeout after ${MAX_RETRY_TIMEOUT} retries for idMO=${idMO}`);
+          return null;
+        }
+
+        logger.error(`[Direct] Unexpected error for idMO=${idMO}: ${String(err)}`);
+        return null;
+      }
+    }
+
+    return null;
   }
 
   private sleep(ms: number): Promise<void> {
