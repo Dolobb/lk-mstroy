@@ -7,7 +7,7 @@ export type ShiftType = 'shift1' | 'shift2';
 export type WorkType = 'delivery' | 'onsite' | 'unknown';
 
 // Тег зоны (из geo.zone_tags)
-export type ZoneTag = 'dt_boundary' | 'dt_loading' | 'dt_unloading';
+export type ZoneTag = 'dt_boundary' | 'dt_loading' | 'dt_unloading' | 'dt_onsite';
 
 // ТС из путевого листа
 export interface ParsedVehicle {

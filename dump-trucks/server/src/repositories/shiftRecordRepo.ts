@@ -1,5 +1,5 @@
 import { Pool, PoolClient } from 'pg';
-import type { ShiftRecordInput } from '../types/domain';
+import type { ShiftRecordInput, ShiftType } from '../types/domain';
 
 export interface ShiftRecord {
   id: number;
@@ -238,4 +238,36 @@ export async function queryShiftRecords(
     avgTravelToUnloadMin: r.avg_travel_to_unload_min ? Number(r.avg_travel_to_unload_min) : null,
     avgReturnToLoadMin:   r.avg_return_to_load_min   ? Number(r.avg_return_to_load_min)   : null,
   }));
+}
+
+/**
+ * Удаляет shift_records для объектов, которых нет в keepObjectUids.
+ * CASCADE удалит связанные trips + shift_segments.
+ * Должно выполняться в транзакции.
+ */
+export async function deleteStaleRecords(
+  client: PoolClient,
+  vehicleId: number,
+  reportDate: Date,
+  shiftType: ShiftType,
+  keepObjectUids: string[],
+): Promise<number> {
+  if (keepObjectUids.length === 0) {
+    // Удалить все записи для этого ТС/дата/смена
+    const res = await client.query(`
+      DELETE FROM dump_trucks.shift_records
+      WHERE vehicle_id = $1 AND report_date = $2 AND shift_type = $3
+    `, [vehicleId, reportDate, shiftType]);
+    return res.rowCount ?? 0;
+  }
+
+  const placeholders = keepObjectUids.map((_, i) => `$${i + 4}`).join(', ');
+  const res = await client.query(`
+    DELETE FROM dump_trucks.shift_records
+    WHERE vehicle_id = $1
+      AND report_date = $2
+      AND shift_type = $3
+      AND object_uid NOT IN (${placeholders})
+  `, [vehicleId, reportDate, shiftType, ...keepObjectUids]);
+  return res.rowCount ?? 0;
 }

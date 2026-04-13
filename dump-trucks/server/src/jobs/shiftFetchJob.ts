@@ -21,18 +21,18 @@ import { parsePLs, routeListRecordsToParsedPLs } from '../services/plParser';
 import { upsertRouteLists, queryRouteListsForShift } from '../repositories/routeListRepo';
 import { parseRequests } from '../services/requestParser';
 import { analyzeZones, calcOnsiteSec } from '../services/zoneAnalyzer';
-import { detectObject } from '../services/vehicleDetector';
+import { detectAllObjects } from '../services/vehicleDetector';
 import { buildTrips } from '../services/tripBuilder';
 import { classifyWorkType } from '../services/workTypeClassifier';
 import { calculateKpi } from '../services/kpiCalculator';
 import { getAllDtZones, getObjectTimezones, getVehicleLastObjects } from '../repositories/filterRepo';
 import { upsertRequests } from '../repositories/requestRepo';
-import { upsertShiftRecord } from '../repositories/shiftRecordRepo';
+import { upsertShiftRecord, deleteStaleRecords } from '../repositories/shiftRecordRepo';
 import { replaceTrips } from '../repositories/tripRepo';
 import { replaceZoneEvents } from '../repositories/zoneEventRepo';
 import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
-import type { ShiftType, GeoZone } from '../types/domain';
+import type { ShiftType, GeoZone, ZoneEvent, Trip, ShiftKpi, WorkType } from '../types/domain';
 
 // Singleton клиент и лимитер
 let tisClient: TisClient | null = null;
@@ -282,6 +282,14 @@ export async function runShiftFetch(
 
   logger.info(`[ShiftFetch] Vehicles to process: ${vehiclesMap.size}`);
 
+  // Карта: objectUid → есть ли dt_onsite зоны (объекты без onsite не могут иметь workType='onsite')
+  const objectHasOnsite = new Map<string, boolean>();
+  for (const z of allZones) {
+    if (z.tag === 'dt_onsite') objectHasOnsite.set(z.objectUid, true);
+  }
+
+  const MIN_ENGINE_SEC = 2700; // 45 мин — порог "ТС реально работало"
+
   const onsiteRecordIds: number[] = [];
 
   // Обрабатываем ТС последовательно (rate limit)
@@ -307,21 +315,44 @@ export async function runShiftFetch(
         continue;
       }
 
+      // Step A: 45-мин фильтр — ТС с двигателем < 45 мин не работало (ночная стоянка и т.п.)
+      const engineTimeSec = monitoring.engineTime ?? 0;
+      if (engineTimeSec < MIN_ENGINE_SEC) {
+        logger.info(`[ShiftFetch] idMO=${idMO}: engine ${Math.round(engineTimeSec / 60)} min < 45 min threshold, cleaning up stale records`);
+        // Удаляем старые записи для этого ТС/дата/смена (если были)
+        const dbClient = await pool.connect();
+        try {
+          await dbClient.query('BEGIN');
+          const deleted = await deleteStaleRecords(dbClient, idMO, dayjs(dateStr).toDate(), shiftType, []);
+          await dbClient.query('COMMIT');
+          if (deleted > 0) {
+            logger.info(`[ShiftFetch] idMO=${idMO}: deleted ${deleted} stale records`);
+          }
+        } catch (dbErr) {
+          await dbClient.query('ROLLBACK');
+          logger.warn(`[ShiftFetch] idMO=${idMO}: failed to delete stale records: ${String(dbErr)}`);
+        } finally {
+          dbClient.release();
+        }
+        result.vehiclesSkipped++;
+        continue;
+      }
+
       let track = monitoring.track || [];
-      logger.info(`[ShiftFetch] idMO=${idMO}: ${track.length} track points`);
+      logger.info(`[ShiftFetch] idMO=${idMO}: ${track.length} track points, engine=${Math.round(engineTimeSec / 60)} min`);
 
       // Анализ зон
       let zoneEvents = analyzeZones(track, allZones);
       logger.info(`[ShiftFetch] idMO=${idMO}: ${zoneEvents.length} zone events`);
 
-      // Определение объекта
-      let objectCandidate = detectObject(track, allZones);
+      // Step C: Определение ВСЕХ объектов (вместо одного)
+      let candidates = detectAllObjects(track, allZones);
 
-      // Re-query если определённый объект имеет другой timezone
-      if (objectCandidate) {
-        const detectedTz = objectTzMap.get(objectCandidate.objectUid) || DEFAULT_TZ;
+      // Re-query если основной объект (candidates[0]) имеет другой timezone
+      if (candidates.length > 0) {
+        const detectedTz = objectTzMap.get(candidates[0].objectUid) || DEFAULT_TZ;
         if (detectedTz !== usedTz) {
-          logger.info(`[ShiftFetch] idMO=${idMO}: timezone mismatch! used=${usedTz} detected=${detectedTz} (object=${objectCandidate.objectUid}). Re-querying...`);
+          logger.info(`[ShiftFetch] idMO=${idMO}: timezone mismatch! used=${usedTz} detected=${detectedTz} (object=${candidates[0].objectUid}). Re-querying...`);
           usedTz = detectedTz;
           ({ queryStart, queryEnd } = computeShiftWindow(usedTz));
 
@@ -333,99 +364,159 @@ export async function runShiftFetch(
           }
           track = monitoring.track || [];
           zoneEvents = analyzeZones(track, allZones);
-          objectCandidate = detectObject(track, allZones);
-          logger.info(`[ShiftFetch] idMO=${idMO}: re-query done. ${track.length} track points, ${zoneEvents.length} zone events`);
+          candidates = detectAllObjects(track, allZones);
+          logger.info(`[ShiftFetch] idMO=${idMO}: re-query done. ${track.length} track points, ${zoneEvents.length} zone events, ${candidates.length} candidate objects`);
         }
       }
 
-      if (!objectCandidate && zoneEvents.length === 0) {
+      if (candidates.length === 0 && zoneEvents.length === 0) {
         logger.warn(`[ShiftFetch] idMO=${idMO}: no object detected, skipping`);
         result.vehiclesSkipped++;
         continue;
       }
 
-      const objectUid  = objectCandidate?.objectUid  ?? 'unknown';
-      const objectName = objectCandidate?.objectName ?? 'Неизвестный объект';
+      // Step D: Обработка каждого candidate-объекта
+      interface ValidRecord {
+        objectUid: string;
+        objectName: string;
+        trips: Trip[];
+        kpi: ShiftKpi;
+        events: ZoneEvent[];
+        workType: WorkType;
+      }
+      const validRecords: ValidRecord[] = [];
 
-      // Зоны только для этого объекта
-      const objectZones = allZones.filter(z => z.objectUid === objectUid);
-      const objectZoneEvents = zoneEvents.filter(e => e.objectUid === objectUid);
+      for (const candidate of candidates) {
+        const objEvents = zoneEvents.filter(e => e.objectUid === candidate.objectUid);
+        const objTrips = buildTrips(objEvents);
+        const hasOnsite = objectHasOnsite.get(candidate.objectUid) ?? false;
 
-      // Рейсы
-      const trips = buildTrips(objectZoneEvents);
+        // Время на объекте: считать только если объект имеет dt_onsite зоны
+        const onsiteSec = hasOnsite ? calcOnsiteSec(objEvents, candidate.objectUid) : 0;
 
-      // Время на объекте
-      const onsiteSec = calcOnsiteSec(objectZoneEvents, objectUid);
+        const workType = classifyWorkType(
+          engineTimeSec,
+          onsiteSec,
+          objTrips,
+          60,
+          hasOnsite,
+        );
 
-      // Тип работы
-      const workType = classifyWorkType(
-        monitoring.engineTime ?? 0,
-        onsiteSec,
-        trips,
-      );
+        // Пропускаем если нет осмысленной работы (ни доставки, ни валидного onsite)
+        if (workType === 'unknown') continue;
 
-      // KPI
-      const kpi = calculateKpi({
-        shiftStart,
-        shiftEnd,
-        engineTimeSec: monitoring.engineTime ?? 0,
-        movingTimeSec: monitoring.movingTime  ?? 0,
-        distanceKm:    Number(monitoring.distance ?? 0),
-        onsiteSec,
-        trips,
-        workType,
-      });
+        const kpi = calculateKpi({
+          shiftStart,
+          shiftEnd,
+          engineTimeSec,
+          movingTimeSec: monitoring.movingTime ?? 0,
+          distanceKm:    Number(monitoring.distance ?? 0),
+          onsiteSec,
+          trips: objTrips,
+          workType,
+        });
 
-      // Сохраняем в БД (транзакция)
+        validRecords.push({
+          objectUid:  candidate.objectUid,
+          objectName: candidate.objectName,
+          trips:      objTrips,
+          kpi,
+          events:     objEvents,
+          workType,
+        });
+      }
+
+      // Step E: Fallback — если нет valid records, берём основной кандидат с workType='unknown'
+      if (validRecords.length === 0 && candidates.length > 0) {
+        const topCandidate = candidates[0];
+        const objEvents = zoneEvents.filter(e => e.objectUid === topCandidate.objectUid);
+        const kpi = calculateKpi({
+          shiftStart,
+          shiftEnd,
+          engineTimeSec,
+          movingTimeSec: monitoring.movingTime ?? 0,
+          distanceKm:    Number(monitoring.distance ?? 0),
+          onsiteSec:     0,
+          trips:         [],
+          workType:      'unknown',
+        });
+        validRecords.push({
+          objectUid:  topCandidate.objectUid,
+          objectName: topCandidate.objectName,
+          trips:      [],
+          kpi,
+          events:     objEvents,
+          workType:   'unknown',
+        });
+      }
+
+      // Step F: DB transaction — upsert all + cleanup stale
+      const keepObjectUids = validRecords.map(r => r.objectUid);
+      const allValidEvents = validRecords.flatMap(r => r.events);
+
       const dbClient = await pool.connect();
       try {
         await dbClient.query('BEGIN');
 
-        const shiftRecordId = await upsertShiftRecord(dbClient, {
-          reportDate:     dayjs(dateStr).toDate(),
-          shiftType,
-          vehicleId:      idMO,
-          regNumber:      vehicleInfo.regNumber,
-          nameMO:         vehicleInfo.nameMO,
-          organization:   getOrgByIdMO(idMO),
-          objectUid,
-          objectName,
-          objectTimezone: (objectTzMap.get(objectUid)) || DEFAULT_TZ,
-          workType:       kpi.workType,
-          shiftStart,
-          shiftEnd,
-          engineTimeSec:  kpi.engineTimeSec,
-          movingTimeSec:  kpi.movingTimeSec,
-          distanceKm:     kpi.distanceKm,
-          onsiteMin:      kpi.onsiteMin,
-          tripsCount:     kpi.tripsCount,
-          factVolumeM3:   kpi.factVolumeM3,
-          kipPct:         kpi.kipPct,
-          movementPct:    kpi.movementPct,
-          plId:           vehicleInfo.plId,
-          requestNumbers: vehicleInfo.requestNumbers,
-          rawMonitoring:  {
-            engineTime:  monitoring.engineTime,
-            movingTime:  monitoring.movingTime,
-            distance:    monitoring.distance,
-            trackPoints: track.length,
-            fuels:       monitoring.fuels  ?? [],
-            track:       track,
-          },
-          trips,
-          zoneEvents:     objectZoneEvents,
-        });
+        // 1. Удаляем stale записи для объектов, не в validRecords
+        const deletedCount = await deleteStaleRecords(dbClient, idMO, dayjs(dateStr).toDate(), shiftType, keepObjectUids);
+        if (deletedCount > 0) {
+          logger.info(`[ShiftFetch] idMO=${idMO}: deleted ${deletedCount} stale records`);
+        }
 
-        await replaceTrips(dbClient, shiftRecordId, trips);
-        await replaceZoneEvents(dbClient, idMO, dayjs(dateStr).toDate(), shiftType, objectZoneEvents);
+        // 2. Upsert каждого valid record + replace trips
+        for (const rec of validRecords) {
+          const shiftRecordId = await upsertShiftRecord(dbClient, {
+            reportDate:     dayjs(dateStr).toDate(),
+            shiftType,
+            vehicleId:      idMO,
+            regNumber:      vehicleInfo.regNumber,
+            nameMO:         vehicleInfo.nameMO,
+            organization:   getOrgByIdMO(idMO),
+            objectUid:      rec.objectUid,
+            objectName:     rec.objectName,
+            objectTimezone: objectTzMap.get(rec.objectUid) || DEFAULT_TZ,
+            workType:       rec.kpi.workType,
+            shiftStart,
+            shiftEnd,
+            engineTimeSec:  rec.kpi.engineTimeSec,
+            movingTimeSec:  rec.kpi.movingTimeSec,
+            distanceKm:     rec.kpi.distanceKm,
+            onsiteMin:      rec.kpi.onsiteMin,
+            tripsCount:     rec.kpi.tripsCount,
+            factVolumeM3:   rec.kpi.factVolumeM3,
+            kipPct:         rec.kpi.kipPct,
+            movementPct:    rec.kpi.movementPct,
+            plId:           vehicleInfo.plId,
+            requestNumbers: vehicleInfo.requestNumbers,
+            rawMonitoring:  {
+              engineTime:  monitoring.engineTime,
+              movingTime:  monitoring.movingTime,
+              distance:    monitoring.distance,
+              trackPoints: track.length,
+              fuels:       monitoring.fuels ?? [],
+              track:       track,
+            },
+            trips:          rec.trips,
+            zoneEvents:     rec.events,
+          });
+
+          await replaceTrips(dbClient, shiftRecordId, rec.trips);
+
+          if (rec.kpi.workType === 'onsite') {
+            onsiteRecordIds.push(shiftRecordId);
+          }
+        }
+
+        // 3. Replace zone_events со ВСЕМИ events из valid objects
+        await replaceZoneEvents(dbClient, idMO, dayjs(dateStr).toDate(), shiftType, allValidEvents);
 
         await dbClient.query('COMMIT');
         result.vehiclesProcessed++;
-        logger.info(`[ShiftFetch] idMO=${idMO}: saved. kip=${kpi.kipPct}% trips=${trips.length} workType=${workType}`);
 
-        if (kpi.workType === 'onsite') {
-          onsiteRecordIds.push(shiftRecordId);
-        }
+        const summary = validRecords.map(r => `${r.objectUid}:${r.workType}(trips=${r.trips.length},kip=${r.kpi.kipPct}%)`).join(', ');
+        logger.info(`[ShiftFetch] idMO=${idMO}: saved ${validRecords.length} record(s). ${summary}`);
+
       } catch (dbErr) {
         await dbClient.query('ROLLBACK');
         throw dbErr;

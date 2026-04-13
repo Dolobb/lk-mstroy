@@ -58,3 +58,41 @@ export function detectObject(
 
   return best;
 }
+
+/**
+ * Возвращает ВСЕ объекты, в чьих dt_boundary есть хотя бы одна трек-точка.
+ * Отсортированы по pointsInside desc (первый — «основной»).
+ */
+export function detectAllObjects(
+  track: TisTrackPoint[],
+  zones: GeoZone[],
+): ObjectCandidate[] {
+  const boundaryZones = zones.filter(z => z.tag === 'dt_boundary');
+
+  if (boundaryZones.length === 0 || track.length === 0) return [];
+
+  const candidates: ObjectCandidate[] = [];
+
+  for (const zone of boundaryZones) {
+    let count = 0;
+    for (const pt of track) {
+      const turfPoint = point([pt.lon, pt.lat]);
+      if (booleanPointInPolygon(turfPoint, zone.geojson)) {
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      candidates.push({
+        objectUid:    zone.objectUid,
+        objectName:   zone.name,
+        boundaryZone: zone,
+        pointsInside: count,
+      });
+    }
+  }
+
+  // Сортируем по убыванию точек (основной объект — первый)
+  candidates.sort((a, b) => b.pointsInside - a.pointsInside);
+  return candidates;
+}
