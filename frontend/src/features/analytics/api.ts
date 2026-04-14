@@ -203,9 +203,7 @@ export async function fetchUnifiedData(
   const dtRows = [...dtMap.entries()].map(([reg, recs]) => dtRecordsToVehicleRow(reg, recs));
 
   // Convert KIP weekly to rows (excluding ghost vehicles)
-  const dstRows = kipVehicles
-    .filter(kv => !kv.is_ghost)
-    .map(kipWeeklyToVehicleRow);
+  const dstRows = kipVehicles.map(kipWeeklyToVehicleRow);
 
   return { dtRows, dstRows };
 }

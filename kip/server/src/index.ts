@@ -9,7 +9,7 @@ import { fillGapsForDate } from './jobs/gapFillJob';
 import { getPool } from './config/database';
 import { logger } from './utils/logger';
 import { getFilteredGeozonesGeoJson } from './services/geozoneAnalyzer';
-import { getVehicleInfo } from './services/vehicleRegistry';
+import { getVehicleInfo, getRegisteredVehicles } from './services/vehicleRegistry';
 
 dotenv.config();
 
@@ -100,14 +100,15 @@ app.get('/api/vehicles/weekly', async (req, res) => {
       };
     });
 
-    // Условие 5: добавить «призрачные» ТС (нет данных >10 дней)
-    const toMs = new Date(to).getTime();
-    for (const g of ghosts) {
-      const daysSince = Math.floor((toMs - new Date(g.last_seen_date).getTime()) / 86_400_000);
-      if (daysSince < 10) continue;
-      const info = getVehicleInfo(g.vehicle_id);
+    // Add registered vehicles without records in this period as ghosts
+    const vehiclesWithData = new Set(rows.map(r => r.vehicle_id.toUpperCase()));
+    const allRegistered = getRegisteredVehicles();
+    for (const v of allRegistered) {
+      if (vehiclesWithData.has(v.regNumber.toUpperCase())) continue;
+
+      const info = getVehicleInfo(v.regNumber);
       enriched.push({
-        vehicle_id:              g.vehicle_id,
+        vehicle_id:              v.regNumber,
         vehicle_model:           '',
         company_name:            '',
         vehicle_type:            info?.type ?? '',
@@ -119,13 +120,13 @@ app.get('/api/vehicles/weekly', async (req, res) => {
         avg_fuel:                0,
         avg_load_efficiency_pct: 0,
         avg_utilization_ratio:   0,
-        latitude:                g.latitude,
-        longitude:               g.longitude,
+        latitude:                null,
+        longitude:               null,
         record_count:            0,
         gap_filled_count:        0,
-        request_numbers:         reqMap.get(g.vehicle_id) ?? [],
+        request_numbers:         reqMap.get(v.regNumber) ?? [],
         is_ghost:                true,
-        last_seen_date:          g.last_seen_date,
+        last_seen_date:          undefined,
       });
     }
 
