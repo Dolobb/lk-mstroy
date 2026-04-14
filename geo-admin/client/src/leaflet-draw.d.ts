@@ -27,4 +27,11 @@ declare module 'leaflet' {
       const CREATED: string;
     }
   }
+
+  interface Polygon {
+    editing: {
+      enable(): void;
+      disable(): void;
+    };
+  }
 }

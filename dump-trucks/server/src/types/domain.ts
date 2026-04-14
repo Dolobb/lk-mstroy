@@ -50,6 +50,7 @@ export interface GeoZone {
   objectUid: string;
   tag: ZoneTag;
   geojson: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>;
+  minDurationSec: number;
 }
 
 // Событие входа/выхода из зоны

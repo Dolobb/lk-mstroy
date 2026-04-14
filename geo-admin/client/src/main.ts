@@ -8,12 +8,14 @@ interface ZoneFeatureProps {
   name: string;
   object_uid: string;
   tags: string[];
+  min_duration_sec: number;
 }
 
 let loadedObjects: api.GeoObject[] = [];
 let pendingGeometry: GeoJSON.Polygon | null = null;
 let currentFilter: 'dst' | 'dt' = 'dst';
 let currentOpenObjectUid: string | null = null;
+let redrawTargetUid: string | null = null;
 
 async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
   mapModule.clearAllZones();
@@ -41,28 +43,92 @@ async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
   }
 }
 
-async function showEditZoneModal(uid: string, data: { name: string; tags: string[] }): Promise<void> {
+function featureToZoneInfo(f: GeoJSON.Feature): ZoneInfo {
+  const p = f.properties as ZoneFeatureProps;
+  return {
+    uid:            p.uid,
+    name:           p.name,
+    tags:           p.tags || [],
+    minDurationSec: p.min_duration_sec ?? 120,
+  };
+}
+
+function zoneHandlers(): sidebar.ZoneHandlers {
+  return {
+    onZoom:         (uid) => mapModule.zoomToZone(uid),
+    onDelete:       handleDeleteZone,
+    onEdit:         (uid, d) => void showEditZoneModal(uid, d),
+    onEditGeometry: (uid) => void startGeometryEdit(uid),
+    onRedraw:       (uid) => void startRedraw(uid),
+  };
+}
+
+async function refreshObjectZones(): Promise<void> {
+  if (!currentOpenObjectUid) return;
+  const result = await api.getObject(currentOpenObjectUid);
+  const zones = result.zones.features.map(featureToZoneInfo);
+  sidebar.showObjectZones(currentOpenObjectUid, zones, zoneHandlers());
+}
+
+async function showEditZoneModal(uid: string, data: { name: string; tags: string[]; minDurationSec: number }): Promise<void> {
   sidebar.showEditZoneForm(data, async (updated) => {
     try {
-      await api.updateZone(uid, updated);
+      await api.updateZone(uid, { name: updated.name, tags: updated.tags, minDurationSec: updated.minDurationSec });
       await loadZones(currentFilter);
-      if (currentOpenObjectUid) {
-        const result = await api.getObject(currentOpenObjectUid);
-        const zones: ZoneInfo[] = result.zones.features.map(f => ({
-          uid:  (f.properties as ZoneFeatureProps).uid,
-          name: (f.properties as ZoneFeatureProps).name,
-          tags: (f.properties as ZoneFeatureProps).tags || [],
-        }));
-        sidebar.showObjectZones(currentOpenObjectUid, zones, {
-          onZoom:   (zoneUid) => mapModule.zoomToZone(zoneUid),
-          onDelete: handleDeleteZone,
-          onEdit:   (zoneUid, d) => void showEditZoneModal(zoneUid, d),
-        });
-      }
+      await refreshObjectZones();
     } catch (err) {
       sidebar.showError(`Ошибка обновления зоны: ${(err as Error).message}`);
     }
   });
+}
+
+// ── Geometry editing (vertex drag) ────────────────────────────────────────
+function showEditControls(): void {
+  removeEditControls();
+  const bar = document.createElement('div');
+  bar.id = 'edit-controls';
+  bar.className = 'edit-controls';
+  bar.innerHTML = `
+    <span>Редактирование геометрии</span>
+    <button id="edit-save" class="btn-primary">Сохранить</button>
+    <button id="edit-cancel" class="btn-cancel">Отмена</button>
+  `;
+  document.body.appendChild(bar);
+}
+
+function removeEditControls(): void {
+  document.getElementById('edit-controls')?.remove();
+}
+
+async function startGeometryEdit(uid: string): Promise<void> {
+  mapModule.zoomToZone(uid);
+  mapModule.startEditZone(uid);
+  showEditControls();
+
+  document.getElementById('edit-save')?.addEventListener('click', async () => {
+    const geometry = mapModule.stopEditZone();
+    removeEditControls();
+    if (!geometry) return;
+    try {
+      await api.updateZone(uid, { geometry });
+      await loadZones(currentFilter);
+      await refreshObjectZones();
+    } catch (err) {
+      sidebar.showError(`Ошибка сохранения геометрии: ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById('edit-cancel')?.addEventListener('click', () => {
+    mapModule.cancelEditZone();
+    removeEditControls();
+  });
+}
+
+// ── Redraw polygon from scratch ──────────────────────────────────────────
+async function startRedraw(uid: string): Promise<void> {
+  if (!confirm('Перерисовать полигон? Текущая геометрия будет заменена.')) return;
+  redrawTargetUid = uid;
+  mapModule.activateLeafletDraw();
 }
 
 async function init(): Promise<void> {
@@ -73,16 +139,8 @@ async function init(): Promise<void> {
       currentOpenObjectUid = uid;
       try {
         const result = await api.getObject(uid);
-        const zones: ZoneInfo[] = result.zones.features.map(f => ({
-          uid:  (f.properties as ZoneFeatureProps).uid,
-          name: (f.properties as ZoneFeatureProps).name,
-          tags: (f.properties as ZoneFeatureProps).tags || [],
-        }));
-        sidebar.showObjectZones(uid, zones, {
-          onZoom:   (zoneUid) => mapModule.zoomToZone(zoneUid),
-          onDelete: handleDeleteZone,
-          onEdit:   (zoneUid, data) => void showEditZoneModal(zoneUid, data),
-        });
+        const zones = result.zones.features.map(featureToZoneInfo);
+        sidebar.showObjectZones(uid, zones, zoneHandlers());
         // Зум на boundary или первую зону объекта
         const boundary = result.zones.features.find(f =>
           ((f.properties as ZoneFeatureProps).tags || []).includes('dt_boundary'),
@@ -131,16 +189,40 @@ async function init(): Promise<void> {
     mapModule.activateLeafletDraw();
   });
 
-  // Нажатие Escape — отмена рисования
+  // Нажатие Escape — отмена рисования / отмена edit
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') mapModule.deactivateLeafletDraw();
+    if (e.key === 'Escape') {
+      if (mapModule.isEditing()) {
+        mapModule.cancelEditZone();
+        removeEditControls();
+      } else {
+        mapModule.deactivateLeafletDraw();
+        redrawTargetUid = null;
+      }
+    }
   });
 
   // Событие: полигон нарисован
-  map.on('draw:created', (e: any) => {
-    pendingGeometry = e.layer.toGeoJSON().geometry as GeoJSON.Polygon;
+  map.on('draw:created', async (e: any) => {
+    const geometry = e.layer.toGeoJSON().geometry as GeoJSON.Polygon;
     mapModule.deactivateLeafletDraw();
 
+    // Redraw existing zone
+    if (redrawTargetUid) {
+      const uid = redrawTargetUid;
+      redrawTargetUid = null;
+      try {
+        await api.updateZone(uid, { geometry });
+        await loadZones(currentFilter);
+        await refreshObjectZones();
+      } catch (err) {
+        sidebar.showError(`Ошибка перерисовки зоны: ${(err as Error).message}`);
+      }
+      return;
+    }
+
+    // New zone
+    pendingGeometry = geometry;
     sidebar.showNewZoneForm(loadedObjects, async (data) => {
       if (!pendingGeometry) return;
       try {
@@ -149,6 +231,7 @@ async function init(): Promise<void> {
           name:      data.name,
           tags:      data.tags,
           geometry:  pendingGeometry,
+          minDurationSec: data.minDurationSec,
         });
         mapModule.addZoneFromModel(zone, handleDeleteZone);
         pendingGeometry = null;

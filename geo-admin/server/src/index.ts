@@ -91,8 +91,9 @@ app.get('/api/geo/zones/by-tag/:tag', async (req: Request, res: Response, next: 
 // ────────────────────────────────────────────
 app.post('/api/geo/zones', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { objectUid, name, tags, geometry } = req.body as {
+    const { objectUid, name, tags, geometry, minDurationSec } = req.body as {
       objectUid?: string; name?: string; tags?: unknown; geometry?: unknown;
+      minDurationSec?: number;
     };
 
     if (!objectUid) return res.status(400).json({ error: 'objectUid is required' });
@@ -110,6 +111,7 @@ app.post('/api/geo/zones', async (req: Request, res: Response, next: NextFunctio
       name,
       tags: tags as string[],
       geometry: geometry as GeoJSON.Polygon,
+      minDurationSec: minDurationSec != null ? Number(minDurationSec) : undefined,
     });
     res.status(201).json(zone);
   } catch (err) { next(err); }
@@ -117,8 +119,9 @@ app.post('/api/geo/zones', async (req: Request, res: Response, next: NextFunctio
 
 app.put('/api/geo/zones/:uid', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, tags, geometry } = req.body as {
+    const { name, tags, geometry, minDurationSec } = req.body as {
       name?: string; tags?: string[]; geometry?: GeoJSON.Polygon;
+      minDurationSec?: number;
     };
 
     if (tags !== undefined) {
@@ -127,7 +130,10 @@ app.put('/api/geo/zones/:uid', async (req: Request, res: Response, next: NextFun
       if (tagErr) return res.status(400).json({ error: tagErr });
     }
 
-    const zone = await zoneRepo.updateZone(req.params.uid, { name, tags, geometry });
+    const zone = await zoneRepo.updateZone(req.params.uid, {
+      name, tags, geometry,
+      minDurationSec: minDurationSec != null ? Number(minDurationSec) : undefined,
+    });
     if (!zone) return res.status(404).json({ error: 'Not found' });
     res.json(zone);
   } catch (err) { next(err); }

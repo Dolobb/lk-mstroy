@@ -34,6 +34,10 @@ export function analyzeZones(
       } else if (!inside && insideFrom !== null) {
         // Вышли из зоны
         const durationSec = Math.round((timestamp.getTime() - insideFrom.getTime()) / 1000);
+        if (zone.minDurationSec > 0 && durationSec < zone.minDurationSec) {
+          insideFrom = null;
+          continue; // transit — skip this event
+        }
         events.push({
           zoneUid:     zone.uid,
           zoneName:    zone.name,
@@ -54,15 +58,20 @@ export function analyzeZones(
       const durationSec = lastTime
         ? Math.round((lastTime.getTime() - insideFrom.getTime()) / 1000)
         : null;
-      events.push({
-        zoneUid:     zone.uid,
-        zoneName:    zone.name,
-        zoneTag:     zone.tag,
-        objectUid:   zone.objectUid,
-        enteredAt:   insideFrom,
-        exitedAt:    lastTime,
-        durationSec,
-      });
+      // Skip if below min duration (or duration unknown)
+      if (zone.minDurationSec > 0 && (durationSec === null || durationSec < zone.minDurationSec)) {
+        // transit — skip
+      } else {
+        events.push({
+          zoneUid:     zone.uid,
+          zoneName:    zone.name,
+          zoneTag:     zone.tag,
+          objectUid:   zone.objectUid,
+          enteredAt:   insideFrom,
+          exitedAt:    lastTime,
+          durationSec,
+        });
+      }
     }
   }
 

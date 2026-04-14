@@ -57,12 +57,14 @@ export async function getDtZonesForObject(
     name: string;
     tag: string;
     geojson: string;
+    min_duration_sec: number;
   }>(`
     SELECT
       z.uid,
       z.name,
       zt.tag,
-      ST_AsGeoJSON(z.geom)::text AS geojson
+      ST_AsGeoJSON(z.geom)::text AS geojson,
+      z.min_duration_sec
     FROM geo.zones z
     JOIN geo.objects o ON o.id = z.object_id
     JOIN geo.zone_tags zt ON zt.zone_id = z.id
@@ -79,11 +81,12 @@ export async function getDtZonesForObject(
       geometry: geomRaw,
     };
     return {
-      uid:       r.uid,
-      name:      r.name,
+      uid:            r.uid,
+      name:           r.name,
       objectUid,
-      tag:       r.tag as ZoneTag,
+      tag:            r.tag as ZoneTag,
       geojson,
+      minDurationSec: r.min_duration_sec,
     };
   });
 }
@@ -98,13 +101,15 @@ export async function getAllDtZones(pool: Pool): Promise<GeoZone[]> {
     object_uid: string;
     tag: string;
     geojson: string;
+    min_duration_sec: number;
   }>(`
     SELECT
       z.uid,
       z.name,
       o.uid AS object_uid,
       zt.tag,
-      ST_AsGeoJSON(z.geom)::text AS geojson
+      ST_AsGeoJSON(z.geom)::text AS geojson,
+      z.min_duration_sec
     FROM geo.zones z
     JOIN geo.objects o ON o.id = z.object_id
     JOIN geo.zone_tags zt ON zt.zone_id = z.id
@@ -120,11 +125,12 @@ export async function getAllDtZones(pool: Pool): Promise<GeoZone[]> {
       geometry: geomRaw,
     };
     return {
-      uid:       r.uid,
-      name:      r.name,
-      objectUid: r.object_uid,
-      tag:       r.tag as ZoneTag,
+      uid:            r.uid,
+      name:           r.name,
+      objectUid:      r.object_uid,
+      tag:            r.tag as ZoneTag,
       geojson,
+      minDurationSec: r.min_duration_sec,
     };
   });
 }

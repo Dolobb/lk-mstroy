@@ -8,6 +8,7 @@ export interface GeoZone {
   name: string;
   tags: string[];
   geometry: GeoJSON.Polygon;
+  min_duration_sec: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -27,17 +28,19 @@ export function validateTags(tags: string[]): string | null {
 
 async function rowToZone(row: {
   id: number; uid: string; object_id: number; name: string;
-  geometry: string; tags: string[]; created_at: Date; updated_at: Date;
+  geometry: string; tags: string[]; min_duration_sec: number;
+  created_at: Date; updated_at: Date;
 }): Promise<GeoZone> {
   return {
-    id:         row.id,
-    uid:        row.uid,
-    object_id:  row.object_id,
-    name:       row.name,
-    tags:       row.tags,
-    geometry:   JSON.parse(row.geometry) as GeoJSON.Polygon,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    id:               row.id,
+    uid:              row.uid,
+    object_id:        row.object_id,
+    name:             row.name,
+    tags:             row.tags,
+    geometry:         JSON.parse(row.geometry) as GeoJSON.Polygon,
+    min_duration_sec: row.min_duration_sec,
+    created_at:       row.created_at,
+    updated_at:       row.updated_at,
   };
 }
 
@@ -57,10 +60,12 @@ export async function getZonesByObject(
 
   const { rows } = await pool.query<{
     uid: string; name: string; geometry: string; tags: string[];
+    min_duration_sec: number;
   }>(`
     SELECT
       z.uid, z.name,
       ST_AsGeoJSON(z.geom)::text AS geometry,
+      z.min_duration_sec,
       COALESCE(array_agg(DISTINCT zt.tag) FILTER (WHERE zt.tag IS NOT NULL), '{}') AS tags
     FROM geo.zones z
     JOIN geo.objects o ON o.id = z.object_id
@@ -75,7 +80,7 @@ export async function getZonesByObject(
     type: 'FeatureCollection',
     features: rows.map(z => ({
       type: 'Feature',
-      properties: { uid: z.uid, name: z.name, tags: z.tags },
+      properties: { uid: z.uid, name: z.name, tags: z.tags, min_duration_sec: z.min_duration_sec },
       geometry: JSON.parse(z.geometry) as GeoJSON.Geometry,
     })),
   };
@@ -85,11 +90,12 @@ export async function getZonesByTag(tag: string): Promise<GeoJSON.FeatureCollect
   const pool = getPool();
   const { rows } = await pool.query<{
     uid: string; name: string; geometry: string; object_name: string;
-    object_uid: string; tags: string[];
+    object_uid: string; tags: string[]; min_duration_sec: number;
   }>(`
     SELECT
       z.uid, z.name,
       ST_AsGeoJSON(z.geom)::text AS geometry,
+      z.min_duration_sec,
       o.name AS object_name,
       o.uid  AS object_uid,
       COALESCE(array_agg(DISTINCT zt2.tag) FILTER (WHERE zt2.tag IS NOT NULL), '{}') AS tags
@@ -106,7 +112,7 @@ export async function getZonesByTag(tag: string): Promise<GeoJSON.FeatureCollect
     type: 'FeatureCollection',
     features: rows.map(z => ({
       type: 'Feature',
-      properties: { uid: z.uid, name: z.name, object_name: z.object_name, object_uid: z.object_uid, tags: z.tags },
+      properties: { uid: z.uid, name: z.name, object_name: z.object_name, object_uid: z.object_uid, tags: z.tags, min_duration_sec: z.min_duration_sec },
       geometry: JSON.parse(z.geometry) as GeoJSON.Geometry,
     })),
   };
@@ -117,6 +123,7 @@ export async function createZone(data: {
   name: string;
   tags: string[];
   geometry: GeoJSON.Polygon;
+  minDurationSec?: number;
 }): Promise<GeoZone> {
   const pool = getPool();
 
@@ -135,14 +142,15 @@ export async function createZone(data: {
   try {
     await client.query('BEGIN');
 
+    const minDur = data.minDurationSec ?? 120;
     const { rows } = await client.query<{
       id: number; uid: string; object_id: number; name: string;
-      geometry: string; created_at: Date; updated_at: Date;
+      geometry: string; min_duration_sec: number; created_at: Date; updated_at: Date;
     }>(`
-      INSERT INTO geo.zones (uid, object_id, name, geom)
-      VALUES ($1, $2, $3, ST_GeomFromGeoJSON($4))
-      RETURNING id, uid, object_id, name, ST_AsGeoJSON(geom)::text AS geometry, created_at, updated_at
-    `, [uid, objectId, data.name, JSON.stringify(data.geometry)]);
+      INSERT INTO geo.zones (uid, object_id, name, geom, min_duration_sec)
+      VALUES ($1, $2, $3, ST_GeomFromGeoJSON($4), $5)
+      RETURNING id, uid, object_id, name, ST_AsGeoJSON(geom)::text AS geometry, min_duration_sec, created_at, updated_at
+    `, [uid, objectId, data.name, JSON.stringify(data.geometry), minDur]);
 
     const zone = rows[0];
 
@@ -166,7 +174,7 @@ export async function createZone(data: {
 
 export async function updateZone(
   uid: string,
-  data: { name?: string; tags?: string[]; geometry?: GeoJSON.Polygon },
+  data: { name?: string; tags?: string[]; geometry?: GeoJSON.Polygon; minDurationSec?: number },
 ): Promise<GeoZone | null> {
   const pool = getPool();
 
@@ -181,7 +189,7 @@ export async function updateZone(
   try {
     await client.query('BEGIN');
 
-    if (data.name !== undefined || data.geometry !== undefined) {
+    if (data.name !== undefined || data.geometry !== undefined || data.minDurationSec !== undefined) {
       const fields: string[] = ['updated_at = NOW()'];
       const values: unknown[] = [];
       let idx = 1;
@@ -193,6 +201,10 @@ export async function updateZone(
       if (data.geometry !== undefined) {
         fields.push(`geom = ST_GeomFromGeoJSON($${idx++})`);
         values.push(JSON.stringify(data.geometry));
+      }
+      if (data.minDurationSec !== undefined) {
+        fields.push(`min_duration_sec = $${idx++}`);
+        values.push(data.minDurationSec);
       }
       values.push(zoneId);
 
@@ -236,11 +248,13 @@ async function getZoneByUid(uid: string): Promise<GeoZone | null> {
   const pool = getPool();
   const { rows } = await pool.query<{
     id: number; uid: string; object_id: number; name: string;
-    geometry: string; tags: string[]; created_at: Date; updated_at: Date;
+    geometry: string; tags: string[]; min_duration_sec: number;
+    created_at: Date; updated_at: Date;
   }>(`
     SELECT
       z.id, z.uid, z.object_id, z.name,
       ST_AsGeoJSON(z.geom)::text AS geometry,
+      z.min_duration_sec,
       COALESCE(array_agg(zt.tag) FILTER (WHERE zt.tag IS NOT NULL), '{}') AS tags,
       z.created_at, z.updated_at
     FROM geo.zones z

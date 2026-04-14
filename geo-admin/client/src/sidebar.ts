@@ -52,11 +52,13 @@ export function renderObjectList(objects: GeoObject[]): void {
   }
 }
 
-export interface ZoneInfo { uid: string; name: string; tags: string[]; }
+export interface ZoneInfo { uid: string; name: string; tags: string[]; minDurationSec: number; }
 export interface ZoneHandlers {
   onZoom:   (uid: string) => void;
   onDelete: (uid: string) => Promise<void>;
-  onEdit:   (uid: string, data: { name: string; tags: string[] }) => void;
+  onEdit:   (uid: string, data: { name: string; tags: string[]; minDurationSec: number }) => void;
+  onEditGeometry:  (uid: string) => void;
+  onRedraw:        (uid: string) => void;
 }
 
 const TAG_BADGE_CLASS: Record<string, string> = {
@@ -98,6 +100,8 @@ export function showObjectZones(
         <span class="zone-actions">
           <button class="zone-btn zone-btn-zoom" title="Приблизить">🔍</button>
           <button class="zone-btn zone-btn-edit" title="Редактировать">✏</button>
+          <button class="zone-btn zone-btn-edit-geom" title="Редактировать геометрию">📐</button>
+          <button class="zone-btn zone-btn-redraw" title="Перерисовать полигон">🔄</button>
           <button class="zone-btn zone-btn-delete" title="Удалить">🗑</button>
         </span>
       </div>`;
@@ -114,7 +118,15 @@ export function showObjectZones(
     });
     row.querySelector('.zone-btn-edit')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      handlers.onEdit(uid, { name: zone.name, tags: zone.tags });
+      handlers.onEdit(uid, { name: zone.name, tags: zone.tags, minDurationSec: zone.minDurationSec });
+    });
+    row.querySelector('.zone-btn-edit-geom')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handlers.onEditGeometry(uid);
+    });
+    row.querySelector('.zone-btn-redraw')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handlers.onRedraw(uid);
     });
     row.querySelector('.zone-btn-delete')?.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -169,6 +181,7 @@ export function showNewZoneForm(
   objects: GeoObject[],
   onSubmit: (data: {
     objectUid: string; name: string; tags: string[];
+    minDurationSec: number;
   }) => void,
 ): void {
   const modal = document.getElementById('modal');
@@ -208,6 +221,9 @@ export function showNewZoneForm(
         <legend>Теги</legend>
         ${tagCheckboxes}
       </fieldset>
+      <label>Мин. время нахождения (сек)
+        <input type="number" name="minDurationSec" value="120" min="0" step="1" />
+      </label>
       <div class="form-actions">
         <button type="submit" class="btn-primary">Сохранить</button>
         <button type="button" class="btn-cancel" id="modal-close">Отмена</button>
@@ -229,13 +245,14 @@ export function showNewZoneForm(
       objectUid: (form.elements.namedItem('objectUid') as HTMLSelectElement).value,
       name:      (form.elements.namedItem('zoneName') as HTMLInputElement).value.trim(),
       tags:      checkedTags,
+      minDurationSec: parseInt((form.elements.namedItem('minDurationSec') as HTMLInputElement).value, 10) || 120,
     });
   });
 }
 
 export function showEditZoneForm(
-  current: { name: string; tags: string[] },
-  onSubmit: (data: { name: string; tags: string[] }) => void,
+  current: { name: string; tags: string[]; minDurationSec: number },
+  onSubmit: (data: { name: string; tags: string[]; minDurationSec: number }) => void,
 ): void {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modal-content');
@@ -267,6 +284,9 @@ export function showEditZoneForm(
         <legend>Теги</legend>
         ${tagCheckboxes}
       </fieldset>
+      <label>Мин. время нахождения (сек)
+        <input type="number" name="minDurationSec" value="${current.minDurationSec}" min="0" step="1" />
+      </label>
       <div class="form-actions">
         <button type="submit" class="btn-primary">Сохранить</button>
         <button type="button" class="btn-cancel" id="modal-close">Отмена</button>
@@ -287,6 +307,7 @@ export function showEditZoneForm(
     onSubmit({
       name: (form.elements.namedItem('zoneName') as HTMLInputElement).value.trim(),
       tags: checkedTags,
+      minDurationSec: parseInt((form.elements.namedItem('minDurationSec') as HTMLInputElement).value, 10) || 120,
     });
   });
 }

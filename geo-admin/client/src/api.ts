@@ -30,6 +30,7 @@ export interface GeoZone {
   name: string;
   tags: string[];
   geometry: GeoJSON.Polygon;
+  min_duration_sec: number;
 }
 
 export interface ObjectWithZones {
@@ -56,10 +57,12 @@ export const deleteObject = (uid: string): Promise<{ deleted: boolean; uid: stri
 // ── Zones ────────────────────────────────────────────────────────────────────
 export const createZone = (data: {
   objectUid: string; name: string; tags: string[]; geometry: GeoJSON.Polygon;
+  minDurationSec?: number;
 }): Promise<GeoZone> => request('POST', '/zones', data);
 
 export const updateZone = (uid: string, data: {
   name?: string; tags?: string[]; geometry?: GeoJSON.Polygon;
+  minDurationSec?: number;
 }): Promise<GeoZone> => request('PUT', `/zones/${uid}`, data);
 
 export const deleteZone = (uid: string): Promise<{ deleted: boolean; uid: string }> =>

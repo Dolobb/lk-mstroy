@@ -146,6 +146,44 @@ export function zoomToFeature(feature: GeoJSON.Feature): void {
   map.fitBounds(bounds, { padding: [40, 40] });
 }
 
+// ── Geometry editing ────────────────────────────────────────────────────────
+let editingZoneUid: string | null = null;
+let editingOriginalLatLngs: any = null;
+
+export function startEditZone(uid: string): void {
+  const polygon = zoneLayerMap.get(uid);
+  if (!polygon) return;
+  editingOriginalLatLngs = JSON.parse(JSON.stringify(polygon.getLatLngs()));
+  polygon.editing.enable();
+  editingZoneUid = uid;
+}
+
+export function stopEditZone(): GeoJSON.Polygon | null {
+  if (!editingZoneUid) return null;
+  const polygon = zoneLayerMap.get(editingZoneUid);
+  if (!polygon) return null;
+  polygon.editing.disable();
+  const geom = polygon.toGeoJSON().geometry as GeoJSON.Polygon;
+  editingZoneUid = null;
+  editingOriginalLatLngs = null;
+  return geom;
+}
+
+export function cancelEditZone(): void {
+  if (!editingZoneUid) return;
+  const polygon = zoneLayerMap.get(editingZoneUid);
+  if (polygon && editingOriginalLatLngs) {
+    polygon.editing.disable();
+    polygon.setLatLngs(editingOriginalLatLngs);
+  }
+  editingZoneUid = null;
+  editingOriginalLatLngs = null;
+}
+
+export function isEditing(): boolean {
+  return editingZoneUid !== null;
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')

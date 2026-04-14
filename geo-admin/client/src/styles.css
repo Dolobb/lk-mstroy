@@ -239,3 +239,23 @@ body {
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
 #error-banner.hidden { display: none; }
+
+/* Edit controls floating bar */
+.edit-controls {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
