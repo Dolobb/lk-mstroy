@@ -79,7 +79,6 @@ export async function fillGapsForDate(
     );
     const lastRecord = lastRes.rows[0] ?? null;
     if (!lastRecord) { result.skipped++; continue; }
-    if (!lastRecord.latitude || !lastRecord.longitude) { result.skipped++; continue; }
 
     const nextRes = await pool.query<BoundaryRecord>(
       `SELECT report_date::text AS report_date, shift_type, vehicle_id,
@@ -93,17 +92,25 @@ export async function fillGapsForDate(
       [vehicleId, date],
     );
     const nextRecord = nextRes.rows[0] ?? null;
+    if (!nextRecord && !lastRecord.latitude && !lastRecord.longitude) {
+      // No next record and no GPS — can't determine if on site
+      result.skipped++; continue;
+    }
 
     let gpsOk = false;
     let fuelOk = false;
     let hasFuelData = false;
+    const hasLastGps = lastRecord.latitude != null && lastRecord.longitude != null;
+    const hasNextGps = nextRecord?.latitude != null && nextRecord?.longitude != null;
 
-    if (nextRecord?.latitude && nextRecord?.longitude) {
+    if (hasLastGps && hasNextGps) {
       const distM = haversineMeters(
         Number(lastRecord.latitude), Number(lastRecord.longitude),
-        Number(nextRecord.latitude), Number(nextRecord.longitude),
+        Number(nextRecord!.latitude), Number(nextRecord!.longitude),
       );
       gpsOk = distM < GPS_THRESHOLD_M;
+    } else if (hasLastGps || hasNextGps) {
+      gpsOk = true;
     } else {
       result.skipped++; continue;
     }
@@ -118,6 +125,11 @@ export async function fillGapsForDate(
     if (!onSite) { result.skipped++; continue; }
 
     const fuelRateNorm = matchFuelNorm(vehicle.regNumber);
+
+    const synthLat = hasLastGps ? Number(lastRecord.latitude) : (hasNextGps ? Number(nextRecord!.latitude) : null);
+    const synthLon = hasLastGps ? Number(lastRecord.longitude) : (hasNextGps ? Number(nextRecord!.longitude) : null);
+    const synthFuelBegin = lastRecord.fuel_value_end != null ? Number(lastRecord.fuel_value_end) : (nextRecord?.fuel_value_begin != null ? Number(nextRecord!.fuel_value_begin) : null);
+    const synthFuelEnd = nextRecord?.fuel_value_begin != null ? Number(nextRecord!.fuel_value_begin) : (lastRecord.fuel_value_end != null ? Number(lastRecord.fuel_value_end) : null);
 
     for (const shiftType of missingShifts) {
       try {
