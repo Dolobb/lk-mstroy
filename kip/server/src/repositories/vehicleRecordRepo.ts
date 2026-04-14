@@ -22,6 +22,9 @@ export interface VehicleRecordRow {
   latitude: number | null;
   longitude: number | null;
   track_simplified: object | null;
+  fuel_value_begin: number | null;
+  fuel_value_end: number | null;
+  is_gap_filled: boolean;
 }
 
 const NUMERIC_FIELDS: (keyof VehicleRecordRow)[] = [
@@ -30,6 +33,7 @@ const NUMERIC_FIELDS: (keyof VehicleRecordRow)[] = [
   'fuel_rate_norm', 'fuel_max_calc', 'fuel_variance',
   'load_efficiency_pct', 'utilization_ratio',
   'latitude', 'longitude',
+  'fuel_value_begin', 'fuel_value_end',
 ];
 
 function coerceNumericFields(row: Record<string, unknown>): VehicleRecordRow {
@@ -37,6 +41,11 @@ function coerceNumericFields(row: Record<string, unknown>): VehicleRecordRow {
     if (row[field] != null) {
       row[field] = Number(row[field]);
     }
+  }
+  if (row.is_gap_filled != null) {
+    row.is_gap_filled = Boolean(row.is_gap_filled);
+  } else {
+    row.is_gap_filled = false;
   }
   return row as unknown as VehicleRecordRow;
 }
@@ -47,7 +56,7 @@ export async function getVehicleRecords(
 ): Promise<VehicleRecordRow[]> {
   const pool = getPool();
 
-  let query = `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified FROM vehicle_records WHERE report_date = $1`;
+  let query = `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled FROM vehicle_records WHERE report_date = $1`;
   const params: unknown[] = [date];
 
   if (shift) {
@@ -108,12 +117,13 @@ export interface WeeklyAggRow {
   latitude: number | null;
   longitude: number | null;
   record_count: number;
+  gap_filled_count: number;
 }
 
 const WEEKLY_NUMERIC_FIELDS = [
   'avg_total_stay_time', 'avg_engine_on_time', 'avg_idle_time',
   'avg_fuel', 'avg_load_efficiency_pct', 'avg_utilization_ratio',
-  'latitude', 'longitude', 'record_count',
+  'latitude', 'longitude', 'record_count', 'gap_filled_count',
 ] as const;
 
 function coerceWeeklyRow(row: Record<string, unknown>): WeeklyAggRow {
@@ -151,7 +161,8 @@ export async function getWeeklyAggregated(params: {
         AVG(utilization_ratio) AS avg_utilization_ratio,
         (ARRAY_AGG(latitude ORDER BY report_date DESC, shift_type DESC) FILTER (WHERE latitude IS NOT NULL))[1] AS latitude,
         (ARRAY_AGG(longitude ORDER BY report_date DESC, shift_type DESC) FILTER (WHERE longitude IS NOT NULL))[1] AS longitude,
-        COUNT(*)::int AS record_count
+        COUNT(*)::int AS record_count,
+        COUNT(*) FILTER (WHERE is_gap_filled = true)::int AS gap_filled_count
       FROM vehicle_records
       WHERE report_date BETWEEN $1 AND $2
         AND ($3::varchar IS NULL OR shift_type = $3)
@@ -209,7 +220,7 @@ export async function getVehicleDetails(
   const pool = getPool();
 
   const result = await pool.query(
-    `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified
+    `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled
      FROM vehicle_records
      WHERE vehicle_id = $1 AND report_date BETWEEN $2 AND $3
      ORDER BY report_date DESC, shift_type`,
@@ -316,9 +327,10 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
        department_unit, total_stay_time, engine_on_time, idle_time,
        fuel_consumed_total, fuel_rate_fact, max_work_allowed,
        fuel_rate_norm, fuel_max_calc, fuel_variance,
-       load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified
+       load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified,
+       fuel_value_begin, fuel_value_end, is_gap_filled
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
      ON CONFLICT (report_date, shift_type, vehicle_id)
      DO UPDATE SET
        vehicle_model = EXCLUDED.vehicle_model,
@@ -337,7 +349,10 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
        utilization_ratio = EXCLUDED.utilization_ratio,
        latitude = EXCLUDED.latitude,
        longitude = EXCLUDED.longitude,
-       track_simplified = EXCLUDED.track_simplified`,
+       track_simplified = EXCLUDED.track_simplified,
+       fuel_value_begin = EXCLUDED.fuel_value_begin,
+       fuel_value_end = EXCLUDED.fuel_value_end,
+       is_gap_filled = EXCLUDED.is_gap_filled`,
     [
       record.report_date,
       record.shift_type,
@@ -359,6 +374,9 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
       record.latitude,
       record.longitude,
       record.track_simplified ? JSON.stringify(record.track_simplified) : null,
+      record.fuel_value_begin,
+      record.fuel_value_end,
+      record.is_gap_filled,
     ],
   );
 }

@@ -1,6 +1,7 @@
 import type { TisMonitoringStats, TisTrackPoint } from '../types/tis-api';
 import type { ParsedMonitoringRecord } from '../types/domain';
 import { secondsToHours } from '../utils/dateFormat';
+import { logger } from '../utils/logger';
 
 const TRACK_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
 
@@ -62,6 +63,17 @@ export function parseMonitoringStats(
     0,
   );
 
+  // Sum fuel tank levels (for gap-fill fuel comparison)
+  let fuelValueBegin = 0;
+  let fuelValueEnd = 0;
+  for (const fuel of stats.fuels) {
+    if (fuel.unit && fuel.unit !== 'LITRE') {
+      logger.warn(`Unexpected fuel unit: ${fuel.unit} (expected LITRE)`);
+    }
+    fuelValueBegin += fuel.valueBegin ?? 0;
+    fuelValueEnd += fuel.valueEnd ?? 0;
+  }
+
   // Last GPS point for map marker
   const lastPoint = stats.track.length > 0
     ? stats.track[stats.track.length - 1]
@@ -78,6 +90,8 @@ export function parseMonitoringStats(
   return {
     engineOnTime,
     fuelConsumedTotal,
+    fuelValueBegin,
+    fuelValueEnd,
     lastLat: lastPoint?.lat ?? null,
     lastLon: lastPoint?.lon ?? null,
     trackSimplified,

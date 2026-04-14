@@ -22,6 +22,8 @@ export interface VehicleTask {
 export interface ParsedMonitoringRecord {
   engineOnTime: number;       // hours
   fuelConsumedTotal: number;  // liters
+  fuelValueBegin: number;     // sum of fuels[].valueBegin (liters)
+  fuelValueEnd: number;       // sum of fuels[].valueEnd (liters)
   lastLat: number | null;
   lastLon: number | null;
   trackSimplified: Array<{ lat: number; lon: number; timestamp: string }>;
@@ -154,4 +156,6 @@ export interface GeozoneResult {
     timestamp: string;
     fromZone: string;
   }>;
+  firstZoneId: string | null;   // zone id of first track point (or null)
+  lastZoneId: string | null;    // zone id of last track point (or null)
 }

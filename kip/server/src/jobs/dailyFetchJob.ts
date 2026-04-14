@@ -16,6 +16,7 @@ import { getPool } from '../config/database';
 import { getEnvConfig } from '../config/env';
 import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
+import { fillGapsForDate } from './gapFillJob';
 
 export async function runDailyFetch(dateStr?: string): Promise<void> {
   const config = getEnvConfig();
@@ -23,6 +24,7 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
     ? dayjs(dateStr).toDate()
     : dayjs().subtract(1, 'day').toDate();
   const dateLabel = dayjs(targetDate).format('YYYY-MM-DD');
+  const MAX_GAP_DAYS = 10;
 
   logger.info(`=== Daily fetch started for ${dateLabel} ===`);
 
@@ -118,10 +120,20 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
 
       // Geozone analysis: determine time inside work zones and department unit
       const geozoneResult = analyzeTrackGeozones(monitoring.fullTrack);
-      const totalStayTime = geozoneResult.totalStayTime > 0
+      let totalStayTime = geozoneResult.totalStayTime > 0
         ? geozoneResult.totalStayTime
         : monitoring.engineOnTime; // fallback if no zones matched or track empty
       const departmentUnit = geozoneResult.departmentUnit;
+
+      // Изменение B: if vehicle started and ended in the same zone but totalStayTime < 12h,
+      // cap to 12h (engine off → data transmission stops, track is truncated)
+      if (geozoneResult.firstZoneId
+          && geozoneResult.firstZoneId === geozoneResult.lastZoneId
+          && totalStayTime > 0
+          && totalStayTime < 12) {
+        logger.debug(`${task.regNumber}: capping totalStayTime ${totalStayTime.toFixed(2)}h → 12h (same zone start/end)`);
+        totalStayTime = 12;
+      }
 
       if (geozoneResult.zoneExits.length > 0) {
         logger.debug(
@@ -179,6 +191,9 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
         latitude: monitoring.lastLat,
         longitude: monitoring.lastLon,
         track_simplified: monitoring.trackSimplified,
+        fuel_value_begin: monitoring.fuelValueBegin,
+        fuel_value_end: monitoring.fuelValueEnd,
+        is_gap_filled: false,
       });
 
       successCount++;
@@ -197,6 +212,18 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
     }
   });
   await Promise.all(workers);
+
+  // Gap-fill: fill missing days for vehicles that stayed on site
+  // Process range [targetDate - 10, targetDate] to cover full 10-day gap window
+  const pool = getPool();
+  for (let d = -MAX_GAP_DAYS; d <= 0; d++) {
+    const gapDate = dayjs(targetDate).add(d, 'day').format('YYYY-MM-DD');
+    try {
+      await fillGapsForDate(pool, gapDate);
+    } catch (err) {
+      logger.error(`Gap fill failed for ${gapDate}`, err);
+    }
+  }
 
   logger.info(
     `=== Daily fetch complete for ${dateLabel}: ${successCount} success, ${skipCount} skipped, ${errorCount} errors ===`,

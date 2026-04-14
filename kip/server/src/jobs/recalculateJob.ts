@@ -17,6 +17,7 @@ import { upsertVehicleRecord, hadEngineOffInPastWeek } from '../repositories/veh
 import { analyzeTrackGeozones } from '../services/geozoneAnalyzer';
 import { matchFuelNorm } from '../services/vehicleFilter';
 import { calculateKpi, type FuelSensorInfo } from '../services/kpiCalculator';
+import { fillGapsForDate } from './gapFillJob';
 import { logger } from '../utils/logger';
 
 const TRACK_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
@@ -118,6 +119,8 @@ export async function recalculateForDate(
       const fuels = raw.fuel_json as RawFuel[];
       const engineOnTime = raw.engine_time_sec / 3600; // seconds → hours
       const fuelConsumedTotal = fuels.reduce((sum, f) => sum + (f.rate ?? 0), 0);
+      const fuelValueBegin = fuels.reduce((sum, f) => sum + (f.valueBegin ?? 0), 0);
+      const fuelValueEnd = fuels.reduce((sum, f) => sum + (f.valueEnd ?? 0), 0);
 
       // Условие 1: датчик расхода = 0, двигатель работает
       let fuelSensor: FuelSensorInfo | undefined;
@@ -141,10 +144,19 @@ export async function recalculateForDate(
 
       // Geozone analysis
       const geozoneResult = analyzeTrackGeozones(fullTrack);
-      const totalStayTime = geozoneResult.totalStayTime > 0
+      let totalStayTime = geozoneResult.totalStayTime > 0
         ? geozoneResult.totalStayTime
         : engineOnTime; // fallback: no zones matched or empty track
       const departmentUnit = geozoneResult.departmentUnit;
+
+      // Изменение B: cap to 12h if same zone start/end
+      if (geozoneResult.firstZoneId
+          && geozoneResult.firstZoneId === geozoneResult.lastZoneId
+          && totalStayTime > 0
+          && totalStayTime < 12) {
+        logger.debug(`${raw.vehicle_id}: capping totalStayTime ${totalStayTime.toFixed(2)}h → 12h (same zone start/end)`);
+        totalStayTime = 12;
+      }
 
       const fuelRateNorm = matchFuelNorm(raw.vehicle_id);
 
@@ -183,6 +195,9 @@ export async function recalculateForDate(
         latitude:            lastPoint?.lat ?? null,
         longitude:           lastPoint?.lon ?? null,
         track_simplified:    trackSimplified,
+        fuel_value_begin:    fuelValueBegin,
+        fuel_value_end:      fuelValueEnd,
+        is_gap_filled:       false,
       });
 
       // Фиксируем обработанную смену и позицию для условия 3
@@ -229,7 +244,7 @@ export async function recalculateForDate(
         vehicle_model:       existingRaw.vehicle_model ?? '',
         company_name:        existingRaw.company_name  ?? '',
         department_unit:     '',
-        total_stay_time:     12,  // стандартная смена 12 часов
+        total_stay_time:     12,
         engine_on_time:      0,
         idle_time:           12,
         fuel_consumed_total: 0,
@@ -243,6 +258,9 @@ export async function recalculateForDate(
         latitude:            pos.lat,
         longitude:           pos.lon,
         track_simplified:    null,
+        fuel_value_begin:    null,
+        fuel_value_end:      null,
+        is_gap_filled:       false,
       });
 
       result.condition3Applied++;
@@ -254,6 +272,12 @@ export async function recalculateForDate(
       logger.error(`[Recalculate] ${msg}`);
       result.errors.push(msg);
     }
+  }
+
+  try {
+    await fillGapsForDate(pool, date);
+  } catch (err) {
+    logger.error(`[Recalculate] Gap fill failed for ${date}`, err);
   }
 
   logger.info(

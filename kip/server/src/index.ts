@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { startScheduler } from './jobs/scheduler';
 import { runDailyFetch } from './jobs/dailyFetchJob';
 import { recalculateForDate } from './jobs/recalculateJob';
+import { fillGapsForDate } from './jobs/gapFillJob';
 import { getPool } from './config/database';
 import { logger } from './utils/logger';
 import { getFilteredGeozonesGeoJson } from './services/geozoneAnalyzer';
@@ -99,11 +100,11 @@ app.get('/api/vehicles/weekly', async (req, res) => {
       };
     });
 
-    // Условие 5: добавить «призрачные» ТС (нет данных >4 дней)
+    // Условие 5: добавить «призрачные» ТС (нет данных >10 дней)
     const toMs = new Date(to).getTime();
     for (const g of ghosts) {
       const daysSince = Math.floor((toMs - new Date(g.last_seen_date).getTime()) / 86_400_000);
-      if (daysSince < 4) continue;
+      if (daysSince < 10) continue;
       const info = getVehicleInfo(g.vehicle_id);
       enriched.push({
         vehicle_id:              g.vehicle_id,
@@ -121,6 +122,7 @@ app.get('/api/vehicles/weekly', async (req, res) => {
         latitude:                g.latitude,
         longitude:               g.longitude,
         record_count:            0,
+        gap_filled_count:        0,
         request_numbers:         reqMap.get(g.vehicle_id) ?? [],
         is_ghost:                true,
         last_seen_date:          g.last_seen_date,
@@ -396,6 +398,27 @@ app.get('/api/segments/progress', async (_req, res) => {
     logger.error('[Segments] Progress error', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Admin endpoint: manually trigger gap-fill for a specific date
+app.post('/api/admin/gap-fill', async (req, res) => {
+  const date = req.query.date as string | undefined;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: 'Query parameter "date" required in YYYY-MM-DD format' });
+    return;
+  }
+
+  logger.info(`Manual gap-fill triggered for date: ${date}`);
+
+  fillGapsForDate(getPool(), date)
+    .then((result: { filled: number; skipped: number }) => {
+      logger.info(`Gap-fill completed for ${date}: filled=${result.filled} skipped=${result.skipped}`);
+    })
+    .catch((err: unknown) => {
+      logger.error(`Gap-fill failed for ${date}`, err);
+    });
+
+  res.json({ status: 'started', date });
 });
 
 // SPA fallback: any non-API route serves index.html
