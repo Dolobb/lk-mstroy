@@ -133,6 +133,7 @@ export function kipDetailToUnified(
     totalStayTimeH: row.total_stay_time,
     idleTimeH: row.idle_time,
     departmentUnit: departmentUnit,
+    isGapFilled: row.is_gap_filled,
   };
 }
 

@@ -717,17 +717,24 @@ function DtShiftDetail({ rec }: { rec: UnifiedRecord }) {
 // ─── DST Shift Detail ─────────────────────────────────
 
 function DstShiftDetail({ rec }: { rec: UnifiedRecord }) {
+  const isGap = rec.isGapFilled;
   return (
     <div style={{
       padding: '8px 12px',
-      background: 'rgba(96,165,250,0.06)',
-      border: '1px solid rgba(96,165,250,0.15)',
+      background: isGap ? 'rgba(156,163,175,0.08)' : 'rgba(96,165,250,0.06)',
+      border: isGap ? '1px dashed rgba(156,163,175,0.3)' : '1px solid rgba(96,165,250,0.15)',
       borderRadius: 8,
       fontSize: 11,
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
       gap: '4px 16px',
+      opacity: isGap ? 0.7 : 1,
     }}>
+      {isGap && (
+        <div style={{ gridColumn: '1 / -1', color: '#9ca3af', fontSize: 10, marginBottom: 2 }}>
+          ⚑ Без данных (расчёт по границам)
+        </div>
+      )}
       <div><span style={{ opacity: 0.6 }}>Двигатель:</span> {fmtHours(rec.engineTimeSec)}</div>
       <div><span style={{ opacity: 0.6 }}>КИП:</span> <span className={kipColor(rec.kipPct)}>{Math.round(rec.kipPct)}%</span></div>
       <div><span style={{ opacity: 0.6 }}>Нагрузка:</span> {Math.round(rec.secondaryPct)}%</div>

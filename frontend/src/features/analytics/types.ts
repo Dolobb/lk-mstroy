@@ -37,6 +37,7 @@ export interface UnifiedRecord {
   totalStayTimeH?: number;
   idleTimeH?: number;
   departmentUnit?: string;
+  isGapFilled?: boolean;
 }
 
 export interface UnifiedVehicleRow {
@@ -106,6 +107,7 @@ export interface KipWeeklyVehicle {
   latitude: number | null;
   longitude: number | null;
   record_count: number;
+  gap_filled_count: number;
   request_numbers: number[];
   is_ghost: boolean;
   last_seen_date?: string;
@@ -124,4 +126,5 @@ export interface KipVehicleDetail {
   load_efficiency_pct: number;
   utilization_ratio: number;
   track_simplified: unknown;
+  is_gap_filled: boolean;
 }
