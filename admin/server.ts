@@ -1830,6 +1830,21 @@ const DB_PRESETS: DbPreset[] = [
       values: [from, to, limit],
     }),
   },
+  {
+    key: 'pipeline_runs',
+    label: 'Pipeline Runs',
+    pool: 'main',
+    sql: (from, to, limit) => ({
+      text: `SELECT run_id, pipeline_name, trigger_type, target_date::text, shift_type,
+                    status, started_at::text, completed_at::text, duration_ms,
+                    total_vehicles, success_count, error_count
+             FROM public.pipeline_runs
+             WHERE started_at BETWEEN $1::date AND ($2::date + interval '1 day')
+             ORDER BY started_at DESC
+             LIMIT $3`,
+      values: [from, to, limit],
+    }),
+  },
 ];
 
 app.get('/api/admin/db-tables', (_req, res) => {
