@@ -86,3 +86,59 @@ export interface DbQueryResult {
   total: number;
   error?: string;
 }
+
+// ─── Pipeline Health ──────────────────────────────────────────────────────────
+
+export interface PipelineHealthCard {
+  pipeline_name: string;
+  last_run: string | null;
+  last_success: string | null;
+  runs_7d: number;
+  failures_7d: number;
+  status: 'green' | 'yellow' | 'red';
+  hours_since_success: number | null;
+}
+
+export interface PipelineRun {
+  run_id: string;
+  pipeline_name: string;
+  trigger_type: 'cron' | 'manual' | 'cascade';
+  target_date: string;
+  shift_type: string | null;
+  status: 'running' | 'completed' | 'failed' | 'partial';
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+  total_vehicles: number;
+  success_count: number;
+  error_count: number;
+  errors: unknown[];
+}
+
+// ─── Detailed Coverage ────────────────────────────────────────────────────────
+
+export interface DtShiftCoverage {
+  report_date: string;
+  shift_type: string;
+  vehicle_count: number;
+  delivery_count: number;
+  onsite_count: number;
+  total_trips: number;
+  avg_kip: number | null;
+  objects: string[];
+}
+
+export interface DayDetailedCoverage {
+  date: string;
+  kip: {
+    vehicle_count: number;
+    raw_count: number;
+    raw_pct: number;
+    has_segments: boolean;
+  } | null;
+  dt: {
+    shifts: DtShiftCoverage[];
+    has_segments: boolean;
+  } | null;
+  last_run_status: string | null;
+}

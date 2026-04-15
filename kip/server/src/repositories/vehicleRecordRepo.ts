@@ -25,6 +25,7 @@ export interface VehicleRecordRow {
   fuel_value_begin: number | null;
   fuel_value_end: number | null;
   is_gap_filled: boolean;
+  object_timezone?: string | null;
 }
 
 const NUMERIC_FIELDS: (keyof VehicleRecordRow)[] = [
@@ -328,9 +329,9 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
        fuel_consumed_total, fuel_rate_fact, max_work_allowed,
        fuel_rate_norm, fuel_max_calc, fuel_variance,
        load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified,
-       fuel_value_begin, fuel_value_end, is_gap_filled
+       fuel_value_begin, fuel_value_end, is_gap_filled, object_timezone
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
      ON CONFLICT (report_date, shift_type, vehicle_id)
      DO UPDATE SET
        vehicle_model = EXCLUDED.vehicle_model,
@@ -352,7 +353,8 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
        track_simplified = EXCLUDED.track_simplified,
        fuel_value_begin = EXCLUDED.fuel_value_begin,
        fuel_value_end = EXCLUDED.fuel_value_end,
-       is_gap_filled = EXCLUDED.is_gap_filled`,
+       is_gap_filled = EXCLUDED.is_gap_filled,
+       object_timezone = EXCLUDED.object_timezone`,
     [
       record.report_date,
       record.shift_type,
@@ -377,6 +379,7 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
       record.fuel_value_begin,
       record.fuel_value_end,
       record.is_gap_filled,
+      record.object_timezone ?? 'Asia/Yekaterinburg',
     ],
   );
 }

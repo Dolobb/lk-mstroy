@@ -119,7 +119,7 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
       }
 
       // Geozone analysis: determine time inside work zones and department unit
-      const geozoneResult = analyzeTrackGeozones(monitoring.fullTrack);
+      const geozoneResult = await analyzeTrackGeozones(monitoring.fullTrack);
       let totalStayTime = geozoneResult.totalStayTime > 0
         ? geozoneResult.totalStayTime
         : monitoring.engineOnTime; // fallback if no zones matched or track empty
@@ -194,6 +194,7 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
         fuel_value_begin: monitoring.fuelValueBegin,
         fuel_value_end: monitoring.fuelValueEnd,
         is_gap_filled: false,
+        object_timezone: geozoneResult.objectTimezone,
       });
 
       successCount++;

@@ -224,6 +224,7 @@ export async function analyzeTrackGeozones(
     zoneExits: [],
     firstZoneId: null,
     lastZoneId: null,
+    objectTimezone: null,
   };
 
   if (track.length < 2) {
@@ -297,6 +298,11 @@ export async function analyzeTrackGeozones(
   const totalStayTime = zoneBreakdown.reduce((sum, z) => sum + z.timeHours, 0);
   const departmentUnit = zoneBreakdown.length > 0 ? zoneBreakdown[0].departmentUnit : '';
 
+  // Get timezone from the primary zone (most time spent)
+  const primaryZoneId = zoneBreakdown.length > 0 ? zoneBreakdown[0].zoneId : null;
+  const primaryZone = primaryZoneId ? zones.find(z => z.id === primaryZoneId) : null;
+  const objectTimezone = primaryZone?.timezone ?? null;
+
   return {
     totalStayTime,
     departmentUnit,
@@ -305,5 +311,6 @@ export async function analyzeTrackGeozones(
     zoneExits,
     firstZoneId,
     lastZoneId,
+    objectTimezone,
   };
 }

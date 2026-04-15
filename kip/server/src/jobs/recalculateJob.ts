@@ -143,7 +143,7 @@ export async function recalculateForDate(
       }
 
       // Geozone analysis
-      const geozoneResult = analyzeTrackGeozones(fullTrack);
+      const geozoneResult = await analyzeTrackGeozones(fullTrack);
       let totalStayTime = geozoneResult.totalStayTime > 0
         ? geozoneResult.totalStayTime
         : engineOnTime; // fallback: no zones matched or empty track
@@ -198,6 +198,7 @@ export async function recalculateForDate(
         fuel_value_begin:    fuelValueBegin,
         fuel_value_end:      fuelValueEnd,
         is_gap_filled:       false,
+        object_timezone:     geozoneResult.objectTimezone,
       });
 
       // Фиксируем обработанную смену и позицию для условия 3

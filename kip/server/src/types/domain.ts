@@ -158,4 +158,5 @@ export interface GeozoneResult {
   }>;
   firstZoneId: string | null;   // zone id of first track point (or null)
   lastZoneId: string | null;    // zone id of last track point (or null)
+  objectTimezone: string | null; // timezone of the primary zone's object (or null)
 }

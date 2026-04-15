@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search } from 'lucide-react';
+import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search, HelpCircle, Activity, Clock } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
-import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, KipSegmentProgress, DbTablePreset, DbQueryResult } from './types';
+import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, KipSegmentProgress, DbTablePreset, DbQueryResult, PipelineHealthCard, PipelineRun } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -107,6 +107,22 @@ async function fetchDbTables(): Promise<DbTablePreset[]> {
 async function fetchDbQuery(table: string, dateFrom: string, dateTo: string): Promise<DbQueryResult> {
   const res = await fetch(`/api/admin/db-query?table=${table}&dateFrom=${dateFrom}&dateTo=${dateTo}&limit=200`);
   return res.json();
+}
+
+async function fetchPipelineHealth(): Promise<PipelineHealthCard[]> {
+  try {
+    const res = await fetch('/api/admin/pipeline-health');
+    if (!res.ok) return [];
+    return res.json();
+  } catch { return []; }
+}
+
+async function fetchPipelineRuns(limit = 20): Promise<PipelineRun[]> {
+  try {
+    const res = await fetch(`/api/admin/pipeline-runs?limit=${limit}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch { return []; }
 }
 
 async function startRefreshFetch(service: 'kip' | 'dump-trucks', from: string, to: string) {
@@ -283,6 +299,169 @@ const CoverageRow: React.FC<{
   </div>
 );
 
+// ─── Pipeline Health Cards ────────────────────────────────────────────────────
+
+const PIPELINE_LABELS: Record<string, string> = {
+  kip_daily: 'КИП Daily',
+  dt_daily: 'Самосвалы',
+  kip_recalc: 'КИП Recalc',
+  dt_recalc: 'СМ Recalc',
+  dt_segments: 'Сегменты',
+};
+
+function formatHoursAgo(hours: number | null): string {
+  if (hours === null) return 'никогда';
+  if (hours < 1) return `${Math.round(hours * 60)}м назад`;
+  if (hours < 24) return `${Math.round(hours)}ч назад`;
+  return `${Math.round(hours / 24)}д назад`;
+}
+
+const PipelineHealthCards: React.FC<{ cards: PipelineHealthCard[] }> = ({ cards }) => {
+  if (cards.length === 0) return null;
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <Activity className="size-4" />
+        <h2 className="text-sm font-semibold">Pipeline Health</h2>
+      </div>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+        {cards.map(c => {
+          const bgColor = c.status === 'green' ? 'bg-green-500/10 border-green-500/30'
+            : c.status === 'yellow' ? 'bg-yellow-500/10 border-yellow-500/30'
+            : 'bg-red-500/10 border-red-500/30';
+          const dotColor = c.status === 'green' ? 'bg-green-500'
+            : c.status === 'yellow' ? 'bg-yellow-400'
+            : 'bg-red-500';
+          return (
+            <div
+              key={c.pipeline_name}
+              className={`rounded-xl p-2.5 border ${bgColor}`}
+              title={`${c.runs_7d} запусков за 7д, ${c.failures_7d} ошибок\nПоследний: ${c.last_run ?? 'никогда'}\nУспешный: ${c.last_success ?? 'никогда'}`}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`size-2 rounded-full ${dotColor}`} />
+                <span className="text-xs font-medium truncate">{PIPELINE_LABELS[c.pipeline_name] ?? c.pipeline_name}</span>
+              </div>
+              <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
+                {formatHoursAgo(c.hours_since_success)}
+                {c.failures_7d > 0 && (
+                  <span className="text-red-400 ml-1.5">{c.failures_7d} err</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── Help Section ─────────────────────────────────────────────────────────────
+
+const HelpSection: React.FC = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-1">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 text-xs cursor-pointer bg-transparent border-none text-muted-foreground hover:text-foreground p-0 transition-colors"
+        style={{ fontSize: '11px' }}
+      >
+        <HelpCircle className="size-3" />
+        Справка по обновлению данных
+        {open ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+      </button>
+      {open && (
+        <div className="mt-2 bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground flex flex-col gap-1.5" style={{ fontSize: '11px' }}>
+          <div><span className="font-medium text-foreground">Загрузить</span> — первичная загрузка новых дат из TIS API</div>
+          <div><span className="font-medium text-foreground">Перезагрузить</span> — заново из TIS (после изменения зон). Перезаписывает данные.</div>
+          <div><span className="font-medium text-foreground">Пересчитать</span> — пересчёт формул БЕЗ запросов к TIS:</div>
+          <div className="pl-3">
+            <div>КИП: полный пересчёт (raw данные хранят трек)</div>
+            <div>Самосвалы: ТОЛЬКО формулы KPI (трек НЕ хранится — для зон нужна Перезагрузка!)</div>
+          </div>
+          <div><span className="font-medium text-foreground">Сегменты</span> — 30-мин детализация для onsite-ТС</div>
+          <div className="mt-1 border-t pt-1.5" style={{ borderColor: 'var(--border)' }}>
+            При изменении зон в Гео-Администраторе система автоматически ставит в очередь перезагрузку данных за последние 7 дней.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Pipeline Run History ─────────────────────────────────────────────────────
+
+const PipelineRunHistory: React.FC<{ runs: PipelineRun[] }> = ({ runs }) => {
+  const [open, setOpen] = useState(false);
+  if (runs.length === 0) return null;
+
+  const statusIcon = (s: string) => {
+    switch (s) {
+      case 'completed': return <span className="text-green-500">✓</span>;
+      case 'failed': return <span className="text-red-500">✗</span>;
+      case 'running': return <RotateCcw className="size-3 text-yellow-400 animate-spin inline" />;
+      default: return <span className="text-muted-foreground">?</span>;
+    }
+  };
+
+  const triggerLabel = (t: string) => {
+    switch (t) {
+      case 'cron': return 'cron';
+      case 'manual': return 'ручной';
+      case 'cascade': return 'каскад';
+      default: return t;
+    }
+  };
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 text-sm font-semibold mb-2 cursor-pointer bg-transparent border-none text-foreground p-0"
+      >
+        <Clock className="size-4" />
+        История запусков ({runs.length})
+        {open ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+      </button>
+      {open && (
+        <div className="glass-card rounded-xl p-3">
+          <div className="overflow-auto rounded-lg border border-border/50" style={{ maxHeight: '300px' }}>
+            <table className="w-full text-left border-collapse" style={{ fontSize: '10px' }}>
+              <thead className="sticky top-0 bg-muted z-10">
+                <tr>
+                  {['', 'Pipeline', 'Дата', 'Trigger', 'Статус', 'Длит.', 'Ошибки'].map(h => (
+                    <th key={h} className="px-2 py-1.5 font-medium text-muted-foreground whitespace-nowrap border-b border-border/50">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {runs.map(r => (
+                  <tr key={r.run_id} className="hover:bg-muted/50 transition-colors">
+                    <td className="px-2 py-1 border-b border-border/30">{statusIcon(r.status)}</td>
+                    <td className="px-2 py-1 border-b border-border/30 font-mono">{PIPELINE_LABELS[r.pipeline_name] ?? r.pipeline_name}</td>
+                    <td className="px-2 py-1 border-b border-border/30 whitespace-nowrap">{fmtDate(r.target_date)}</td>
+                    <td className="px-2 py-1 border-b border-border/30">{triggerLabel(r.trigger_type)}</td>
+                    <td className="px-2 py-1 border-b border-border/30">{r.status}</td>
+                    <td className="px-2 py-1 border-b border-border/30 whitespace-nowrap">
+                      {r.duration_ms != null ? (
+                        r.duration_ms < 60000 ? `${Math.round(r.duration_ms / 1000)}с` : `${Math.round(r.duration_ms / 60000)}м`
+                      ) : '—'}
+                    </td>
+                    <td className="px-2 py-1 border-b border-border/30">
+                      {r.error_count > 0 ? <span className="text-red-400">{r.error_count}</span> : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export const AdminPage: React.FC = () => {
@@ -319,6 +498,10 @@ export const AdminPage: React.FC = () => {
   });
 
   // DB Viewer state
+  // Pipeline health + run history
+  const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthCard[]>([]);
+  const [pipelineRuns, setPipelineRuns] = useState<PipelineRun[]>([]);
+
   const [dbOpen, setDbOpen] = useState(false);
   const [dbTables, setDbTables] = useState<DbTablePreset[]>([]);
   const [dbSelectedTable, setDbSelectedTable] = useState('');
@@ -441,6 +624,17 @@ export const AdminPage: React.FC = () => {
     });
   }, []);
 
+  // Poll pipeline health every 30s
+  useEffect(() => {
+    const load = () => {
+      fetchPipelineHealth().then(setPipelineHealth);
+      fetchPipelineRuns(20).then(setPipelineRuns);
+    };
+    load();
+    const t = setInterval(load, 30000);
+    return () => clearInterval(t);
+  }, []);
+
   const handleDbQuery = async () => {
     if (!dbSelectedTable) return;
     setDbLoading(true);
@@ -547,6 +741,9 @@ export const AdminPage: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-auto p-3 gap-4">
 
+      {/* Pipeline Health */}
+      <PipelineHealthCards cards={pipelineHealth} />
+
       {/* Services */}
       <div>
         <h2 className="text-sm font-semibold mb-2">Сервисы</h2>
@@ -642,6 +839,9 @@ export const AdminPage: React.FC = () => {
               <span className="text-muted-foreground">Обновить все (перезагрузить существующие)</span>
             </label>
           </div>
+
+          {/* Help docs */}
+          <HelpSection />
 
           {/* Progress bar */}
           {fetchStatus.active && (
@@ -1110,6 +1310,9 @@ export const AdminPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Pipeline Run History */}
+      <PipelineRunHistory runs={pipelineRuns} />
 
       {/* DB Viewer */}
       <div>

@@ -87,6 +87,22 @@ app.get('/api/geo/zones/by-tag/:tag', async (req: Request, res: Response, next: 
 });
 
 // ────────────────────────────────────────────
+// Zone change webhook — notify admin for auto-cascade
+// ────────────────────────────────────────────
+async function notifyZoneChanged(zoneUid: string, objectUid: string | undefined, action: string, tags: string[]): Promise<void> {
+  try {
+    await fetch('http://localhost:3005/api/admin/zone-changed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zoneUid, objectUid, action, tags }),
+    });
+    logger.info(`[cascade] Notified admin: zone ${zoneUid} ${action}, tags=[${tags.join(',')}]`);
+  } catch {
+    // fire-and-forget: admin might not be running
+  }
+}
+
+// ────────────────────────────────────────────
 // Zones — CRUD
 // ────────────────────────────────────────────
 app.post('/api/geo/zones', async (req: Request, res: Response, next: NextFunction) => {
@@ -114,6 +130,8 @@ app.post('/api/geo/zones', async (req: Request, res: Response, next: NextFunctio
       minDurationSec: minDurationSec != null ? Number(minDurationSec) : undefined,
     });
     res.status(201).json(zone);
+    // Fire-and-forget webhook
+    notifyZoneChanged(zone.uid, objectUid, 'create', tags as string[]);
   } catch (err) { next(err); }
 });
 
@@ -136,6 +154,8 @@ app.put('/api/geo/zones/:uid', async (req: Request, res: Response, next: NextFun
     });
     if (!zone) return res.status(404).json({ error: 'Not found' });
     res.json(zone);
+    // Fire-and-forget webhook — use updated tags or existing ones
+    notifyZoneChanged(req.params.uid, undefined, 'update', zone.tags ?? tags ?? []);
   } catch (err) { next(err); }
 });
 
@@ -144,6 +164,8 @@ app.delete('/api/geo/zones/:uid', async (req: Request, res: Response, next: Next
     const deleted = await zoneRepo.deleteZone(req.params.uid);
     if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.json({ deleted: true, uid: req.params.uid });
+    // Notify with all possible tags since the zone is already deleted
+    notifyZoneChanged(req.params.uid, undefined, 'delete', ['dst_zone', 'dt_boundary', 'dt_loading', 'dt_unloading', 'dt_onsite']);
   } catch (err) { next(err); }
 });
 
