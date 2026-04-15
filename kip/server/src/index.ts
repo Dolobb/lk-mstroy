@@ -8,7 +8,7 @@ import { recalculateForDate } from './jobs/recalculateJob';
 import { fillGapsForDate } from './jobs/gapFillJob';
 import { getPool } from './config/database';
 import { logger } from './utils/logger';
-import { getFilteredGeozonesGeoJson } from './services/geozoneAnalyzer';
+import { getFilteredGeozonesGeoJson, getFilteredGeozonesGeoJsonAsync, invalidateCache, preloadZones } from './services/geozoneAnalyzer';
 import { getVehicleInfo, getRegisteredVehicles } from './services/vehicleRegistry';
 
 dotenv.config();
@@ -212,13 +212,21 @@ app.get('/api/filters', async (req, res) => {
 });
 
 // GET geozones GeoJSON for the map
-app.get('/api/geozones', (_req, res) => {
+app.get('/api/geozones', async (_req, res) => {
   try {
-    res.json(getFilteredGeozonesGeoJson());
+    const geojson = await getFilteredGeozonesGeoJsonAsync();
+    res.json(geojson);
   } catch (err) {
     logger.error('Failed to load geozones', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Admin endpoint: invalidate geozone cache (called by admin cascade)
+app.post('/api/admin/invalidate-zones', (_req, res) => {
+  invalidateCache();
+  logger.info('[Admin] Geozone cache invalidated via API');
+  res.json({ ok: true, message: 'Zone cache invalidated' });
 });
 
 // In-memory job status for recalculate jobs
@@ -427,7 +435,9 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`);
+  // Preload geozones from DB at startup
+  await preloadZones().catch(err => logger.error('Failed to preload zones', err));
   startScheduler();
 });

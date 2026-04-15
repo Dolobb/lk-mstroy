@@ -1,5 +1,3 @@
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { point } from '@turf/helpers';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import distance from '@turf/distance';
@@ -7,6 +5,7 @@ import type { Feature, Polygon, FeatureCollection } from 'geojson';
 import type { GeozoneResult } from '../types/domain';
 import { logger } from '../utils/logger';
 import { parseDdMmYyyyHhmm, dayjs } from '../utils/dateFormat';
+import { getMainPool } from '../config/database';
 
 const GPS_GAP_FILL_RADIUS_M = 500;
 const SYNTHETIC_POINT_INTERVAL_MS = 20 * 60 * 1000;
@@ -16,63 +15,118 @@ interface GeozoneProperties {
   uid: string;
   zoneGroup: string;
   controlType: number;
+  objectName?: string;
+  smu?: string;
+  timezone?: string;
 }
 
-interface ParsedZone {
+export interface ParsedZone {
   id: string;
   name: string;
   departmentUnit: string;
   feature: Feature<Polygon>;
+  objectName?: string;
+  timezone?: string;
 }
 
 let cachedZones: ParsedZone[] | null = null;
 
 /**
- * Extract department unit from zone name.
- * Returns the full zone name as-is.
+ * Load geozones from geo.zones DB (mstroy) where tag = 'dst_zone'.
+ * Falls back to empty array if DB is unreachable.
  */
-function extractDepartmentUnit(zoneName: string): string {
-  return zoneName;
+async function loadZonesFromDb(): Promise<ParsedZone[]> {
+  try {
+    const pool = getMainPool();
+    const res = await pool.query<{
+      uid: string;
+      name: string;
+      geojson: string;
+      min_duration_sec: number | null;
+      object_name: string | null;
+      smu: string | null;
+      timezone: string | null;
+    }>(`
+      SELECT z.uid, z.name, ST_AsGeoJSON(z.geom)::text AS geojson, z.min_duration_sec,
+             o.name AS object_name, o.smu, o.timezone
+      FROM geo.zones z
+      JOIN geo.objects o ON o.id = z.object_id
+      JOIN geo.zone_tags zt ON zt.zone_id = z.id
+      WHERE zt.tag = 'dst_zone'
+    `);
+
+    const zones: ParsedZone[] = [];
+    for (const row of res.rows) {
+      try {
+        const geometry = JSON.parse(row.geojson) as Polygon;
+        if (geometry.type !== 'Polygon') continue;
+
+        const feature: Feature<Polygon, GeozoneProperties> = {
+          type: 'Feature',
+          properties: {
+            zoneName: row.name,
+            uid: row.uid,
+            zoneGroup: row.smu ?? '',
+            controlType: 1,
+            objectName: row.object_name ?? undefined,
+            smu: row.smu ?? undefined,
+            timezone: row.timezone ?? undefined,
+          },
+          geometry,
+        };
+
+        zones.push({
+          id: row.uid,
+          name: row.name,
+          departmentUnit: row.name,
+          feature: feature as Feature<Polygon>,
+          objectName: row.object_name ?? undefined,
+          timezone: row.timezone ?? undefined,
+        });
+      } catch {
+        logger.warn(`Failed to parse geometry for zone ${row.uid}`);
+      }
+    }
+
+    logger.info(`Loaded ${zones.length} geozones from DB (geo.zones with tag dst_zone)`);
+    return zones;
+  } catch (err) {
+    logger.error('Failed to load zones from DB, geozone analysis disabled', err);
+    return [];
+  }
 }
 
-function loadGeozones(): ParsedZone[] {
+/**
+ * Get geozones — loads from DB on first call, caches in memory.
+ */
+async function loadGeozones(): Promise<ParsedZone[]> {
   if (cachedZones !== null) return cachedZones;
-
-  const filePath = resolve(__dirname, '../../../config/geozones.geojson');
-
-  let raw: string;
-  try {
-    raw = readFileSync(filePath, 'utf-8');
-  } catch {
-    logger.warn(`Geozones file not found at ${filePath}, geozone analysis disabled`);
-    cachedZones = [];
-    return cachedZones;
-  }
-
-  const collection: FeatureCollection<Polygon, GeozoneProperties> = JSON.parse(raw);
-
-  if (!collection.features || !Array.isArray(collection.features)) {
-    logger.warn('Geozones file has no features array');
-    cachedZones = [];
-    return cachedZones;
-  }
-
-  // Only use work-site zones: controlType 1 + zoneName starts with "СМУ"
-  cachedZones = collection.features
-    .filter(f =>
-      f.properties?.controlType === 1 &&
-      f.geometry?.type === 'Polygon' &&
-      f.properties?.zoneName?.startsWith('СМУ'),
-    )
-    .map(f => ({
-      id: f.properties!.uid,
-      name: f.properties!.zoneName,
-      departmentUnit: extractDepartmentUnit(f.properties!.zoneName),
-      feature: f as Feature<Polygon>,
-    }));
-
-  logger.info(`Loaded ${cachedZones.length} geozones (filtered from ${collection.features.length} total features)`);
+  cachedZones = await loadZonesFromDb();
   return cachedZones;
+}
+
+/**
+ * Synchronous getter for cached zones (returns empty if not yet loaded).
+ * Used by endpoints that need sync access.
+ */
+function getZonesSync(): ParsedZone[] {
+  return cachedZones ?? [];
+}
+
+/**
+ * Invalidate the in-memory zone cache. Zones will be reloaded from DB on next access.
+ * Called by admin cascade when zones change in geo-admin.
+ */
+export function invalidateCache(): void {
+  cachedZones = null;
+  logger.info('Geozone cache invalidated — will reload from DB on next access');
+}
+
+/**
+ * Preload zones from DB at startup.
+ */
+export async function preloadZones(): Promise<void> {
+  await loadGeozones();
 }
 
 /**
@@ -93,7 +147,18 @@ function findZone(lat: number, lon: number, zones: ParsedZone[]): ParsedZone | n
  * Return filtered geozones as a GeoJSON FeatureCollection for the client map.
  */
 export function getFilteredGeozonesGeoJson(): FeatureCollection<Polygon, GeozoneProperties> {
-  const zones = loadGeozones();
+  const zones = getZonesSync();
+  return {
+    type: 'FeatureCollection',
+    features: zones.map(z => z.feature as Feature<Polygon, GeozoneProperties>),
+  };
+}
+
+/**
+ * Async version — loads from DB if needed.
+ */
+export async function getFilteredGeozonesGeoJsonAsync(): Promise<FeatureCollection<Polygon, GeozoneProperties>> {
+  const zones = await loadGeozones();
   return {
     type: 'FeatureCollection',
     features: zones.map(z => z.feature as Feature<Polygon, GeozoneProperties>),
@@ -146,10 +211,10 @@ function fillTrackGaps(track: TrackPoint[]): TrackPoint[] {
   return result;
 }
 
-export function analyzeTrackGeozones(
+export async function analyzeTrackGeozones(
   track: TrackPoint[],
-): GeozoneResult {
-  const zones = loadGeozones();
+): Promise<GeozoneResult> {
+  const zones = await loadGeozones();
 
   const emptyResult: GeozoneResult = {
     totalStayTime: 0,

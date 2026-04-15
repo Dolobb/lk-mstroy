@@ -23,9 +23,29 @@ export function getPool(): Pool {
   return pool;
 }
 
-export async function closePool(): Promise<void> {
-  if (pool) {
-    await pool.end();
-    pool = null;
+// ─── Main pool (mstroy DB) for geo.zones access ──────────────────────────────
+
+let mainPool: Pool | null = null;
+
+export function getMainPool(): Pool {
+  if (!mainPool) {
+    mainPool = new Pool({
+      host: process.env.MAIN_DB_HOST || 'localhost',
+      port: Number(process.env.MAIN_DB_PORT || 5432),
+      database: process.env.MAIN_DB_NAME || 'mstroy',
+      user: process.env.MAIN_DB_USER || 'postgres',
+      password: process.env.MAIN_DB_PASSWORD || process.env.DB_PASSWORD || '',
+      max: 3,
+      idleTimeoutMillis: 60000,
+    });
+    mainPool.on('error', (err) => {
+      logger.error('Unexpected mainPool error', err);
+    });
   }
+  return mainPool;
+}
+
+export async function closePool(): Promise<void> {
+  if (pool) { await pool.end(); pool = null; }
+  if (mainPool) { await mainPool.end(); mainPool = null; }
 }
