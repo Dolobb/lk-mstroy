@@ -4,7 +4,10 @@ import dotenv from 'dotenv';
 import { spawn, ChildProcess } from 'child_process';
 import net from 'net';
 import path from 'path';
+import fs from 'fs';
 import { Pool } from 'pg';
+import { PgBoss } from 'pg-boss';
+import { createPipelineRunRepo, type PipelineRun } from './src/repositories/pipelineRunRepo';
 
 dotenv.config();
 
@@ -194,6 +197,248 @@ const mainPool = new Pool({
   password: process.env.MAIN_DB_PASSWORD,
 });
 
+// ─── Pipeline Run Tracking ────────────────────────────────────────────────────
+
+const pipelineRepo = createPipelineRunRepo(mainPool);
+
+// ─── pg-boss ──────────────────────────────────────────────────────────────────
+
+const boss = new PgBoss({
+  host: process.env.MAIN_DB_HOST || 'localhost',
+  port: Number(process.env.MAIN_DB_PORT || 5433),
+  database: process.env.MAIN_DB_NAME || 'mstroy',
+  user: process.env.MAIN_DB_USER || 'max',
+  password: process.env.MAIN_DB_PASSWORD,
+  schema: 'pgboss',
+});
+
+boss.on('error', (err: Error) => console.error('[pg-boss] Error:', err));
+
+// ─── Run migration ───────────────────────────────────────────────────────────
+
+async function runMigration(): Promise<void> {
+  const migrationPath = path.join(__dirname, 'migrations', '001_pipeline_runs.sql');
+  try {
+    const sql = fs.readFileSync(migrationPath, 'utf-8');
+    await mainPool.query(sql);
+    console.log('[admin] Migration 001_pipeline_runs applied successfully');
+  } catch (err) {
+    console.error('[admin] Migration error (non-fatal):', err);
+  }
+}
+
+// ─── pg-boss job definitions ─────────────────────────────────────────────────
+
+interface FetchJobPayload {
+  date: string;
+  mode: 'normal' | 'force' | 'refresh';
+  triggerType: 'cron' | 'manual' | 'cascade';
+}
+
+interface RecalcJobPayload {
+  date: string;
+  triggerType: 'cron' | 'manual' | 'cascade';
+}
+
+interface SegmentJobPayload {
+  date: string;
+  force: boolean;
+  triggerType: 'manual' | 'cascade';
+}
+
+async function registerWorkers(): Promise<void> {
+  // Helper: pg-boss v12 handlers receive Job[] (batch), we process first item
+  type Handler<T> = (jobs: { id: string; name: string; data: T }[]) => Promise<void>;
+
+  // fetch-kip-date worker
+  const kipFetchHandler: Handler<FetchJobPayload> = async (jobs) => {
+    const { date, mode, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({ pipelineName: 'kip_daily', triggerType, targetDate: date });
+    try {
+      await fetch(`http://localhost:3001/api/admin/fetch?date=${date}`, { method: 'POST' });
+      if (mode === 'force') {
+        const fireTime = new Date().toISOString();
+        await waitForRawComplete(kipPool, date, fireTime, () => false);
+      } else {
+        const result = await waitForDate(kipPool, `SELECT 1 FROM vehicle_records WHERE report_date = $1 LIMIT 1`, [date], 35 * 60 * 1000, () => false);
+        if (result === 'timeout') throw new Error(`Timeout waiting for KIP data: ${date}`);
+      }
+      await pipelineRepo.completeRun(runId, {});
+    } catch (err) {
+      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  };
+  await boss.work('fetch-kip-date', { batchSize: 1 }, kipFetchHandler as any);
+
+  // fetch-dt-date worker
+  const dtFetchHandler: Handler<FetchJobPayload> = async (jobs) => {
+    const { date, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({ pipelineName: 'dt_daily', triggerType, targetDate: date });
+    try {
+      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift1`, { method: 'POST' });
+      await new Promise(r => setTimeout(r, 2000));
+      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift2`, { method: 'POST' });
+      const result = await waitForDate(mainPool, `SELECT 1 FROM dump_trucks.shift_records WHERE report_date = $1 LIMIT 1`, [date], 20 * 60 * 1000, () => false);
+      if (result === 'timeout') throw new Error(`Timeout waiting for DT data: ${date}`);
+      await pipelineRepo.completeRun(runId, {});
+    } catch (err) {
+      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  };
+  await boss.work('fetch-dt-date', { batchSize: 1 }, dtFetchHandler as any);
+
+  // recalc-kip-date worker
+  const kipRecalcHandler: Handler<RecalcJobPayload> = async (jobs) => {
+    const { date, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({ pipelineName: 'kip_recalc', triggerType, targetDate: date });
+    try {
+      const startRes = await fetch(`http://localhost:3001/api/admin/recalculate?date=${date}`, { method: 'POST' });
+      if (!startRes.ok) throw new Error(`KIP recalc start failed: HTTP ${startRes.status}`);
+      const deadline = Date.now() + 25 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 10_000));
+        const statusRes = await fetch(`http://localhost:3001/api/admin/recalculate/status?date=${date}`);
+        if (!statusRes.ok) continue;
+        const body = await statusRes.json() as { status: string; errors?: string[] };
+        if (body.status === 'done') { await pipelineRepo.completeRun(runId, { errors: body.errors }); return; }
+        if (body.status === 'not_found') throw new Error('Job lost (server restart?)');
+      }
+      throw new Error(`Timeout (25 min)`);
+    } catch (err) {
+      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  };
+  await boss.work('recalc-kip-date', { batchSize: 1 }, kipRecalcHandler as any);
+
+  // recalc-dt-date worker
+  const dtRecalcHandler: Handler<RecalcJobPayload> = async (jobs) => {
+    const { date, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({ pipelineName: 'dt_recalc', triggerType, targetDate: date });
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(`http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift1`, { method: 'POST' }),
+        fetch(`http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift2`, { method: 'POST' }),
+      ]);
+      const [b1, b2] = await Promise.all([
+        r1.json() as Promise<{ status: string; errors?: string[] }>,
+        r2.json() as Promise<{ status: string; errors?: string[] }>,
+      ]);
+      const errs: string[] = [];
+      if (!r1.ok || b1.status === 'error') errs.push(`shift1: ${b1.errors?.join(', ') ?? r1.status}`);
+      if (!r2.ok || b2.status === 'error') errs.push(`shift2: ${b2.errors?.join(', ') ?? r2.status}`);
+      if (errs.length > 0) { await pipelineRepo.failRun(runId, errs.join(' | ')); }
+      else { await pipelineRepo.completeRun(runId, {}); }
+    } catch (err) {
+      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  };
+  await boss.work('recalc-dt-date', { batchSize: 1 }, dtRecalcHandler as any);
+
+  // fetch-dt-segments worker
+  const dtSegHandler: Handler<SegmentJobPayload> = async (jobs) => {
+    const { date, force, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({ pipelineName: 'dt_segments', triggerType, targetDate: date });
+    try {
+      const forceParam = force ? '&force=true' : '';
+      await fetch(`http://localhost:3002/api/dt/admin/fetch-segments?date=${date}&shift=shift1${forceParam}`, { method: 'POST' });
+      await new Promise(r => setTimeout(r, 1000));
+      await fetch(`http://localhost:3002/api/dt/admin/fetch-segments?date=${date}&shift=shift2${forceParam}`, { method: 'POST' });
+
+      if (force) {
+        const deadline = Date.now() + 15 * 60 * 1000;
+        let lastCount = -1;
+        let stableChecks = 0;
+        await new Promise(r => setTimeout(r, 10_000));
+        while (Date.now() < deadline) {
+          const res = await mainPool.query(
+            `SELECT COUNT(*)::int AS cnt FROM dump_trucks.shift_segments ss JOIN dump_trucks.shift_records sr ON sr.id = ss.shift_record_id WHERE sr.report_date = $1`,
+            [date],
+          );
+          const count: number = res.rows[0]?.cnt ?? 0;
+          if (count > 0 && count === lastCount) { stableChecks++; if (stableChecks >= 2) break; }
+          else { stableChecks = 0; }
+          lastCount = count;
+          await new Promise(r => setTimeout(r, 30_000));
+        }
+      } else {
+        await waitForDate(mainPool, `SELECT 1 FROM dump_trucks.shift_segments ss JOIN dump_trucks.shift_records sr ON sr.id = ss.shift_record_id WHERE sr.report_date = $1 LIMIT 1`, [date], 20 * 60 * 1000, () => false, 30_000);
+      }
+      await pipelineRepo.completeRun(runId, {});
+    } catch (err) {
+      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  };
+  await boss.work('fetch-dt-segments', { batchSize: 1 }, dtSegHandler as any);
+
+  // ─── Cron schedules via pg-boss (timezone-aware) ──────────────────────────
+
+  // Known timezone → UTC offset map for cron scheduling
+  const TZ_OFFSETS: Record<string, number> = {
+    'Asia/Yekaterinburg': 5,
+    'Asia/Irkutsk': 8,
+    'Asia/Krasnoyarsk': 7,
+    'Asia/Novosibirsk': 7,
+    'Europe/Moscow': 3,
+  };
+
+  // Query distinct timezones from geo.objects
+  let objectTimezones: string[] = ['Asia/Yekaterinburg'];
+  try {
+    const tzRes = await mainPool.query(`SELECT DISTINCT timezone FROM geo.objects WHERE timezone IS NOT NULL`);
+    if (tzRes.rows.length > 0) {
+      objectTimezones = tzRes.rows.map((r: { timezone: string }) => r.timezone);
+    }
+  } catch { /* fallback to default */ }
+
+  console.log(`[pg-boss] Timezones from geo.objects: ${objectTimezones.join(', ')}`);
+
+  // Register per-timezone KIP cron (shift2 ends 07:30 local → fetch at 08:30 local)
+  for (const tz of objectTimezones) {
+    const offset = TZ_OFFSETS[tz] ?? 5;
+    const utcHour = (8 - offset + 24) % 24; // 08:30 local → UTC hour
+    const cronName = `kip-cron-${tz.replace(/\//g, '-').toLowerCase()}`;
+    await boss.schedule(cronName, `30 ${utcHour} * * *`, { timezone: tz });
+    await boss.work(cronName, async () => {
+      const now = new Date();
+      const local = new Date(now.getTime() + offset * 60 * 60 * 1000);
+      const yesterday = new Date(local.getTime() - 24 * 60 * 60 * 1000);
+      const date = yesterday.toISOString().slice(0, 10);
+      console.log(`[pg-boss cron] KIP fetch for ${date} (${tz})`);
+      await boss.send('fetch-kip-date', { date, mode: 'normal', triggerType: 'cron' });
+    });
+  }
+
+  // DT shift2 at 08:30 Yekaterinburg = 03:30 UTC (DT currently only uses Yekaterinburg)
+  await boss.schedule('dt-shift2-cron', '30 3 * * *', {});
+  await boss.work('dt-shift2-cron', async () => {
+    const now = new Date();
+    const ykb = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+    const yesterday = new Date(ykb.getTime() - 24 * 60 * 60 * 1000);
+    const date = yesterday.toISOString().slice(0, 10);
+    console.log(`[pg-boss cron] DT shift2 fetch for ${date}`);
+    await boss.send('fetch-dt-date', { date, mode: 'normal', triggerType: 'cron' });
+  });
+
+  // DT shift1 at 20:30 Yekaterinburg = 15:30 UTC
+  await boss.schedule('dt-shift1-cron', '30 15 * * *', {});
+  await boss.work('dt-shift1-cron', async () => {
+    const now = new Date();
+    const ykb = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+    const date = ykb.toISOString().slice(0, 10);
+    console.log(`[pg-boss cron] DT shift1 fetch for ${date}`);
+    await boss.send('fetch-dt-date', { date, mode: 'normal', triggerType: 'cron' });
+  });
+
+  console.log('[pg-boss] Workers and cron schedules registered');
+}
+
+// ─── Data queries ─────────────────────────────────────────────────────────────
+
 async function getKipDates(from: string, to: string): Promise<{ dates: string[]; error?: string }> {
   try {
     const res = await kipPool.query(
@@ -213,7 +458,8 @@ async function getKipRawDates(from: string, to: string): Promise<{ dates: string
     const res = await kipPool.query(
       `SELECT
          vr.report_date::text,
-         COUNT(DISTINCT vr.vehicle_id || '|' || vr.shift_type)  AS vr_count,
+         COUNT(DISTINCT vr.vehicle_id || '|' || vr.shift_type)
+           FILTER (WHERE COALESCE(vr.is_gap_filled, false) = false) AS vr_count,
          COUNT(DISTINCT mr.vehicle_id || '|' || mr.shift_type)  AS raw_count
        FROM vehicle_records vr
        LEFT JOIN monitoring_raw mr
@@ -903,7 +1149,13 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
 
   res.json({ ok: true, started: true, missing: missing.length, dates: missing });
 
-  // Запускаем в фоне
+  // Запускаем в фоне — отправляем pg-boss jobs + запускаем legacy queue для UI-прогресса
+  const mode = force ? 'force' : refresh ? 'refresh' : 'normal';
+  for (const date of missing) {
+    const jobName = service === 'kip' ? 'fetch-kip-date' : 'fetch-dt-date';
+    boss.send(jobName, { date, mode, triggerType: 'manual' as const }).catch(() => {});
+  }
+
   if (service === 'kip') {
     runKipQueue(missing, force).catch(console.error);
   } else {
@@ -977,6 +1229,12 @@ app.post('/api/admin/recalc/:service', async (req, res) => {
   }
 
   res.json({ ok: true, started: true, count: dates.length, dates });
+
+  // Send pg-boss jobs for tracking + run legacy queue for UI progress
+  for (const date of dates) {
+    const jobName = service === 'kip' ? 'recalc-kip-date' : 'recalc-dt-date';
+    boss.send(jobName, { date, triggerType: 'manual' as const }).catch(() => {});
+  }
 
   if (service === 'kip') {
     runKipRecalc(dates).catch(console.error);
@@ -1151,6 +1409,300 @@ app.post('/api/admin/kip-segments/cancel', (_req, res) => {
   res.json({ ok: true, message: 'Отмена запрошена' });
 });
 
+// ─── Pipeline Health & Runs ──────────────────────────────────────────────────
+
+app.get('/api/admin/pipeline-health', async (_req, res) => {
+  try {
+    const rows = await pipelineRepo.getCronHealth();
+    const cards = rows.map(row => {
+      const hoursSince = row.last_success
+        ? (Date.now() - new Date(row.last_success).getTime()) / 3_600_000
+        : null;
+      let status: 'green' | 'yellow' | 'red' = 'green';
+      if (hoursSince === null || hoursSince > 50) status = 'red';
+      else if (hoursSince > 26) status = 'yellow';
+      return { ...row, status, hours_since_success: hoursSince ? Math.round(hoursSince * 10) / 10 : null };
+    });
+    res.json(cards);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get('/api/admin/pipeline-runs', async (req, res) => {
+  try {
+    const runs = await pipelineRepo.getRunsByRange({
+      from: req.query.from as string | undefined,
+      to: req.query.to as string | undefined,
+      pipelineName: req.query.service as string | undefined,
+      status: req.query.status as string | undefined,
+      limit: Number(req.query.limit || 20),
+    });
+    res.json(runs);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/admin/pipeline-runs/start', async (req, res) => {
+  const { pipelineName, triggerType, targetDate, shiftType, configSnapshot } = req.body as {
+    pipelineName?: string;
+    triggerType?: string;
+    targetDate?: string;
+    shiftType?: string | null;
+    configSnapshot?: unknown;
+  };
+  if (!pipelineName || !triggerType || !targetDate) {
+    res.status(400).json({ error: 'pipelineName, triggerType, targetDate required' });
+    return;
+  }
+  try {
+    const runId = await pipelineRepo.createRun({
+      pipelineName,
+      triggerType: triggerType as 'cron' | 'manual' | 'cascade',
+      targetDate,
+      shiftType: shiftType ?? null,
+      configSnapshot,
+    });
+    res.json({ runId });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/admin/pipeline-runs/:id/complete', async (req, res) => {
+  const { id } = req.params;
+  const { totalVehicles, successCount, errorCount, errors } = req.body as {
+    totalVehicles?: number;
+    successCount?: number;
+    errorCount?: number;
+    errors?: unknown[];
+  };
+  try {
+    await pipelineRepo.completeRun(id, { totalVehicles, successCount, errorCount, errors });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/admin/pipeline-runs/:id/fail', async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body as { message?: string };
+  if (!message) {
+    res.status(400).json({ error: 'message required' });
+    return;
+  }
+  try {
+    await pipelineRepo.failRun(id, message);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/admin/pipeline-runs/:id/errors', async (req, res) => {
+  const { id } = req.params;
+  const { message, vehicleId } = req.body as { message?: string; vehicleId?: string };
+  if (!message) {
+    res.status(400).json({ error: 'message required' });
+    return;
+  }
+  try {
+    await pipelineRepo.addError(id, { message, vehicleId });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get('/api/admin/pipeline-runs/last-success', async (req, res) => {
+  const pipeline = req.query.pipeline as string;
+  if (!pipeline) {
+    res.status(400).json({ error: 'pipeline query param required' });
+    return;
+  }
+  try {
+    const run = await pipelineRepo.getLastSuccess(pipeline);
+    res.json(run);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ─── Auto-cascade: zone change webhook ──────────────────────────────────────
+
+app.post('/api/admin/zone-changed', async (req, res) => {
+  const { zoneUid, objectUid, action, tags } = req.body as {
+    zoneUid?: string; objectUid?: string; action?: string; tags?: string[];
+  };
+
+  console.log(`[cascade] Zone changed: ${zoneUid} action=${action} tags=${tags?.join(',')}`);
+
+  const affectedTags = new Set(tags ?? []);
+  const cascadeDates: string[] = [];
+
+  // Determine last 7 days with data
+  const now = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getTime() - i * 86400000);
+    cascadeDates.push(d.toISOString().slice(0, 10));
+  }
+
+  const jobs: string[] = [];
+
+  if (affectedTags.has('dst_zone')) {
+    // KIP: invalidate zone cache + recalculate
+    try {
+      await fetch('http://localhost:3001/api/admin/invalidate-zones', { method: 'POST' });
+    } catch { /* KIP might not be running */ }
+
+    for (const date of cascadeDates) {
+      await boss.send('recalc-kip-date', { date, triggerType: 'cascade' as const });
+      jobs.push(`recalc-kip-date:${date}`);
+    }
+  }
+
+  if (affectedTags.has('dt_boundary') || affectedTags.has('dt_loading') || affectedTags.has('dt_unloading') || affectedTags.has('dt_onsite')) {
+    for (const date of cascadeDates) {
+      await boss.send('fetch-dt-date', { date, mode: 'refresh' as const, triggerType: 'cascade' as const });
+      jobs.push(`fetch-dt-date:${date}`);
+    }
+  }
+
+  res.json({ ok: true, cascade: { zoneUid, objectUid, action, jobs } });
+});
+
+// ─── Enhanced Coverage ──────────────────────────────────────────────────────
+
+app.get('/api/admin/data-coverage/detailed', async (req, res) => {
+  const from = req.query.from as string;
+  const to = req.query.to as string;
+  if (!from || !to) {
+    res.status(400).json({ error: '"from" и "to" обязательны (YYYY-MM-DD)' });
+    return;
+  }
+
+  try {
+    // DT detailed coverage per shift
+    const dtRes = await mainPool.query(
+      `SELECT report_date::text, shift_type,
+              COUNT(*)::int AS vehicle_count,
+              COUNT(*) FILTER (WHERE work_type = 'delivery')::int AS delivery_count,
+              COUNT(*) FILTER (WHERE work_type = 'onsite')::int AS onsite_count,
+              COALESCE(SUM(trips_count), 0)::int AS total_trips,
+              AVG(kip_pct)::numeric(5,1) AS avg_kip,
+              array_agg(DISTINCT object_name) FILTER (WHERE object_name IS NOT NULL) AS objects
+       FROM dump_trucks.shift_records
+       WHERE report_date BETWEEN $1 AND $2
+       GROUP BY report_date, shift_type
+       ORDER BY report_date, shift_type`,
+      [from, to],
+    );
+
+    // KIP coverage (excluding gap-filled)
+    const kipRes = await kipPool.query(
+      `SELECT
+         vr.report_date::text,
+         COUNT(DISTINCT vr.vehicle_id || '|' || vr.shift_type) FILTER (WHERE vr.is_gap_filled = false)::int AS vr_count,
+         COUNT(DISTINCT mr.vehicle_id || '|' || mr.shift_type)::int AS raw_count,
+         EXISTS(
+           SELECT 1 FROM kip_shift_segments kss
+           WHERE kss.report_date = vr.report_date LIMIT 1
+         ) AS has_segments
+       FROM vehicle_records vr
+       LEFT JOIN monitoring_raw mr
+         ON mr.report_date = vr.report_date
+         AND mr.vehicle_id = vr.vehicle_id
+         AND mr.shift_type = vr.shift_type
+       WHERE vr.report_date BETWEEN $1 AND $2
+       GROUP BY vr.report_date`,
+      [from, to],
+    );
+
+    // DT segments check
+    const dtSegRes = await mainPool.query(
+      `SELECT DISTINCT sr.report_date::text
+       FROM dump_trucks.shift_segments ss
+       JOIN dump_trucks.shift_records sr ON sr.id = ss.shift_record_id
+       WHERE sr.report_date BETWEEN $1 AND $2`,
+      [from, to],
+    );
+    const dtSegDates = new Set(dtSegRes.rows.map((r: { report_date: string }) => r.report_date));
+
+    // Last run status per date
+    const runsRes = await mainPool.query(
+      `SELECT DISTINCT ON (target_date)
+         target_date::text, status
+       FROM pipeline_runs
+       WHERE target_date BETWEEN $1 AND $2
+       ORDER BY target_date, started_at DESC`,
+      [from, to],
+    );
+    const runStatusMap = new Map<string, string>();
+    for (const row of runsRes.rows) {
+      runStatusMap.set(row.target_date, row.status);
+    }
+
+    // Build per-day response
+    const kipMap = new Map<string, { vr_count: number; raw_count: number; has_segments: boolean }>();
+    for (const row of kipRes.rows) {
+      kipMap.set(row.report_date, {
+        vr_count: row.vr_count,
+        raw_count: row.raw_count,
+        has_segments: row.has_segments,
+      });
+    }
+
+    const dtMap = new Map<string, { shifts: typeof dtRes.rows; has_segments: boolean }>();
+    for (const row of dtRes.rows) {
+      if (!dtMap.has(row.report_date)) {
+        dtMap.set(row.report_date, { shifts: [], has_segments: dtSegDates.has(row.report_date) });
+      }
+      dtMap.get(row.report_date)!.shifts.push(row);
+    }
+
+    // Generate all days
+    const days: unknown[] = [];
+    const cur = new Date(from);
+    const end = new Date(to);
+    while (cur <= end) {
+      const dateStr = cur.toISOString().slice(0, 10);
+      const kip = kipMap.get(dateStr);
+      const dt = dtMap.get(dateStr);
+
+      days.push({
+        date: dateStr,
+        kip: kip ? {
+          vehicle_count: kip.vr_count,
+          raw_count: kip.raw_count,
+          raw_pct: kip.vr_count > 0 ? Math.round(kip.raw_count / kip.vr_count * 100) : 0,
+          has_segments: kip.has_segments,
+        } : null,
+        dt: dt ? {
+          shifts: dt.shifts.map(s => ({
+            report_date: s.report_date,
+            shift_type: s.shift_type,
+            vehicle_count: s.vehicle_count,
+            delivery_count: s.delivery_count,
+            onsite_count: s.onsite_count,
+            total_trips: s.total_trips,
+            avg_kip: s.avg_kip ? Number(s.avg_kip) : null,
+            objects: s.objects ?? [],
+          })),
+          has_segments: dt.has_segments,
+        } : null,
+        last_run_status: runStatusMap.get(dateStr) ?? null,
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    res.json(days);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ─── DB Viewer ────────────────────────────────────────────────────────────────
 
 interface DbPreset {
@@ -1315,15 +1867,29 @@ app.get('/api/admin/db-query', async (req, res) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`[admin] Сервер запущен на 0.0.0.0:${PORT}`);
+
+  // Run migrations
+  await runMigration();
+
+  // Start pg-boss
+  try {
+    await boss.start();
+    await registerWorkers();
+    console.log('[admin] pg-boss started successfully');
+  } catch (err) {
+    console.error('[admin] pg-boss failed to start (non-fatal):', err);
+  }
+
   console.log(`[admin] Авто-запуск всех сервисов...`);
   SERVICES.forEach(cfg => startService(cfg));
 });
 
 // Graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('\n[admin] Завершение работы...');
   SERVICES.forEach(({ id }) => stopService(id));
+  try { await boss.stop({ graceful: true, timeout: 5000 }); } catch {}
   setTimeout(() => process.exit(0), 2000);
 });

@@ -9,5 +9,5 @@
     "rootDir": ".",
     "skipLibCheck": true
   },
-  "include": ["server.ts"]
+  "include": ["server.ts", "src/**/*.ts"]
 }
