@@ -247,6 +247,16 @@ interface SegmentJobPayload {
 }
 
 async function registerWorkers(): Promise<void> {
+  // pg-boss v12: queues must be created before workers can subscribe
+  const queues = [
+    'fetch-kip-date', 'fetch-dt-date',
+    'recalc-kip-date', 'recalc-dt-date',
+    'fetch-dt-segments',
+  ];
+  for (const q of queues) {
+    await boss.createQueue(q);
+  }
+
   // Helper: pg-boss v12 handlers receive Job[] (batch), we process first item
   type Handler<T> = (jobs: { id: string; name: string; data: T }[]) => Promise<void>;
 
@@ -402,6 +412,7 @@ async function registerWorkers(): Promise<void> {
     const offset = TZ_OFFSETS[tz] ?? 5;
     const utcHour = (8 - offset + 24) % 24; // 08:30 local → UTC hour
     const cronName = `kip-cron-${tz.replace(/\//g, '-').toLowerCase()}`;
+    await boss.createQueue(cronName);
     await boss.schedule(cronName, `30 ${utcHour} * * *`, { timezone: tz });
     await boss.work(cronName, async () => {
       const now = new Date();
@@ -414,6 +425,7 @@ async function registerWorkers(): Promise<void> {
   }
 
   // DT shift2 at 08:30 Yekaterinburg = 03:30 UTC (DT currently only uses Yekaterinburg)
+  await boss.createQueue('dt-shift2-cron');
   await boss.schedule('dt-shift2-cron', '30 3 * * *', {});
   await boss.work('dt-shift2-cron', async () => {
     const now = new Date();
@@ -425,6 +437,7 @@ async function registerWorkers(): Promise<void> {
   });
 
   // DT shift1 at 20:30 Yekaterinburg = 15:30 UTC
+  await boss.createQueue('dt-shift1-cron');
   await boss.schedule('dt-shift1-cron', '30 15 * * *', {});
   await boss.work('dt-shift1-cron', async () => {
     const now = new Date();

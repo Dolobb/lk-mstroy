@@ -66,6 +66,10 @@ export async function fillGapsForDate(
 
     if (missingShifts.length === 0) continue;
 
+    if (vehicleId.includes('7296')) {
+      logger.info('[GapFill-DEBUG] Processing vehicleId=' + vehicleId + ' date=' + date + ' missingShifts=' + JSON.stringify(missingShifts));
+    }
+
     const lastRes = await pool.query<BoundaryRecord>(
       `SELECT report_date::text AS report_date, shift_type, vehicle_id,
               vehicle_model, company_name, department_unit,
@@ -78,6 +82,9 @@ export async function fillGapsForDate(
       [vehicleId, date],
     );
     const lastRecord = lastRes.rows[0] ?? null;
+    if (vehicleId.includes('7296')) {
+      logger.info('[GapFill-DEBUG] lastRecord=' + JSON.stringify(lastRecord));
+    }
     if (!lastRecord) { result.skipped++; continue; }
 
     const nextRes = await pool.query<BoundaryRecord>(
@@ -92,6 +99,11 @@ export async function fillGapsForDate(
       [vehicleId, date],
     );
     const nextRecord = nextRes.rows[0] ?? null;
+    if (vehicleId.includes('7296')) {
+      logger.info('[GapFill-DEBUG] nextRecord=' + JSON.stringify(nextRecord));
+      logger.info('[GapFill-DEBUG] hasLastGps=' + (lastRecord.latitude != null && lastRecord.longitude != null) + ' hasNextGps=' + (nextRecord?.latitude != null && nextRecord?.longitude != null));
+      logger.info('[GapFill-DEBUG] earlyExit=' + (!nextRecord && !lastRecord.latitude && !lastRecord.longitude));
+    }
     if (!nextRecord && !lastRecord.latitude && !lastRecord.longitude) {
       // No next record and no GPS — can't determine if on site
       result.skipped++; continue;
@@ -122,6 +134,9 @@ export async function fillGapsForDate(
     }
 
     const onSite = hasFuelData ? (gpsOk && fuelOk) : gpsOk;
+    if (vehicleId.includes('7296')) {
+      logger.info('[GapFill-DEBUG] gpsOk=' + gpsOk + ' hasFuelData=' + hasFuelData + ' fuelOk=' + fuelOk + ' onSite=' + onSite);
+    }
     if (!onSite) { result.skipped++; continue; }
 
     const fuelRateNorm = matchFuelNorm(vehicle.regNumber);

@@ -33,7 +33,7 @@ Monorepo with 7 services. Admin (`:3005`) is a process manager that starts the 5
 
 ## Critical Facts
 
-### TIS API (external data source — all backends use it)
+### TIS API (external data source — all backends use it)В
 - **POST with empty body**, all params in query string: `POST {url}?token=...&format=json&command={cmd}&{params}`
 - Rate limit: **1 req / 30s per idMO**; 18 tokens rotated round-robin
 - `getMonitoringStats` dates: `DD.MM.YYYY HH:mm`; all others: `DD.MM.YYYY`
