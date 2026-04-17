@@ -3,6 +3,11 @@ import { runDailyFetch } from './dailyFetchJob';
 import { logger } from '../utils/logger';
 
 export function startScheduler(): void {
+  if (process.env.CRON_DISABLED === 'true') {
+    logger.info('Cron disabled (CRON_DISABLED=true), skipping scheduler');
+    return;
+  }
+
   // Run at 08:30 Yekaterinburg time (UTC+5).
   // Вечерняя смена заканчивается в 07:30 — запускаем через час,
   // чтобы TIS API успел обработать все данные за смену.

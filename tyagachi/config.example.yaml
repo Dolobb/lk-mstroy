@@ -1,32 +1,18 @@
 # ============================================================
-# Transport Analytics Configuration
+# Transport Analytics Configuration (TEMPLATE)
 # ============================================================
+# Скопируйте этот файл как config.yaml и заполните токены.
 
 # API настройки (TIS Online)
 api:
   base_url: "https://tt.tis-online.com/tt/api/v3"
-  token: "6C72DAA5076B"  # Основной токен
+  token: "YOUR_PRIMARY_TOKEN_HERE"
   # Дополнительные токены для параллельных запросов (опционально)
   # Если rate-limit привязан к токену, это ускорит загрузку
   tokens:
-    - "6C72DAA5076B"
-    - "8FE4AB7FA54C"
-    - "79206427B583"
-    - "333825C3820A"
-    - "16B1EF2678AD"
-    - "C47F3BB6DE85"
-    - "8ABFA559284D"
-    - "A84D5398F74E"
-    - "0505CB134904"
-    - "5F28AB5DB6CD"
-    - "C8564A44FD67"
-    - "7831D53E9DD0"
-    - "3045540D6E2B"
-    - "3CDD3FE02277"
-    - "62AB1C7131F9"
-    - "920DA1FD0B46"
-    - "9AC0CADC0CE3"
-    - "5455D081B637"
+    - "YOUR_TOKEN_1"
+    - "YOUR_TOKEN_2"
+    # ... добавьте нужное количество токенов
   format: "json"
   timeout: 10
   retry_count: 3

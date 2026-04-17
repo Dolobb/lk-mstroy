@@ -42,12 +42,11 @@ async function loadZonesFromDb(): Promise<ParsedZone[]> {
       uid: string;
       name: string;
       geojson: string;
-      min_duration_sec: number | null;
       object_name: string | null;
       smu: string | null;
       timezone: string | null;
     }>(`
-      SELECT z.uid, z.name, ST_AsGeoJSON(z.geom)::text AS geojson, z.min_duration_sec,
+      SELECT z.uid, z.name, ST_AsGeoJSON(z.geom)::text AS geojson,
              o.name AS object_name, o.smu, o.timezone
       FROM geo.zones z
       JOIN geo.objects o ON o.id = z.object_id

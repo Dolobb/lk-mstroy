@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, execSync, ChildProcess } from 'child_process';
 import net from 'net';
 import path from 'path';
 import fs from 'fs';
@@ -123,7 +123,7 @@ function startService(cfg: ServiceConfig) {
   appendLog(cfg.id, `[admin] Запуск: ${cfg.cmd} ${cfg.args.join(' ')}`);
 
   const isWin = process.platform === 'win32';
-  const childEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: 'localhost,127.0.0.1' };
+  const childEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: 'localhost,127.0.0.1', CRON_DISABLED: 'true' };
   const child = isWin
     ? spawn(`${cfg.cmd} ${cfg.args.join(' ')}`, [], {
         cwd: cfg.cwd,
@@ -163,17 +163,34 @@ function startService(cfg: ServiceConfig) {
 
 function stopService(id: string) {
   const child = processes[id];
-  if (!child) return;
+  const cfg = SERVICES.find(s => s.id === id);
+  if (!child && !cfg) return;
   appendLog(id, '[admin] Остановка...');
 
-  if (process.platform === 'win32' && child.pid) {
-    // На Windows SIGTERM не убивает дерево дочерних процессов (tsx, npm остаются зомби)
-    spawn('taskkill', ['/F', '/T', '/PID', String(child.pid)], { shell: false });
+  if (process.platform === 'win32') {
+    if (child?.pid) {
+      spawn('taskkill', ['/F', '/T', '/PID', String(child.pid)], { shell: false });
+    }
+    if (cfg?.port) {
+      setTimeout(() => {
+        try {
+          const out = execSync(`netstat -ano | findstr :${cfg.port} | findstr LISTENING`, { encoding: 'utf8' });
+          const match = out.match(/(\d+)\s*$/m);
+          if (match && match[1]) {
+            const pid = parseInt(match[1], 10);
+            if (pid && pid !== process.pid) {
+              appendLog(id, `[admin] Killing leftover PID ${pid} on port ${cfg.port}`);
+              spawn('taskkill', ['/F', '/PID', String(pid)], { shell: false });
+            }
+          }
+        } catch {}
+      }, 1000);
+    }
   } else {
-    child.kill('SIGTERM');
+    if (child) child.kill('SIGTERM');
     setTimeout(() => {
       if (processes[id] === child) {
-        try { child.kill('SIGKILL'); } catch {}
+        try { child?.kill('SIGKILL'); } catch {}
       }
     }, 3000);
   }
@@ -273,7 +290,13 @@ async function registerWorkers(): Promise<void> {
         const result = await waitForDate(kipPool, `SELECT 1 FROM vehicle_records WHERE report_date = $1 LIMIT 1`, [date], 35 * 60 * 1000, () => false);
         if (result === 'timeout') throw new Error(`Timeout waiting for KIP data: ${date}`);
       }
-      await pipelineRepo.completeRun(runId, {});
+      // Record vehicle count metrics
+      const countRes = await kipPool.query(
+        `SELECT COUNT(DISTINCT vehicle_id)::int AS cnt FROM vehicle_records WHERE report_date = $1 AND COALESCE(is_gap_filled, false) = false`,
+        [date],
+      );
+      const cnt = countRes.rows[0]?.cnt ?? 0;
+      await pipelineRepo.completeRun(runId, { totalVehicles: cnt, successCount: cnt, errorCount: 0 });
     } catch (err) {
       await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
       throw err;
@@ -291,7 +314,13 @@ async function registerWorkers(): Promise<void> {
       await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift2`, { method: 'POST' });
       const result = await waitForDate(mainPool, `SELECT 1 FROM dump_trucks.shift_records WHERE report_date = $1 LIMIT 1`, [date], 20 * 60 * 1000, () => false);
       if (result === 'timeout') throw new Error(`Timeout waiting for DT data: ${date}`);
-      await pipelineRepo.completeRun(runId, {});
+      // Record vehicle count metrics
+      const dtCountRes = await mainPool.query(
+        `SELECT COUNT(DISTINCT vehicle_id)::int AS cnt FROM dump_trucks.shift_records WHERE report_date = $1`,
+        [date],
+      );
+      const dtCnt = dtCountRes.rows[0]?.cnt ?? 0;
+      await pipelineRepo.completeRun(runId, { totalVehicles: dtCnt, successCount: dtCnt, errorCount: 0 });
     } catch (err) {
       await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
       throw err;
@@ -1101,6 +1130,16 @@ app.get('/api/admin/fetch/status', (_req, res) => {
   });
 });
 
+// POST cancel fetch (должен быть ДО /fetch/:service, иначе Express перехватит service=cancel)
+app.post('/api/admin/fetch/cancel', (_req, res) => {
+  if (!fetchProgress.active) {
+    res.json({ ok: true, message: 'Нет активной загрузки' });
+    return;
+  }
+  fetchProgress.cancelRequested = true;
+  res.json({ ok: true, message: 'Отмена запрошена' });
+});
+
 // POST start fetch for kip or dump-trucks
 app.post('/api/admin/fetch/:service', async (req, res) => {
   const { service } = req.params;
@@ -1174,16 +1213,6 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
   } else {
     runDTQueue(missing).catch(console.error);
   }
-});
-
-// POST cancel fetch
-app.post('/api/admin/fetch/cancel', (_req, res) => {
-  if (!fetchProgress.active) {
-    res.json({ ok: true, message: 'Нет активной загрузки' });
-    return;
-  }
-  fetchProgress.cancelRequested = true;
-  res.json({ ok: true, message: 'Отмена запрошена' });
 });
 
 // ─── Recalc endpoints ─────────────────────────────────────────────────────────
@@ -1890,6 +1919,200 @@ app.get('/api/admin/db-query', async (req, res) => {
     res.json({ columns, rows: result.rows, total: result.rowCount ?? 0 });
   } catch (e) {
     res.status(500).json({ error: String(e), columns: [], rows: [], total: 0 });
+  }
+});
+
+// ─── Coverage Dashboard ───────────────────────────────────────────────────────
+
+app.get('/api/admin/coverage-dashboard', async (req, res) => {
+  const from = req.query.from as string;
+  const to = req.query.to as string;
+  if (!from || !to) {
+    res.status(400).json({ error: '"from" и "to" обязательны (YYYY-MM-DD)' });
+    return;
+  }
+
+  try {
+    // ── Baseline: max vehicles/day over last 7 days ──
+    const [kipBaselineRes, dtBaselineRes] = await Promise.all([
+      kipPool.query(`
+        SELECT COALESCE(MAX(day_count), 0)::int AS kip_expected FROM (
+          SELECT report_date, COUNT(DISTINCT vehicle_id) AS day_count
+          FROM vehicle_records
+          WHERE report_date >= CURRENT_DATE - 7 AND COALESCE(is_gap_filled, false) = false
+          GROUP BY report_date
+        ) sub
+      `),
+      mainPool.query(`
+        SELECT COALESCE(MAX(day_count), 0)::int AS dt_expected FROM (
+          SELECT report_date, COUNT(DISTINCT vehicle_id) AS day_count
+          FROM dump_trucks.shift_records
+          WHERE report_date >= CURRENT_DATE - 7
+          GROUP BY report_date
+        ) sub
+      `),
+    ]);
+
+    const baseline = {
+      kipExpected: kipBaselineRes.rows[0]?.kip_expected ?? 0,
+      dtExpected: dtBaselineRes.rows[0]?.dt_expected ?? 0,
+    };
+
+    // ── Per-day KIP data ──
+    const kipDaysRes = await kipPool.query(
+      `SELECT
+         vr.report_date::text AS date,
+         COUNT(DISTINCT vr.vehicle_id) FILTER (WHERE NOT COALESCE(vr.is_gap_filled, false))::int AS vehicle_count,
+         COUNT(DISTINCT mr.vehicle_id)::int AS raw_count,
+         EXISTS(SELECT 1 FROM kip_shift_segments kss WHERE kss.report_date = vr.report_date LIMIT 1) AS has_segments
+       FROM vehicle_records vr
+       LEFT JOIN monitoring_raw mr ON mr.report_date = vr.report_date AND mr.vehicle_id = vr.vehicle_id
+       WHERE vr.report_date BETWEEN $1 AND $2
+       GROUP BY vr.report_date
+       ORDER BY vr.report_date`,
+      [from, to],
+    );
+
+    const kipMap = new Map<string, { vehicleCount: number; rawCount: number; rawPct: number; hasSegments: boolean }>();
+    for (const row of kipDaysRes.rows) {
+      const vc = row.vehicle_count;
+      const rc = row.raw_count;
+      kipMap.set(row.date, {
+        vehicleCount: vc,
+        rawCount: rc,
+        rawPct: vc > 0 ? Math.round(rc / vc * 100) : 0,
+        hasSegments: row.has_segments,
+      });
+    }
+
+    // ── Per-day DT data ──
+    const dtDaysRes = await mainPool.query(
+      `SELECT
+         sr.report_date::text AS date,
+         COUNT(DISTINCT sr.vehicle_id)::int AS vehicle_count,
+         COALESCE(SUM(sr.trips_count), 0)::int AS trip_count,
+         COUNT(DISTINCT sr.shift_type)::int AS shift_count,
+         EXISTS(SELECT 1 FROM dump_trucks.shift_segments ss
+           JOIN dump_trucks.shift_records sr2 ON sr2.id = ss.shift_record_id
+           WHERE sr2.report_date = sr.report_date LIMIT 1) AS has_segments
+       FROM dump_trucks.shift_records sr
+       WHERE sr.report_date BETWEEN $1 AND $2
+       GROUP BY sr.report_date
+       ORDER BY sr.report_date`,
+      [from, to],
+    );
+
+    const dtMap = new Map<string, { vehicleCount: number; tripCount: number; shiftCount: number; hasSegments: boolean }>();
+    for (const row of dtDaysRes.rows) {
+      dtMap.set(row.date, {
+        vehicleCount: row.vehicle_count,
+        tripCount: row.trip_count,
+        shiftCount: row.shift_count,
+        hasSegments: row.has_segments,
+      });
+    }
+
+    // ── Pipeline runs per date ──
+    const runsRes = await mainPool.query(
+      `SELECT DISTINCT ON (target_date)
+         target_date::text AS date, status, completed_at::text AS completed_at
+       FROM pipeline_runs
+       WHERE target_date BETWEEN $1 AND $2
+       ORDER BY target_date, started_at DESC`,
+      [from, to],
+    );
+    const runMap = new Map<string, { status: string; completedAt: string | null }>();
+    for (const row of runsRes.rows) {
+      runMap.set(row.date, { status: row.status, completedAt: row.completed_at });
+    }
+
+    // ── Build day cards ──
+    const days: unknown[] = [];
+    const cur = new Date(from);
+    const end = new Date(to);
+    while (cur <= end) {
+      const dateStr = cur.toISOString().slice(0, 10);
+      const kip = kipMap.get(dateStr) ?? { vehicleCount: 0, rawCount: 0, rawPct: 0, hasSegments: false };
+      const dt = dtMap.get(dateStr) ?? { vehicleCount: 0, tripCount: 0, shiftCount: 0, hasSegments: false };
+      const run = runMap.get(dateStr);
+
+      // Health color logic
+      let health: 'green' | 'yellow' | 'red' | 'grey' = 'grey';
+      if (kip.vehicleCount === 0 && dt.vehicleCount === 0) {
+        health = 'grey';
+      } else if (run?.status === 'failed') {
+        health = 'red';
+      } else {
+        const kipPct = baseline.kipExpected > 0 ? kip.vehicleCount / baseline.kipExpected : 1;
+        const dtPct = baseline.dtExpected > 0 ? dt.vehicleCount / baseline.dtExpected : 1;
+        const minPct = Math.min(kipPct, dtPct);
+        if (minPct >= 0.85) health = 'green';
+        else if (minPct >= 0.50) health = 'yellow';
+        else health = 'red';
+      }
+
+      days.push({
+        date: dateStr,
+        kip,
+        dt,
+        health,
+        lastRunStatus: run?.status ?? null,
+        lastRunAt: run?.completedAt ?? null,
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    // ── Summary (7-day averages, ghost count, pipeline stats) ──
+    const kipAvgRes = await kipPool.query(`
+      SELECT COALESCE(AVG(day_count), 0)::int AS avg_count FROM (
+        SELECT report_date, COUNT(DISTINCT vehicle_id) AS day_count
+        FROM vehicle_records
+        WHERE report_date >= CURRENT_DATE - 7 AND COALESCE(is_gap_filled, false) = false
+        GROUP BY report_date
+      ) sub
+    `);
+    const dtAvgRes = await mainPool.query(`
+      SELECT COALESCE(AVG(day_count), 0)::int AS avg_count FROM (
+        SELECT report_date, COUNT(DISTINCT vehicle_id) AS day_count
+        FROM dump_trucks.shift_records
+        WHERE report_date >= CURRENT_DATE - 7
+        GROUP BY report_date
+      ) sub
+    `);
+
+    // Ghost count: vehicles seen in last 30 days but not in last 4 days
+    const ghostRes = await kipPool.query(`
+      SELECT COUNT(DISTINCT vehicle_id)::int AS ghost_count
+      FROM vehicle_records
+      WHERE report_date >= CURRENT_DATE - 30
+        AND COALESCE(is_gap_filled, false) = false
+        AND vehicle_id NOT IN (
+          SELECT DISTINCT vehicle_id FROM vehicle_records
+          WHERE report_date >= CURRENT_DATE - 4 AND COALESCE(is_gap_filled, false) = false
+        )
+    `);
+
+    // Pipeline stats (last 7 days)
+    const pipelineStatsRes = await mainPool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS ok,
+        COUNT(*) FILTER (WHERE status = 'failed')::int AS fail
+      FROM pipeline_runs
+      WHERE started_at >= now() - interval '7 days'
+    `);
+
+    const summary = {
+      kipAvg7d: kipAvgRes.rows[0]?.avg_count ?? 0,
+      dtAvg7d: dtAvgRes.rows[0]?.avg_count ?? 0,
+      ghostCount: ghostRes.rows[0]?.ghost_count ?? 0,
+      pipelineOk: pipelineStatsRes.rows[0]?.ok ?? 0,
+      pipelineFail: pipelineStatsRes.rows[0]?.fail ?? 0,
+    };
+
+    res.json({ baseline, days, summary });
+  } catch (err) {
+    console.error('[coverage-dashboard] Error:', err);
+    res.status(500).json({ error: String(err) });
   }
 });
 

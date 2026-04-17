@@ -2,54 +2,44 @@ import express from 'express';
 import cors from 'cors';
 import { getEnvConfig } from './config/env';
 import { getPool, closePool } from './config/database';
-import { queryAll } from './repositories/vehicleStatusRepo';
-import { runSync, runDiagnostic, type SyncResult } from './services/sheetsSyncService';
+import { queryAllVehicles, getFilterOptions, querySnapshotsByDate, querySnapshotDates } from './repositories/vehicleStatusRepo';
+import { runSync, runDiagnostic, type SyncResult, debugRawRows } from './services/sheetsSyncService';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// In-memory sync state (sufficient for MVP)
 let lastSync: string | null = null;
 let lastResult: SyncResult | null = null;
 let syncInProgress = false;
 
-// ========================
-// Health
-// ========================
 app.get('/api/vs/health', (_req, res) => {
   res.json({ status: 'ok', service: 'vehicle-status', time: new Date().toISOString() });
 });
 
-// ========================
-// Список записей
-// ========================
-// GET /api/vs/vehicle-status?isRepairing=true&category=ДСТ
-app.get('/api/vs/vehicle-status', async (req, res) => {
+app.get('/api/vs/vehicles', async (_req, res) => {
   try {
     const pool = getPool();
-    const filters: { isRepairing?: boolean; category?: string } = {};
-
-    if (req.query['isRepairing'] !== undefined) {
-      filters.isRepairing = req.query['isRepairing'] === 'true';
-    }
-    if (req.query['category']) {
-      filters.category = req.query['category'] as string;
-    }
-
-    const records = await queryAll(pool, filters);
-    res.json({ data: records, total: records.length });
+    const data = await queryAllVehicles(pool);
+    res.json({ data });
   } catch (err) {
-    console.error('GET /api/vs/vehicle-status error', err);
+    console.error('GET /api/vs/vehicles error', err);
     res.status(500).json({ error: String(err) });
   }
 });
 
-// ========================
-// Запуск синхронизации
-// ========================
-// POST /api/vs/vehicle-status/sync
-app.post('/api/vs/vehicle-status/sync', (req, res) => {
+app.get('/api/vs/vehicles/filters', async (_req, res) => {
+  try {
+    const pool = getPool();
+    const data = await getFilterOptions(pool);
+    res.json(data);
+  } catch (err) {
+    console.error('GET /api/vs/vehicles/filters error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/vs/vehicles/sync', (req, res) => {
   res.json({ status: 'started' });
 
   if (syncInProgress) return;
@@ -58,12 +48,12 @@ app.post('/api/vs/vehicle-status/sync', (req, res) => {
   runSync()
     .then(result => {
       lastResult = result;
-      lastSync   = new Date().toISOString();
+      lastSync = new Date().toISOString();
       console.log(`[Sync] Done: processed=${result.processed} errors=${result.errors.length}`);
     })
     .catch(err => {
       lastResult = { processed: 0, errors: [String(err)] };
-      lastSync   = new Date().toISOString();
+      lastSync = new Date().toISOString();
       console.error('[Sync] Failed', err);
     })
     .finally(() => {
@@ -71,19 +61,11 @@ app.post('/api/vs/vehicle-status/sync', (req, res) => {
     });
 });
 
-// ========================
-// Статус последней синхронизации
-// ========================
-// GET /api/vs/vehicle-status/sync-status
-app.get('/api/vs/vehicle-status/sync-status', (_req, res) => {
+app.get('/api/vs/vehicles/sync-status', (_req, res) => {
   res.json({ lastSync, lastResult, inProgress: syncInProgress });
 });
 
-// ========================
-// Диагностика парсинга xlsx
-// ========================
-// GET /api/vs/vehicle-status/diagnostic
-app.get('/api/vs/vehicle-status/diagnostic', async (_req, res) => {
+app.get('/api/vs/vehicles/diagnostic', async (_req, res) => {
   try {
     const result = await runDiagnostic();
     res.json(result);
@@ -93,9 +75,44 @@ app.get('/api/vs/vehicle-status/diagnostic', async (_req, res) => {
   }
 });
 
-// ========================
-// Startup
-// ========================
+app.get('/api/vs/debug/raw', async (req, res) => {
+  try {
+    const sheetName = String(req.query.sheet || 'Сводная по МиМ');
+    const plate = String(req.query.plate || '');
+    const result = await debugRawRows(sheetName, plate);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get('/api/vs/snapshots/dates', async (_req, res) => {
+  try {
+    const pool = getPool();
+    const dates = await querySnapshotDates(pool);
+    res.json({ dates });
+  } catch (err) {
+    console.error('GET /api/vs/snapshots/dates error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get('/api/vs/snapshots', async (req, res) => {
+  try {
+    const date = String(req.query.date || '');
+    if (!date) {
+      res.status(400).json({ error: 'date query param required (YYYY-MM-DD)' });
+      return;
+    }
+    const pool = getPool();
+    const data = await querySnapshotsByDate(pool, date);
+    res.json({ data });
+  } catch (err) {
+    console.error('GET /api/vs/snapshots error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 const config = getEnvConfig();
 
 getPool().query('SELECT 1').then(() => {

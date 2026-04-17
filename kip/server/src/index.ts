@@ -6,6 +6,8 @@ import { startScheduler } from './jobs/scheduler';
 import { runDailyFetch } from './jobs/dailyFetchJob';
 import { recalculateForDate } from './jobs/recalculateJob';
 import { fillGapsForDate } from './jobs/gapFillJob';
+// Eager-load segmentFetchJob so it registers processQueueFn before any request arrives
+import './jobs/segmentFetchJob';
 import { getPool } from './config/database';
 import { logger } from './utils/logger';
 import { getFilteredGeozonesGeoJson, getFilteredGeozonesGeoJsonAsync, invalidateCache, preloadZones } from './services/geozoneAnalyzer';
@@ -317,8 +319,6 @@ app.post('/api/segments/fetch', async (req, res) => {
   try {
     const { enqueue } = await import('./jobs/segmentProgress');
     const job = enqueue(vehicleId, date, shiftType);
-    // Kick off queue processing
-    await import('./jobs/segmentFetchJob');
     res.json({ status: job.status, vehicleId, date, shiftType });
   } catch (err) {
     logger.error('[Segments] Fetch trigger error', err);
@@ -366,9 +366,6 @@ app.post('/api/segments/fetch-all', async (req, res) => {
       enqueue(row.vehicle_id, date, shift);
       enqueued++;
     }
-
-    // Kick off queue processing
-    await import('./jobs/segmentFetchJob');
 
     res.json({ enqueued, skipped, total: result.rows.length });
   } catch (err) {

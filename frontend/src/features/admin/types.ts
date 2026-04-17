@@ -115,6 +115,29 @@ export interface PipelineRun {
   errors: unknown[];
 }
 
+// ─── Coverage Dashboard ──────────────────────────────────────────────────────
+
+export interface CoverageDashboardResponse {
+  baseline: { kipExpected: number; dtExpected: number };
+  days: DayCard[];
+  summary: {
+    kipAvg7d: number;
+    dtAvg7d: number;
+    ghostCount: number;
+    pipelineOk: number;
+    pipelineFail: number;
+  };
+}
+
+export interface DayCard {
+  date: string;
+  kip: { vehicleCount: number; rawCount: number; rawPct: number; hasSegments: boolean };
+  dt: { vehicleCount: number; tripCount: number; shiftCount: number; hasSegments: boolean };
+  health: 'green' | 'yellow' | 'red' | 'grey';
+  lastRunStatus: string | null;
+  lastRunAt: string | null;
+}
+
 // ─── Detailed Coverage ────────────────────────────────────────────────────────
 
 export interface DtShiftCoverage {

@@ -17,5 +17,6 @@ __pycache__/
 *.pyo
 
 # Secrets - не коммитить конфиг с токеном!
+config.yaml
 # config.yaml содержит API токен
 # Используйте config.example.yaml как шаблон

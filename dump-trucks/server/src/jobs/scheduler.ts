@@ -10,6 +10,11 @@ import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
 
 export function startScheduler(): void {
+  if (process.env.CRON_DISABLED === 'true') {
+    logger.info('[Scheduler] Cron disabled (CRON_DISABLED=true), skipping');
+    return;
+  }
+
   // 08:30 — закрытие ночной смены (shift2 вчера)
   cron.schedule('30 8 * * *', async () => {
     const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');

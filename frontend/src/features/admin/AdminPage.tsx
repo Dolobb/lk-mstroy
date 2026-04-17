@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search, HelpCircle, Activity, Clock } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
-import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, KipSegmentProgress, DbTablePreset, DbQueryResult, PipelineHealthCard, PipelineRun } from './types';
+import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, KipSegmentProgress, DbTablePreset, DbQueryResult, PipelineHealthCard, PipelineRun, CoverageDashboardResponse, DayCard } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -123,6 +123,14 @@ async function fetchPipelineRuns(limit = 20): Promise<PipelineRun[]> {
     if (!res.ok) return [];
     return res.json();
   } catch { return []; }
+}
+
+async function fetchCoverageDashboard(from: string, to: string): Promise<CoverageDashboardResponse | null> {
+  try {
+    const res = await fetch(`/api/admin/coverage-dashboard?from=${from}&to=${to}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch { return null; }
 }
 
 async function startRefreshFetch(service: 'kip' | 'dump-trucks', from: string, to: string) {
@@ -462,6 +470,505 @@ const PipelineRunHistory: React.FC<{ runs: PipelineRun[] }> = ({ runs }) => {
   );
 };
 
+// ─── Coverage Dashboard ──────────────────────────────────────────────────────
+
+function fmtDateLong(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+const DayCardPopover: React.FC<{
+  card: DayCard;
+  baseline: { kipExpected: number; dtExpected: number };
+  onAction: (action: string, date: string) => void;
+  onClose: () => void;
+  busy: boolean;
+}> = ({ card, baseline, onAction, onClose, busy }) => {
+  const kipPct = baseline.kipExpected > 0 ? Math.round(card.kip.vehicleCount / baseline.kipExpected * 100) : 0;
+  const dtPct = baseline.dtExpected > 0 ? Math.round(card.dt.vehicleCount / baseline.dtExpected * 100) : 0;
+
+  // Determine contextual actions
+  const kipActions: { label: string; action: string }[] = [];
+  const dtActions: { label: string; action: string }[] = [];
+
+  if (card.kip.vehicleCount === 0) {
+    kipActions.push({ label: 'Загрузить КИП', action: 'fetch-kip' });
+  } else if (card.kip.rawPct < 90) {
+    kipActions.push({ label: 'Перевыгрузить raw', action: 'force-kip' });
+  } else {
+    kipActions.push({ label: 'Пересчитать КИП', action: 'recalc-kip' });
+  }
+  if (!card.kip.hasSegments && card.kip.vehicleCount > 0) {
+    kipActions.push({ label: 'Загрузить сегменты КИП', action: 'fetch-kip-segments' });
+  }
+
+  const dtFullyCovered = baseline.dtExpected > 0
+    ? card.dt.vehicleCount / baseline.dtExpected >= 0.85
+    : card.dt.vehicleCount > 0;
+
+  if (card.dt.vehicleCount === 0) {
+    dtActions.push({ label: 'Загрузить DT', action: 'fetch-dt' });
+  } else if (!dtFullyCovered) {
+    dtActions.push({ label: 'Перевыгрузить DT', action: 'refresh-dt' });
+    dtActions.push({ label: 'Пересчитать DT', action: 'recalc-dt' });
+  } else {
+    dtActions.push({ label: 'Пересчитать DT', action: 'recalc-dt' });
+  }
+  if (!card.dt.hasSegments && card.dt.vehicleCount > 0) {
+    dtActions.push({ label: 'Загрузить сегменты DT', action: 'fetch-dt-segments' });
+  }
+
+  if (card.lastRunStatus === 'failed') {
+    kipActions.unshift({ label: 'Повторить загрузку', action: 'refresh-kip' });
+  }
+
+  return (
+    <div
+      className="absolute z-50 bg-popover border border-border rounded-xl shadow-lg p-3 flex flex-col gap-2"
+      style={{ width: '300px', fontSize: '11px' }}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-semibold">{fmtDateLong(card.date)}</span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none p-0 text-sm">&times;</button>
+      </div>
+      <div className="border-t border-border/50" />
+
+      {/* KIP details */}
+      <div>
+        <div className="font-medium mb-0.5">КИП техники</div>
+        <div className="pl-2 flex flex-col gap-0.5 text-muted-foreground">
+          <div>
+            ТС: <span className={`font-mono ${kipPct >= 85 ? 'text-green-500' : kipPct >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+              {card.kip.vehicleCount}
+            </span>
+            {baseline.kipExpected > 0 && <span> / ~{baseline.kipExpected} ({kipPct}%)</span>}
+          </div>
+          <div>
+            Raw: <span className={`font-mono ${card.kip.rawPct >= 90 ? 'text-green-500' : card.kip.rawPct > 0 ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+              {card.kip.rawCount}
+            </span>
+            {card.kip.vehicleCount > 0 && <span> / {card.kip.vehicleCount} ({card.kip.rawPct}%)</span>}
+          </div>
+          <div>Сегменты: {card.kip.hasSegments ? <span className="text-green-500">есть</span> : <span>—</span>}</div>
+        </div>
+      </div>
+
+      {/* DT details */}
+      <div>
+        <div className="font-medium mb-0.5">Самосвалы</div>
+        <div className="pl-2 flex flex-col gap-0.5 text-muted-foreground">
+          <div>
+            ТС: <span className={`font-mono ${dtPct >= 85 ? 'text-green-500' : dtPct >= 50 ? 'text-yellow-500' : card.dt.vehicleCount > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+              {card.dt.vehicleCount}
+            </span>
+            {baseline.dtExpected > 0 && <span> / ~{baseline.dtExpected} ({dtPct}%)</span>}
+          </div>
+          <div>Рейсы: <span className="font-mono">{card.dt.tripCount}</span></div>
+          <div>Смены: {card.dt.shiftCount === 0 ? '—' : card.dt.shiftCount}</div>
+          <div>Сегменты: {card.dt.hasSegments ? <span className="text-green-500">есть</span> : <span>—</span>}</div>
+        </div>
+      </div>
+
+      {/* Pipeline status */}
+      {card.lastRunStatus && (
+        <div>
+          <span className="text-muted-foreground">Pipeline: </span>
+          <span className={card.lastRunStatus === 'completed' ? 'text-green-500' : card.lastRunStatus === 'failed' ? 'text-red-500' : 'text-yellow-500'}>
+            {card.lastRunStatus}
+          </span>
+          {card.lastRunAt && <span className="text-muted-foreground ml-1">{new Date(card.lastRunAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="border-t border-border/50 pt-1.5 flex flex-wrap gap-1.5">
+        {busy && (
+          <div className="w-full text-muted-foreground italic" style={{ fontSize: '10px' }}>
+            Операция уже выполняется — дождитесь завершения
+          </div>
+        )}
+        {kipActions.map(a => (
+          <button
+            key={a.action}
+            onClick={() => onAction(a.action, card.date)}
+            disabled={busy}
+            className="px-2 py-1 rounded-lg text-xs border-none cursor-pointer bg-primary/15 text-primary hover:bg-primary/25 transition-colors font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ fontSize: '10px' }}
+          >
+            {a.label}
+          </button>
+        ))}
+        {dtActions.map(a => (
+          <button
+            key={a.action}
+            onClick={() => onAction(a.action, card.date)}
+            disabled={busy}
+            className="px-2 py-1 rounded-lg text-xs border-none cursor-pointer bg-violet-500/15 text-violet-600 hover:bg-violet-500/25 transition-colors font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ fontSize: '10px' }}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const CoverageDashboard: React.FC<{
+  from: string;
+  to: string;
+  fetchStatus: FetchStatus;
+  recalcStatus: RecalcStatus;
+  onFetch: (service: 'kip' | 'dump-trucks', from: string, to: string, opts?: { force?: boolean; refresh?: boolean }) => void;
+  onRecalc: (service: 'kip' | 'dump-trucks', from: string, to: string) => void;
+  onCancel: () => void;
+  onCancelRecalc: () => void;
+}> = ({ from, to, fetchStatus, recalcStatus, onFetch, onRecalc, onCancel, onCancelRecalc }) => {
+  const [data, setData] = useState<CoverageDashboardResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const loadDashboard = async () => {
+    setLoading(true);
+    const result = await fetchCoverageDashboard(from, to);
+    setData(result);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  }, [from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Faster refresh when operations are active, slower when idle
+  const anyActive = fetchStatus.active || recalcStatus.active;
+  useEffect(() => {
+    const interval = anyActive ? 8_000 : 30_000;
+    const t = setInterval(loadDashboard, interval);
+    return () => clearInterval(t);
+  }, [from, to, anyActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAction = (action: string, date: string) => {
+    setSelectedDate(null);
+    switch (action) {
+      case 'fetch-kip':
+        onFetch('kip', date, date);
+        break;
+      case 'force-kip':
+        onFetch('kip', date, date, { force: true });
+        break;
+      case 'refresh-kip':
+        onFetch('kip', date, date, { refresh: true });
+        break;
+      case 'recalc-kip':
+        onRecalc('kip', date, date);
+        break;
+      case 'fetch-dt':
+        onFetch('dump-trucks', date, date);
+        break;
+      case 'refresh-dt':
+        onFetch('dump-trucks', date, date, { refresh: true });
+        break;
+      case 'recalc-dt':
+        onRecalc('dump-trucks', date, date);
+        break;
+      case 'fetch-dt-segments':
+        fetch(`/api/admin/fetch-segments?from=${date}&to=${date}`, { method: 'POST' })
+          .then(async res => {
+            if (res.status === 409) alert('Загрузка сегментов самосвалов уже выполняется.');
+            else if (!res.ok) alert(`Ошибка загрузки сегментов DT (${res.status})`);
+            else alert(`Загрузка сегментов самосвалов за ${date} запущена. Прогресс — в разделе «Расширенные инструменты».`);
+          })
+          .catch(() => alert('Сеть: не удалось отправить запрос на загрузку сегментов DT.'));
+        break;
+      case 'fetch-kip-segments':
+        fetch(`/api/admin/kip-segments/fetch?from=${date}&to=${date}`, { method: 'POST' })
+          .then(async res => {
+            if (res.status === 409) alert('Загрузка сегментов КИП уже выполняется.');
+            else if (!res.ok) alert(`Ошибка загрузки сегментов КИП (${res.status})`);
+            else alert(`Загрузка сегментов КИП за ${date} запущена. Прогресс — в разделе «Расширенные инструменты».`);
+          })
+          .catch(() => alert('Сеть: не удалось отправить запрос на загрузку сегментов КИП.'));
+        break;
+    }
+  };
+
+  const handleBatchFetchMissing = async () => {
+    if (!data) return;
+    const THRESHOLD = 0.85;
+    const kipExp = data.baseline.kipExpected;
+    const dtExp = data.baseline.dtExpected;
+
+    const kipMissing = data.days
+      .filter(d => kipExp > 0 && d.kip.vehicleCount / kipExp < THRESHOLD)
+      .map(d => d.date);
+    const dtMissing = data.days
+      .filter(d => dtExp > 0 && d.dt.vehicleCount / dtExp < THRESHOLD)
+      .map(d => d.date);
+
+    if (kipMissing.length === 0 && dtMissing.length === 0) {
+      alert(`Нет дат с покрытием <${Math.round(THRESHOLD * 100)}%. Всё ок.`);
+      return;
+    }
+
+    const parts: string[] = [];
+    if (kipMissing.length > 0) parts.push(`КИП: ${kipMissing.length} дн. (${kipMissing[0]} … ${kipMissing[kipMissing.length - 1]})`);
+    if (dtMissing.length > 0) parts.push(`DT: ${dtMissing.length} дн. (${dtMissing[0]} … ${dtMissing[dtMissing.length - 1]})`);
+    if (!confirm(`Запустить перевыгрузку?\n\n${parts.join('\n')}\n\nДиапазон будет перевыгружен целиком (force).`)) return;
+
+    if (kipMissing.length > 0) {
+      await onFetch('kip', kipMissing[0], kipMissing[kipMissing.length - 1], { force: true });
+    }
+    if (dtMissing.length > 0) {
+      await onFetch('dump-trucks', dtMissing[0], dtMissing[dtMissing.length - 1]);
+    }
+  };
+
+  const handleBatchRecalc = () => {
+    onRecalc('kip', from, to);
+  };
+
+  // Derived state for progress display
+  const isAnyFetch = fetchStatus.active;
+  const isAnyRecalc = recalcStatus.active;
+  const fetchTotal = fetchStatus.done.length + fetchStatus.queue.length + (fetchStatus.current ? 1 : 0);
+  const recalcTotal = recalcStatus.done.length + recalcStatus.queue.length + (recalcStatus.current ? 1 : 0);
+
+  if (!data) {
+    return (
+      <div className="glass-card rounded-xl p-3">
+        <div className="text-xs text-muted-foreground" style={{ fontSize: '11px' }}>
+          {loading ? 'Загрузка...' : 'Нет данных'}
+        </div>
+      </div>
+    );
+  }
+
+  const { baseline, days, summary } = data;
+
+  // Alerts
+  const alerts: string[] = [];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const missingKipDays = days.filter(d => d.kip.vehicleCount === 0 && d.date <= todayStr);
+  if (missingKipDays.length > 0) {
+    const dates = missingKipDays.map(d => fmtDateLong(d.date));
+    alerts.push(`${missingKipDays.length} дн. без данных КИП (${dates.slice(0, 3).join(', ')}${dates.length > 3 ? '...' : ''})`);
+  }
+  const failedDays = days.filter(d => d.lastRunStatus === 'failed');
+  if (failedDays.length > 0) {
+    alerts.push(`Pipeline failed: ${failedDays.map(d => fmtDateLong(d.date)).slice(0, 3).join(', ')}`);
+  }
+
+  return (
+    <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
+      {/* Summary header */}
+      <div className="flex items-center gap-3 flex-wrap" style={{ fontSize: '11px' }}>
+        <span className="text-muted-foreground">
+          Baseline (7д): КИП ~<span className="text-foreground font-mono">{baseline.kipExpected}</span>
+          {' | '}DT ~<span className="text-foreground font-mono">{baseline.dtExpected}</span>
+          {' | '}Ghost: <span className="text-foreground font-mono">{summary.ghostCount}</span>
+          {' | '}Pipeline: <span className={`font-mono ${summary.pipelineFail > 0 ? 'text-red-500' : 'text-green-500'}`}>
+            {summary.pipelineOk}/{summary.pipelineOk + summary.pipelineFail}
+          </span>
+          {summary.pipelineFail === 0 ? ' ✓' : ` (${summary.pipelineFail} fail)`}
+        </span>
+        <button
+          onClick={loadDashboard}
+          disabled={loading}
+          className="ml-auto px-2 py-1 rounded-lg text-xs border-none cursor-pointer bg-muted text-foreground hover:bg-muted/80 disabled:opacity-60 transition-opacity"
+          style={{ fontSize: '10px' }}
+        >
+          {loading ? '...' : 'Обновить'}
+        </button>
+      </div>
+
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="text-xs bg-red-500/10 text-red-500 rounded-lg px-3 py-1.5" style={{ fontSize: '11px' }}>
+          {alerts.join(' | ')}
+        </div>
+      )}
+
+      {/* Progress: fetch */}
+      {isAnyFetch && (
+        <div className="flex flex-col gap-1.5 bg-primary/5 rounded-lg px-3 py-2">
+          <div className="flex items-center justify-between" style={{ fontSize: '11px' }}>
+            <span className="text-muted-foreground">
+              <RotateCcw className="size-3 animate-spin inline mr-1" />
+              Загрузка ({fetchStatus.service === 'kip' ? 'КИП' : 'Самосвалы'}): <span className="text-foreground font-mono">
+                {fetchStatus.current ? fmtDate(fetchStatus.current) : '...'}
+              </span>
+            </span>
+            <span className="text-muted-foreground">
+              {fetchStatus.done.length} из {fetchTotal} дн.
+            </span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: fetchTotal > 0 ? `${(fetchStatus.done.length / fetchTotal) * 100}%` : '0%' }}
+            />
+          </div>
+          {fetchStatus.queue.length > 0 && (
+            <div className="text-muted-foreground" style={{ fontSize: '10px' }}>
+              В очереди: {fetchStatus.queue.slice(0, 5).map(fmtDate).join(', ')}
+              {fetchStatus.queue.length > 5 ? ` ...ещё ${fetchStatus.queue.length - 5}` : ''}
+            </div>
+          )}
+          {fetchStatus.errors.length > 0 && (
+            <div className="text-xs text-destructive" style={{ fontSize: '10px' }}>
+              {fetchStatus.errors.slice(-2).map((e, i) => <div key={i}>{e}</div>)}
+            </div>
+          )}
+          <button
+            onClick={onCancel}
+            className="self-start flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+            style={{ fontSize: '10px' }}
+          >
+            <XCircle className="size-3" /> Отмена
+          </button>
+        </div>
+      )}
+
+      {/* Progress: recalc */}
+      {isAnyRecalc && (
+        <div className="flex flex-col gap-1.5 bg-amber-500/5 rounded-lg px-3 py-2">
+          <div className="flex items-center justify-between" style={{ fontSize: '11px' }}>
+            <span className="text-muted-foreground">
+              <RotateCcw className="size-3 animate-spin inline mr-1" />
+              Пересчёт ({recalcStatus.service === 'kip' ? 'КИП' : 'Самосвалы'}): <span className="text-foreground font-mono">
+                {recalcStatus.current ? fmtDate(recalcStatus.current) : '...'}
+              </span>
+            </span>
+            <span className="text-muted-foreground">
+              {recalcStatus.done.length} из {recalcTotal} дн.
+            </span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-amber-500 rounded-full transition-all duration-500"
+              style={{ width: recalcTotal > 0 ? `${(recalcStatus.done.length / recalcTotal) * 100}%` : '0%' }}
+            />
+          </div>
+          {recalcStatus.errors.length > 0 && (
+            <div className="text-xs text-destructive" style={{ fontSize: '10px' }}>
+              {recalcStatus.errors.slice(-2).map((e, i) => <div key={i}>{e}</div>)}
+            </div>
+          )}
+          <button
+            onClick={onCancelRecalc}
+            className="self-start flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+            style={{ fontSize: '10px' }}
+          >
+            <XCircle className="size-3" /> Отмена
+          </button>
+        </div>
+      )}
+
+      {/* Batch actions */}
+      <div className="flex items-center gap-2 flex-wrap" style={{ fontSize: '11px' }}>
+        <button
+          onClick={handleBatchFetchMissing}
+          disabled={isAnyFetch || isAnyRecalc}
+          className="px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 transition-colors font-medium"
+          style={{ fontSize: '11px' }}
+        >
+          Загрузить пропущенные
+        </button>
+        <button
+          onClick={handleBatchRecalc}
+          disabled={isAnyFetch || isAnyRecalc}
+          className="px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-amber-500/15 text-amber-600 hover:bg-amber-500/25 disabled:opacity-50 transition-colors font-medium"
+          style={{ fontSize: '11px' }}
+        >
+          Пересчитать всё
+        </button>
+      </div>
+
+      {/* Day cards grid */}
+      <div className="flex flex-wrap gap-1.5 relative" onClick={() => setSelectedDate(null)}>
+        {[...days].reverse().map(card => {
+          const healthBg =
+            card.health === 'green' ? 'bg-green-500/20 border-green-500/30'
+            : card.health === 'yellow' ? 'bg-yellow-400/20 border-yellow-400/30'
+            : card.health === 'red' ? 'bg-red-500/20 border-red-500/30'
+            : 'bg-muted/40 border-border/30';
+
+          const kipCountColor = baseline.kipExpected > 0
+            ? (card.kip.vehicleCount / baseline.kipExpected >= 0.85 ? 'text-green-500'
+              : card.kip.vehicleCount / baseline.kipExpected >= 0.50 ? 'text-yellow-500'
+              : card.kip.vehicleCount > 0 ? 'text-red-500' : 'text-muted-foreground')
+            : 'text-foreground';
+
+          const dtCountColor = baseline.dtExpected > 0
+            ? (card.dt.vehicleCount / baseline.dtExpected >= 0.85 ? 'text-green-500'
+              : card.dt.vehicleCount / baseline.dtExpected >= 0.50 ? 'text-yellow-500'
+              : card.dt.vehicleCount > 0 ? 'text-red-500' : 'text-muted-foreground')
+            : 'text-foreground';
+
+          return (
+            <div
+              key={card.date}
+              className={`relative rounded-lg border p-1.5 cursor-pointer hover:ring-1 hover:ring-primary/50 transition-all select-none ${healthBg}`}
+              style={{ width: '110px', fontSize: '10px' }}
+              onClick={e => { e.stopPropagation(); setSelectedDate(prev => prev === card.date ? null : card.date); }}
+            >
+              <div className="font-medium text-center mb-0.5" style={{ fontSize: '11px' }}>
+                {fmtDateLong(card.date)}
+                {card.lastRunStatus === 'failed' && <span className="text-red-500 ml-0.5">✗</span>}
+                {card.health === 'green' && <span className="text-green-500 ml-0.5">✓</span>}
+                {card.health === 'yellow' && <span className="text-yellow-500 ml-0.5">⚠</span>}
+              </div>
+              <div className={`font-mono ${kipCountColor}`}>
+                КИП: {card.kip.vehicleCount}
+              </div>
+              <div className={`font-mono ${dtCountColor}`}>
+                DT: {card.dt.vehicleCount}
+                {card.dt.tripCount > 0 && <span className="text-muted-foreground"> ({card.dt.tripCount}р)</span>}
+              </div>
+              <div className="text-muted-foreground">
+                Seg: {card.kip.hasSegments ? '✓' : '—'} {card.dt.hasSegments ? '✓' : '—'}
+              </div>
+
+              {/* Popover */}
+              {selectedDate === card.date && (
+                <DayCardPopover
+                  card={card}
+                  baseline={baseline}
+                  onAction={handleAction}
+                  onClose={() => setSelectedDate(null)}
+                  busy={isAnyFetch || isAnyRecalc}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-3" style={{ fontSize: '10px' }}>
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-sm bg-green-500/40 border border-green-500/50" />
+          <span className="text-muted-foreground">&ge;85%</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-sm bg-yellow-400/40 border border-yellow-400/50" />
+          <span className="text-muted-foreground">50-85%</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-sm bg-red-500/40 border border-red-500/50" />
+          <span className="text-muted-foreground">&lt;50%</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-sm bg-muted/60 border border-border/50" />
+          <span className="text-muted-foreground">Нет данных</span>
+        </div>
+        <span className="text-muted-foreground ml-auto">Клик на карточку — детали + действия</span>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export const AdminPage: React.FC = () => {
@@ -496,6 +1003,9 @@ export const AdminPage: React.FC = () => {
     done: [] as string[], errors: [] as string[],
     totalEnqueued: 0, totalSkipped: 0,
   });
+
+  // Advanced tools collapsed
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // DB Viewer state
   // Pipeline health + run history
@@ -760,9 +1270,76 @@ export const AdminPage: React.FC = () => {
         )}
       </div>
 
-      {/* Data coverage */}
+      {/* Coverage Dashboard (new) */}
       <div>
         <h2 className="text-sm font-semibold mb-2">Покрытие данных</h2>
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          <DateRangePicker
+            dateFrom={coverageFrom}
+            dateTo={coverageTo}
+            onRangeChange={(from, to) => { setCoverageFrom(from); setCoverageTo(to); }}
+          />
+        </div>
+        <CoverageDashboard
+          from={coverageFrom}
+          to={coverageTo}
+          fetchStatus={fetchStatus}
+          recalcStatus={recalcStatus}
+          onFetch={async (service, f, t, opts) => {
+            const force = opts?.force ? '&force=true' : '';
+            const refresh = opts?.refresh ? '&refresh=true' : '';
+            const res = await fetch(`/api/admin/fetch/${service}?from=${f}&to=${t}${force}${refresh}`, { method: 'POST' });
+            if (res.status === 409) {
+              alert('Выгрузка уже выполняется. Дождитесь завершения или отмените её.');
+            } else if (!res.ok) {
+              const txt = await res.text().catch(() => '');
+              alert(`Ошибка запуска выгрузки (${res.status}): ${txt.slice(0, 200)}`);
+            } else {
+              const body = await res.json().catch(() => ({} as any));
+              if (body?.started !== true) {
+                const msg = body?.message ?? 'Нечего выгружать';
+                alert(`Выгрузка не запущена: ${msg}.\n\nЕсли данные неполные — используйте «Перевыгрузить» (refresh) или force-режим.`);
+              }
+            }
+            await loadFetchStatus();
+          }}
+          onRecalc={async (service, f, t) => {
+            const res = await fetch(`/api/admin/recalc/${service}?from=${f}&to=${t}`, { method: 'POST' });
+            if (res.status === 409) {
+              alert('Пересчёт уже выполняется. Дождитесь завершения или отмените его.');
+            } else if (!res.ok) {
+              const txt = await res.text().catch(() => '');
+              alert(`Ошибка запуска пересчёта (${res.status}): ${txt.slice(0, 200)}`);
+            }
+            await loadRecalcStatus();
+          }}
+          onCancel={async () => {
+            await cancelFetch();
+            await loadFetchStatus();
+          }}
+          onCancelRecalc={async () => {
+            await cancelRecalc();
+            await loadRecalcStatus();
+          }}
+        />
+      </div>
+
+      {/* Advanced tools — collapsible */}
+      <div>
+        <button
+          onClick={() => setAdvancedOpen(v => !v)}
+          className="flex items-center gap-2 text-sm font-semibold mb-2 cursor-pointer bg-transparent border-none text-foreground p-0"
+        >
+          {advancedOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+          Расширенные инструменты
+        </button>
+      </div>
+
+      {advancedOpen && <>
+
+      {/* Data coverage (old) */}
+      <div>
+        <h2 className="text-sm font-semibold mb-2">Покрытие данных (календарь)</h2>
         <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
 
           {/* Period + refresh */}
@@ -1410,22 +1987,8 @@ export const AdminPage: React.FC = () => {
         )}
       </div>
 
-      {/* Hot-reload hint */}
-      <div className="glass-card rounded-xl p-3">
-        <h2 className="text-xs font-semibold mb-1.5">Когда нужен перезапуск?</h2>
-        <div className="grid gap-1" style={{ fontSize: '11px' }}>
-          {[
-            ['✅ Автоматически (tsx watch / uvicorn --reload)', 'Изменения .ts / .py файлов'],
-            ['✅ Автоматически (Vite HMR)', 'Изменения React-компонентов и CSS'],
-            ['🔄 Перезапуск нужен', 'Изменения .env, новые пакеты (npm install), схема БД'],
-          ].map(([status, desc]) => (
-            <div key={desc} className="flex items-start gap-2">
-              <span className="shrink-0 text-muted-foreground">{status}</span>
-              <span className="text-muted-foreground">— {desc}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      </>}
+
     </div>
   );
 };

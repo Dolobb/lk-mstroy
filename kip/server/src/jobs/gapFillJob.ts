@@ -127,7 +127,7 @@ export async function fillGapsForDate(
       result.skipped++; continue;
     }
 
-    if (lastRecord.fuel_value_end != null && nextRecord.fuel_value_begin != null) {
+    if (lastRecord.fuel_value_end != null && nextRecord?.fuel_value_begin != null) {
       hasFuelData = true;
       const fuelDiff = Math.abs(Number(lastRecord.fuel_value_end) - Number(nextRecord.fuel_value_begin));
       fuelOk = fuelDiff < FUEL_THRESHOLD_L;
@@ -166,11 +166,11 @@ export async function fillGapsForDate(
           fuel_variance: 0,
           load_efficiency_pct: 0,
           utilization_ratio: 0,
-          latitude: Number(lastRecord.latitude),
-          longitude: Number(lastRecord.longitude),
+          latitude: synthLat,
+          longitude: synthLon,
           track_simplified: null,
-          fuel_value_begin: lastRecord.fuel_value_end != null ? Number(lastRecord.fuel_value_end) : null,
-          fuel_value_end: nextRecord.fuel_value_begin != null ? Number(nextRecord.fuel_value_begin) : (lastRecord.fuel_value_end != null ? Number(lastRecord.fuel_value_end) : null),
+          fuel_value_begin: synthFuelBegin,
+          fuel_value_end: synthFuelEnd,
           is_gap_filled: true,
         });
         result.filled++;
