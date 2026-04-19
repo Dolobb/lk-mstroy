@@ -32,6 +32,7 @@ import { replaceTrips } from '../repositories/tripRepo';
 import { replaceZoneEvents } from '../repositories/zoneEventRepo';
 import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
+import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 import type { ShiftType, GeoZone, ZoneEvent, Trip, ShiftKpi, WorkType } from '../types/domain';
 
 // Singleton клиент и лимитер
@@ -83,6 +84,7 @@ export interface FetchJobResult {
 export async function runShiftFetch(
   dateStr: string,
   shiftType: ShiftType,
+  triggerType: TriggerType = 'cron',
 ): Promise<FetchJobResult> {
   const config = getEnvConfig();
   const pool = getPool();
@@ -96,6 +98,15 @@ export async function runShiftFetch(
   };
 
   logger.info(`[ShiftFetch] Start: date=${dateStr} shift=${shiftType}`);
+
+  const tracker = await startPipelineRun({
+    pipelineName: 'dt-shift-fetch',
+    triggerType,
+    targetDate: dateStr,
+    shiftType,
+  });
+
+  try {
 
   const DEFAULT_TZ = 'Asia/Yekaterinburg';
 
@@ -141,6 +152,7 @@ export async function runShiftFetch(
     const msg = `Failed to fetch route lists: ${String(err)}`;
     logger.error(`[ShiftFetch] ${msg}`);
     result.errors.push(msg);
+    await tracker.complete({ errorCount: 1, errors: [{ message: msg }] });
     return result;
   }
   logger.info(`[ShiftFetch] Got ${routeLists.length} route lists`);
@@ -187,11 +199,13 @@ export async function runShiftFetch(
     const msg = `Failed to load geo zones: ${String(err)}`;
     logger.error(`[ShiftFetch] ${msg}`);
     result.errors.push(msg);
+    await tracker.complete({ errorCount: 1, errors: [{ message: msg }] });
     return result;
   }
 
   if (allZones.length === 0) {
     logger.warn('[ShiftFetch] No dt_* zones found in DB. Skipping monitoring fetch.');
+    await tracker.complete({ totalVehicles: 0, successCount: 0, errorCount: 0 });
     return result;
   }
 
@@ -541,5 +555,18 @@ export async function runShiftFetch(
   }
 
   logger.info(`[ShiftFetch] Done: processed=${result.vehiclesProcessed} skipped=${result.vehiclesSkipped} errors=${result.errors.length}`);
+
+  await tracker.complete({
+    totalVehicles: result.vehiclesProcessed + result.vehiclesSkipped,
+    successCount: result.vehiclesProcessed,
+    errorCount: result.errors.length,
+    errors: result.errors.length ? result.errors.map(message => ({ message })) : undefined,
+  });
+
   return result;
+
+  } catch (err) {
+    await tracker.fail(err instanceof Error ? err.message : String(err));
+    throw err;
+  }
 }
