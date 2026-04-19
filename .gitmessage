@@ -1,0 +1,15 @@
+# <type>(<scope>): <subject>  (50 chars max)
+#
+# <body — почему, не что. Переносы каждые 72 символа.>
+#
+# Типы: feat | fix | refactor | perf | docs | test | chore | build | ci
+# Скоупы: kip | dump-trucks | vehicle-status | geo-admin | admin |
+#         tyagachi | ai-reports | frontend | infra
+#
+# Примеры:
+#   feat(kip): gap-fill для смен без данных (KIP-3 C)
+#   fix(admin): передавать пароль БД из env в пулы
+#   chore(infra): .gitmessage + migrate:all
+#
+# Не использовать:
+#   «09», «228», «фронт по дням», «фикс», «update» без скоупа

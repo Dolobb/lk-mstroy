@@ -14,3 +14,24 @@ Data/
 *.db
 dumps/
 *.dump
+
+# ephemeral / debug artefacts
+_debug_*.js
+_debug_*.ts
+*.tsbuildinfo
+
+# screenshots dropped into repo root during notes/reviews
+/Снимок экрана*.png
+/Screenshot*.png
+/imporoving design.png
+/glm-ask.png
+
+# office lock files
+.~$*
+.~*.xlsx
+
+# ad-hoc planning notes committed without extension
+/план тут
+/изменения плана
+/готова админка
+/готова администратора
