@@ -13,5 +13,8 @@
     "build": "npm run build --workspace=client && npm run build --workspace=server",
     "lint": "npm run lint --workspace=client && npm run lint --workspace=server",
     "test": "npm run test --workspace=client && npm run test --workspace=server"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
   }
 }

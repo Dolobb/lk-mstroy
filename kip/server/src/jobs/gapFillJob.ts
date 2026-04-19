@@ -8,11 +8,57 @@ import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
 
 const MAX_GAP_DAYS = 10;
-const GPS_THRESHOLD_M = 500;
-const FUEL_THRESHOLD_L = 10;
+export const GPS_THRESHOLD_M = 500;
+export const FUEL_THRESHOLD_L = 10;
 
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   return distance(point([lon1, lat1]), point([lon2, lat2]), { units: 'meters' });
+}
+
+/**
+ * Чистая функция: по границам пропуска (lastRecord / nextRecord) решает, стояла ли
+ * машина на объекте. Вынесена из fillGapsForDate для тестируемости.
+ *
+ * onSite = true → создаём синтетическую запись (is_gap_filled=true).
+ *
+ * Правила:
+ *   - Нет ни last, ни next GPS → нельзя определить, skip.
+ *   - Обе GPS → стояла, если distance < GPS_THRESHOLD_M.
+ *   - Только одна сторона GPS → считаем, что стояла (недостаточно данных для опровержения).
+ *   - Если есть данные по топливу (last.end и next.begin) → требуется |Δ| < FUEL_THRESHOLD_L.
+ */
+export function evaluateOnSite(
+  last: { latitude: number | null; longitude: number | null; fuel_value_end: number | null } | null,
+  next: { latitude: number | null; longitude: number | null; fuel_value_begin: number | null } | null,
+): { onSite: boolean; gpsOk: boolean; hasFuelData: boolean; fuelOk: boolean } {
+  if (!last && !next) return { onSite: false, gpsOk: false, hasFuelData: false, fuelOk: false };
+
+  const hasLastGps = last?.latitude != null && last?.longitude != null;
+  const hasNextGps = next?.latitude != null && next?.longitude != null;
+
+  let gpsOk: boolean;
+  if (hasLastGps && hasNextGps) {
+    const distM = haversineMeters(
+      Number(last!.latitude), Number(last!.longitude),
+      Number(next!.latitude), Number(next!.longitude),
+    );
+    gpsOk = distM < GPS_THRESHOLD_M;
+  } else if (hasLastGps || hasNextGps) {
+    gpsOk = true;
+  } else {
+    return { onSite: false, gpsOk: false, hasFuelData: false, fuelOk: false };
+  }
+
+  let hasFuelData = false;
+  let fuelOk = false;
+  if (last?.fuel_value_end != null && next?.fuel_value_begin != null) {
+    hasFuelData = true;
+    const fuelDiff = Math.abs(Number(last.fuel_value_end) - Number(next.fuel_value_begin));
+    fuelOk = fuelDiff < FUEL_THRESHOLD_L;
+  }
+
+  const onSite = hasFuelData ? (gpsOk && fuelOk) : gpsOk;
+  return { onSite, gpsOk, hasFuelData, fuelOk };
 }
 
 interface BoundaryRecord {
@@ -104,40 +150,15 @@ export async function fillGapsForDate(
       logger.info('[GapFill-DEBUG] hasLastGps=' + (lastRecord.latitude != null && lastRecord.longitude != null) + ' hasNextGps=' + (nextRecord?.latitude != null && nextRecord?.longitude != null));
       logger.info('[GapFill-DEBUG] earlyExit=' + (!nextRecord && !lastRecord.latitude && !lastRecord.longitude));
     }
-    if (!nextRecord && !lastRecord.latitude && !lastRecord.longitude) {
-      // No next record and no GPS — can't determine if on site
-      result.skipped++; continue;
+    const decision = evaluateOnSite(lastRecord, nextRecord);
+    if (vehicleId.includes('7296')) {
+      logger.info('[GapFill-DEBUG] ' + JSON.stringify(decision));
     }
+    if (!decision.onSite) { result.skipped++; continue; }
 
-    let gpsOk = false;
-    let fuelOk = false;
-    let hasFuelData = false;
+    const { gpsOk, hasFuelData, fuelOk } = decision;
     const hasLastGps = lastRecord.latitude != null && lastRecord.longitude != null;
     const hasNextGps = nextRecord?.latitude != null && nextRecord?.longitude != null;
-
-    if (hasLastGps && hasNextGps) {
-      const distM = haversineMeters(
-        Number(lastRecord.latitude), Number(lastRecord.longitude),
-        Number(nextRecord!.latitude), Number(nextRecord!.longitude),
-      );
-      gpsOk = distM < GPS_THRESHOLD_M;
-    } else if (hasLastGps || hasNextGps) {
-      gpsOk = true;
-    } else {
-      result.skipped++; continue;
-    }
-
-    if (lastRecord.fuel_value_end != null && nextRecord?.fuel_value_begin != null) {
-      hasFuelData = true;
-      const fuelDiff = Math.abs(Number(lastRecord.fuel_value_end) - Number(nextRecord.fuel_value_begin));
-      fuelOk = fuelDiff < FUEL_THRESHOLD_L;
-    }
-
-    const onSite = hasFuelData ? (gpsOk && fuelOk) : gpsOk;
-    if (vehicleId.includes('7296')) {
-      logger.info('[GapFill-DEBUG] gpsOk=' + gpsOk + ' hasFuelData=' + hasFuelData + ' fuelOk=' + fuelOk + ' onSite=' + onSite);
-    }
-    if (!onSite) { result.skipped++; continue; }
 
     const fuelRateNorm = matchFuelNorm(vehicle.regNumber);
 
