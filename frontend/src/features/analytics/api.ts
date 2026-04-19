@@ -23,9 +23,11 @@ export async function fetchKipWeekly(
   from: string,
   to: string,
   types?: string[],
+  excludeGapFilled?: boolean,
 ): Promise<KipWeeklyVehicle[]> {
   const q = new URLSearchParams({ from, to });
   if (types?.length) types.forEach(t => q.append('type', t));
+  if (excludeGapFilled) q.append('excludeGapFilled', 'true');
   return get<KipWeeklyVehicle[]>(`${KIP_BASE}/vehicles/weekly?${q}`);
 }
 
@@ -178,6 +180,7 @@ export function kipWeeklyToVehicleRow(kv: KipWeeklyVehicle): UnifiedVehicleRow {
     kipVehicleId: kv.vehicle_id,
     departmentUnit: kv.department_unit,
     requestNumbers: kv.request_numbers ?? [],
+    gapFilledCount: kv.gap_filled_count ?? 0,
   };
 }
 

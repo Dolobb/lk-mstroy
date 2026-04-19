@@ -84,6 +84,7 @@ app.get('/api/vehicles/weekly', async (req, res) => {
         types: toArray(req.query.type),
         departments: toArray(req.query.department),
         kpiRanges: toArray(req.query.kpiRange),
+        excludeGapFilled: req.query.excludeGapFilled === 'true',
       }),
       getRequestNumbersForDateRange(from, to),
       getGhostVehicles(from, to),

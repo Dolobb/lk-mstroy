@@ -60,6 +60,8 @@ export interface UnifiedVehicleRow {
   departmentUnit?: string;
   // Pre-loaded request numbers (KIP weekly provides them without expand)
   requestNumbers?: number[];
+  // Число смен без данных (KIP gap-fill). Показывается бейджиком «⚑N» рядом с counter смен.
+  gapFilledCount?: number;
 }
 
 // KIP Segment types (for Gantt diagrams)

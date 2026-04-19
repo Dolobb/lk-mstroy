@@ -16,6 +16,9 @@ export interface KipRow {
   fuel_rate_fact: number;
   fuel_rate_norm: number;
   fuel_variance: number;
+  fuel_value_begin: number | null;
+  fuel_value_end: number | null;
+  is_gap_filled: boolean;
 }
 
 interface KipFilters {
@@ -23,6 +26,7 @@ interface KipFilters {
   vehicles?: string[];
   companyName?: string;
   shiftType?: string;
+  excludeGapFilled?: boolean;
 }
 
 export async function queryKipData(
@@ -57,6 +61,9 @@ export async function queryKipData(
     params.push(filters.shiftType);
     idx++;
   }
+  if (filters.excludeGapFilled) {
+    where += ` AND is_gap_filled = false`;
+  }
 
   const result = await pool.query(`
     SELECT
@@ -74,7 +81,10 @@ export async function queryKipData(
       fuel_consumed_total,
       fuel_rate_fact,
       fuel_rate_norm,
-      fuel_variance
+      fuel_variance,
+      fuel_value_begin,
+      fuel_value_end,
+      is_gap_filled
     FROM vehicle_records
     ${where}
     ORDER BY vehicle_model, company_name, department_unit, vehicle_id, report_date, shift_type
@@ -97,6 +107,9 @@ export async function queryKipData(
     fuel_rate_fact: Number(r.fuel_rate_fact) || 0,
     fuel_rate_norm: Number(r.fuel_rate_norm) || 0,
     fuel_variance: Number(r.fuel_variance) || 0,
+    fuel_value_begin: r.fuel_value_begin == null ? null : Number(r.fuel_value_begin),
+    fuel_value_end: r.fuel_value_end == null ? null : Number(r.fuel_value_end),
+    is_gap_filled: Boolean(r.is_gap_filled),
   }));
 }
 
