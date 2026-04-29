@@ -17,8 +17,9 @@ import { getEnvConfig } from '../config/env';
 import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
 import { fillGapsForDate } from './gapFillJob';
+import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 
-export async function runDailyFetch(dateStr?: string): Promise<void> {
+export async function runDailyFetch(dateStr?: string, triggerType: TriggerType = 'cron'): Promise<void> {
   const config = getEnvConfig();
   const targetDate = dateStr
     ? dayjs(dateStr).toDate()
@@ -27,6 +28,14 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
   const MAX_GAP_DAYS = 10;
 
   logger.info(`=== Daily fetch started for ${dateLabel} ===`);
+
+  const tracker = await startPipelineRun({
+    pipelineName: 'kip-daily-fetch',
+    triggerType,
+    targetDate: dateLabel,
+  });
+
+  try {
 
   const tokenPool = new TokenPool(config.tisApiTokens);
   const rateLimiter = new PerVehicleRateLimiter(config.rateLimitPerVehicleMs);
@@ -54,6 +63,7 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
 
   if (interleaved.length === 0) {
     logger.info('No matching vehicles found, skipping monitoring fetch');
+    await tracker.complete({ totalVehicles: 0, successCount: 0, errorCount: 0 });
     return;
   }
 
@@ -226,7 +236,18 @@ export async function runDailyFetch(dateStr?: string): Promise<void> {
     }
   }
 
+  await tracker.complete({
+    totalVehicles: interleaved.length,
+    successCount,
+    errorCount,
+  });
+
   logger.info(
     `=== Daily fetch complete for ${dateLabel}: ${successCount} success, ${skipCount} skipped, ${errorCount} errors ===`,
   );
+
+  } catch (err) {
+    await tracker.fail(err instanceof Error ? err.message : String(err));
+    throw err;
+  }
 }

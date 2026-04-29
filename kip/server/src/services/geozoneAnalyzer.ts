@@ -164,9 +164,9 @@ export async function getFilteredGeozonesGeoJsonAsync(): Promise<FeatureCollecti
   };
 }
 
-type TrackPoint = { lat: number; lon: number; timestamp: string };
+export type TrackPoint = { lat: number; lon: number; timestamp: string };
 
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   return distance(point([lon1, lat1]), point([lon2, lat2]), { units: 'meters' });
 }
 
@@ -177,7 +177,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
  *   - If GPS distance >= 500m → vehicle moved, leave gap as-is
  * No time limit on gap length — only GPS check.
  */
-function fillTrackGaps(track: TrackPoint[]): TrackPoint[] {
+export function fillTrackGaps(track: TrackPoint[]): TrackPoint[] {
   if (track.length < 2) return track;
 
   const result: TrackPoint[] = [track[0]];

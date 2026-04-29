@@ -142,10 +142,12 @@ export async function getWeeklyAggregated(params: {
   types?: string[];
   departments?: string[];
   kpiRanges?: string[];
+  excludeGapFilled?: boolean;
 }): Promise<WeeklyAggRow[]> {
   const pool = getPool();
 
   const hasDepts = params.departments && params.departments.length > 0;
+  const excludeGap = params.excludeGapFilled === true;
 
   const query = `
     WITH agg AS (
@@ -168,6 +170,7 @@ export async function getWeeklyAggregated(params: {
       WHERE report_date BETWEEN $1 AND $2
         AND ($3::varchar IS NULL OR shift_type = $3)
         AND ($4::bool = false OR department_unit = ANY($5::varchar[]))
+        AND ($6::bool = false OR is_gap_filled = false)
       GROUP BY vehicle_id
     )
     SELECT * FROM agg
@@ -180,6 +183,7 @@ export async function getWeeklyAggregated(params: {
     params.shift || null,
     hasDepts,
     hasDepts ? params.departments : [],
+    excludeGap,
   ]);
 
   let rows = result.rows.map(coerceWeeklyRow);

@@ -393,8 +393,22 @@ export function AnalyticsPage() {
         if (!row.organization) return <span style={{ fontSize: 10 }}>—</span>;
         return <span style={{ fontSize: 10 }} title={row.organization}>{abbreviateOrg(row.organization)}</span>;
       }
-      case 'shiftsCount':
-        return <span>{row.shiftsCount}</span>;
+      case 'shiftsCount': {
+        const gap = row.gapFilledCount ?? 0;
+        return (
+          <span>
+            {row.shiftsCount}
+            {gap > 0 && (
+              <span
+                title={`${gap} см. без данных (gap-fill по границам)`}
+                style={{ marginLeft: 4, fontSize: 10, color: '#9ca3af' }}
+              >
+                ⚑{gap}
+              </span>
+            )}
+          </span>
+        );
+      }
       case 'tripsOrFuel': {
         if (row.source === 'dump_truck') {
           return <span style={{ fontWeight: 700, color: '#F97316' }}>{row.totalTrips || '—'}</span>;

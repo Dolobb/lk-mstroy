@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: Typecheck ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: kip
+            path: kip
+            install: npm ci
+            command: npm run lint
+          - service: dump-trucks-server
+            path: dump-trucks/server
+            install: npm ci
+            command: npx tsc --noEmit
+          - service: vehicle-status-server
+            path: vehicle-status/server
+            install: npm ci
+            command: npx tsc --noEmit
+          - service: geo-admin-server
+            path: geo-admin/server
+            install: npm ci
+            command: npx tsc --noEmit
+          - service: geo-admin-client
+            path: geo-admin/client
+            install: npm ci
+            command: npx tsc --noEmit
+          - service: admin
+            path: admin
+            install: npm ci
+            command: npx tsc --noEmit
+          - service: frontend
+            path: frontend
+            install: npm ci
+            command: npx tsc --noEmit
+          - service: ai-reports-server
+            path: ai-reports/server
+            install: npm ci
+            # AI SDK v6 types are heavy — needs extra heap (see ai-reports/CLAUDE.md)
+            command: NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+      - name: Install
+        working-directory: ${{ matrix.path }}
+        run: ${{ matrix.install }}
+
+      - name: Typecheck
+        working-directory: ${{ matrix.path }}
+        run: ${{ matrix.command }}
+
+  python-smoke:
+    name: Python smoke (tyagachi)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install deps
+        working-directory: tyagachi
+        run: |
+          pip install -r requirements.txt || true
+          python -c "import sys; print(sys.version)"
+      - name: Compile check
+        working-directory: tyagachi
+        run: python -m compileall src
