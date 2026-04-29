@@ -1,0 +1,849 @@
+{"ts":"2026-04-28T03:18:52.857Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:18:52.874Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:19:00.918Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:19:00.959Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=15488 on port 3002","fields":{"pid":15488,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:19:00.968Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.013Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=25572 on port 3001","fields":{"pid":25572,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.020Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.070Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=18040 on port 3004","fields":{"pid":18040,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.079Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.121Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=17560 on port 3006","fields":{"pid":17560,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.129Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.173Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=18360 on port 3003","fields":{"pid":18360,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:19:01.184Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:19:01.193Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:19:01.203Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:19:01.213Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:19:01.494Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:19:14.422Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:19:14.438Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:19:23.971Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:19:23.989Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.196Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.240Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=39460 on port 3001","fields":{"pid":39460,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.412Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.457Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=10120 on port 3002","fields":{"pid":10120,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.556Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:19:31.600Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.640Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=29864 on port 3003","fields":{"pid":29864,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.772Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:19:31.864Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.907Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=26452 on port 3004","fields":{"pid":26452,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:19:31.960Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:19:32.224Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:19:32.269Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:19:32.316Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=26216 on port 3006","fields":{"pid":26216,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:19:32.628Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:19:48.979Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:19:49.920Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:19:49.942Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.119Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.159Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=19728 on port 3001","fields":{"pid":19728,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.337Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.379Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=26344 on port 3002","fields":{"pid":26344,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.478Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:19:57.555Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.599Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=33032 on port 3003","fields":{"pid":33032,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.690Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:19:57.789Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.837Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=17824 on port 3004","fields":{"pid":17824,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:19:57.917Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:19:58.148Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:19:58.208Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=24448 on port 3006","fields":{"pid":24448,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:19:58.216Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:19:58.519Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:20:50.701Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:20:51.645Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:20:51.661Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:20:58.852Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:20:58.895Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=36428 on port 3001","fields":{"pid":36428,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.070Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.118Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=38536 on port 3002","fields":{"pid":38536,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.213Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:20:59.288Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.330Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=35172 on port 3003","fields":{"pid":35172,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.430Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:20:59.522Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.563Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=38404 on port 3004","fields":{"pid":38404,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.648Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:20:59.880Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.922Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=36012 on port 3006","fields":{"pid":36012,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:20:59.930Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:21:00.237Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:21:04.247Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:21:05.189Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:21:05.210Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:21:12.426Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:21:12.468Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=35512 on port 3001","fields":{"pid":35512,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:21:12.627Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:21:12.674Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=11408 on port 3002","fields":{"pid":11408,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:21:12.783Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:21:12.828Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:21:12.869Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=26476 on port 3003","fields":{"pid":26476,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:21:12.983Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:21:13.030Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:21:13.073Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=31968 on port 3004","fields":{"pid":31968,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:21:13.185Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:21:13.387Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:21:13.495Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:21:13.550Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=39468 on port 3006","fields":{"pid":39468,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:21:13.868Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:21:31.900Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:21:32.825Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:21:32.846Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.058Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.110Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=30040 on port 3001","fields":{"pid":30040,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.262Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.305Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=33716 on port 3002","fields":{"pid":33716,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.437Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:21:40.463Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.504Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=27932 on port 3003","fields":{"pid":27932,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.619Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:21:40.744Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.786Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=22892 on port 3004","fields":{"pid":22892,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:21:40.824Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:21:41.104Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:21:41.134Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:21:41.189Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=33388 on port 3006","fields":{"pid":33388,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:21:41.510Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:22:15.028Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:22:15.959Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:22:15.977Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.165Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.212Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=23332 on port 3001","fields":{"pid":23332,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.379Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.427Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=33216 on port 3002","fields":{"pid":33216,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.536Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:22:23.582Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.624Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=38096 on port 3003","fields":{"pid":38096,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.736Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:22:23.844Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.889Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=26680 on port 3004","fields":{"pid":26680,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:22:23.938Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:22:24.201Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:22:24.247Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:22:24.299Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=17860 on port 3006","fields":{"pid":17860,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:22:24.624Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:22:47.979Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:22:48.905Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:22:48.928Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.148Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.191Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=20956 on port 3001","fields":{"pid":20956,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.352Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.398Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=32144 on port 3002","fields":{"pid":32144,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.505Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:22:56.552Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.595Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=38740 on port 3003","fields":{"pid":38740,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.708Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:22:56.753Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.800Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=24140 on port 3004","fields":{"pid":24140,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T03:22:56.911Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:22:57.114Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:22:57.160Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:22:57.213Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=34792 on port 3006","fields":{"pid":34792,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T03:22:57.532Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:27:06.279Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T03:27:06.290Z","category":"spawn","service":"dump-trucks","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T03:27:06.300Z","category":"spawn","service":"geo-admin","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T03:27:06.310Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T03:27:06.320Z","category":"spawn","service":"tyagachi","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T03:27:06.321Z","category":"spawn","service":"ai-reports","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T03:27:10.378Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:27:10.583Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T03:27:10.790Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T03:27:10.991Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T03:27:11.193Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T03:27:11.396Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T03:27:11.415Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T03:27:11.597Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T03:28:04.743Z","category":"pipeline","pipeline":"kip_daily","runId":"581216d1-8efc-40c2-bd48-8131ec1b6db4","date":"2026-04-26","msg":"run started","fields":{"triggerType":"manual","mode":"force"},"level":"info"}
+{"ts":"2026-04-28T03:28:04.754Z","category":"http","service":"kip","runId":"581216d1-8efc-40c2-bd48-8131ec1b6db4","pipeline":"kip_daily","msg":"200 POST http://localhost:3001/api/admin/fetch?date=2026-04-26","fields":{"ms":11},"level":"info"}
+{"ts":"2026-04-28T03:32:10.635Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:32:49.979Z","category":"pipeline","pipeline":"kip_daily","runId":"581216d1-8efc-40c2-bd48-8131ec1b6db4","date":"2026-04-26","msg":"run completed","fields":{"vehicles":91},"level":"info"}
+{"ts":"2026-04-28T03:32:49.984Z","category":"pipeline","pipeline":"kip_daily","runId":"096d5025-0236-4638-bc5a-9f555ad9fc53","date":"2026-04-27","msg":"run started","fields":{"triggerType":"cron","mode":"normal"},"level":"info"}
+{"ts":"2026-04-28T03:32:50.048Z","category":"http","service":"kip","runId":"096d5025-0236-4638-bc5a-9f555ad9fc53","pipeline":"kip_daily","msg":"200 POST http://localhost:3001/api/admin/fetch?date=2026-04-27","fields":{"ms":64},"level":"info"}
+{"ts":"2026-04-28T03:33:10.117Z","category":"pipeline","pipeline":"kip_daily","runId":"096d5025-0236-4638-bc5a-9f555ad9fc53","date":"2026-04-27","msg":"run completed","fields":{"vehicles":42},"level":"info"}
+{"ts":"2026-04-28T03:37:10.663Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:42:10.665Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:47:10.687Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:52:10.707Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T03:57:10.719Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:02:10.740Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:07:10.856Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:12:10.754Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:14:29.525Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T04:14:29.617Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T04:14:29.844Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T04:17:10.756Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:22:10.775Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:27:10.784Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:32:10.789Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:37:10.803Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:42:10.807Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:45:44.061Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T04:45:44.180Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T04:45:44.395Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T04:47:10.815Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:49:39.154Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T04:49:39.224Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T04:49:39.472Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T04:50:36.189Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T04:50:36.274Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T04:50:36.521Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T04:52:10.822Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T04:57:10.852Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:00:16.971Z","category":"pipeline","pipeline":"dt_daily","runId":"37da6d52-b1f5-44ee-8eb5-9e27c861d42e","date":"2026-04-28","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:00:16.981Z","category":"http","service":"dump-trucks","runId":"37da6d52-b1f5-44ee-8eb5-9e27c861d42e","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift1","fields":{"ms":8},"level":"info"}
+{"ts":"2026-04-28T05:00:47.042Z","category":"pipeline","pipeline":"dt_daily","runId":"37da6d52-b1f5-44ee-8eb5-9e27c861d42e","date":"2026-04-28","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":2,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T05:02:10.850Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:07:10.834Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:08:56.947Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T05:09:00.768Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:09:00.895Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T05:09:01.105Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T05:09:01.319Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T05:09:01.519Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T05:09:01.735Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T05:09:01.760Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T05:09:01.936Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T05:09:18.906Z","category":"handler","pipeline":"dt_daily","date":"2026-04-27","msg":"fan-out fetch-dt-date → both shifts","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:09:20.947Z","category":"pipeline","pipeline":"dt_daily","runId":"3617e893-f479-40a9-9e94-538c680bf85d","date":"2026-04-27","shift":"shift1","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:09:20.955Z","category":"http","service":"dump-trucks","runId":"3617e893-f479-40a9-9e94-538c680bf85d","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-27&shift=shift1","fields":{"ms":7},"level":"info"}
+{"ts":"2026-04-28T05:10:22.623Z","category":"pipeline","pipeline":"dt_daily","runId":"3617e893-f479-40a9-9e94-538c680bf85d","date":"2026-04-27","shift":"shift1","msg":"run completed","fields":{"processed":31,"preCount":3,"postCount":34,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T05:10:22.628Z","category":"pipeline","pipeline":"dt_daily","runId":"130df040-707d-4c07-b49c-dc325898785f","date":"2026-04-27","shift":"shift2","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:10:23.129Z","category":"http","service":"dump-trucks","runId":"130df040-707d-4c07-b49c-dc325898785f","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-27&shift=shift2","fields":{"ms":500},"level":"info"}
+{"ts":"2026-04-28T05:11:09.477Z","category":"pipeline","pipeline":"dt_daily","runId":"130df040-707d-4c07-b49c-dc325898785f","date":"2026-04-27","shift":"shift2","msg":"run completed","fields":{"processed":19,"preCount":3,"postCount":19,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T05:11:41.463Z","category":"handler","pipeline":"dt_daily","date":"2026-04-26","msg":"fan-out fetch-dt-date → both shifts","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:11:41.656Z","category":"pipeline","pipeline":"dt_daily","runId":"7c2786f0-6efd-4f41-98b0-b387e66d6bab","date":"2026-04-26","shift":"shift1","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:11:41.663Z","category":"http","service":"dump-trucks","runId":"7c2786f0-6efd-4f41-98b0-b387e66d6bab","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-26&shift=shift1","fields":{"ms":5},"level":"info"}
+{"ts":"2026-04-28T05:12:42.876Z","category":"pipeline","pipeline":"dt_daily","runId":"7c2786f0-6efd-4f41-98b0-b387e66d6bab","date":"2026-04-26","shift":"shift1","msg":"run completed","fields":{"processed":26,"preCount":28,"postCount":28,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T05:12:42.884Z","category":"pipeline","pipeline":"dt_daily","runId":"56fce533-7d0b-4870-bd73-b10adec703af","date":"2026-04-26","shift":"shift2","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:12:42.891Z","category":"http","service":"dump-trucks","runId":"56fce533-7d0b-4870-bd73-b10adec703af","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-26&shift=shift2","fields":{"ms":7},"level":"info"}
+{"ts":"2026-04-28T05:13:28.279Z","category":"pipeline","pipeline":"dt_daily","runId":"56fce533-7d0b-4870-bd73-b10adec703af","date":"2026-04-26","shift":"shift2","msg":"run completed","fields":{"processed":17,"preCount":18,"postCount":18,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T05:14:00.968Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:14:20.079Z","category":"handler","pipeline":"dt_daily","date":"2026-04-28","msg":"fan-out fetch-dt-date → both shifts","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:14:20.519Z","category":"pipeline","pipeline":"dt_daily","runId":"287def30-b64b-40ad-8b30-322acb966db1","date":"2026-04-28","shift":"shift1","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:14:20.526Z","category":"http","service":"dump-trucks","runId":"287def30-b64b-40ad-8b30-322acb966db1","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift1","fields":{"ms":5},"level":"info"}
+{"ts":"2026-04-28T05:15:20.622Z","category":"pipeline","pipeline":"dt_daily","runId":"287def30-b64b-40ad-8b30-322acb966db1","date":"2026-04-28","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":3,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T05:15:20.627Z","category":"pipeline","pipeline":"dt_daily","runId":"52f4151f-ebb1-4369-bcaa-e5e54035661e","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:15:20.633Z","category":"http","service":"dump-trucks","runId":"52f4151f-ebb1-4369-bcaa-e5e54035661e","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":5},"level":"info"}
+{"ts":"2026-04-28T05:15:50.668Z","category":"pipeline","pipeline":"dt_daily","runId":"52f4151f-ebb1-4369-bcaa-e5e54035661e","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":0,"preCount":0,"postCount":0,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T05:16:08.508Z","category":"handler","pipeline":"dt_daily","date":"2026-04-27","msg":"fan-out fetch-dt-date → both shifts","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:16:08.744Z","category":"pipeline","pipeline":"dt_daily","runId":"56052732-a586-4d00-9e32-2aea857ec276","date":"2026-04-27","shift":"shift1","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:16:08.756Z","category":"http","service":"dump-trucks","runId":"56052732-a586-4d00-9e32-2aea857ec276","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-27&shift=shift1","fields":{"ms":10},"level":"info"}
+{"ts":"2026-04-28T05:17:09.183Z","category":"pipeline","pipeline":"dt_daily","runId":"56052732-a586-4d00-9e32-2aea857ec276","date":"2026-04-27","shift":"shift1","msg":"run completed","fields":{"processed":31,"preCount":34,"postCount":34,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T05:17:09.189Z","category":"pipeline","pipeline":"dt_daily","runId":"b20406b9-398f-45a3-8a99-88e218c09598","date":"2026-04-27","shift":"shift2","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T05:17:09.197Z","category":"http","service":"dump-trucks","runId":"b20406b9-398f-45a3-8a99-88e218c09598","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-27&shift=shift2","fields":{"ms":8},"level":"info"}
+{"ts":"2026-04-28T05:17:54.239Z","category":"pipeline","pipeline":"dt_daily","runId":"b20406b9-398f-45a3-8a99-88e218c09598","date":"2026-04-27","shift":"shift2","msg":"run completed","fields":{"processed":19,"preCount":19,"postCount":19,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T05:19:00.958Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:24:01.006Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:29:01.002Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:34:01.055Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:34:26.360Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T05:34:26.471Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T05:34:26.690Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T05:35:43.481Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T05:35:43.559Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T05:35:43.806Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T05:39:01.069Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:44:01.105Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:47:51.669Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T05:47:54.976Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:47:55.088Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T05:47:55.296Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T05:47:55.498Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T05:47:55.700Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T05:47:55.904Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T05:47:55.929Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T05:47:56.117Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T05:52:55.134Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T05:53:42.930Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T05:53:42.946Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T05:53:42.958Z","category":"spawn","service":"vehicle-status","msg":"process exited code=null","fields":{"code":null},"level":"warn"}
+{"ts":"2026-04-28T05:57:55.156Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:00:35.019Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T06:00:35.116Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T06:00:35.345Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T06:00:41.837Z","category":"spawn","service":"tyagachi","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T06:00:41.839Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T06:00:41.856Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T06:02:55.143Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:07:18.571Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T06:07:21.159Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:07:21.399Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T06:07:21.606Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T06:07:21.807Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T06:07:22.013Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T06:07:22.213Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T06:07:22.236Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T06:07:22.415Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T06:12:21.421Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:16:48.768Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T06:16:51.621Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:16:51.744Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T06:16:51.957Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T06:16:52.158Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T06:16:52.374Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T06:16:52.577Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T06:16:52.605Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T06:16:52.781Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T06:21:16.220Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:21:17.158Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T06:21:17.178Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T06:21:24.390Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T06:21:24.437Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=25260 on port 3001","fields":{"pid":25260,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T06:21:24.607Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T06:21:24.650Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=17016 on port 3002","fields":{"pid":17016,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T06:21:24.764Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T06:21:24.790Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T06:21:24.832Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=42912 on port 3003","fields":{"pid":42912,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T06:21:24.962Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T06:21:25.071Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T06:21:25.111Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=37452 on port 3004","fields":{"pid":37452,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T06:21:25.152Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T06:21:25.435Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T06:21:25.465Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T06:21:25.512Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=7728 on port 3006","fields":{"pid":7728,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T06:21:25.828Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T06:21:46.373Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T06:21:46.438Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T06:21:46.698Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T06:21:54.521Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T06:21:54.532Z","category":"spawn","service":"dump-trucks","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T06:21:57.724Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:21:57.959Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T06:21:58.170Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T06:21:58.393Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T06:21:58.598Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T06:21:58.800Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T06:21:58.841Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T06:21:59.001Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T06:26:57.979Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:31:58.009Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:36:58.014Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:41:58.041Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:46:58.053Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:51:58.068Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T06:56:58.087Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:00:33.736Z","category":"pipeline","pipeline":"dt_daily","runId":"0482d9a9-9d51-4044-9c82-b7c982fb02c9","date":"2026-04-28","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T07:00:33.748Z","category":"http","service":"dump-trucks","runId":"0482d9a9-9d51-4044-9c82-b7c982fb02c9","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift1","fields":{"ms":11},"level":"info"}
+{"ts":"2026-04-28T07:01:03.797Z","category":"pipeline","pipeline":"dt_daily","runId":"0482d9a9-9d51-4044-9c82-b7c982fb02c9","date":"2026-04-28","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":3,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T07:01:58.092Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:06:58.099Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:11:58.118Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:16:58.136Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:21:58.151Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:26:58.198Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:31:58.224Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:36:58.259Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:41:58.285Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:46:58.313Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:51:58.336Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:56:03.858Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T07:56:03.927Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T07:56:04.176Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T07:56:58.366Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:59:40.955Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T07:59:44.064Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T07:59:44.189Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T07:59:44.390Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T07:59:44.591Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T07:59:44.795Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T07:59:44.998Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T07:59:45.026Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T07:59:45.212Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T08:00:00.658Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:00:00.715Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:00:00.974Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:03:38.646Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:03:38.710Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:03:38.964Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:04:44.224Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:09:44.260Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:10:40.456Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:10:40.544Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:10:40.778Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:12:10.297Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:12:14.392Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:12:14.539Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T08:12:14.747Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T08:12:14.947Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T08:12:15.147Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:12:15.348Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T08:12:15.380Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:12:15.563Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T08:12:23.055Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:12:23.116Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:12:23.372Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:15:59.862Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:15:59.944Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:16:00.181Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:16:52.083Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:16:54.853Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:16:54.978Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T08:16:55.188Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T08:16:55.388Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T08:16:55.592Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:16:55.805Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T08:16:55.826Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:16:56.019Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T08:21:55.003Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:23:20.575Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:23:23.076Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:23:23.213Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T08:23:23.427Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T08:23:23.629Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T08:23:23.830Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:23:24.046Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T08:23:24.071Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:23:24.260Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T08:23:44.580Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:23:44.643Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:23:44.900Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:28:23.241Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:28:36.298Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:28:36.393Z","category":"spawn","service":"vehicle-status","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:28:36.623Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:28:43.771Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:28:46.513Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:28:46.749Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T08:28:46.953Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T08:28:47.154Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T08:28:47.368Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:28:47.573Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T08:28:47.608Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:28:47.776Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T08:32:37.898Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-28T08:32:40.399Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:32:40.593Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T08:32:40.796Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T08:32:40.997Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T08:32:41.200Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T08:32:41.415Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T08:32:41.440Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T08:32:41.629Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T08:37:40.620Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:42:40.657Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:47:40.686Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:52:40.702Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T08:57:40.716Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:02:40.744Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:07:40.751Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:12:40.750Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:17:40.788Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:22:40.799Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:27:40.812Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:32:40.820Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:37:40.838Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:42:40.863Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:47:40.893Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:52:40.929Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T09:57:40.956Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:00:16.346Z","category":"pipeline","pipeline":"dt_daily","runId":"db2cb250-7065-4170-927d-65fca43de91b","date":"2026-04-28","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T10:00:16.358Z","category":"http","service":"dump-trucks","runId":"db2cb250-7065-4170-927d-65fca43de91b","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift1","fields":{"ms":11},"level":"info"}
+{"ts":"2026-04-28T10:00:46.449Z","category":"pipeline","pipeline":"dt_daily","runId":"db2cb250-7065-4170-927d-65fca43de91b","date":"2026-04-28","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":3,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T10:02:40.991Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:07:41.027Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:12:41.037Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:17:41.058Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:22:41.073Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:27:41.106Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:32:41.122Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:37:41.146Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:42:41.162Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:47:41.170Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:52:41.198Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T10:57:41.212Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:02:41.232Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:07:41.252Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:12:41.270Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:17:41.293Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:18:47.570Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:18:48.515Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T11:18:48.535Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T11:18:55.740Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T11:18:55.794Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=21180 on port 3001","fields":{"pid":21180,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T11:18:55.942Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T11:18:55.990Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=26084 on port 3002","fields":{"pid":26084,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T11:18:56.117Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T11:18:56.144Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T11:18:56.189Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=38148 on port 3003","fields":{"pid":38148,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T11:18:56.301Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T11:18:56.331Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T11:18:56.376Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=17832 on port 3004","fields":{"pid":17832,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T11:18:56.504Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T11:18:56.702Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T11:18:56.812Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T11:18:56.867Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=35300 on port 3006","fields":{"pid":35300,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T11:18:57.187Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T11:20:03.896Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:20:04.949Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T11:20:04.966Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.179Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.227Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=1980 on port 3001","fields":{"pid":1980,"port":3001},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.396Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.436Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=42056 on port 3002","fields":{"pid":42056,"port":3002},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.539Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T11:20:12.584Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.623Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=9616 on port 3003","fields":{"pid":9616,"port":3003},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.749Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T11:20:12.849Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.891Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=27956 on port 3004","fields":{"pid":27956,"port":3004},"level":"warn"}
+{"ts":"2026-04-28T11:20:12.944Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T11:20:13.209Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T11:20:13.255Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-28T11:20:13.303Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=43860 on port 3006","fields":{"pid":43860,"port":3006},"level":"warn"}
+{"ts":"2026-04-28T11:20:14.108Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:20:14.334Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-28T11:20:14.536Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-28T11:20:14.739Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-28T11:20:14.939Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-28T11:20:15.143Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-28T11:20:15.165Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-28T11:20:15.346Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-28T11:25:14.386Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:30:14.378Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:35:14.412Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:40:14.424Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:45:14.404Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:50:14.421Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T11:55:14.431Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:00:14.461Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:00:21.122Z","category":"pipeline","pipeline":"dt_daily","runId":"579bcab5-7570-48ea-863e-20537f9766d2","date":"2026-04-28","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T12:00:21.139Z","category":"http","service":"dump-trucks","runId":"579bcab5-7570-48ea-863e-20537f9766d2","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift1","fields":{"ms":15},"level":"info"}
+{"ts":"2026-04-28T12:02:21.313Z","category":"pipeline","pipeline":"dt_daily","runId":"579bcab5-7570-48ea-863e-20537f9766d2","date":"2026-04-28","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":3,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T12:05:14.498Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:10:14.529Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:15:14.557Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:20:14.591Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:25:14.611Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:30:14.639Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:35:14.667Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:40:14.684Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:45:14.692Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:50:14.718Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T12:55:14.745Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:00:14.766Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:05:14.782Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:10:14.790Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:15:14.809Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:20:14.828Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:25:14.848Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:30:14.877Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:35:14.880Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:40:14.901Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:45:14.908Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:50:14.922Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T13:55:14.943Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:00:14.945Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:05:14.965Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:10:14.986Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:15:14.993Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:20:15.003Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:25:15.007Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:30:15.013Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:35:15.029Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:40:15.035Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:45:15.043Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:50:15.053Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T14:55:15.061Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:00:15.089Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:00:22.023Z","category":"pipeline","pipeline":"dt_daily","runId":"192663a5-7ad9-41a6-8eb5-12a4fcbb5866","date":"2026-04-28","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T15:00:22.033Z","category":"http","service":"dump-trucks","runId":"192663a5-7ad9-41a6-8eb5-12a4fcbb5866","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift1","fields":{"ms":8},"level":"info"}
+{"ts":"2026-04-28T15:00:52.071Z","category":"pipeline","pipeline":"dt_daily","runId":"192663a5-7ad9-41a6-8eb5-12a4fcbb5866","date":"2026-04-28","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":3,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-28T15:00:52.077Z","category":"pipeline","pipeline":"dt_daily","runId":"5ee77469-cd52-4501-abea-b9f115ae5c51","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T15:00:52.083Z","category":"http","service":"dump-trucks","runId":"5ee77469-cd52-4501-abea-b9f115ae5c51","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":6},"level":"info"}
+{"ts":"2026-04-28T15:01:22.135Z","category":"pipeline","pipeline":"dt_daily","runId":"5ee77469-cd52-4501-abea-b9f115ae5c51","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":0,"preCount":0,"postCount":0,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T15:05:15.103Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:10:15.106Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:15:15.114Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:20:15.130Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:25:15.144Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:30:15.149Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:35:15.176Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:40:15.187Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:45:15.206Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:50:15.210Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T15:55:15.226Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:00:15.234Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:05:15.250Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:10:15.252Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:15:15.272Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:20:15.285Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:25:15.304Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:30:15.323Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:35:15.378Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:40:15.433Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:45:15.483Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:50:15.521Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T16:55:15.557Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:00:15.589Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:00:24.288Z","category":"pipeline","pipeline":"dt_daily","runId":"bbf2a368-a7e3-4e45-891c-744a204c587c","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T17:00:24.296Z","category":"http","service":"dump-trucks","runId":"bbf2a368-a7e3-4e45-891c-744a204c587c","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":7},"level":"info"}
+{"ts":"2026-04-28T17:00:54.328Z","category":"pipeline","pipeline":"dt_daily","runId":"bbf2a368-a7e3-4e45-891c-744a204c587c","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":1,"preCount":0,"postCount":1,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T17:05:15.623Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:10:15.645Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:15:15.679Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:20:15.711Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:25:15.735Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:30:15.760Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:35:15.788Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:40:15.820Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:45:15.843Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:50:15.867Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T17:55:15.885Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:00:15.915Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:05:15.920Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:10:15.955Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:15:15.968Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:20:15.984Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:25:16.004Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:30:16.019Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:35:16.033Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:40:16.047Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:45:16.053Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:50:16.061Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T18:55:16.083Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:00:16.098Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:00:25.454Z","category":"pipeline","pipeline":"dt_daily","runId":"894533b5-8d53-4e3f-a713-097033be1eac","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T19:00:25.464Z","category":"http","service":"dump-trucks","runId":"894533b5-8d53-4e3f-a713-097033be1eac","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":9},"level":"info"}
+{"ts":"2026-04-28T19:00:55.497Z","category":"pipeline","pipeline":"dt_daily","runId":"894533b5-8d53-4e3f-a713-097033be1eac","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":1,"preCount":1,"postCount":1,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T19:05:16.120Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:10:16.130Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:15:16.150Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:20:16.164Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:25:16.179Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:30:16.186Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:35:16.201Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:40:16.218Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:45:16.229Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:50:16.241Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T19:55:16.245Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:00:16.266Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:05:16.282Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:10:16.281Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:15:16.298Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:20:16.318Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:25:16.320Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:30:16.329Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:35:16.339Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:40:16.352Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:45:16.369Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:50:16.388Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T20:55:16.404Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:00:16.422Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:05:16.476Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:10:16.520Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:15:16.565Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:20:16.611Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:25:16.650Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:30:16.683Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:35:16.713Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:40:16.749Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:45:16.795Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:50:16.830Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T21:55:16.854Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:00:16.888Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:00:33.045Z","category":"pipeline","pipeline":"dt_daily","runId":"05ba1e39-6ab5-4e2f-8019-9d6901a1f738","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-28T22:00:33.059Z","category":"http","service":"dump-trucks","runId":"05ba1e39-6ab5-4e2f-8019-9d6901a1f738","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":12},"level":"info"}
+{"ts":"2026-04-28T22:01:03.108Z","category":"pipeline","pipeline":"dt_daily","runId":"05ba1e39-6ab5-4e2f-8019-9d6901a1f738","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":1,"preCount":1,"postCount":1,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-28T22:05:16.924Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:10:16.952Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:15:16.971Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:20:16.994Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:25:17.030Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:30:17.064Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:35:17.067Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:40:17.081Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:45:17.100Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:50:17.114Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T22:55:17.131Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:00:17.157Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:05:17.179Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:10:17.192Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:15:17.192Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:20:17.210Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:25:17.212Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:30:17.225Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:35:17.239Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:40:17.248Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:45:17.264Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:50:17.280Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-28T23:55:17.283Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:00:17.303Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:00:33.490Z","category":"pipeline","pipeline":"dt_daily","runId":"1d0e0a87-167c-406f-b067-26a3237682a5","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T00:00:33.504Z","category":"http","service":"dump-trucks","runId":"1d0e0a87-167c-406f-b067-26a3237682a5","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":12},"level":"info"}
+{"ts":"2026-04-29T00:01:03.547Z","category":"pipeline","pipeline":"dt_daily","runId":"1d0e0a87-167c-406f-b067-26a3237682a5","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":1,"preCount":1,"postCount":1,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-29T00:05:17.324Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:10:17.340Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:15:17.349Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:20:17.359Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:25:17.371Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:30:17.377Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:31:01.800Z","category":"pipeline","pipeline":"kip_daily","runId":"797316ce-156a-41e2-aa9c-9fc2b2f193ba","date":"2026-04-28","msg":"run started","fields":{"triggerType":"cron","mode":"normal"},"level":"info"}
+{"ts":"2026-04-29T00:31:01.821Z","category":"http","service":"kip","runId":"797316ce-156a-41e2-aa9c-9fc2b2f193ba","pipeline":"kip_daily","msg":"200 POST http://localhost:3001/api/admin/fetch?date=2026-04-28","fields":{"ms":20},"level":"info"}
+{"ts":"2026-04-29T00:31:21.830Z","category":"pipeline","pipeline":"kip_daily","runId":"797316ce-156a-41e2-aa9c-9fc2b2f193ba","date":"2026-04-28","msg":"run completed","fields":{"vehicles":118},"level":"info"}
+{"ts":"2026-04-29T00:35:17.392Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:40:17.403Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:45:17.412Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:50:17.425Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T00:55:17.430Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:00:17.449Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:05:17.464Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:10:17.482Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:15:17.491Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:20:17.506Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:25:17.505Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:30:17.529Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:35:17.539Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:40:17.589Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:45:17.619Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:50:17.645Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T01:55:17.669Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:00:17.691Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:05:17.722Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:10:17.745Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:15:17.764Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:20:17.784Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:25:17.813Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:30:17.832Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:35:17.861Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:40:17.871Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:45:17.897Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:50:17.917Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T02:55:17.947Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T03:00:05.699Z","category":"pipeline","pipeline":"dt_daily","runId":"762e9dfb-2d02-49f2-95a8-64b3b283648a","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T03:00:05.708Z","category":"http","service":"dump-trucks","runId":"762e9dfb-2d02-49f2-95a8-64b3b283648a","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":8},"level":"info"}
+{"ts":"2026-04-29T03:00:17.967Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T03:00:35.744Z","category":"pipeline","pipeline":"dt_daily","runId":"762e9dfb-2d02-49f2-95a8-64b3b283648a","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":1,"preCount":1,"postCount":1,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-29T03:00:35.749Z","category":"pipeline","pipeline":"dt_daily","runId":"8bef2299-0407-4eec-9023-1001586fe112","date":"2026-04-29","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T03:00:35.756Z","category":"http","service":"dump-trucks","runId":"8bef2299-0407-4eec-9023-1001586fe112","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-29&shift=shift1","fields":{"ms":7},"level":"info"}
+{"ts":"2026-04-29T03:01:05.776Z","category":"pipeline","pipeline":"dt_daily","runId":"8bef2299-0407-4eec-9023-1001586fe112","date":"2026-04-29","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":0,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-29T03:05:17.976Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T03:10:17.993Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T03:15:18.018Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T03:19:09.504Z","category":"reconcile","msg":"dropped 0 unknown-queue pending jobs","fields":{"count":0,"queues":["__pgboss__send-it","dt-shift2-cron","dt-shift1-cron"]},"level":"info"}
+{"ts":"2026-04-29T03:19:10.432Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-29T03:19:10.455Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-29T03:19:17.646Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:19:17.704Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=24200 on port 3001","fields":{"pid":24200,"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:19:17.848Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:19:17.897Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=17024 on port 3002","fields":{"pid":17024,"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:19:18.023Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-29T03:19:18.066Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:19:18.111Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=41700 on port 3003","fields":{"pid":41700,"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:19:18.207Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-29T03:19:18.330Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:19:18.378Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=16396 on port 3004","fields":{"pid":16396,"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:19:18.423Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-29T03:19:18.701Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-29T03:19:18.731Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:19:18.783Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=10112 on port 3006","fields":{"pid":10112,"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:19:19.820Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-29T03:19:20.025Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-29T03:19:20.230Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-29T03:19:20.433Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-29T03:19:20.634Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-29T03:19:20.654Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-29T03:19:20.834Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-29T03:20:00.651Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-29T03:20:00.668Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-29T03:20:07.876Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:20:07.922Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=43260 on port 3001","fields":{"pid":43260,"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.092Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.136Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=14840 on port 3002","fields":{"pid":14840,"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.233Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-29T03:20:08.278Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.324Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=15148 on port 3003","fields":{"pid":15148,"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.448Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-29T03:20:08.541Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.591Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=15988 on port 3004","fields":{"pid":15988,"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.635Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-29T03:20:08.914Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-29T03:20:08.945Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:20:08.996Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=38812 on port 3006","fields":{"pid":38812,"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:20:09.319Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-29T03:20:14.331Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-29T03:20:14.352Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-29T03:20:21.541Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:20:21.607Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=6396 on port 3001","fields":{"pid":6396,"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:20:21.724Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:20:21.773Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=42656 on port 3002","fields":{"pid":42656,"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:20:21.930Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-29T03:20:21.956Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:20:22.003Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=37512 on port 3003","fields":{"pid":37512,"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:20:22.083Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-29T03:20:22.237Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:20:22.283Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=14996 on port 3004","fields":{"pid":14996,"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:20:22.316Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-29T03:20:22.594Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-29T03:20:22.625Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:20:22.679Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=44688 on port 3006","fields":{"pid":44688,"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:20:22.999Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-29T03:23:57.132Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-04-29T03:23:57.145Z","category":"spawn","service":"dump-trucks","msg":"stopping","level":"info"}
+{"ts":"2026-04-29T03:23:57.159Z","category":"spawn","service":"geo-admin","msg":"stopping","level":"info"}
+{"ts":"2026-04-29T03:23:57.171Z","category":"spawn","service":"vehicle-status","msg":"stopping","level":"info"}
+{"ts":"2026-04-29T03:23:57.187Z","category":"spawn","service":"tyagachi","msg":"stopping","level":"info"}
+{"ts":"2026-04-29T03:23:57.187Z","category":"spawn","service":"ai-reports","msg":"stopping","level":"info"}
+{"ts":"2026-04-29T03:24:01.386Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-29T03:24:01.586Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-29T03:24:01.788Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-29T03:24:01.993Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-29T03:24:02.195Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-29T03:24:02.214Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-29T03:24:02.400Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-29T03:27:56.269Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-29T03:27:56.287Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-29T03:28:03.500Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:28:03.551Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=45260 on port 3001","fields":{"pid":45260,"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:28:03.702Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:28:03.759Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=41708 on port 3002","fields":{"pid":41708,"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:28:03.872Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-29T03:28:03.918Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:28:03.963Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=45552 on port 3003","fields":{"pid":45552,"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:28:04.076Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-29T03:28:04.181Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:28:04.232Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=26928 on port 3004","fields":{"pid":26928,"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:28:04.275Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-29T03:28:04.540Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:28:04.602Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=19388 on port 3006","fields":{"pid":19388,"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:28:04.612Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-29T03:28:04.913Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-29T03:28:26.020Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-04-29T03:28:26.038Z","category":"spawn","service":"tyagachi","msg":"process exited code=1","fields":{"code":1},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.254Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.307Z","category":"spawn","service":"kip","msg":"killed leftover listener pid=44112 on port 3001","fields":{"pid":44112,"port":3001},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.441Z","category":"spawn","service":"dump-trucks","msg":"port 3002 still occupied after 8s, killing leftover listener","fields":{"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.497Z","category":"spawn","service":"dump-trucks","msg":"killed leftover listener pid=32748 on port 3002","fields":{"pid":32748,"port":3002},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.629Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-04-29T03:28:33.671Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.717Z","category":"spawn","service":"geo-admin","msg":"killed leftover listener pid=49332 on port 3003","fields":{"pid":49332,"port":3003},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.813Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-04-29T03:28:33.936Z","category":"spawn","service":"vehicle-status","msg":"port 3004 still occupied after 8s, killing leftover listener","fields":{"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:28:33.990Z","category":"spawn","service":"vehicle-status","msg":"killed leftover listener pid=36192 on port 3004","fields":{"pid":36192,"port":3004},"level":"warn"}
+{"ts":"2026-04-29T03:28:34.025Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-04-29T03:28:34.308Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:28:34.364Z","category":"spawn","service":"ai-reports","msg":"killed leftover listener pid=32248 on port 3006","fields":{"pid":32248,"port":3006},"level":"warn"}
+{"ts":"2026-04-29T03:28:34.372Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-04-29T03:28:34.680Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-04-29T03:30:27.675Z","category":"pipeline","pipeline":"kip_daily","runId":"949da085-7aea-486a-a227-14ab54476cdf","date":"2026-04-28","msg":"run started","fields":{"triggerType":"cron","mode":"normal"},"level":"info"}
+{"ts":"2026-04-29T03:30:27.691Z","category":"http","service":"kip","runId":"949da085-7aea-486a-a227-14ab54476cdf","pipeline":"kip_daily","msg":"200 POST http://localhost:3001/api/admin/fetch?date=2026-04-28","fields":{"ms":15},"level":"info"}
+{"ts":"2026-04-29T03:30:47.697Z","category":"pipeline","pipeline":"kip_daily","runId":"949da085-7aea-486a-a227-14ab54476cdf","date":"2026-04-28","msg":"run completed","fields":{"vehicles":123},"level":"info"}
+{"ts":"2026-04-29T05:00:31.632Z","category":"pipeline","pipeline":"dt_daily","runId":"624282a8-5d84-4b0f-befd-d6cda6ac95d2","date":"2026-04-29","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T05:00:31.645Z","category":"http","service":"dump-trucks","runId":"624282a8-5d84-4b0f-befd-d6cda6ac95d2","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-29&shift=shift1","fields":{"ms":11},"level":"info"}
+{"ts":"2026-04-29T05:01:01.687Z","category":"pipeline","pipeline":"dt_daily","runId":"624282a8-5d84-4b0f-befd-d6cda6ac95d2","date":"2026-04-29","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":3,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-29T06:19:39.296Z","category":"handler","pipeline":"dt_daily","date":"2026-04-28","msg":"fan-out fetch-dt-date → both shifts","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T06:19:41.310Z","category":"pipeline","pipeline":"dt_daily","runId":"93dbec42-5399-46b1-b5d6-5c78fb7163f0","date":"2026-04-28","shift":"shift1","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T06:19:41.318Z","category":"http","service":"dump-trucks","runId":"93dbec42-5399-46b1-b5d6-5c78fb7163f0","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift1","fields":{"ms":7},"level":"info"}
+{"ts":"2026-04-29T06:20:41.615Z","category":"pipeline","pipeline":"dt_daily","runId":"93dbec42-5399-46b1-b5d6-5c78fb7163f0","date":"2026-04-28","shift":"shift1","msg":"run completed","fields":{"processed":29,"preCount":3,"postCount":31,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-29T06:20:41.623Z","category":"pipeline","pipeline":"dt_daily","runId":"1e4252d6-5f4b-493c-86bb-e4f511ef09db","date":"2026-04-28","shift":"shift2","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T06:20:41.631Z","category":"http","service":"dump-trucks","runId":"1e4252d6-5f4b-493c-86bb-e4f511ef09db","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-28&shift=shift2","fields":{"ms":7},"level":"info"}
+{"ts":"2026-04-29T06:21:26.671Z","category":"pipeline","pipeline":"dt_daily","runId":"1e4252d6-5f4b-493c-86bb-e4f511ef09db","date":"2026-04-28","shift":"shift2","msg":"run completed","fields":{"processed":21,"preCount":1,"postCount":21,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-04-29T06:22:15.846Z","category":"handler","pipeline":"dt_daily","date":"2026-04-29","msg":"fan-out fetch-dt-date → both shifts","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T06:22:16.863Z","category":"pipeline","pipeline":"dt_daily","runId":"b32b3109-39e9-47e2-a94c-b573f434526b","date":"2026-04-29","shift":"shift1","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T06:22:16.870Z","category":"http","service":"dump-trucks","runId":"b32b3109-39e9-47e2-a94c-b573f434526b","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-29&shift=shift1","fields":{"ms":6},"level":"info"}
+{"ts":"2026-04-29T06:22:46.900Z","category":"pipeline","pipeline":"dt_daily","runId":"b32b3109-39e9-47e2-a94c-b573f434526b","date":"2026-04-29","shift":"shift1","msg":"run completed","fields":{"processed":3,"preCount":3,"postCount":3,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-04-29T06:22:46.905Z","category":"pipeline","pipeline":"dt_daily","runId":"9a449bbf-2737-41af-9563-25262b5bd34a","date":"2026-04-29","shift":"shift2","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-04-29T06:22:46.913Z","category":"http","service":"dump-trucks","runId":"9a449bbf-2737-41af-9563-25262b5bd34a","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-29&shift=shift2","fields":{"ms":7},"level":"info"}
+{"ts":"2026-04-29T06:23:16.954Z","category":"pipeline","pipeline":"dt_daily","runId":"9a449bbf-2737-41af-9563-25262b5bd34a","date":"2026-04-29","shift":"shift2","msg":"run completed","fields":{"processed":0,"preCount":0,"postCount":0,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}

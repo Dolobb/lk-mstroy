@@ -1,3 +1,9 @@
+// gaxios/https-proxy-agent подхватывает HTTP(S)_PROXY из окружения и заворачивает
+// запросы к googleapis.com на локальный прокси разработчика — Google Drive виснет.
+// Удаляем до импорта googleapis, чтобы агент вообще не создавался.
+for (const k of ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']) delete process.env[k];
+process.env.NO_PROXY = '*';
+
 import fs from 'fs';
 import path from 'path';
 import { google } from 'googleapis';
@@ -96,12 +102,41 @@ async function downloadXlsx(
   fileId: string,
   auth: InstanceType<typeof google.auth.JWT>,
 ): Promise<Buffer> {
-  const drive = google.drive({ version: 'v3', auth });
-  const response = await drive.files.get(
-    { fileId, alt: 'media' },
-    { responseType: 'arraybuffer' },
-  );
-  return Buffer.from(response.data as ArrayBuffer);
+  // На этой машине авторизованные запросы к www.googleapis.com из Node висят
+  // (TLS встаёт, h2-стрим открывается, ответ не приходит — вероятно MITM-прокси
+  // мешает OpenSSL Node, но Schannel curl-а работает за <1с). Качаем curl-ом.
+  const token = auth.credentials.access_token;
+  if (!token) throw new Error('No access token after authorize()');
+  return downloadViaCurl(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, token);
+}
+
+async function downloadViaCurl(url: string, token: string): Promise<Buffer> {
+  const { spawn } = await import('node:child_process');
+  return new Promise<Buffer>((resolve, reject) => {
+    // На Win-машине пользователя исходящий трафик к googleapis работает только
+    // через локальный прокси. Адрес можно переопределить SYNC_HTTPS_PROXY в .env.
+    const proxy = process.env.SYNC_HTTPS_PROXY || 'http://127.0.0.1:12334';
+    const args = [
+      '-sS', '-L', '--fail-with-body', '--max-time', '60',
+      '-x', proxy,
+      '-H', `Authorization: Bearer ${token}`,
+      '-o', '-', url,
+    ];
+    // ВАЖНО: NO_PROXY="*" из process.env заставляет curl игнорировать -x и идти
+    // напрямую — что на этой машине висит. Явно очищаем для child-процесса.
+    const env = { ...process.env, NO_PROXY: '', no_proxy: '' };
+    const child = spawn('curl', args, { windowsHide: true, env });
+    const chunks: Buffer[] = [];
+    const errChunks: Buffer[] = [];
+    child.stdout.on('data', c => chunks.push(c));
+    child.stderr.on('data', c => errChunks.push(c));
+    child.on('error', reject);
+    child.on('close', code => {
+      if (code === 0) return resolve(Buffer.concat(chunks));
+      const stderr = Buffer.concat(errChunks).toString('utf8').slice(0, 300);
+      reject(new Error(`curl exit ${code}: ${stderr}`));
+    });
+  });
 }
 
 function findHeaderRow(rows: string[][]): HeaderResult | null {
@@ -169,6 +204,7 @@ export async function runDiagnostic(): Promise<DiagnosticResult> {
     key: creds.private_key,
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
   });
+  await auth.authorize();
 
   const xlsxBuffer = await downloadXlsx(config.googleSheetId, auth);
   const workbook = XLSX.read(xlsxBuffer, { type: 'buffer' });
@@ -258,30 +294,40 @@ export async function runDiagnostic(): Promise<DiagnosticResult> {
 }
 
 export async function runSync(): Promise<SyncResult> {
+  console.log('[Sync] Starting...');
   const config = getEnvConfig();
   const credsPath = path.resolve(__dirname, '../../', config.googleCredsPath);
+  console.log('[Sync] Creds path:', credsPath, 'exists:', fs.existsSync(credsPath));
   const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8')) as {
     client_email: string;
     private_key: string;
   };
+  console.log('[Sync] Creds email:', creds.client_email, 'key length:', creds.private_key?.length);
 
   const auth = new google.auth.JWT({
     email: creds.client_email,
     key: creds.private_key,
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
   });
+  await auth.authorize();
+  console.log('[Sync] JWT authorized');
 
   const today = new Date().toISOString().slice(0, 10);
   const errors: string[] = [];
 
   let xlsxBuffer: Buffer;
   try {
+    console.log('[Sync] Downloading xlsx...');
     xlsxBuffer = await downloadXlsx(config.googleSheetId, auth);
+    console.log(`[Sync] Downloaded ${(xlsxBuffer.length / 1024).toFixed(0)} KB`);
   } catch (err) {
+    console.error('[Sync] Download failed:', String(err));
     return { processed: 0, errors: [`Failed to download file: ${String(err)}`] };
   }
 
+  console.log('[Sync] Parsing workbook...');
   const workbook = XLSX.read(xlsxBuffer, { type: 'buffer' });
+  console.log(`[Sync] Parsed ${workbook.SheetNames.length} sheets`);
 
   const categoryData = new Map<string, ParsedVehicle[]>();
 
@@ -367,10 +413,12 @@ export async function runSync(): Promise<SyncResult> {
     }
   }
 
+  console.log('[Sync] Writing to DB...');
   const pool = getPool();
   let processed = 0;
 
   for (const [category, vehicles] of categoryData) {
+    console.log(`[Sync] Category "${category}": ${vehicles.length} vehicles`);
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -397,6 +445,7 @@ export async function debugRawRows(sheetName: string, plateFilter: string): Prom
   const credsPath = path.resolve(__dirname, '../../', config.googleCredsPath);
   const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8')) as { client_email: string; private_key: string };
   const auth = new google.auth.JWT({ email: creds.client_email, key: creds.private_key, scopes: ['https://www.googleapis.com/auth/drive.readonly'] });
+  await auth.authorize();
   const xlsxBuffer = await downloadXlsx(config.googleSheetId, auth);
   const workbook = XLSX.read(xlsxBuffer, { type: 'buffer' });
 

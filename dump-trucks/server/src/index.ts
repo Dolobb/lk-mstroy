@@ -63,6 +63,20 @@ app.get('/api/dt/objects', async (_req, res) => {
 // Ручной запуск пайплайна
 // ========================
 // POST /api/dt/admin/fetch?date=2026-02-18&shift=shift1
+type FetchJobState = 'running' | 'done' | 'error';
+interface FetchJobStatus {
+  state: FetchJobState;
+  date: string;
+  shift: ShiftType;
+  startedAt: number;
+  finishedAt: number | null;
+  vehiclesProcessed: number;
+  vehiclesSkipped: number;
+  errors: string[];
+}
+const fetchJobs = new Map<string, FetchJobStatus>();
+const fetchKey = (d: string, s: ShiftType) => `${d}|${s}`;
+
 app.post('/api/dt/admin/fetch', (req, res) => {
   const dateStr   = req.query['date'] as string;
   const shiftStr  = req.query['shift'] as string;
@@ -77,13 +91,60 @@ app.post('/api/dt/admin/fetch', (req, res) => {
   }
 
   const shiftType = shiftStr as ShiftType;
+  const key = fetchKey(dateStr, shiftType);
+
+  const existing = fetchJobs.get(key);
+  if (existing && existing.state === 'running') {
+    res.json({ status: 'already_running', date: dateStr, shift: shiftType, startedAt: existing.startedAt });
+    return;
+  }
+
+  const job: FetchJobStatus = {
+    state: 'running',
+    date: dateStr,
+    shift: shiftType,
+    startedAt: Date.now(),
+    finishedAt: null,
+    vehiclesProcessed: 0,
+    vehiclesSkipped: 0,
+    errors: [],
+  };
+  fetchJobs.set(key, job);
 
   // Запускаем асинхронно
   res.json({ status: 'started', date: dateStr, shift: shiftType });
 
   runShiftFetch(dateStr, shiftType)
-    .then(result => logger.info('[Admin] Fetch complete', result))
-    .catch(err   => logger.error('[Admin] Fetch error', err));
+    .then(result => {
+      job.state = 'done';
+      job.finishedAt = Date.now();
+      job.vehiclesProcessed = result.vehiclesProcessed;
+      job.vehiclesSkipped = result.vehiclesSkipped;
+      job.errors = result.errors;
+      logger.info('[Admin] Fetch complete', result);
+    })
+    .catch(err => {
+      job.state = 'error';
+      job.finishedAt = Date.now();
+      job.errors.push(String(err));
+      logger.error('[Admin] Fetch error', err);
+    });
+});
+
+// GET /api/dt/admin/fetch/status?date=YYYY-MM-DD&shift=shift1
+app.get('/api/dt/admin/fetch/status', (req, res) => {
+  const dateStr  = req.query['date']  as string;
+  const shiftStr = req.query['shift'] as string;
+  if (!dateStr || !shiftStr || !['shift1', 'shift2'].includes(shiftStr)) {
+    res.status(400).json({ error: 'date and shift required' });
+    return;
+  }
+  const job = fetchJobs.get(fetchKey(dateStr, shiftStr as ShiftType));
+  if (!job) {
+    res.json({ state: 'not_found', date: dateStr, shift: shiftStr });
+    return;
+  }
+  res.json(job);
 });
 
 // ========================

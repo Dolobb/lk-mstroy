@@ -8,6 +8,7 @@ import fs from 'fs';
 import { Pool } from 'pg';
 import { PgBoss } from 'pg-boss';
 import { createPipelineRunRepo, type PipelineRun } from './src/repositories/pipelineRunRepo';
+import { log, LOG_PATHS } from './src/logger';
 
 dotenv.config();
 
@@ -91,10 +92,45 @@ const processes: Record<string, ChildProcess | null> = {};
 const logs: Record<string, string[]> = {};
 const LOG_LIMIT = 300;
 
+// ─── File logging ─────────────────────────────────────────────────────────────
+const LOG_DIR = path.join(ROOT, 'admin', 'logs');
+const FILE_ROTATE_BYTES = 30 * 1024 * 1024; // 30 MB
+const fileStreams: Record<string, fs.WriteStream> = {};
+
+try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch {}
+
+function getLogStream(id: string): fs.WriteStream | null {
+  try {
+    const fpath = path.join(LOG_DIR, `${id}.log`);
+    const existing = fileStreams[id];
+    // Rotate if too large
+    try {
+      const st = fs.statSync(fpath);
+      if (st.size > FILE_ROTATE_BYTES) {
+        if (existing) { existing.end(); delete fileStreams[id]; }
+        const rotated = path.join(LOG_DIR, `${id}.${new Date().toISOString().replace(/[:.]/g, '-')}.log`);
+        try { fs.renameSync(fpath, rotated); } catch {}
+      }
+    } catch { /* file does not exist yet */ }
+    if (!fileStreams[id]) {
+      fileStreams[id] = fs.createWriteStream(fpath, { flags: 'a' });
+    }
+    return fileStreams[id]!;
+  } catch {
+    return null;
+  }
+}
+
 function appendLog(id: string, line: string) {
   if (!logs[id]) logs[id] = [];
   logs[id].push(line);
   if (logs[id].length > LOG_LIMIT) logs[id].shift();
+
+  const stream = getLogStream(id);
+  if (stream) {
+    const ts = new Date().toISOString();
+    stream.write(`${ts} ${line}\n`);
+  }
 }
 
 // ─── Port health check ────────────────────────────────────────────────────────
@@ -115,15 +151,68 @@ function checkPort(port: number): Promise<boolean> {
 
 // ─── Process management ───────────────────────────────────────────────────────
 
-function startService(cfg: ServiceConfig) {
+async function waitPortFree(port: number, timeoutMs = 8000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await checkPort(port))) return true;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  return false;
+}
+
+function killListenerOnPort(port: number, serviceId?: string) {
+  if (process.platform !== 'win32') return;
+  try {
+    const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf8' });
+    const match = out.match(/(\d+)\s*$/m);
+    if (match && match[1]) {
+      const pid = parseInt(match[1], 10);
+      if (pid && pid !== process.pid) {
+        const tag = serviceId ?? 'admin';
+        appendLog(tag, `[admin] Killing leftover PID ${pid} on port ${port}`);
+        log.warn({
+          category: 'spawn',
+          service: serviceId,
+          msg: `killed leftover listener pid=${pid} on port ${port}`,
+          fields: { pid, port },
+        });
+        spawn('taskkill', ['/F', '/PID', String(pid)], { shell: false });
+      }
+    }
+  } catch { /* nothing on the port */ }
+}
+
+async function startService(cfg: ServiceConfig): Promise<void> {
   if (processes[cfg.id]) {
     try { processes[cfg.id]!.kill(); } catch {}
   }
 
+  // Make sure the port is free before spawning. EADDRINUSE crashes used to
+  // come from an orphan node that the previous taskkill didn't fully clean.
+  if (cfg.port) {
+    const free = await waitPortFree(cfg.port, 8000);
+    if (!free) {
+      log.warn({
+        category: 'spawn',
+        service: cfg.id,
+        msg: `port ${cfg.port} still occupied after 8s, killing leftover listener`,
+        fields: { port: cfg.port },
+      });
+      killListenerOnPort(cfg.port, cfg.id);
+      await waitPortFree(cfg.port, 3000);
+    }
+  }
+
   appendLog(cfg.id, `[admin] Запуск: ${cfg.cmd} ${cfg.args.join(' ')}`);
+  log.info({
+    category: 'spawn',
+    service: cfg.id,
+    msg: 'starting',
+    fields: { cmd: cfg.cmd, args: cfg.args, port: cfg.port },
+  });
 
   const isWin = process.platform === 'win32';
-  const childEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: 'localhost,127.0.0.1', CRON_DISABLED: 'true' };
+  const childEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: '*', ...(cfg.id === 'vehicle-status' ? {} : { CRON_DISABLED: 'true' }) };
   const child = isWin
     ? spawn(`${cfg.cmd} ${cfg.args.join(' ')}`, [], {
         cwd: cfg.cwd,
@@ -144,12 +233,27 @@ function startService(cfg: ServiceConfig) {
   });
 
   child.stderr?.on('data', (data: Buffer) => {
-    const lines = data.toString().split('\n').filter(Boolean);
+    const text = data.toString();
+    const lines = text.split('\n').filter(Boolean);
     lines.forEach(l => appendLog(cfg.id, `[err] ${l}`));
+    if (/EADDRINUSE/.test(text)) {
+      log.error({
+        category: 'spawn',
+        service: cfg.id,
+        msg: 'EADDRINUSE — port still held at child start',
+        fields: { port: cfg.port },
+      });
+    }
   });
 
   child.on('exit', (code) => {
     appendLog(cfg.id, `[admin] Процесс завершён (код ${code})`);
+    log.warn({
+      category: 'spawn',
+      service: cfg.id,
+      msg: `process exited code=${code}`,
+      fields: { code },
+    });
     if (processes[cfg.id] === child) {
       processes[cfg.id] = null;
     }
@@ -157,6 +261,12 @@ function startService(cfg: ServiceConfig) {
 
   child.on('error', (err) => {
     appendLog(cfg.id, `[admin] Ошибка запуска: ${err.message}`);
+    log.error({
+      category: 'spawn',
+      service: cfg.id,
+      msg: `spawn error: ${err.message}`,
+      fields: { error: err.message },
+    });
     processes[cfg.id] = null;
   });
 }
@@ -166,25 +276,20 @@ function stopService(id: string) {
   const cfg = SERVICES.find(s => s.id === id);
   if (!child && !cfg) return;
   appendLog(id, '[admin] Остановка...');
+  log.info({ category: 'spawn', service: id, msg: 'stopping' });
 
   if (process.platform === 'win32') {
     if (child?.pid) {
       spawn('taskkill', ['/F', '/T', '/PID', String(child.pid)], { shell: false });
     }
     if (cfg?.port) {
-      setTimeout(() => {
-        try {
-          const out = execSync(`netstat -ano | findstr :${cfg.port} | findstr LISTENING`, { encoding: 'utf8' });
-          const match = out.match(/(\d+)\s*$/m);
-          if (match && match[1]) {
-            const pid = parseInt(match[1], 10);
-            if (pid && pid !== process.pid) {
-              appendLog(id, `[admin] Killing leftover PID ${pid} on port ${cfg.port}`);
-              spawn('taskkill', ['/F', '/PID', String(pid)], { shell: false });
-            }
-          }
-        } catch {}
-      }, 1000);
+      // Wait for the port to actually free; if it doesn't, kill the leftover
+      // listener PID. This closes the EADDRINUSE race that happened whenever
+      // a Windows BAT prompt left an orphan node holding the port.
+      setImmediate(async () => {
+        const free = await waitPortFree(cfg.port, 5000);
+        if (!free) killListenerOnPort(cfg.port, id);
+      });
     }
   } else {
     if (child) child.kill('SIGTERM');
@@ -263,10 +368,229 @@ interface SegmentJobPayload {
   triggerType: 'manual' | 'cascade';
 }
 
+interface DtShiftFetchJobPayload {
+  date: string;
+  shift: 'shift1' | 'shift2';
+  mode: 'normal' | 'force' | 'refresh';
+  triggerType: 'cron' | 'manual' | 'cascade';
+}
+
+// ─── DT cron schedule (Asia/Yekaterinburg, UTC+5) ─────────────────────────────
+// Each entry fires at a local time and dispatches one or more (shift, dayOffset) tasks.
+// dayOffset is relative to "today" in Yekaterinburg at fire time.
+type DtCronTask = { shift: 'shift1' | 'shift2'; dayOffset: number };
+interface DtCronEntry {
+  time: string;        // human-readable local "HH:MM"
+  cron: string;        // pg-boss cron in UTC
+  description: string;
+  tasks: DtCronTask[];
+}
+const DT_CRON_SCHEDULE: DtCronEntry[] = [
+  { time: '08:00', cron: '0 3 * * *',  description: 'shift2 финал (вчера) + shift1 старт (сегодня)',
+    tasks: [{ shift: 'shift2', dayOffset: -1 }, { shift: 'shift1', dayOffset: 0 }] },
+  { time: '10:00', cron: '0 5 * * *',  description: 'shift1 refresh',
+    tasks: [{ shift: 'shift1', dayOffset: 0 }] },
+  { time: '12:00', cron: '0 7 * * *',  description: 'shift1 refresh',
+    tasks: [{ shift: 'shift1', dayOffset: 0 }] },
+  { time: '15:00', cron: '0 10 * * *', description: 'shift1 refresh',
+    tasks: [{ shift: 'shift1', dayOffset: 0 }] },
+  { time: '17:00', cron: '0 12 * * *', description: 'shift1 refresh',
+    tasks: [{ shift: 'shift1', dayOffset: 0 }] },
+  { time: '20:00', cron: '0 15 * * *', description: 'shift1 финал + shift2 старт (сегодня)',
+    tasks: [{ shift: 'shift1', dayOffset: 0 }, { shift: 'shift2', dayOffset: 0 }] },
+  { time: '22:00', cron: '0 17 * * *', description: 'shift2 refresh (сегодня)',
+    tasks: [{ shift: 'shift2', dayOffset: 0 }] },
+  { time: '00:00', cron: '0 19 * * *', description: 'shift2 refresh (вчера, смена ещё активна)',
+    tasks: [{ shift: 'shift2', dayOffset: -1 }] },
+  { time: '03:00', cron: '0 22 * * *', description: 'shift2 refresh (вчера)',
+    tasks: [{ shift: 'shift2', dayOffset: -1 }] },
+  { time: '05:00', cron: '0 0 * * *',  description: 'shift2 refresh (вчера)',
+    tasks: [{ shift: 'shift2', dayOffset: -1 }] },
+];
+
+function ekTodayIso(): string {
+  const ykb = new Date(Date.now() + 5 * 3600_000);
+  return ykb.toISOString().slice(0, 10);
+}
+function shiftDateIso(baseIso: string, offsetDays: number): string {
+  const d = new Date(baseIso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
+// ─── Reconcile ─────────────────────────────────────────────────────────────────
+// Single source of truth for pipeline state recovery. Runs at startup and
+// every 5 min. Replaces the old 2h "janitor" which let zombie runs sit visible
+// to the UI for hours after admin restarts.
+
+async function getKnownQueues(): Promise<Set<string>> {
+  const known = new Set<string>([
+    'fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift',
+    'recalc-kip-date', 'recalc-dt-date', 'fetch-dt-segments',
+  ]);
+  try {
+    const tzRes = await mainPool.query(`SELECT DISTINCT timezone FROM geo.objects WHERE timezone IS NOT NULL`);
+    const tzs: string[] = tzRes.rows.length > 0
+      ? tzRes.rows.map((r: { timezone: string }) => r.timezone)
+      : ['Asia/Yekaterinburg'];
+    for (const tz of tzs) known.add(`kip-cron-${tz.replace(/\//g, '-').toLowerCase()}`);
+  } catch {
+    known.add('kip-cron-asia-yekaterinburg');
+  }
+  for (const entry of DT_CRON_SCHEDULE) known.add(`dt-cron-${entry.time.replace(':', '')}`);
+  return known;
+}
+
+// Per-pipeline staleness threshold = handler's hard timeout + buffer for
+// pg-boss handover/HTTP retries. A run older than this with status='running'
+// has a dead handler — it cannot complete on its own. Values match the
+// timeouts in registerWorkers() (KIP fetch 35min, DT shift 50min, KIP recalc
+// 25min, DT recalc ~25min, DT segments 15min).
+const STALE_THRESHOLDS_MIN: Record<string, number> = {
+  kip_daily:    45, // 35min handler + 10min buffer
+  dt_daily:     60, // 50min handler + 10min buffer
+  kip_recalc:   35, // 25min handler + 10min buffer
+  dt_recalc:    35, // ~25min handler + 10min buffer
+  dt_segments:  25, // 15min handler + 10min buffer
+};
+const STALE_FALLBACK_MIN = 60; // unknown pipeline_name — be conservative
+// Largest threshold: the /fetch/status DB-fallback window must cover any
+// legitimately-running pipeline, otherwise the UI would briefly think a
+// long DT fetch is idle. = max(STALE_THRESHOLDS_MIN values).
+const RUNNING_SNAPSHOT_MIN = 60;
+
+async function reconcileOnStart(): Promise<void> {
+  // 1) Close stale 'running' rows. Each pipeline gets its own threshold so a
+  //    legitimate 50-min DT fetch isn't mis-flagged while a 5-min KIP recalc
+  //    that hung for 40min is caught quickly.
+  try {
+    const cases: string[] = [];
+    const params: unknown[] = [];
+    for (const [name, mins] of Object.entries(STALE_THRESHOLDS_MIN)) {
+      params.push(name, mins);
+      cases.push(`(pipeline_name = $${params.length - 1} AND started_at < now() - ($${params.length}::int || ' minutes')::interval)`);
+    }
+    params.push(STALE_FALLBACK_MIN);
+    const fallbackCase = `(pipeline_name NOT IN (${Object.keys(STALE_THRESHOLDS_MIN).map((_, i) => `$${(i * 2) + 1}`).join(',')}) AND started_at < now() - ($${params.length}::int || ' minutes')::interval)`;
+    params.push(JSON.stringify([{ note: 'reconcile: stale running closed', at: new Date().toISOString() }]));
+    const stale = await mainPool.query(
+      `UPDATE public.pipeline_runs
+       SET status='failed',
+           completed_at = now(),
+           duration_ms = EXTRACT(EPOCH FROM (now() - started_at))::int * 1000,
+           error_count = error_count + 1,
+           errors = COALESCE(errors, '[]'::jsonb) || $${params.length}::jsonb
+       WHERE status='running' AND (${cases.join(' OR ')} OR ${fallbackCase})
+       RETURNING run_id, pipeline_name`,
+      params,
+    );
+    if (stale.rowCount && stale.rowCount > 0) {
+      const grouped = stale.rows.reduce<Record<string, number>>((acc, r) => {
+        acc[r.pipeline_name] = (acc[r.pipeline_name] ?? 0) + 1;
+        return acc;
+      }, {});
+      const summary = Object.entries(grouped).map(([k, v]) => `${k}=${v}`).join(', ');
+      console.log(`[reconcile] closed ${stale.rowCount} stale running pipeline_runs (${summary})`);
+      log.info({
+        category: 'reconcile',
+        msg: `closed ${stale.rowCount} stale running rows`,
+        fields: { count: stale.rowCount, by_pipeline: grouped },
+      });
+    }
+  } catch (err) {
+    console.error('[reconcile] stale-runs sweep failed (non-fatal):', err);
+    log.error({ category: 'reconcile', msg: `stale-runs sweep failed: ${String(err)}` });
+  }
+
+  // 2) Drop pending jobs in pg-boss queues we no longer recognize. Renaming a
+  //    queue (e.g. dt-shift1-cron → dt-cron-shift1-T1) leaves stale pending
+  //    jobs that replay on next boot. Schedules are owned by us so anything
+  //    not in the known set is junk.
+  try {
+    const known = await getKnownQueues();
+    const queues = await mainPool.query<{ name: string }>(`SELECT name FROM pgboss.queue`);
+    const unknown = queues.rows.map(r => r.name).filter(n => !known.has(n));
+    if (unknown.length > 0) {
+      const del = await mainPool.query(
+        `DELETE FROM pgboss.job WHERE name = ANY($1::text[]) AND state IN ('created','retry') RETURNING id`,
+        [unknown],
+      );
+      await mainPool.query(`DELETE FROM pgboss.schedule WHERE name = ANY($1::text[])`, [unknown]).catch(() => {});
+      // Only log when something was actually cleaned up. The 5-min interval was
+      // emitting INFO-level "dropped 0" rows ~12×/h, drowning real signal.
+      if ((del.rowCount ?? 0) > 0) {
+        console.log(`[reconcile] queues unknown: ${unknown.join(', ')} — dropped ${del.rowCount ?? 0} pending jobs`);
+        log.info({
+          category: 'reconcile',
+          msg: `dropped ${del.rowCount ?? 0} unknown-queue pending jobs`,
+          fields: { count: del.rowCount, queues: unknown },
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[reconcile] queue cleanup failed (non-fatal):', err);
+    log.error({ category: 'reconcile', msg: `queue cleanup failed: ${String(err)}` });
+  }
+
+  // 3) Drop stale queued cron jobs in *known* fetch queues. While admin is
+  //    down, pg-boss schedules keep firing and queueing jobs. On next start
+  //    they all replay at once → one outage becomes 6+ "fetch failed" rows.
+  //    Anything older than 1 hour is no longer worth running — the next
+  //    cron firing will queue a fresh job.
+  try {
+    const stalePending = await mainPool.query<{ id: string }>(
+      `DELETE FROM pgboss.job
+       WHERE name IN ('fetch-kip-date','fetch-dt-date','fetch-dt-shift',
+                      'recalc-kip-date','recalc-dt-date','fetch-dt-segments')
+         AND state IN ('created','retry')
+         AND created_on < now() - interval '1 hour'
+       RETURNING id`,
+    );
+    if (stalePending.rowCount && stalePending.rowCount > 0) {
+      console.log(`[reconcile] dropped ${stalePending.rowCount} stale queued cron jobs`);
+      log.info({
+        category: 'reconcile',
+        msg: `dropped ${stalePending.rowCount} stale queued cron jobs (>1h old)`,
+        fields: { count: stalePending.rowCount },
+      });
+    }
+  } catch (err) {
+    console.error('[reconcile] stale-pending sweep failed (non-fatal):', err);
+    log.error({ category: 'reconcile', msg: `stale-pending sweep failed: ${String(err)}` });
+  }
+}
+
+// Recent-running snapshot for /fetch/status and /recalc/status fallback,
+// so the UI sees in-flight work even if in-memory `fetchProgress` was wiped
+// by an admin restart while a job is still progressing.
+async function getRunningSnapshot(pipelinePrefix: 'kip' | 'dt' | 'all'): Promise<Array<{
+  run_id: string;
+  pipeline_name: string;
+  target_date: string;
+  shift_type: string | null;
+  started_at: string;
+  trigger_type: string;
+}>> {
+  const filter = pipelinePrefix === 'all'
+    ? `pipeline_name LIKE '%'`
+    : `pipeline_name LIKE $1`;
+  const params = pipelinePrefix === 'all' ? [] : [`${pipelinePrefix}_%`];
+  const res = await mainPool.query(
+    `SELECT run_id::text, pipeline_name, target_date::text AS target_date,
+            shift_type, started_at::text AS started_at, trigger_type
+     FROM public.pipeline_runs
+     WHERE status='running' AND ${filter}
+       AND started_at > now() - ($${params.length + 1}::int || ' minutes')::interval
+     ORDER BY started_at ASC`,
+    [...params, RUNNING_SNAPSHOT_MIN],
+  );
+  return res.rows;
+}
+
 async function registerWorkers(): Promise<void> {
   // pg-boss v12: queues must be created before workers can subscribe
   const queues = [
-    'fetch-kip-date', 'fetch-dt-date',
+    'fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift',
     'recalc-kip-date', 'recalc-dt-date',
     'fetch-dt-segments',
   ];
@@ -281,8 +605,26 @@ async function registerWorkers(): Promise<void> {
   const kipFetchHandler: Handler<FetchJobPayload> = async (jobs) => {
     const { date, mode, triggerType } = jobs[0].data;
     const runId = await pipelineRepo.createRun({ pipelineName: 'kip_daily', triggerType, targetDate: date });
+    log.info({
+      category: 'pipeline', pipeline: 'kip_daily', runId, date,
+      msg: 'run started', fields: { triggerType, mode },
+    });
     try {
-      await fetch(`http://localhost:3001/api/admin/fetch?date=${date}`, { method: 'POST' });
+      const url = `http://localhost:3001/api/admin/fetch?date=${date}`;
+      const t0 = Date.now();
+      try {
+        const r = await fetch(url, { method: 'POST' });
+        log.info({
+          category: 'http', service: 'kip', runId, pipeline: 'kip_daily',
+          msg: `${r.status} POST ${url}`, fields: { ms: Date.now() - t0 },
+        });
+      } catch (err) {
+        log.error({
+          category: 'http', service: 'kip', runId, pipeline: 'kip_daily',
+          msg: 'connection refused', fields: { url, error: String(err) },
+        });
+        throw new Error(`fetch failed: ${String(err)}`);
+      }
       if (mode === 'force') {
         const fireTime = new Date().toISOString();
         await waitForRawComplete(kipPool, date, fireTime, () => false);
@@ -297,43 +639,277 @@ async function registerWorkers(): Promise<void> {
       );
       const cnt = countRes.rows[0]?.cnt ?? 0;
       await pipelineRepo.completeRun(runId, { totalVehicles: cnt, successCount: cnt, errorCount: 0 });
+      log.info({
+        category: 'pipeline', pipeline: 'kip_daily', runId, date,
+        msg: 'run completed', fields: { vehicles: cnt },
+      });
+
+      // Sanity-watchdog: warn if today's vehicle count is far below 7-day median.
+      // KIP normally has ~110-120 vehicles/day; a sudden drop to 30 is the kind
+      // of regression we want a soft signal for without flagging a 'partial'.
+      try {
+        const baseRes = await kipPool.query<{ c: string }>(
+          `SELECT COUNT(DISTINCT vehicle_id)::text AS c
+           FROM vehicle_records
+           WHERE report_date >= (CURRENT_DATE - INTERVAL '8 days')
+             AND report_date <  CURRENT_DATE
+             AND report_date <> $1
+             AND COALESCE(is_gap_filled, false) = false
+           GROUP BY report_date
+           ORDER BY 1`,
+          [date],
+        );
+        const counts = baseRes.rows.map(r => Number(r.c)).filter(n => n > 0);
+        if (counts.length >= 3) {
+          const median = counts[Math.floor(counts.length / 2)];
+          const threshold = Math.max(20, Math.floor(median * 0.5));
+          if (cnt < threshold) {
+            log.warn({
+              category: 'pipeline', pipeline: 'kip_daily', runId, date,
+              msg: `low activity: ${cnt} ТС vs 7д-медиана ${median} (порог ${threshold})`,
+              fields: { vehicles: cnt, median, threshold, baseline_days: counts.length },
+            });
+          }
+        }
+      } catch (e) {
+        log.warn({
+          category: 'pipeline', pipeline: 'kip_daily', runId, date,
+          msg: 'sanity-watchdog query failed (non-fatal)',
+          fields: { error: String(e) },
+        });
+      }
     } catch (err) {
-      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      await pipelineRepo.failRun(runId, errMsg);
+      log.error({
+        category: 'pipeline', pipeline: 'kip_daily', runId, date,
+        msg: 'run failed', fields: { error: errMsg },
+      });
       throw err;
     }
   };
   await boss.work('fetch-kip-date', { batchSize: 1 }, kipFetchHandler as any);
 
-  // fetch-dt-date worker
-  const dtFetchHandler: Handler<FetchJobPayload> = async (jobs) => {
-    const { date, triggerType } = jobs[0].data;
-    const runId = await pipelineRepo.createRun({ pipelineName: 'dt_daily', triggerType, targetDate: date });
+  // fetch-dt-date worker — legacy wrapper: enqueues fetch-dt-shift for both shifts.
+  // Manual/cascade flows still send to fetch-dt-date; cron uses fetch-dt-shift directly.
+  const dtFetchDateHandler: Handler<FetchJobPayload> = async (jobs) => {
+    const { date, mode, triggerType } = jobs[0].data;
+    log.info({
+      category: 'handler', pipeline: 'dt_daily', date,
+      msg: 'fan-out fetch-dt-date → both shifts', fields: { triggerType, mode },
+    });
+    await boss.send('fetch-dt-shift', { date, shift: 'shift1', mode, triggerType });
+    await boss.send('fetch-dt-shift', { date, shift: 'shift2', mode, triggerType });
+  };
+  await boss.work('fetch-dt-date', { batchSize: 1 }, dtFetchDateHandler as any);
+
+  // fetch-dt-shift worker — new per-shift handler with status polling and partial detection.
+  const dtShiftFetchHandler: Handler<DtShiftFetchJobPayload> = async (jobs) => {
+    const { date, shift, mode, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({
+      pipelineName: 'dt_daily',
+      triggerType,
+      targetDate: date,
+      shiftType: shift,
+      configSnapshot: { mode },
+    });
+    log.info({
+      category: 'pipeline', pipeline: 'dt_daily', runId, date, shift,
+      msg: 'run started', fields: { triggerType, mode },
+    });
     try {
-      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift1`, { method: 'POST' });
-      await new Promise(r => setTimeout(r, 2000));
-      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift2`, { method: 'POST' });
-      const result = await waitForDate(mainPool, `SELECT 1 FROM dump_trucks.shift_records WHERE report_date = $1 LIMIT 1`, [date], 20 * 60 * 1000, () => false);
-      if (result === 'timeout') throw new Error(`Timeout waiting for DT data: ${date}`);
-      // Record vehicle count metrics
-      const dtCountRes = await mainPool.query(
-        `SELECT COUNT(DISTINCT vehicle_id)::int AS cnt FROM dump_trucks.shift_records WHERE report_date = $1`,
-        [date],
+      // Snapshot current state for safeguard against zero-overwrite
+      const preCountRes = await mainPool.query(
+        `SELECT COUNT(*)::int AS cnt FROM dump_trucks.shift_records WHERE report_date=$1 AND shift_type=$2`,
+        [date, shift],
       );
-      const dtCnt = dtCountRes.rows[0]?.cnt ?? 0;
-      await pipelineRepo.completeRun(runId, { totalVehicles: dtCnt, successCount: dtCnt, errorCount: 0 });
+      const preCount: number = preCountRes.rows[0]?.cnt ?? 0;
+
+      // Kick off the pipeline on dump-trucks server (returns immediately)
+      const startUrl = `http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=${shift}`;
+      const t0 = Date.now();
+      let startRes: Response;
+      try {
+        startRes = await fetch(startUrl, { method: 'POST' });
+      } catch (err) {
+        log.error({
+          category: 'http', service: 'dump-trucks', runId, pipeline: 'dt_daily',
+          msg: 'connection refused', fields: { url: startUrl, error: String(err) },
+        });
+        throw new Error(`fetch failed: ${String(err)}`);
+      }
+      log.info({
+        category: 'http', service: 'dump-trucks', runId, pipeline: 'dt_daily',
+        msg: `${startRes.status} POST ${startUrl}`, fields: { ms: Date.now() - t0 },
+      });
+      if (!startRes.ok) {
+        throw new Error(`Failed to start fetch: HTTP ${startRes.status}`);
+      }
+
+      // Poll status until done/error/timeout
+      const POLL_INTERVAL_MS = 15_000;
+      const POLL_DEADLINE_MS = Date.now() + 50 * 60 * 1000; // 50 min
+      let final: { state: string; vehiclesProcessed?: number; vehiclesSkipped?: number; errors?: string[] } | null = null;
+      while (Date.now() < POLL_DEADLINE_MS) {
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+        try {
+          const sRes = await fetch(`http://localhost:3002/api/dt/admin/fetch/status?date=${date}&shift=${shift}`);
+          if (!sRes.ok) continue;
+          const body = await sRes.json() as { state: string; vehiclesProcessed?: number; vehiclesSkipped?: number; errors?: string[] };
+          if (body.state === 'done' || body.state === 'error') { final = body; break; }
+        } catch { /* transient — retry */ }
+      }
+      if (!final) throw new Error('Timeout waiting for fetch completion (50 min)');
+      if (final.state === 'error') {
+        throw new Error(`Fetch errored on dump-trucks: ${(final.errors ?? []).join('; ')}`);
+      }
+
+      const processed: number = final.vehiclesProcessed ?? 0;
+      const perVehicleErrors: string[] = final.errors ?? [];
+
+      // Re-check post count
+      const postRes = await mainPool.query(
+        `SELECT COUNT(*)::int AS cnt FROM dump_trucks.shift_records WHERE report_date=$1 AND shift_type=$2`,
+        [date, shift],
+      );
+      const postCount: number = postRes.rows[0]?.cnt ?? 0;
+
+      // Decide overall status.
+      // Активная смена (in-progress) — не помечаем partial: это норма.
+      const today = ekTodayIso();
+      const ykbNow = new Date(Date.now() + 5 * 3600_000);
+      const minutes = ykbNow.getUTCHours() * 60 + ykbNow.getUTCMinutes();
+      const SHIFT1_START = 7 * 60 + 30, SHIFT1_END = 19 * 60 + 30;
+      const SHIFT2_START = 19 * 60 + 30, SHIFT2_END_NEXT = 7 * 60 + 30;
+      const yesterday = shiftDateIso(today, -1);
+      const isShift1Active = (date === today && shift === 'shift1' &&
+        minutes >= SHIFT1_START && minutes < SHIFT1_END);
+      const isShift2Active = (
+        (date === today && shift === 'shift2' && minutes >= SHIFT2_START) ||
+        (date === yesterday && shift === 'shift2' && minutes < SHIFT2_END_NEXT)
+      );
+      const inProgress = isShift1Active || isShift2Active;
+
+      // Only flag *real* problems as partial:
+      //   1. TIS regression — DB had data, this run brought back zero.
+      //   2. Per-vehicle errors reported by the dump-trucks pipeline.
+      // The old "< 50% of 14-day median" branch was removed: it flagged every
+      // healthy quiet-shift run as partial because the median includes
+      // higher-activity historic days. Quiet shifts are now status='completed'
+      // with empty errors[], like KIP.
+      let status: 'completed' | 'partial' = 'completed';
+      const notes: string[] = [];
+      if (processed === 0 && preCount > 0 && !inProgress) {
+        status = 'partial';
+        notes.push(`TIS вернул 0 ТС, в БД сохранено ${preCount} прежних записей за ${date} ${shift}`);
+      }
+      if (perVehicleErrors.length > 0) {
+        status = 'partial';
+        notes.push(`per-vehicle errors: ${perVehicleErrors.length}`);
+      }
+
+      const errorBlobs = [
+        ...notes.map(n => ({ note: n, at: new Date().toISOString() })),
+        ...perVehicleErrors.map(m => ({ message: m })),
+      ];
+
+      await pipelineRepo.completeRun(runId, {
+        totalVehicles: postCount,
+        successCount: processed,
+        errorCount: perVehicleErrors.length,
+        errors: errorBlobs.length > 0 ? errorBlobs : undefined,
+      });
+
+      if (status === 'partial') {
+        await mainPool.query(
+          `UPDATE public.pipeline_runs SET status='partial' WHERE run_id=$1`,
+          [runId],
+        );
+      }
+
+      log.info({
+        category: 'pipeline', pipeline: 'dt_daily', runId, date, shift,
+        msg: `run ${status}`,
+        fields: { processed, preCount, postCount, perVehicleErrors: perVehicleErrors.length, status, inProgress },
+      });
+
+      // Sanity-watchdog: emit a warn when this shift's processed count is far
+      // below the 7-day per-shift baseline. NOT written into pipeline_runs.errors
+      // — it's a soft signal so coverage stays clean (Edit 4 removed the hard
+      // partial classifier on purpose: it false-flagged genuine quiet shifts).
+      // The user still gets a "было 30, стало 1" trail in the structured log.
+      // Skipped for in-progress and zero-baseline (first runs of a date).
+      if (!inProgress && postCount > 0) {
+        try {
+          const baseRes = await mainPool.query<{ c: string }>(
+            `SELECT COUNT(DISTINCT vehicle_id)::text AS c
+             FROM dump_trucks.shift_records
+             WHERE shift_type = $1
+               AND report_date >= (CURRENT_DATE - INTERVAL '8 days')
+               AND report_date <  CURRENT_DATE
+               AND report_date <> $2
+             GROUP BY report_date
+             ORDER BY 1`,
+            [shift, date],
+          );
+          const counts = baseRes.rows.map(r => Number(r.c)).filter(n => n > 0);
+          if (counts.length >= 3) {
+            const median = counts[Math.floor(counts.length / 2)];
+            const threshold = Math.max(5, Math.floor(median * 0.3));
+            if (postCount < threshold) {
+              log.warn({
+                category: 'pipeline', pipeline: 'dt_daily', runId, date, shift,
+                msg: `low activity: ${postCount} ТС vs 7д-медиана ${median} (порог ${threshold})`,
+                fields: { postCount, median, threshold, baseline_days: counts.length },
+              });
+            }
+          }
+        } catch (e) {
+          // sanity-watchdog must never break the run
+          log.warn({
+            category: 'pipeline', pipeline: 'dt_daily', runId, date, shift,
+            msg: 'sanity-watchdog query failed (non-fatal)',
+            fields: { error: String(e) },
+          });
+        }
+      }
     } catch (err) {
-      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      await pipelineRepo.failRun(runId, errMsg);
+      log.error({
+        category: 'pipeline', pipeline: 'dt_daily', runId, date, shift,
+        msg: 'run failed', fields: { error: errMsg },
+      });
       throw err;
     }
   };
-  await boss.work('fetch-dt-date', { batchSize: 1 }, dtFetchHandler as any);
+  await boss.work('fetch-dt-shift', { batchSize: 1 }, dtShiftFetchHandler as any);
 
   // recalc-kip-date worker
   const kipRecalcHandler: Handler<RecalcJobPayload> = async (jobs) => {
     const { date, triggerType } = jobs[0].data;
     const runId = await pipelineRepo.createRun({ pipelineName: 'kip_recalc', triggerType, targetDate: date });
+    log.info({
+      category: 'pipeline', pipeline: 'kip_recalc', runId, date,
+      msg: 'run started', fields: { triggerType },
+    });
     try {
-      const startRes = await fetch(`http://localhost:3001/api/admin/recalculate?date=${date}`, { method: 'POST' });
+      const url = `http://localhost:3001/api/admin/recalculate?date=${date}`;
+      const t0 = Date.now();
+      let startRes: Response;
+      try {
+        startRes = await fetch(url, { method: 'POST' });
+      } catch (err) {
+        log.error({
+          category: 'http', service: 'kip', runId, pipeline: 'kip_recalc',
+          msg: 'connection refused', fields: { url, error: String(err) },
+        });
+        throw new Error(`fetch failed: ${String(err)}`);
+      }
+      log.info({
+        category: 'http', service: 'kip', runId, pipeline: 'kip_recalc',
+        msg: `${startRes.status} POST ${url}`, fields: { ms: Date.now() - t0 },
+      });
       if (!startRes.ok) throw new Error(`KIP recalc start failed: HTTP ${startRes.status}`);
       const deadline = Date.now() + 25 * 60 * 1000;
       while (Date.now() < deadline) {
@@ -341,12 +917,24 @@ async function registerWorkers(): Promise<void> {
         const statusRes = await fetch(`http://localhost:3001/api/admin/recalculate/status?date=${date}`);
         if (!statusRes.ok) continue;
         const body = await statusRes.json() as { status: string; errors?: string[] };
-        if (body.status === 'done') { await pipelineRepo.completeRun(runId, { errors: body.errors }); return; }
+        if (body.status === 'done') {
+          await pipelineRepo.completeRun(runId, { errors: body.errors });
+          log.info({
+            category: 'pipeline', pipeline: 'kip_recalc', runId, date,
+            msg: 'run completed', fields: { errors: body.errors?.length ?? 0 },
+          });
+          return;
+        }
         if (body.status === 'not_found') throw new Error('Job lost (server restart?)');
       }
       throw new Error(`Timeout (25 min)`);
     } catch (err) {
-      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      await pipelineRepo.failRun(runId, errMsg);
+      log.error({
+        category: 'pipeline', pipeline: 'kip_recalc', runId, date,
+        msg: 'run failed', fields: { error: errMsg },
+      });
       throw err;
     }
   };
@@ -356,11 +944,23 @@ async function registerWorkers(): Promise<void> {
   const dtRecalcHandler: Handler<RecalcJobPayload> = async (jobs) => {
     const { date, triggerType } = jobs[0].data;
     const runId = await pipelineRepo.createRun({ pipelineName: 'dt_recalc', triggerType, targetDate: date });
+    log.info({
+      category: 'pipeline', pipeline: 'dt_recalc', runId, date,
+      msg: 'run started', fields: { triggerType },
+    });
     try {
+      const url1 = `http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift1`;
+      const url2 = `http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift2`;
+      const t0 = Date.now();
       const [r1, r2] = await Promise.all([
-        fetch(`http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift1`, { method: 'POST' }),
-        fetch(`http://localhost:3002/api/dt/admin/recalculate?date=${date}&shift=shift2`, { method: 'POST' }),
+        fetch(url1, { method: 'POST' }),
+        fetch(url2, { method: 'POST' }),
       ]);
+      log.info({
+        category: 'http', service: 'dump-trucks', runId, pipeline: 'dt_recalc',
+        msg: `${r1.status}/${r2.status} POST recalc shift1+shift2`,
+        fields: { ms: Date.now() - t0, status1: r1.status, status2: r2.status },
+      });
       const [b1, b2] = await Promise.all([
         r1.json() as Promise<{ status: string; errors?: string[] }>,
         r2.json() as Promise<{ status: string; errors?: string[] }>,
@@ -368,10 +968,26 @@ async function registerWorkers(): Promise<void> {
       const errs: string[] = [];
       if (!r1.ok || b1.status === 'error') errs.push(`shift1: ${b1.errors?.join(', ') ?? r1.status}`);
       if (!r2.ok || b2.status === 'error') errs.push(`shift2: ${b2.errors?.join(', ') ?? r2.status}`);
-      if (errs.length > 0) { await pipelineRepo.failRun(runId, errs.join(' | ')); }
-      else { await pipelineRepo.completeRun(runId, {}); }
+      if (errs.length > 0) {
+        await pipelineRepo.failRun(runId, errs.join(' | '));
+        log.error({
+          category: 'pipeline', pipeline: 'dt_recalc', runId, date,
+          msg: 'run failed', fields: { errors: errs },
+        });
+      } else {
+        await pipelineRepo.completeRun(runId, {});
+        log.info({
+          category: 'pipeline', pipeline: 'dt_recalc', runId, date,
+          msg: 'run completed',
+        });
+      }
     } catch (err) {
-      await pipelineRepo.failRun(runId, err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      await pipelineRepo.failRun(runId, errMsg);
+      log.error({
+        category: 'pipeline', pipeline: 'dt_recalc', runId, date,
+        msg: 'run failed', fields: { error: errMsg },
+      });
       throw err;
     }
   };
@@ -453,28 +1069,27 @@ async function registerWorkers(): Promise<void> {
     });
   }
 
-  // DT shift2 at 08:30 Yekaterinburg = 03:30 UTC (DT currently only uses Yekaterinburg)
-  await boss.createQueue('dt-shift2-cron');
-  await boss.schedule('dt-shift2-cron', '30 3 * * *', {});
-  await boss.work('dt-shift2-cron', async () => {
-    const now = new Date();
-    const ykb = new Date(now.getTime() + 5 * 60 * 60 * 1000);
-    const yesterday = new Date(ykb.getTime() - 24 * 60 * 60 * 1000);
-    const date = yesterday.toISOString().slice(0, 10);
-    console.log(`[pg-boss cron] DT shift2 fetch for ${date}`);
-    await boss.send('fetch-dt-date', { date, mode: 'normal', triggerType: 'cron' });
-  });
-
-  // DT shift1 at 20:30 Yekaterinburg = 15:30 UTC
-  await boss.createQueue('dt-shift1-cron');
-  await boss.schedule('dt-shift1-cron', '30 15 * * *', {});
-  await boss.work('dt-shift1-cron', async () => {
-    const now = new Date();
-    const ykb = new Date(now.getTime() + 5 * 60 * 60 * 1000);
-    const date = ykb.toISOString().slice(0, 10);
-    console.log(`[pg-boss cron] DT shift1 fetch for ${date}`);
-    await boss.send('fetch-dt-date', { date, mode: 'normal', triggerType: 'cron' });
-  });
+  // ─── DT in-day cron schedule (Asia/Yekaterinburg) ─────────────────────────
+  // Replaces old dt-shift1-cron / dt-shift2-cron with 9 in-day refresh triggers.
+  // Old schedules and queues are removed defensively to avoid duplicate fires.
+  for (const stale of ['dt-shift1-cron', 'dt-shift2-cron']) {
+    try { await boss.unschedule(stale); } catch { /* ok if absent */ }
+  }
+  for (const entry of DT_CRON_SCHEDULE) {
+    const queueName = `dt-cron-${entry.time.replace(':', '')}`;
+    await boss.createQueue(queueName);
+    await boss.schedule(queueName, entry.cron, {});
+    const tasks = entry.tasks;
+    const label = entry.time;
+    await boss.work(queueName, async () => {
+      const today = ekTodayIso();
+      for (const task of tasks) {
+        const date = shiftDateIso(today, task.dayOffset);
+        console.log(`[pg-boss cron] DT ${label} → ${task.shift} ${date}`);
+        await boss.send('fetch-dt-shift', { date, shift: task.shift, mode: 'refresh', triggerType: 'cron' });
+      }
+    });
+  }
 
   console.log('[pg-boss] Workers and cron schedules registered');
 }
@@ -521,21 +1136,55 @@ async function getKipRawDates(from: string, to: string): Promise<{ dates: string
     }
     return { dates, partial };
   } catch (e) {
+    log.error({
+      category: 'admin',
+      service: 'kip',
+      msg: 'getKipDates query failed',
+      fields: { error: String(e), from, to },
+    });
     return { dates: [], partial: [], error: String(e) };
   }
 }
 
-async function getDumpTrucksDates(from: string, to: string): Promise<{ dates: string[]; error?: string }> {
+async function getDumpTrucksDates(from: string, to: string): Promise<{ dates: string[]; partial: string[]; error?: string }> {
   try {
+    // Считаем уникальных ТС за каждую дату в диапазоне.
     const res = await mainPool.query(
-      `SELECT DISTINCT report_date::text FROM dump_trucks.shift_records
+      `SELECT report_date::text AS report_date,
+              COUNT(DISTINCT vehicle_id) AS vehicle_count
+       FROM dump_trucks.shift_records
        WHERE report_date BETWEEN $1 AND $2
-       ORDER BY report_date`,
+       GROUP BY report_date`,
       [from, to]
     );
-    return { dates: res.rows.map(r => r.report_date) };
+    // Базовая линия: медиана уникальных ТС/день за последние 14 дней (любые даты, не только запрошенный диапазон).
+    const base = await mainPool.query(
+      `SELECT COUNT(DISTINCT vehicle_id) AS c
+       FROM dump_trucks.shift_records
+       WHERE report_date >= (CURRENT_DATE - INTERVAL '14 days')
+       GROUP BY report_date
+       ORDER BY c`,
+    );
+    const counts = base.rows.map(r => Number(r.c)).filter(n => n > 0);
+    const median = counts.length ? counts[Math.floor(counts.length / 2)] : 0;
+    const threshold = Math.max(5, Math.floor(median * 0.5));
+
+    const dates: string[] = [];
+    const partial: string[] = [];
+    for (const row of res.rows) {
+      const c = Number(row.vehicle_count);
+      if (median > 0 && c < threshold) partial.push(row.report_date);
+      else if (c > 0) dates.push(row.report_date);
+    }
+    return { dates, partial };
   } catch (e) {
-    return { dates: [], error: String(e) };
+    log.error({
+      category: 'admin',
+      service: 'dump-trucks',
+      msg: 'getDumpTrucksDates query failed',
+      fields: { error: String(e), from, to },
+    });
+    return { dates: [], partial: [], error: String(e) };
   }
 }
 
@@ -1070,7 +1719,12 @@ app.post('/api/admin/services/:id/:action', (req, res) => {
       break;
     case 'restart':
       stopService(id);
-      setTimeout(() => startService(cfg), 1500);
+      // Wait for the port to actually free before re-spawning, otherwise the
+      // child crashes with EADDRINUSE and the cron retries on a dead service.
+      (async () => {
+        await waitPortFree(cfg.port, 6000);
+        await startService(cfg);
+      })().catch(err => log.error({ category: 'spawn', service: id, msg: `restart failed: ${String(err)}` }));
       res.json({ ok: true, action: 'restart', id });
       break;
     default:
@@ -1104,6 +1758,7 @@ app.get('/api/admin/data-coverage', async (req, res) => {
   res.json({
     kip: kipResult.dates,
     dumpTrucks: dtResult.dates,
+    dtPartial: dtResult.partial,
     rawDates: kipRawResult.dates,
     rawPartial: kipRawResult.partial,
     errors: {
@@ -1118,15 +1773,53 @@ app.get('/api/admin/data-coverage', async (req, res) => {
 });
 
 // GET fetch status
-app.get('/api/admin/fetch/status', (_req, res) => {
+app.get('/api/admin/fetch/status', async (_req, res) => {
+  // Primary: in-memory progress (drives queue/done/errors UI).
+  if (fetchProgress.active) {
+    res.json({
+      active: true,
+      service: fetchProgress.service,
+      current: fetchProgress.current,
+      startedAt: fetchProgress.startedAt,
+      queue: fetchProgress.queue,
+      done: fetchProgress.done,
+      errors: fetchProgress.errors,
+      source: 'memory',
+    });
+    return;
+  }
+  // Fallback: pipeline_runs may show in-flight work that admin doesn't own
+  // in-memory (cron-triggered, or memory wiped by restart). UI then knows
+  // "something is happening" and can poll until reconcile closes it.
+  try {
+    const fetchRuns = await getRunningSnapshot('all');
+    const filtered = fetchRuns.filter(r => r.pipeline_name.endsWith('_daily'));
+    if (filtered.length > 0) {
+      const oldest = filtered[0];
+      const service: 'kip' | 'dump-trucks' = oldest.pipeline_name.startsWith('kip') ? 'kip' : 'dump-trucks';
+      const queue = filtered.map(r => r.target_date + (r.shift_type ? `:${r.shift_type}` : ''));
+      res.json({
+        active: true,
+        service,
+        current: oldest.target_date,
+        startedAt: Date.parse(oldest.started_at),
+        queue,
+        done: [],
+        errors: [],
+        source: 'db',
+      });
+      return;
+    }
+  } catch { /* fall through to idle response */ }
   res.json({
-    active: fetchProgress.active,
-    service: fetchProgress.service,
-    current: fetchProgress.current,
-    startedAt: fetchProgress.startedAt,
-    queue: fetchProgress.queue,
+    active: false,
+    service: null,
+    current: null,
+    startedAt: null,
+    queue: [],
     done: fetchProgress.done,
     errors: fetchProgress.errors,
+    source: 'memory',
   });
 });
 
@@ -1218,14 +1911,45 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
 // ─── Recalc endpoints ─────────────────────────────────────────────────────────
 
 // GET recalc status
-app.get('/api/admin/recalc/status', (_req, res) => {
+app.get('/api/admin/recalc/status', async (_req, res) => {
+  if (recalcProgress.active) {
+    res.json({
+      active: true,
+      service: recalcProgress.service,
+      current: recalcProgress.current,
+      queue: recalcProgress.queue,
+      done: recalcProgress.done,
+      errors: recalcProgress.errors,
+      source: 'memory',
+    });
+    return;
+  }
+  try {
+    const runs = await getRunningSnapshot('all');
+    const filtered = runs.filter(r => r.pipeline_name.endsWith('_recalc'));
+    if (filtered.length > 0) {
+      const oldest = filtered[0];
+      const service: 'kip' | 'dump-trucks' = oldest.pipeline_name.startsWith('kip') ? 'kip' : 'dump-trucks';
+      res.json({
+        active: true,
+        service,
+        current: oldest.target_date,
+        queue: filtered.map(r => r.target_date),
+        done: [],
+        errors: [],
+        source: 'db',
+      });
+      return;
+    }
+  } catch { /* fall through */ }
   res.json({
-    active:   recalcProgress.active,
-    service:  recalcProgress.service,
-    current:  recalcProgress.current,
-    queue:    recalcProgress.queue,
-    done:     recalcProgress.done,
-    errors:   recalcProgress.errors,
+    active: false,
+    service: null,
+    current: null,
+    queue: [],
+    done: recalcProgress.done,
+    errors: recalcProgress.errors,
+    source: 'memory',
   });
 });
 
@@ -1451,7 +2175,206 @@ app.post('/api/admin/kip-segments/cancel', (_req, res) => {
   res.json({ ok: true, message: 'Отмена запрошена' });
 });
 
+// ─── Structured event log ────────────────────────────────────────────────────
+
+// Reads admin/logs/admin.jsonl tail-first with optional filters. The whole
+// orchestrator is instrumented through the logger (spawn / cron / handler /
+// http / reconcile / pipeline) so this endpoint is the single source of
+// "what happened, when, why" for future debugging.
+app.get('/api/admin/logs', async (req, res) => {
+  const since = req.query.since ? Date.parse(String(req.query.since)) : (Date.now() - 24 * 3600 * 1000);
+  const category = req.query.category ? String(req.query.category).split(',').map(s => s.trim()).filter(Boolean) : null;
+  const level = req.query.level ? String(req.query.level).split(',').map(s => s.trim()).filter(Boolean) : null;
+  const service = req.query.service ? String(req.query.service) : null;
+  const runId = req.query.runId ? String(req.query.runId) : null;
+  const pipeline = req.query.pipeline ? String(req.query.pipeline) : null;
+  const limit = Math.min(2000, Math.max(1, Number(req.query.limit ?? 500)));
+  try {
+    let text: string;
+    try {
+      text = await fs.promises.readFile(LOG_PATHS.jsonl, 'utf8');
+    } catch (e: any) {
+      if (e?.code === 'ENOENT') { res.json([]); return; }
+      throw e;
+    }
+    const lines = text.split('\n');
+    const out: any[] = [];
+    for (let i = lines.length - 1; i >= 0 && out.length < limit; i--) {
+      const ln = lines[i];
+      if (!ln) continue;
+      let ev: any;
+      try { ev = JSON.parse(ln); } catch { continue; }
+      const ts = Date.parse(ev.ts);
+      if (Number.isFinite(ts) && ts < since) break;
+      if (category && !category.includes(ev.category)) continue;
+      if (level && !level.includes(ev.level)) continue;
+      if (service && ev.service !== service) continue;
+      if (runId && ev.runId !== runId) continue;
+      if (pipeline && ev.pipeline !== pipeline) continue;
+      out.push(ev);
+    }
+    out.reverse();
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ─── Pipeline Health & Runs ──────────────────────────────────────────────────
+
+// Real (actionable) errors only: failed/partial runs with at least one error
+// entry that is not a reconcile/restart admin note. Groups by pipeline+date+shift,
+// keeps the latest occurrence's messages.
+app.get('/api/admin/pipeline-errors', async (req, res) => {
+  const days = Math.max(1, Math.min(30, Number(req.query.days ?? 7)));
+  try {
+    // Pull failed/partial rows AND their "resolved-by" flag — true if a later
+    // run for the same (pipeline_name, target_date, shift_type) reached
+    // status='completed'. A failure that was followed by a successful run is
+    // by definition transient and not actionable: the panel should focus on
+    // current problems, not history. This handles the long tail of historic
+    // entries from RC1/RC2 (fetch failed, Job lost, Timeout waiting…) which
+    // were resolved by Edit 1+2 — every subsequent cron firing for those
+    // dates completed cleanly, so the old failures are now benign.
+    const r = await mainPool.query(
+      `SELECT pr.run_id::text, pr.pipeline_name, pr.target_date::text AS target_date,
+              pr.shift_type, pr.status, pr.started_at::text AS started_at, pr.errors,
+              pr.total_vehicles, pr.success_count, pr.error_count,
+              EXISTS (
+                SELECT 1 FROM public.pipeline_runs later
+                WHERE later.pipeline_name = pr.pipeline_name
+                  AND later.target_date  = pr.target_date
+                  -- Match same shift; or, if the failed row has no shift_type
+                  -- (legacy dt_daily fan-out from /fetch-dt-date), accept ANY
+                  -- shift's later success. The fan-out failure was historically
+                  -- "Timeout waiting" because both shift1 and shift2 outlasted
+                  -- the parent's poll deadline — but the children themselves
+                  -- ultimately completed.
+                  AND (later.shift_type IS NOT DISTINCT FROM pr.shift_type
+                       OR pr.shift_type IS NULL)
+                  AND later.status = 'completed'
+                  AND later.started_at > pr.started_at
+              ) AS resolved
+       FROM public.pipeline_runs pr
+       WHERE pr.status IN ('failed','partial')
+         AND pr.started_at > now() - ($1::int || ' days')::interval
+       ORDER BY pr.started_at DESC`,
+      [days],
+    );
+    type Entry = { run_id: string; pipeline_name: string; target_date: string; shift_type: string | null;
+      status: string; started_at: string; messages: string[]; reconcile_only: boolean;
+      total_vehicles: number; success_count: number };
+    const out: Entry[] = [];
+    for (const row of r.rows) {
+      // Resolved by a later successful run → drop. This is the main cleanup path.
+      if (row.resolved) continue;
+      const arr = Array.isArray(row.errors) ? row.errors : [];
+      const messages: string[] = [];
+      let hasReal = false;
+      for (const e of arr) {
+        if (!e || typeof e !== 'object') continue;
+        const note = typeof e.note === 'string' ? e.note : null;
+        const message = typeof e.message === 'string' ? e.message : null;
+        const isReconcile = !!note && (note.startsWith('reconcile:') || note.startsWith('admin restart'));
+        // Backstop for historic rows written before the dtShiftFetchHandler
+        // cleanup. These notes are statistical/informational, not actionable.
+        const isInProgressNote = !!note && /^in-progress refresh:/.test(note);
+        const isMedianNote = !!note && /^processed=\d+ < \d+% от/.test(note);
+        if (isReconcile || isInProgressNote || isMedianNote) continue;
+        if (note) messages.push(note);
+        if (message) { messages.push(message); hasReal = true; }
+      }
+      // No real messages remain after filtering → housekeeping or stale historical
+      // partial from the removed `processed < median*0.5` classifier. Drop in both
+      // 'failed' and 'partial' branches: showing an empty row in the panel is
+      // worse than hiding a benign one.
+      if (!hasReal && messages.length === 0) continue;
+      out.push({
+        run_id: row.run_id,
+        pipeline_name: row.pipeline_name,
+        target_date: row.target_date,
+        shift_type: row.shift_type,
+        status: row.status,
+        started_at: row.started_at,
+        messages: messages.slice(0, 5),
+        reconcile_only: !hasReal && messages.length === 0,
+        total_vehicles: row.total_vehicles ?? 0,
+        success_count: row.success_count ?? 0,
+      });
+    }
+    // Group by pipeline+date+shift, keep most recent occurrence per group.
+    const grouped = new Map<string, Entry & { occurrences: number }>();
+    for (const e of out) {
+      const key = `${e.pipeline_name}|${e.target_date}|${e.shift_type ?? '-'}`;
+      const prev = grouped.get(key);
+      if (!prev) grouped.set(key, { ...e, occurrences: 1 });
+      else prev.occurrences += 1;
+    }
+    res.json(Array.from(grouped.values()).sort((a, b) => b.started_at.localeCompare(a.started_at)));
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ─── Cron introspection ───────────────────────────────────────────────────────
+// Computes next-fire (UTC ms) for a "M H * * *" daily cron.
+function nextDailyFireUtcMs(cron: string, fromMs: number): number {
+  const parts = cron.split(/\s+/);
+  const m = Number(parts[0] ?? '0');
+  const h = Number(parts[1] ?? '0');
+  const d = new Date(fromMs);
+  d.setUTCSeconds(0, 0);
+  d.setUTCMinutes(m);
+  d.setUTCHours(h);
+  if (d.getTime() <= fromMs) d.setUTCDate(d.getUTCDate() + 1);
+  return d.getTime();
+}
+
+app.get('/api/admin/cron/schedule', (_req, res) => {
+  const now = Date.now();
+  const dt = DT_CRON_SCHEDULE.map(entry => {
+    const nextMs = nextDailyFireUtcMs(entry.cron, now);
+    const today = ekTodayIso();
+    const tasks = entry.tasks.map(t => ({
+      shift: t.shift,
+      dayOffset: t.dayOffset,
+      targetDate: shiftDateIso(today, t.dayOffset),
+    }));
+    return {
+      service: 'dump-trucks',
+      time: entry.time,
+      cronUtc: entry.cron,
+      timezone: 'Asia/Yekaterinburg',
+      description: entry.description,
+      tasks,
+      nextFireIso: new Date(nextMs).toISOString(),
+      nextFireInMs: nextMs - now,
+    };
+  });
+
+  // KIP cron is registered dynamically per timezone — read from pg-boss schedule table.
+  res.json({ dumpTrucks: dt });
+});
+
+app.get('/api/admin/cron/recent', async (req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(168, Number(req.query['hours'] ?? 24)));
+    const sinceIso = new Date(Date.now() - hours * 3600_000).toISOString();
+    const rows = await mainPool.query(
+      `SELECT run_id, pipeline_name, trigger_type, target_date::text AS target_date,
+              shift_type, status, started_at, completed_at, duration_ms,
+              total_vehicles, success_count, error_count, errors
+       FROM public.pipeline_runs
+       WHERE started_at >= $1::timestamptz
+       ORDER BY started_at DESC
+       LIMIT 500`,
+      [sinceIso],
+    );
+    res.json({ since: sinceIso, runs: rows.rows });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
 
 app.get('/api/admin/pipeline-health', async (_req, res) => {
   try {
@@ -2124,6 +3047,10 @@ app.listen(PORT, '0.0.0.0', async () => {
   // Run migrations
   await runMigration();
 
+  // Reconcile pipeline state BEFORE starting boss. Closes stale 'running' rows
+  // and drops pending jobs in renamed/removed queues so they don't replay.
+  await reconcileOnStart();
+
   // Start pg-boss
   try {
     await boss.start();
@@ -2133,8 +3060,21 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.error('[admin] pg-boss failed to start (non-fatal):', err);
   }
 
+  // Periodic reconcile every 5 min — closes runs whose handlers died
+  // mid-flight without waiting for the next admin restart.
+  setInterval(() => { reconcileOnStart().catch(() => {}); }, 5 * 60 * 1000);
+
   console.log(`[admin] Авто-запуск всех сервисов...`);
-  SERVICES.forEach(cfg => startService(cfg));
+  // Stagger startService so all 5 services don't simultaneously poll netstat.
+  // Each call awaits port-free internally, so we just kick them off in series.
+  (async () => {
+    for (const cfg of SERVICES) {
+      startService(cfg).catch(err =>
+        log.error({ category: 'spawn', service: cfg.id, msg: `auto-start failed: ${String(err)}` }),
+      );
+      await new Promise(r => setTimeout(r, 200));
+    }
+  })();
 });
 
 // Graceful shutdown

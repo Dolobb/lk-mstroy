@@ -125,6 +125,65 @@ async function fetchPipelineRuns(limit = 20): Promise<PipelineRun[]> {
   } catch { return []; }
 }
 
+interface PipelineErrorEntry {
+  run_id: string;
+  pipeline_name: string;
+  target_date: string;
+  shift_type: string | null;
+  status: 'failed' | 'partial';
+  started_at: string;
+  messages: string[];
+  reconcile_only: boolean;
+  total_vehicles: number;
+  success_count: number;
+  occurrences: number;
+}
+
+async function fetchPipelineErrors(days = 7): Promise<PipelineErrorEntry[]> {
+  try {
+    const res = await fetch(`/api/admin/pipeline-errors?days=${days}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch { return []; }
+}
+
+interface LogEvent {
+  ts: string;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  category: 'spawn' | 'cron' | 'handler' | 'http' | 'reconcile' | 'pipeline' | 'boss' | 'admin';
+  service?: string;
+  runId?: string;
+  pipeline?: string;
+  date?: string;
+  shift?: string;
+  msg: string;
+  fields?: Record<string, unknown>;
+}
+
+async function fetchAdminLogs(params: {
+  category?: string[];
+  level?: string[];
+  runId?: string;
+  pipeline?: string;
+  service?: string;
+  hours?: number;
+  limit?: number;
+} = {}): Promise<LogEvent[]> {
+  const q = new URLSearchParams();
+  if (params.category?.length) q.set('category', params.category.join(','));
+  if (params.level?.length) q.set('level', params.level.join(','));
+  if (params.runId) q.set('runId', params.runId);
+  if (params.pipeline) q.set('pipeline', params.pipeline);
+  if (params.service) q.set('service', params.service);
+  if (params.hours) q.set('since', new Date(Date.now() - params.hours * 3600 * 1000).toISOString());
+  q.set('limit', String(params.limit ?? 500));
+  try {
+    const res = await fetch(`/api/admin/logs?${q.toString()}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch { return []; }
+}
+
 async function fetchCoverageDashboard(from: string, to: string): Promise<CoverageDashboardResponse | null> {
   try {
     const res = await fetch(`/api/admin/coverage-dashboard?from=${from}&to=${to}`);
@@ -359,6 +418,511 @@ const PipelineHealthCards: React.FC<{ cards: PipelineHealthCard[] }> = ({ cards 
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+};
+
+// ─── Real Errors Panel ───────────────────────────────────────────────────────
+// Shows only actionable failures: filters out reconcile/restart housekeeping
+// noise, groups by pipeline+date+shift, offers a one-click re-fetch.
+
+const PipelineErrorsPanel: React.FC<{
+  entries: PipelineErrorEntry[];
+  onRefetch: (service: 'kip' | 'dump-trucks', date: string) => void | Promise<void>;
+  onReload: () => void;
+}> = ({ entries, onRefetch, onReload }) => {
+  // Defence-in-depth: hide rows with no real message. The backend filter has had
+  // bugs that let benign 'partial' rows slip through with messages=[]; rendering
+  // them as "processed N/M" with no explanation only confuses operators.
+  const visible = entries.filter(e => e.messages.length > 0);
+  if (visible.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/50 p-2.5">
+        <div className="flex items-center gap-2 mb-1">
+          <XCircle className="size-4 text-green-500" />
+          <h2 className="text-sm font-semibold">Реальные ошибки за 7д</h2>
+        </div>
+        <div className="text-xs text-muted-foreground">Нет — пайплайны отработали без ошибок.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-2.5">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <XCircle className="size-4 text-red-500" />
+          <h2 className="text-sm font-semibold">Реальные ошибки за 7д ({visible.length})</h2>
+        </div>
+        <button onClick={onReload} className="text-xs text-muted-foreground hover:text-foreground" title="Обновить список">
+          ⟳
+        </button>
+      </div>
+      <div className="flex flex-col gap-1" style={{ fontSize: '11px' }}>
+        {visible.map(e => {
+          const service: 'kip' | 'dump-trucks' = e.pipeline_name.startsWith('kip') ? 'kip' : 'dump-trucks';
+          const dot = e.status === 'partial' ? 'bg-yellow-400' : 'bg-red-500';
+          const tooltip = e.messages.join('\n');
+          return (
+            <div key={e.run_id} className="flex items-start gap-2 px-1.5 py-1 rounded hover:bg-muted/40">
+              <span className={`size-1.5 rounded-full ${dot} mt-1.5`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-muted-foreground">{e.target_date}</span>
+                  {e.shift_type && <span className="text-muted-foreground">{e.shift_type}</span>}
+                  <span className="text-muted-foreground">·</span>
+                  <span className="truncate">{PIPELINE_LABELS[e.pipeline_name] ?? e.pipeline_name}</span>
+                  {e.occurrences > 1 && <span className="text-muted-foreground">×{e.occurrences}</span>}
+                  <span className={`ml-auto ${e.status === 'partial' ? 'text-yellow-500' : 'text-red-400'}`}>{e.status}</span>
+                </div>
+                <div className="text-muted-foreground truncate" title={tooltip}>
+                  {e.messages[0]}
+                </div>
+              </div>
+              {(e.pipeline_name === 'kip_daily' || e.pipeline_name === 'dt_daily') && (
+                <button
+                  onClick={() => onRefetch(service, e.target_date)}
+                  className="text-xs px-2 py-0.5 rounded border border-border/50 hover:bg-muted/60"
+                  title="Перевыгрузить эту дату"
+                >
+                  ↻
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── Pipeline Warnings Panel ─────────────────────────────────────────────────
+// Soft signals from sanity-watchdog: e.g. "low activity: 1 ТС vs 7д-медиана 28".
+// These are NOT errors — pipelines completed cleanly — but they're the kind of
+// drift a human operator should notice. Reads warn-level pipeline events from
+// admin.jsonl (NOT from pipeline_runs.errors — kept clean by design).
+
+const PipelineWarningsPanel: React.FC = () => {
+  const [events, setEvents] = useState<LogEvent[]>([]);
+  const load = React.useCallback(async () => {
+    const data = await fetchAdminLogs({
+      category: ['pipeline'],
+      level: ['warn'],
+      hours: 48,
+      limit: 200,
+    });
+    setEvents(data);
+  }, []);
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  // Dedupe: most recent warn per (pipeline,date,shift) — older ones are stale.
+  const latestByKey = new Map<string, LogEvent>();
+  for (const ev of events) {
+    const key = `${ev.pipeline ?? '-'}|${ev.date ?? '-'}|${ev.shift ?? '-'}|${ev.msg.split(':')[0]}`;
+    const prev = latestByKey.get(key);
+    if (!prev || ev.ts > prev.ts) latestByKey.set(key, ev);
+  }
+  const visible = Array.from(latestByKey.values()).sort((a, b) => b.ts.localeCompare(a.ts));
+
+  if (visible.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/50 p-2.5">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-semibold">Предупреждения за 48ч</span>
+        </div>
+        <div className="text-xs text-muted-foreground">Нет — данные в норме.</div>
+      </div>
+    );
+  }
+
+  const fmtTs = (iso: string): string => {
+    const d = new Date(iso);
+    const date = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${date} ${time}`;
+  };
+
+  return (
+    <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-2.5">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <span className="size-1.5 rounded-full bg-yellow-400" />
+          <h2 className="text-sm font-semibold">Предупреждения за 48ч ({visible.length})</h2>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1" style={{ fontSize: '11px' }}>
+        {visible.map((ev, i) => (
+          <div key={`${ev.ts}-${i}`} className="flex items-start gap-2 px-1.5 py-1 rounded hover:bg-muted/40">
+            <span className="font-mono text-muted-foreground shrink-0">{fmtTs(ev.ts)}</span>
+            <span className="text-muted-foreground shrink-0">·</span>
+            <span className="shrink-0">
+              {PIPELINE_LABELS[ev.pipeline ?? ''] ?? ev.pipeline}
+              {ev.date && <span className="text-muted-foreground"> {ev.date}</span>}
+              {ev.shift && <span className="text-muted-foreground"> {ev.shift}</span>}
+            </span>
+            <span className="text-muted-foreground">·</span>
+            <span className="truncate text-yellow-600 dark:text-yellow-400" title={ev.msg}>{ev.msg}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── Logs Panel ──────────────────────────────────────────────────────────────
+// Reads /api/admin/logs (admin/logs/admin.jsonl). Writes are emitted at every
+// orchestration seam (spawn / cron / handler / http / reconcile / pipeline).
+// Filter chips by category + level. Click a pipeline row to drill into a runId.
+
+const LOG_CATEGORIES: LogEvent['category'][] = ['spawn', 'cron', 'handler', 'http', 'reconcile', 'pipeline', 'boss', 'admin'];
+const LOG_LEVELS: LogEvent['level'][] = ['info', 'warn', 'error'];
+
+const LogsPanel: React.FC = () => {
+  const [open, setOpen] = useState(false);
+  const [events, setEvents] = useState<LogEvent[]>([]);
+  const [activeCategories, setActiveCategories] = useState<Set<LogEvent['category']>>(new Set(LOG_CATEGORIES));
+  const [activeLevels, setActiveLevels] = useState<Set<LogEvent['level']>>(new Set(['warn', 'error', 'info']));
+  const [filterRunId, setFilterRunId] = useState<string | null>(null);
+  const [hours, setHours] = useState(24);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  const load = React.useCallback(async () => {
+    const data = await fetchAdminLogs({
+      hours,
+      runId: filterRunId ?? undefined,
+      limit: filterRunId ? 1000 : 500,
+    });
+    setEvents(data);
+  }, [hours, filterRunId]);
+
+  useEffect(() => {
+    if (!open) return;
+    load();
+    const t = setInterval(load, 10_000);
+    return () => clearInterval(t);
+  }, [open, load]);
+
+  const filtered = events.filter(ev =>
+    activeCategories.has(ev.category) && activeLevels.has(ev.level)
+  );
+
+  const toggleCategory = (c: LogEvent['category']) => {
+    const next = new Set(activeCategories);
+    if (next.has(c)) next.delete(c); else next.add(c);
+    setActiveCategories(next);
+  };
+  const toggleLevel = (l: LogEvent['level']) => {
+    const next = new Set(activeLevels);
+    if (next.has(l)) next.delete(l); else next.add(l);
+    setActiveLevels(next);
+  };
+
+  const fmtTs = (iso: string): string => {
+    const d = new Date(iso);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+  };
+
+  const levelColor = (l: LogEvent['level']) =>
+    l === 'error' ? 'text-red-400' : l === 'warn' ? 'text-yellow-400' : 'text-muted-foreground';
+  const levelDot = (l: LogEvent['level']) =>
+    l === 'error' ? 'bg-red-500' : l === 'warn' ? 'bg-yellow-400' : 'bg-blue-400';
+
+  const errorCount = events.filter(e => e.level === 'error').length;
+  const warnCount = events.filter(e => e.level === 'warn').length;
+
+  return (
+    <div className="rounded-xl border border-border/50 p-2.5">
+      <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">Журнал событий</span>
+          {!open && (
+            <span className="text-xs text-muted-foreground">
+              {errorCount > 0 && <span className="text-red-400 mr-2">{errorCount} ошибок</span>}
+              {warnCount > 0 && <span className="text-yellow-400 mr-2">{warnCount} предупреждений</span>}
+              <span>(за {hours}ч)</span>
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground">{open ? '▼' : '▶'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-2 flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground mr-1">Категории:</span>
+            {LOG_CATEGORIES.map(c => (
+              <button
+                key={c}
+                onClick={() => toggleCategory(c)}
+                className={`px-2 py-0.5 rounded border ${activeCategories.has(c) ? 'border-foreground/40 bg-muted/40' : 'border-border/30 text-muted-foreground'}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground mr-1">Уровень:</span>
+            {LOG_LEVELS.map(l => (
+              <button
+                key={l}
+                onClick={() => toggleLevel(l)}
+                className={`px-2 py-0.5 rounded border ${activeLevels.has(l) ? 'border-foreground/40 bg-muted/40' : 'border-border/30 text-muted-foreground'} ${levelColor(l)}`}
+              >
+                {l}
+              </button>
+            ))}
+            <span className="text-muted-foreground ml-2">Окно:</span>
+            {[1, 6, 24, 72].map(h => (
+              <button
+                key={h}
+                onClick={() => setHours(h)}
+                className={`px-2 py-0.5 rounded border ${hours === h ? 'border-foreground/40 bg-muted/40' : 'border-border/30 text-muted-foreground'}`}
+              >
+                {h}ч
+              </button>
+            ))}
+            {filterRunId && (
+              <button
+                onClick={() => setFilterRunId(null)}
+                className="ml-2 px-2 py-0.5 rounded border border-foreground/40 bg-muted/40"
+                title="Сбросить фильтр по runId"
+              >
+                runId={filterRunId.slice(0, 8)} ✕
+              </button>
+            )}
+            <button onClick={load} className="ml-auto text-muted-foreground hover:text-foreground" title="Обновить">⟳</button>
+          </div>
+          <div className="flex flex-col gap-0.5 max-h-[460px] overflow-y-auto" style={{ fontSize: '11px', fontFamily: 'monospace' }}>
+            {filtered.length === 0 ? (
+              <div className="text-muted-foreground italic px-1.5 py-1">Нет событий по выбранным фильтрам.</div>
+            ) : filtered.slice().reverse().map((ev, i) => {
+              const isExpanded = expanded.has(i);
+              const hasFields = ev.fields && Object.keys(ev.fields).length > 0;
+              return (
+                <div key={i} className="flex items-start gap-2 px-1.5 py-0.5 rounded hover:bg-muted/30">
+                  <span className={`size-1.5 rounded-full mt-1.5 ${levelDot(ev.level)}`} />
+                  <span className="text-muted-foreground shrink-0">{fmtTs(ev.ts)}</span>
+                  <span className={`shrink-0 ${levelColor(ev.level)} w-10`}>{ev.level}</span>
+                  <span className="text-muted-foreground shrink-0 w-20 truncate">[{ev.category}{ev.service ? '/' + ev.service : ''}]</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {ev.runId && (
+                        <button
+                          onClick={() => setFilterRunId(ev.runId!)}
+                          className="text-blue-400 hover:underline shrink-0"
+                          title="Все события этого запуска"
+                        >
+                          run={ev.runId.slice(0, 8)}
+                        </button>
+                      )}
+                      {ev.pipeline && <span className="text-muted-foreground shrink-0">{ev.pipeline}</span>}
+                      {ev.date && <span className="text-muted-foreground shrink-0">{ev.date}{ev.shift ? ' ' + ev.shift : ''}</span>}
+                      <span className="truncate">{ev.msg}</span>
+                      {hasFields && (
+                        <button
+                          onClick={() => {
+                            const next = new Set(expanded);
+                            if (next.has(i)) next.delete(i); else next.add(i);
+                            setExpanded(next);
+                          }}
+                          className="ml-auto text-muted-foreground shrink-0"
+                        >
+                          {isExpanded ? '▾' : '▸'}
+                        </button>
+                      )}
+                    </div>
+                    {isExpanded && hasFields && (
+                      <pre className="mt-0.5 text-muted-foreground overflow-x-auto" style={{ fontSize: '10px' }}>
+                        {JSON.stringify(ev.fields, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-xs text-muted-foreground flex items-center justify-between">
+            <span>{filtered.length} событий{filtered.length !== events.length ? ` (из ${events.length} в окне)` : ''}</span>
+            <span>обновляется каждые 10с</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Cron Status Panel ───────────────────────────────────────────────────────
+
+interface CronScheduleEntry {
+  service: string;
+  time: string;
+  cronUtc: string;
+  timezone: string;
+  description: string;
+  tasks: { shift: string; dayOffset: number; targetDate: string }[];
+  nextFireIso: string;
+  nextFireInMs: number;
+}
+interface CronRecentRun {
+  run_id: string;
+  pipeline_name: string;
+  trigger_type: string;
+  target_date: string;
+  shift_type: string | null;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+  total_vehicles: number;
+  success_count: number;
+  error_count: number;
+  errors: unknown;
+}
+
+function fmtTimeShort(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function fmtDateTimeShort(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function fmtDuration(ms: number | null): string {
+  if (ms === null || ms < 0) return '—';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}с`;
+  const m = Math.floor(s / 60), rs = s % 60;
+  return `${m}м ${rs}с`;
+}
+function fmtCountdown(ms: number): string {
+  if (ms < 0) return 'скоро';
+  const total = Math.round(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  if (h > 0) return `через ${h}ч ${m}м`;
+  if (m > 0) return `через ${m}м`;
+  return 'через <1м';
+}
+
+const CronStatusPanel: React.FC = () => {
+  const [schedule, setSchedule] = useState<CronScheduleEntry[]>([]);
+  const [runs, setRuns] = useState<CronRecentRun[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [sRes, rRes] = await Promise.all([
+          fetch('/api/admin/cron/schedule'),
+          fetch('/api/admin/cron/recent?hours=24'),
+        ]);
+        if (sRes.ok) {
+          const sBody = await sRes.json() as { dumpTrucks: CronScheduleEntry[] };
+          setSchedule(sBody.dumpTrucks ?? []);
+        }
+        if (rRes.ok) {
+          const rBody = await rRes.json() as { runs: CronRecentRun[] };
+          setRuns(rBody.runs ?? []);
+        }
+        setError(null);
+      } catch (e) {
+        setError(String(e));
+      }
+    };
+    load();
+    const t = setInterval(load, 30_000);
+    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    return () => { clearInterval(t); clearInterval(tick); };
+  }, []);
+
+  // Next entry: minimum nextFireInMs among all entries
+  const next = schedule.length > 0
+    ? schedule.reduce((a, b) => (a.nextFireInMs < b.nextFireInMs ? a : b))
+    : null;
+  const nextRemainingMs = next ? new Date(next.nextFireIso).getTime() - now : 0;
+
+  // Filter: only DT cron runs (panel label is "Авто-cron самосвалов")
+  const cronRuns = runs.filter(r => r.trigger_type === 'cron' && r.pipeline_name.startsWith('dt_'));
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Clock className="size-4" />
+        <h2 className="text-sm font-semibold">Авто-cron самосвалов</h2>
+        {error && <span className="text-xs text-red-400 ml-2">{error}</span>}
+      </div>
+
+      {next && (
+        <div className="text-xs mb-3 flex items-center gap-2 flex-wrap">
+          <span className="font-medium">Следующий:</span>
+          <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 font-mono">
+            {next.time} ({fmtCountdown(nextRemainingMs)})
+          </span>
+          <span className="text-muted-foreground">
+            {next.description} → {next.tasks.map(t => `${t.shift} ${t.targetDate}`).join(', ')}
+          </span>
+        </div>
+      )}
+
+      <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div>
+          <div className="text-xs font-medium mb-1.5 text-muted-foreground">Расписание (Asia/Yekaterinburg)</div>
+          <div className="flex flex-col gap-0.5" style={{ fontSize: '11px' }}>
+            {schedule.map(e => {
+              const isNext = next?.time === e.time;
+              return (
+                <div
+                  key={e.time}
+                  className={`flex items-center gap-2 px-1.5 py-0.5 rounded ${isNext ? 'bg-blue-500/10' : ''}`}
+                >
+                  <span className="font-mono w-12">{e.time}</span>
+                  <span className="text-muted-foreground flex-1 truncate" title={e.description}>
+                    {e.tasks.map(t => `${t.shift}${t.dayOffset !== 0 ? `(${t.dayOffset > 0 ? '+' : ''}${t.dayOffset}д)` : ''}`).join(' + ')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-medium mb-1.5 text-muted-foreground">Последние 24ч (cron)</div>
+          {cronRuns.length === 0 ? (
+            <div className="text-xs text-muted-foreground">Запусков ещё не было</div>
+          ) : (
+            <div className="flex flex-col gap-0.5 overflow-auto" style={{ fontSize: '11px', maxHeight: '180px' }}>
+              {cronRuns.slice(0, 30).map(r => {
+                const dot = r.status === 'completed' ? 'bg-green-500'
+                  : r.status === 'partial' ? 'bg-yellow-400'
+                  : r.status === 'failed' ? 'bg-red-500'
+                  : 'bg-blue-400';
+                const errors = Array.isArray(r.errors) ? r.errors : [];
+                const tooltip = errors.length > 0
+                  ? errors.slice(0, 5).map((e: any) => e.note ?? e.message ?? JSON.stringify(e)).join('\n')
+                  : `${r.status} (${r.success_count}/${r.total_vehicles})`;
+                return (
+                  <div key={r.run_id} className="flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-muted/50" title={tooltip}>
+                    <span className={`size-1.5 rounded-full ${dot}`} />
+                    <span className="font-mono w-20">{fmtDateTimeShort(r.started_at)}</span>
+                    <span className="w-12 text-muted-foreground">{r.shift_type ?? '—'}</span>
+                    <span className="w-16 text-muted-foreground">{r.target_date}</span>
+                    <span className="flex-1 truncate">
+                      {r.status === 'completed' ? `✓ ${r.success_count} ТС` : r.status === 'partial' ? `~ ${r.success_count}/${r.total_vehicles}` : r.status === 'failed' ? '× failed' : r.status}
+                    </span>
+                    <span className="text-muted-foreground">{fmtDuration(r.duration_ms)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -720,7 +1284,7 @@ const CoverageDashboard: React.FC<{
       await onFetch('kip', kipMissing[0], kipMissing[kipMissing.length - 1], { force: true });
     }
     if (dtMissing.length > 0) {
-      await onFetch('dump-trucks', dtMissing[0], dtMissing[dtMissing.length - 1]);
+      await onFetch('dump-trucks', dtMissing[0], dtMissing[dtMissing.length - 1], { refresh: true });
     }
   };
 
@@ -1011,6 +1575,7 @@ export const AdminPage: React.FC = () => {
   // Pipeline health + run history
   const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthCard[]>([]);
   const [pipelineRuns, setPipelineRuns] = useState<PipelineRun[]>([]);
+  const [pipelineErrors, setPipelineErrors] = useState<PipelineErrorEntry[]>([]);
 
   const [dbOpen, setDbOpen] = useState(false);
   const [dbTables, setDbTables] = useState<DbTablePreset[]>([]);
@@ -1139,6 +1704,7 @@ export const AdminPage: React.FC = () => {
     const load = () => {
       fetchPipelineHealth().then(setPipelineHealth);
       fetchPipelineRuns(20).then(setPipelineRuns);
+      fetchPipelineErrors(7).then(setPipelineErrors);
     };
     load();
     const t = setInterval(load, 30000);
@@ -1233,6 +1799,7 @@ export const AdminPage: React.FC = () => {
   const allDays = daysInRange(coverageFrom, coverageTo);
   const kipSet = new Set(coverage?.kip ?? []);
   const dtSet = new Set(coverage?.dumpTrucks ?? []);
+  const dtPartialSet = new Set(coverage?.dtPartial ?? []);
   const rawSet = new Set(coverage?.rawDates ?? []);
   const rawPartialSet = new Set(coverage?.rawPartial ?? []);
   const fetchDoneSet = new Set(fetchStatus.done);
@@ -1253,6 +1820,29 @@ export const AdminPage: React.FC = () => {
 
       {/* Pipeline Health */}
       <PipelineHealthCards cards={pipelineHealth} />
+
+      {/* Real errors (filtered, actionable) */}
+      <PipelineErrorsPanel
+        entries={pipelineErrors}
+        onReload={() => fetchPipelineErrors(7).then(setPipelineErrors)}
+        onRefetch={async (service, date) => {
+          const res = await fetch(`/api/admin/fetch/${service}?from=${date}&to=${date}&refresh=true`, { method: 'POST' });
+          const body = await res.json();
+          if (res.status === 409) alert('Уже выполняется загрузка — дождитесь и повторите.');
+          else if (body.missing === 0) alert(body.message ?? 'Нечего выгружать');
+          else alert(`Перевыгрузка ${date} (${service}) запущена`);
+          fetchPipelineErrors(7).then(setPipelineErrors);
+        }}
+      />
+
+      {/* Soft signals (sanity-watchdog warns from admin.jsonl) */}
+      <PipelineWarningsPanel />
+
+      {/* Structured event log */}
+      <LogsPanel />
+
+      {/* Cron Status */}
+      <CronStatusPanel />
 
       {/* Services */}
       <div>
@@ -1496,7 +2086,7 @@ export const AdminPage: React.FC = () => {
               <span className="text-muted-foreground">Нет данных</span>
             </div>
             <span className="text-muted-foreground ml-auto">
-              {allDays.length} дн. | КИП: {kipSet.size} | Raw: {rawSet.size}{rawPartialSet.size > 0 ? `+${rawPartialSet.size}⚠️` : ''} | Самосвалы: {dtSet.size}
+              {allDays.length} дн. | КИП: {kipSet.size} | Raw: {rawSet.size}{rawPartialSet.size > 0 ? `+${rawPartialSet.size}⚠️` : ''} | Самосвалы: {dtSet.size}{dtPartialSet.size > 0 ? `+${dtPartialSet.size}⚠️` : ''}
             </span>
           </div>
 
@@ -1523,6 +2113,7 @@ export const AdminPage: React.FC = () => {
                 dates={dtSet}
                 done={isDTFetching ? fetchDoneSet : new Set()}
                 current={isDTFetching ? fetchStatus.current : null}
+                partial={dtPartialSet}
                 allDays={allDays}
               />
             </div>

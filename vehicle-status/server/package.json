@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@types/node-cron": "^3.0.11",
     "cors": "^2.8.5",
     "dayjs": "^1.11.19",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",
     "google-auth-library": "^9.0.0",
     "googleapis": "^144.0.0",
+    "node-cron": "^4.2.1",
     "pg": "^8.13.0",
     "xlsx": "^0.18.5"
   },
@@ -21,9 +23,9 @@
     "typescript": "^5.4.0"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "node --import tsx --watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "migrate": "tsx src/migrate.ts"
+    "migrate": "node --import tsx src/migrate.ts"
   }
 }

@@ -497,7 +497,7 @@ export const VehicleStatusPage: React.FC = () => {
             border: snapshotMode ? '1px solid rgba(249,115,22,0.2)' : '1px solid transparent',
           }}
         >
-          Снимки
+          Архив
         </button>
         {snapshotMode && (
           <select

@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cron from 'node-cron';
 import { getEnvConfig } from './config/env';
 import { getPool, closePool } from './config/database';
 import { queryAllVehicles, getFilterOptions, querySnapshotsByDate, querySnapshotDates } from './repositories/vehicleStatusRepo';
@@ -45,13 +46,22 @@ app.post('/api/vs/vehicles/sync', (req, res) => {
   if (syncInProgress) return;
   syncInProgress = true;
 
+  const syncTimeout = setTimeout(() => {
+    console.error('[Sync] Global timeout (120s), forcing reset');
+    syncInProgress = false;
+    lastResult = { processed: 0, errors: ['Sync timed out after 120 seconds'] };
+    lastSync = new Date().toISOString();
+  }, 120_000);
+
   runSync()
     .then(result => {
+      clearTimeout(syncTimeout);
       lastResult = result;
       lastSync = new Date().toISOString();
       console.log(`[Sync] Done: processed=${result.processed} errors=${result.errors.length}`);
     })
     .catch(err => {
+      clearTimeout(syncTimeout);
       lastResult = { processed: 0, errors: [String(err)] };
       lastSync = new Date().toISOString();
       console.error('[Sync] Failed', err);
@@ -74,6 +84,50 @@ app.get('/api/vs/vehicles/diagnostic', async (_req, res) => {
     res.status(500).json({ error: String(err) });
   }
 });
+
+function startAutoSync() {
+  if (process.env.CRON_DISABLED === 'true') {
+    console.log('[Cron] Auto-sync disabled (CRON_DISABLED=true)');
+    return;
+  }
+  const SCHEDULES = [
+    '0 8 * * *',
+    '0 13 * * *',
+    '0 16 * * *',
+    '30 23 * * *',
+  ];
+  for (const s of SCHEDULES) {
+    cron.schedule(s, () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      console.log(`[Cron] Auto-sync triggered at ${hh}:${mm}`);
+      if (syncInProgress) return;
+      syncInProgress = true;
+      const syncTimeout = setTimeout(() => {
+        console.error('[Cron] Sync timeout (120s), forcing reset');
+        syncInProgress = false;
+        lastResult = { processed: 0, errors: ['Sync timed out after 120 seconds'] };
+        lastSync = new Date().toISOString();
+      }, 120_000);
+      runSync()
+        .then(result => {
+          clearTimeout(syncTimeout);
+          lastResult = result;
+          lastSync = new Date().toISOString();
+          console.log(`[Cron] Sync done: processed=${result.processed} errors=${result.errors.length}`);
+        })
+        .catch(err => {
+          clearTimeout(syncTimeout);
+          console.error('[Cron] Sync failed', err);
+        })
+        .finally(() => { syncInProgress = false; });
+    });
+  }
+  console.log('[Cron] Auto-sync at 08:00, 13:00, 16:00, 23:30');
+}
+
+startAutoSync();
 
 app.get('/api/vs/debug/raw', async (req, res) => {
   try {

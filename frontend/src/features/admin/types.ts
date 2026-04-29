@@ -9,7 +9,8 @@ export interface ServiceStatus {
 
 export interface DataCoverage {
   kip: string[];          // YYYY-MM-DD dates with data
-  dumpTrucks: string[];   // YYYY-MM-DD dates with data
+  dumpTrucks: string[];   // YYYY-MM-DD dates с полным покрытием самосвалов
+  dtPartial?: string[];   // даты самосвалов с частичным покрытием (<50% медианы)
   rawDates: string[];     // даты с ≥90% покрытием в monitoring_raw
   rawPartial?: string[];  // даты с >0% но <90% покрытием
   errors?: { kip: string | null; dumpTrucks: string | null };

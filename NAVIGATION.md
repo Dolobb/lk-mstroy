@@ -322,7 +322,7 @@ cd frontend && npm run dev                             # :5173
 
 ### Деплой (планируется)
 
-- VPS reg.ru: Ubuntu 22.04, 2 vCPU / 4 GB RAM / 40 GB SSD
+- VPS reg.ru: Ubuntu 22.04, 4 vCPU / 16 GB RAM / 40 GB SSD
 - nginx reverse proxy:
   - `/` → frontend :5173
   - `/api/kip/*` → Node :3001
