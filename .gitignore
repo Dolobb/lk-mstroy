@@ -4,6 +4,7 @@ dist/
 build/
 .env
 *.log
+*.jsonl
 .DS_Store
 __pycache__/
 *.pyc

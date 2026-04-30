@@ -2496,28 +2496,40 @@ app.get('/api/admin/pipeline-runs/last-success', async (req, res) => {
 });
 
 // ─── Auto-cascade: zone change webhook ──────────────────────────────────────
+//
+// Debounce: пока пользователь редактирует зоны, копим затронутые теги и
+// сбрасываем таймер на каждый webhook. Каскад срабатывает один раз через
+// CASCADE_DEBOUNCE_MS тишины. Это покрывает «сессию» правок одним прогоном
+// вместо N прогонов на каждое CRUD-действие.
 
-app.post('/api/admin/zone-changed', async (req, res) => {
-  const { zoneUid, objectUid, action, tags } = req.body as {
-    zoneUid?: string; objectUid?: string; action?: string; tags?: string[];
-  };
+const CASCADE_DEBOUNCE_MS = 90_000;
 
-  console.log(`[cascade] Zone changed: ${zoneUid} action=${action} tags=${tags?.join(',')}`);
+interface CascadePending {
+  tags: Set<string>;
+  changeCount: number;
+  firstChangeAt: number;
+  timer: NodeJS.Timeout;
+}
 
-  const affectedTags = new Set(tags ?? []);
-  const cascadeDates: string[] = [];
+let cascadePending: CascadePending | null = null;
 
-  // Determine last 7 days with data
+function buildCascadeDates(): string[] {
+  const dates: string[] = [];
   const now = new Date();
   for (let i = 0; i < 7; i++) {
     const d = new Date(now.getTime() - i * 86400000);
-    cascadeDates.push(d.toISOString().slice(0, 10));
+    dates.push(d.toISOString().slice(0, 10));
   }
+  return dates;
+}
 
+async function fireCascade(tags: Set<string>, changeCount: number): Promise<void> {
+  const cascadeDates = buildCascadeDates();
   const jobs: string[] = [];
 
-  if (affectedTags.has('dst_zone')) {
-    // KIP: invalidate zone cache + recalculate
+  console.log(`[cascade] Firing after debounce: ${changeCount} changes, tags=[${[...tags].join(',')}]`);
+
+  if (tags.has('dst_zone')) {
     try {
       await fetch('http://localhost:3001/api/admin/invalidate-zones', { method: 'POST' });
     } catch { /* KIP might not be running */ }
@@ -2528,15 +2540,56 @@ app.post('/api/admin/zone-changed', async (req, res) => {
     }
   }
 
-  if (affectedTags.has('dt_boundary') || affectedTags.has('dt_loading') || affectedTags.has('dt_unloading') || affectedTags.has('dt_onsite')) {
+  if (tags.has('dt_boundary') || tags.has('dt_loading') || tags.has('dt_unloading') || tags.has('dt_onsite')) {
     for (const date of cascadeDates) {
       await boss.send('fetch-dt-date', { date, mode: 'refresh' as const, triggerType: 'cascade' as const });
       jobs.push(`fetch-dt-date:${date}`);
     }
   }
 
-  res.json({ ok: true, cascade: { zoneUid, objectUid, action, jobs } });
+  console.log(`[cascade] Enqueued ${jobs.length} jobs: ${jobs.join(', ')}`);
+}
+
+app.post('/api/admin/zone-changed', async (req, res) => {
+  const { zoneUid, objectUid, action, tags } = req.body as {
+    zoneUid?: string; objectUid?: string; action?: string; tags?: string[];
+  };
+
+  const incomingTags = tags ?? [];
+
+  if (cascadePending) {
+    clearTimeout(cascadePending.timer);
+    for (const t of incomingTags) cascadePending.tags.add(t);
+    cascadePending.changeCount += 1;
+    cascadePending.timer = setTimeout(onDebounceFire, CASCADE_DEBOUNCE_MS);
+    console.log(`[cascade] Rearmed (${cascadePending.changeCount} changes pending): ${zoneUid} action=${action} tags=[${incomingTags.join(',')}]`);
+  } else {
+    cascadePending = {
+      tags: new Set(incomingTags),
+      changeCount: 1,
+      firstChangeAt: Date.now(),
+      timer: setTimeout(onDebounceFire, CASCADE_DEBOUNCE_MS),
+    };
+    console.log(`[cascade] Armed (${CASCADE_DEBOUNCE_MS / 1000}s): ${zoneUid} action=${action} tags=[${incomingTags.join(',')}]`);
+  }
+
+  res.json({
+    ok: true,
+    debounced: true,
+    pendingChanges: cascadePending.changeCount,
+    pendingTags: [...cascadePending.tags],
+    fireInMs: CASCADE_DEBOUNCE_MS,
+  });
 });
+
+function onDebounceFire(): void {
+  if (!cascadePending) return;
+  const { tags, changeCount } = cascadePending;
+  cascadePending = null;
+  fireCascade(tags, changeCount).catch(err => {
+    console.error(`[cascade] Fire failed:`, err);
+  });
+}
 
 // ─── Enhanced Coverage ──────────────────────────────────────────────────────
 

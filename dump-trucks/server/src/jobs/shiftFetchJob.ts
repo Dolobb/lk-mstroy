@@ -31,6 +31,7 @@ import { upsertShiftRecord, deleteStaleRecords } from '../repositories/shiftReco
 import { replaceTrips } from '../repositories/tripRepo';
 import { replaceZoneEvents } from '../repositories/zoneEventRepo';
 import { logger } from '../utils/logger';
+import { auditLog } from '../utils/auditLog';
 import { dayjs } from '../utils/dateFormat';
 import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 import type { ShiftType, GeoZone, ZoneEvent, Trip, ShiftKpi, WorkType } from '../types/domain';
@@ -141,7 +142,12 @@ export async function runShiftFetch(
   }
 
   // --- 1. Fetch ПЛ из TIS (7-дневное окно) + upsert в БД ---
-  const toDate   = dayjs(dateStr).toDate();
+  // Для shift2 окно расширяем на +1 день: смена заходит в утро следующего дня,
+  // и часть ПЛ может быть выписана/опубликована уже в TIS датой N+1 (закрытие
+  // ночной смены утром, post-факт оформление). Без +1 такие ПЛ не попадают в fetch.
+  const toDate   = (shiftType === 'shift2'
+    ? dayjs(dateStr).add(1, 'day')
+    : dayjs(dateStr)).toDate();
   const fromDate = dayjs(dateStr).subtract(7, 'day').toDate();
 
   logger.info(`[ShiftFetch] Fetching route lists: ${dayjs(fromDate).format('DD.MM.YYYY')} – ${dayjs(toDate).format('DD.MM.YYYY')}`);
@@ -158,8 +164,9 @@ export async function runShiftFetch(
   logger.info(`[ShiftFetch] Got ${routeLists.length} route lists`);
 
   // Upsert ВСЕ ПЛ в route_lists (non-critical)
+  let upsertedCount = 0;
   try {
-    const upsertedCount = await upsertRouteLists(pool, routeLists);
+    upsertedCount = await upsertRouteLists(pool, routeLists);
     logger.info(`[ShiftFetch] Upserted ${upsertedCount} route lists to DB`);
   } catch (err) {
     logger.warn(`[ShiftFetch] Route lists upsert failed (non-critical): ${String(err)}`);
@@ -167,8 +174,10 @@ export async function runShiftFetch(
 
   // --- 2. Запрос ПЛ из БД с перекрытием дат → парсинг ---
   let parsedPLs;
+  let dbOverlapCount = 0;
   try {
     const dbRecords = await queryRouteListsForShift(pool, shiftStart, shiftEnd);
+    dbOverlapCount = dbRecords.length;
     parsedPLs = routeListRecordsToParsedPLs(dbRecords, config.testIdMos);
     logger.info(`[ShiftFetch] DB query: ${dbRecords.length} route lists overlapping shift → ${parsedPLs.length} with target vehicles`);
   } catch (err) {
@@ -296,6 +305,28 @@ export async function runShiftFetch(
 
   logger.info(`[ShiftFetch] Vehicles to process: ${vehiclesMap.size}`);
 
+  // --- AUDIT: pipeline summary --------------------------------------------
+  {
+    const dateOutDist: Record<string, number> = {};
+    for (const pl of parsedPLs) {
+      const d = (pl.dateOut || '').slice(0, 10) || '(unknown)';
+      dateOutDist[d] = (dateOutDist[d] || 0) + 1;
+    }
+    auditLog({
+      kind: 'pl_summary',
+      runId: tracker.runId,
+      date: dateStr,
+      shift: shiftType,
+      fetchRange: `${dayjs(fromDate).format('DD.MM.YYYY')}..${dayjs(toDate).format('DD.MM.YYYY')}`,
+      tisCount: routeLists.length,
+      upsertedCount,
+      dbOverlapCount,
+      plsWithSamosval: parsedPLs.length,
+      uniqueVehicles: vehiclesMap.size,
+      dateOutDist,
+    });
+  }
+
   // Карта: objectUid → есть ли dt_onsite зоны (объекты без onsite не могут иметь workType='onsite')
   const objectHasOnsite = new Map<string, boolean>();
   for (const z of allZones) {
@@ -325,6 +356,12 @@ export async function runShiftFetch(
 
       if (!monitoring) {
         logger.warn(`[ShiftFetch] No monitoring data for idMO=${idMO}`);
+        auditLog({
+          kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
+          idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
+          tz: usedTz, engineSec: 0, trackPoints: 0, zoneEvents: 0,
+          detectedObject: null, verdict: 'no_monitoring',
+        });
         result.vehiclesSkipped++;
         continue;
       }
@@ -333,6 +370,12 @@ export async function runShiftFetch(
       const engineTimeSec = monitoring.engineTime ?? 0;
       if (engineTimeSec < MIN_ENGINE_SEC) {
         logger.info(`[ShiftFetch] idMO=${idMO}: engine ${Math.round(engineTimeSec / 60)} min < 45 min threshold, cleaning up stale records`);
+        auditLog({
+          kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
+          idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
+          tz: usedTz, engineSec: engineTimeSec, trackPoints: (monitoring.track || []).length,
+          zoneEvents: 0, detectedObject: null, verdict: 'engine_below_threshold',
+        });
         // Удаляем старые записи для этого ТС/дата/смена (если были)
         const dbClient = await pool.connect();
         try {
@@ -373,6 +416,13 @@ export async function runShiftFetch(
           monitoring = await client.getMonitoringStats(idMO, queryStart, queryEnd);
           if (!monitoring) {
             logger.warn(`[ShiftFetch] No monitoring data for idMO=${idMO} after re-query`);
+            auditLog({
+              kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
+              idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
+              tz: usedTz, engineSec: engineTimeSec, trackPoints: track.length,
+              zoneEvents: zoneEvents.length, detectedObject: null,
+              verdict: 'no_monitoring', reason: 'after tz re-query',
+            });
             result.vehiclesSkipped++;
             continue;
           }
@@ -385,6 +435,13 @@ export async function runShiftFetch(
 
       if (candidates.length === 0 && zoneEvents.length === 0) {
         logger.warn(`[ShiftFetch] idMO=${idMO}: no object detected, skipping`);
+        auditLog({
+          kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
+          idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
+          tz: usedTz, engineSec: engineTimeSec, trackPoints: track.length,
+          zoneEvents: zoneEvents.length, detectedObject: null,
+          verdict: 'no_object_detected',
+        });
         result.vehiclesSkipped++;
         continue;
       }
@@ -531,6 +588,16 @@ export async function runShiftFetch(
         const summary = validRecords.map(r => `${r.objectUid}:${r.workType}(trips=${r.trips.length},kip=${r.kpi.kipPct}%)`).join(', ');
         logger.info(`[ShiftFetch] idMO=${idMO}: saved ${validRecords.length} record(s). ${summary}`);
 
+        auditLog({
+          kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
+          idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
+          tz: usedTz, engineSec: engineTimeSec, trackPoints: track.length,
+          zoneEvents: zoneEvents.length,
+          detectedObject: validRecords[0]?.objectUid ?? null,
+          verdict: 'processed',
+          reason: validRecords.map(r => `${r.objectUid}:${r.workType}`).join(','),
+        });
+
       } catch (dbErr) {
         await dbClient.query('ROLLBACK');
         throw dbErr;
@@ -541,6 +608,12 @@ export async function runShiftFetch(
     } catch (err) {
       const msg = `idMO=${idMO}: ${String(err)}`;
       logger.error(`[ShiftFetch] Error processing vehicle: ${msg}`);
+      auditLog({
+        kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
+        idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
+        tz: 'unknown', engineSec: 0, trackPoints: 0, zoneEvents: 0,
+        detectedObject: null, verdict: 'processing_error', reason: String(err),
+      });
       result.errors.push(msg);
       result.vehiclesSkipped++;
     }
