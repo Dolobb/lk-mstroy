@@ -1174,3 +1174,17 @@
 {"ts":"2026-04-30T05:00:32.644Z","category":"http","service":"dump-trucks","runId":"c4499754-d1ff-4eef-9aa4-41af17937085","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-04-30&shift=shift1","fields":{"ms":7},"level":"info"}
 {"ts":"2026-04-30T05:01:02.673Z","category":"pipeline","pipeline":"dt_daily","runId":"c4499754-d1ff-4eef-9aa4-41af17937085","date":"2026-04-30","shift":"shift1","msg":"run completed","fields":{"processed":24,"preCount":1,"postCount":26,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
 {"ts":"2026-04-30T05:26:28.504Z","category":"reconcile","msg":"closed 2 stale running rows","fields":{"count":2,"by_pipeline":{"dt_daily":2}},"level":"info"}
+{"ts":"2026-05-07T02:44:00.432Z","category":"reconcile","msg":"closed 1 stale running rows","fields":{"count":1,"by_pipeline":{"dt_daily":1}},"level":"info"}
+{"ts":"2026-05-07T02:44:00.739Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-05-07T02:44:01.139Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-05-07T02:44:01.339Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-05-07T02:44:01.341Z","category":"spawn","service":"tyagachi","msg":"spawn error: spawn python ENOENT","fields":{"error":"spawn python ENOENT"},"level":"error"}
+{"ts":"2026-05-07T02:44:08.702Z","category":"spawn","service":"kip","msg":"port 3001 still occupied after 8s, killing leftover listener","fields":{"port":3001},"level":"warn"}
+{"ts":"2026-05-07T02:44:09.097Z","category":"spawn","service":"geo-admin","msg":"port 3003 still occupied after 8s, killing leftover listener","fields":{"port":3003},"level":"warn"}
+{"ts":"2026-05-07T02:44:09.703Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-05-07T02:44:11.727Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-05-07T02:44:12.124Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-05-07T02:44:12.521Z","category":"spawn","service":"kip","msg":"EADDRINUSE — port still held at child start","fields":{"port":3001},"level":"error"}
+{"ts":"2026-05-07T02:44:12.692Z","category":"spawn","service":"geo-admin","msg":"EADDRINUSE — port still held at child start","fields":{"port":3003},"level":"error"}
+{"ts":"2026-05-07T02:44:12.728Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-05-07T02:44:13.532Z","category":"spawn","service":"ai-reports","msg":"EADDRINUSE — port still held at child start","fields":{"port":3006},"level":"error"}
