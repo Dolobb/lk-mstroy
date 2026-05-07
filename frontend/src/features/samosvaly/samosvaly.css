@@ -735,6 +735,11 @@ table.sv-at tr:hover { background: var(--sv-hover-bg); }
 .sv-gg-wrap thead th { background: #0A1220; }
 [data-theme="light"] .sv-gg-wrap thead th { background: #F1F5F9; }
 
+/* Allow horizontal overflow so the scrollbar actually appears */
+.sv-gg-wrap table { width: auto; min-width: 100%; }
+.sv-gg-wrap th:not(:first-child),
+.sv-gg-wrap td:not(:first-child) { width: 40px; min-width: 40px; }
+
 /* Persistent horizontal/vertical scrollbar */
 .sv-gg-wrap::-webkit-scrollbar { width: 8px; height: 10px; }
 .sv-gg-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
