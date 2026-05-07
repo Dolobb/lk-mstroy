@@ -1,0 +1,5887 @@
+{
+  "target_date": "2026-05-06",
+  "snapshot_at": "2026-05-07T10:55:11.307Z",
+  "totals": {
+    "pls": 502,
+    "distinct_regs_total": 459,
+    "distinct_regs_in_registry": 78
+  },
+  "regs_in_registry": [
+    "0023ОА72",
+    "0024ОА72",
+    "0025ОА72",
+    "0089ОК72",
+    "0139ТО72",
+    "0451ОЕ72",
+    "0504ОК72",
+    "0946ТО72",
+    "1688ТО72",
+    "1798ОВ72",
+    "2323ТО72",
+    "2517ТВ72",
+    "2738ОЕ72",
+    "2741ОЕ72",
+    "3100ОЕ72",
+    "3104ОЕ72",
+    "3123ОА72",
+    "3373ОЕ72",
+    "3388ТС72",
+    "3428ТА72",
+    "3431ТК72",
+    "3724ХЕ50",
+    "3727ХЕ50",
+    "4108ТВ86",
+    "4451УЕ86",
+    "4471ОЕ72",
+    "4472ОЕ72",
+    "4682ТО72",
+    "4683ТО72",
+    "5112УР86",
+    "5351ОА72",
+    "5518ОЕ72",
+    "6029ОА72",
+    "6645ТА72",
+    "7062ОВ72",
+    "7368ОВ72",
+    "7388АР28",
+    "7500ОВ72",
+    "7510ОВ72",
+    "7629ОЕ72",
+    "7953ОЕ72",
+    "7984ТК72",
+    "7985ТК72",
+    "8526ОВ72",
+    "8527ОВ72",
+    "8529ОВ72",
+    "8551ОВ72",
+    "8939ОЕ72",
+    "9272ОЕ72",
+    "9273ОЕ72",
+    "9735ОЕ72",
+    "9805ТВ86",
+    "9990ХО50",
+    "Е941СР186",
+    "К128МО797",
+    "К170УТ72",
+    "К604АН186",
+    "К633ХО186",
+    "К644НХ186",
+    "К793АА186",
+    "К957УЕ72",
+    "Н921МС797",
+    "О217ОС72",
+    "О487СЕ89",
+    "О942ХЕ72",
+    "О943ХЕ72",
+    "Р013ТО186",
+    "Р038ХА186",
+    "Р069ЕС72",
+    "Р163КЕ72",
+    "Р182ЕС72",
+    "Р362СХ186",
+    "Р882ОУ186",
+    "У334ТУ750",
+    "У791КА750",
+    "Х118ЕО72",
+    "Х683МТ72",
+    "Х702МУ72"
+  ],
+  "pls": [
+    {
+      "pl_id": "984881",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-15T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-02-13T03:17:54.529Z",
+      "regs": [
+        "С399УМ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "995828",
+      "date_out_plan": "2026-03-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-03-03T05:18:36.711Z",
+      "regs": [
+        "Х871УН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1009806",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:30.939Z",
+      "regs": [
+        "3428ТА72"
+      ],
+      "regs_in_registry": [
+        "3428ТА72"
+      ]
+    },
+    {
+      "pl_id": "1011016",
+      "date_out_plan": "2026-04-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-21T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-04-03T03:30:22.016Z",
+      "regs": [
+        "9724ОЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1011022",
+      "date_out_plan": "2026-04-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-16T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-04-03T03:30:22.011Z",
+      "regs": [
+        "Х650ЕО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1011664",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-17T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:30.944Z",
+      "regs": [
+        "У195ЕН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014315",
+      "date_out_plan": "2026-04-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-04-07T03:30:24.427Z",
+      "regs": [
+        "В430НС172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014475",
+      "date_out_plan": "2026-04-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-04-07T03:30:24.083Z",
+      "regs": [
+        "2120АУ72",
+        "ВВ517672",
+        "Х185МХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014587",
+      "date_out_plan": "2026-04-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-09T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-04-03T03:30:24.066Z",
+      "regs": [
+        "4108ТВ86"
+      ],
+      "regs_in_registry": [
+        "4108ТВ86"
+      ]
+    },
+    {
+      "pl_id": "1014776",
+      "date_out_plan": "2026-04-06T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-04-08T03:11:42.911Z",
+      "regs": [
+        "К604АН186"
+      ],
+      "regs_in_registry": [
+        "К604АН186"
+      ]
+    },
+    {
+      "pl_id": "1014777",
+      "date_out_plan": "2026-04-11T03:00:00.000Z",
+      "date_in_plan": "2026-05-15T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-04-13T03:30:16.190Z",
+      "regs": [
+        "К604АН186"
+      ],
+      "regs_in_registry": [
+        "К604АН186"
+      ]
+    },
+    {
+      "pl_id": "1014783",
+      "date_out_plan": "2026-04-11T03:00:00.000Z",
+      "date_in_plan": "2026-05-15T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-04-13T03:30:15.148Z",
+      "regs": [
+        "К604АН186"
+      ],
+      "regs_in_registry": [
+        "К604АН186"
+      ]
+    },
+    {
+      "pl_id": "1014809",
+      "date_out_plan": "2026-04-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-15T19:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-03T03:30:25.379Z",
+      "regs": [
+        "У811МТ797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014811",
+      "date_out_plan": "2026-04-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-15T19:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-03T03:30:24.840Z",
+      "regs": [
+        "У811МТ797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014818",
+      "date_out_plan": "2026-04-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-15T19:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-03T03:30:25.384Z",
+      "regs": [
+        "У154УС750"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014819",
+      "date_out_plan": "2026-04-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-15T19:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-03T03:30:25.389Z",
+      "regs": [
+        "У154УС750"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014943",
+      "date_out_plan": "2026-04-06T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-04-08T03:11:42.993Z",
+      "regs": [
+        "3772ТВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1014944",
+      "date_out_plan": "2026-04-11T03:00:00.000Z",
+      "date_in_plan": "2026-05-15T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-04-13T03:30:16.244Z",
+      "regs": [
+        "3772ТВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1017428",
+      "date_out_plan": "2026-04-07T03:00:00.000Z",
+      "date_in_plan": "2026-05-11T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-08T03:11:46.123Z",
+      "regs": [
+        "У791КА750"
+      ],
+      "regs_in_registry": [
+        "У791КА750"
+      ]
+    },
+    {
+      "pl_id": "1017429",
+      "date_out_plan": "2026-04-11T03:00:00.000Z",
+      "date_in_plan": "2026-05-16T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-13T03:30:16.967Z",
+      "regs": [
+        "У791КА750"
+      ],
+      "regs_in_registry": [
+        "У791КА750"
+      ]
+    },
+    {
+      "pl_id": "1018829",
+      "date_out_plan": "2026-04-11T03:00:00.000Z",
+      "date_in_plan": "2026-05-22T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-13T03:30:17.733Z",
+      "regs": [
+        "2559"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1019450",
+      "date_out_plan": "2026-04-16T03:00:00.000Z",
+      "date_in_plan": "2026-05-26T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-18T00:30:39.790Z",
+      "regs": [
+        "2977"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1019654",
+      "date_out_plan": "2026-04-11T15:00:00.000Z",
+      "date_in_plan": "2026-05-16T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-14T04:01:32.072Z",
+      "regs": [
+        "A00002670"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1020088",
+      "date_out_plan": "2026-04-21T03:00:00.000Z",
+      "date_in_plan": "2026-05-25T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-04-23T00:30:52.766Z",
+      "regs": [
+        "9273ОЕ72"
+      ],
+      "regs_in_registry": [
+        "9273ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1020424",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-08T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:30.988Z",
+      "regs": [
+        "К228ВВ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1020548",
+      "date_out_plan": "2026-04-15T01:00:00.000Z",
+      "date_in_plan": "2026-05-16T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-17T00:30:39.236Z",
+      "regs": [
+        "К725ЕТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1020549",
+      "date_out_plan": "2026-04-16T01:00:00.000Z",
+      "date_in_plan": "2026-05-17T01:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-04-18T00:30:40.281Z",
+      "regs": [
+        "К725ЕТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1020556",
+      "date_out_plan": "2026-04-23T01:00:00.000Z",
+      "date_in_plan": "2026-05-24T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-25T00:30:43.422Z",
+      "regs": [
+        "К725ЕТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1020932",
+      "date_out_plan": "2026-04-15T15:00:00.000Z",
+      "date_in_plan": "2026-05-20T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-17T00:30:39.420Z",
+      "regs": [
+        "Р362СХ186"
+      ],
+      "regs_in_registry": [
+        "Р362СХ186"
+      ]
+    },
+    {
+      "pl_id": "1021488",
+      "date_out_plan": "2026-04-16T03:00:00.000Z",
+      "date_in_plan": "2026-05-20T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-18T00:30:38.466Z",
+      "regs": [
+        "2227ОК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1022486",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:31.029Z",
+      "regs": [
+        "2010"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1022867",
+      "date_out_plan": "2026-04-21T03:00:00.000Z",
+      "date_in_plan": "2026-05-25T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-23T00:30:54.083Z",
+      "regs": [
+        "0139ТО72"
+      ],
+      "regs_in_registry": [
+        "0139ТО72"
+      ]
+    },
+    {
+      "pl_id": "1023227",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.041Z",
+      "regs": [
+        "Т220ХА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023576",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.081Z",
+      "regs": [
+        "Н036НТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023582",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-11T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.086Z",
+      "regs": [
+        "Х716УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023585",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.097Z",
+      "regs": [
+        "С991УО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023594",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.108Z",
+      "regs": [
+        "0024ОА72"
+      ],
+      "regs_in_registry": [
+        "0024ОА72"
+      ]
+    },
+    {
+      "pl_id": "1023596",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-09T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.103Z",
+      "regs": [
+        "О942ХЕ72"
+      ],
+      "regs_in_registry": [
+        "О942ХЕ72"
+      ]
+    },
+    {
+      "pl_id": "1023606",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:31.113Z",
+      "regs": [
+        "63223"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023607",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:31.119Z",
+      "regs": [
+        "52274"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023608",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:31.126Z",
+      "regs": [
+        "62553"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023637",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-10T18:50:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:31.131Z",
+      "regs": [
+        "С151РТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023682",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-31T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.395Z",
+      "regs": [
+        "С199НУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023707",
+      "date_out_plan": "2026-04-21T03:00:00.000Z",
+      "date_in_plan": "2026-05-25T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-23T00:30:55.065Z",
+      "regs": [
+        "Х683МТ72"
+      ],
+      "regs_in_registry": [
+        "Х683МТ72"
+      ]
+    },
+    {
+      "pl_id": "1023835",
+      "date_out_plan": "2026-04-22T03:00:00.000Z",
+      "date_in_plan": "2026-05-26T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-24T00:30:48.974Z",
+      "regs": [
+        "Х118ЕО72"
+      ],
+      "regs_in_registry": [
+        "Х118ЕО72"
+      ]
+    },
+    {
+      "pl_id": "1023836",
+      "date_out_plan": "2026-04-22T15:00:00.000Z",
+      "date_in_plan": "2026-05-27T03:02:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-24T00:30:48.980Z",
+      "regs": [
+        "Х118ЕО72"
+      ],
+      "regs_in_registry": [
+        "Х118ЕО72"
+      ]
+    },
+    {
+      "pl_id": "1023900",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-16T18:58:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:01.753Z",
+      "regs": [
+        "8962ВЕ72",
+        "К392ТЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023901",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-16T18:58:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:01.759Z",
+      "regs": [
+        "6012ВЕ72",
+        "А252ВВ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023926",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.161Z",
+      "regs": [
+        "Н011НТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023930",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.166Z",
+      "regs": [
+        "Н011УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023940",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.178Z",
+      "regs": [
+        "У274УТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023958",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.200Z",
+      "regs": [
+        "С047МХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1023983",
+      "date_out_plan": "2026-04-22T16:00:00.000Z",
+      "date_in_plan": "2026-05-23T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-24T00:30:49.441Z",
+      "regs": [
+        "С148РА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024005",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.049Z",
+      "regs": [
+        "К725ЕТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024018",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.056Z",
+      "regs": [
+        "Р265ОУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024063",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.217Z",
+      "regs": [
+        "С665УЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024081",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.063Z",
+      "regs": [
+        "С224ОХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024119",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.070Z",
+      "regs": [
+        "А538АТ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024173",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:31.239Z",
+      "regs": [
+        "С976ХТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024263",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.076Z",
+      "regs": [
+        "Х211ЕО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024281",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.084Z",
+      "regs": [
+        "Х402НА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024298",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.091Z",
+      "regs": [
+        "Х476НА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024640",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.288Z",
+      "regs": [
+        "Х566МА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024734",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.001Z",
+      "regs": [
+        "АН94672"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024747",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-27T00:30:28.886Z",
+      "regs": [
+        "Н997УР797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024849",
+      "date_out_plan": "2026-05-05T09:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.126Z",
+      "regs": [
+        "АО41372"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024866",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.408Z",
+      "regs": [
+        "О592АР790"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024885",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.414Z",
+      "regs": [
+        "2043"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024886",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.421Z",
+      "regs": [
+        "3300"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024887",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.427Z",
+      "regs": [
+        "3302"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024888",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.433Z",
+      "regs": [
+        "1907"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024889",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.440Z",
+      "regs": [
+        "60197"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024890",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-31T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.446Z",
+      "regs": [
+        "51592"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024891",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.453Z",
+      "regs": [
+        "6859"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024952",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.133Z",
+      "regs": [
+        "Т903РХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024972",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.988Z",
+      "regs": [
+        "У243ОА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1024988",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:04.147Z",
+      "regs": [
+        "Х682МК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025003",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.140Z",
+      "regs": [
+        "А743ХМ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025034",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:04.161Z",
+      "regs": [
+        "Н042АЕ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025053",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.154Z",
+      "regs": [
+        "А188СН172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025089",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.168Z",
+      "regs": [
+        "Х250МР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025131",
+      "date_out_plan": "2026-05-05T15:20:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.189Z",
+      "regs": [
+        "Р871МР186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025169",
+      "date_out_plan": "2026-04-29T03:00:00.000Z",
+      "date_in_plan": "2026-05-29T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-01T00:30:38.929Z",
+      "regs": [
+        "1519"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025183",
+      "date_out_plan": "2026-05-05T14:01:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.204Z",
+      "regs": [
+        "С177МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025221",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.388Z",
+      "regs": [
+        "У274УТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025229",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.007Z",
+      "regs": [
+        "Х497УК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025248",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.394Z",
+      "regs": [
+        "В999ЕС86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025307",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.014Z",
+      "regs": [
+        "Р082НС186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025322",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.246Z",
+      "regs": [
+        "Р060НС186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025339",
+      "date_out_plan": "2026-05-05T14:00:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.253Z",
+      "regs": [
+        "С886НС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025349",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.260Z",
+      "regs": [
+        "Т053СС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025359",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.270Z",
+      "regs": [
+        "С238МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025379",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.292Z",
+      "regs": [
+        "С238МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025399",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.021Z",
+      "regs": [
+        "Р066НС186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025415",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.277Z",
+      "regs": [
+        "С225МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025435",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.285Z",
+      "regs": [
+        "С225МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025483",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.321Z",
+      "regs": [
+        "С884НС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025493",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.306Z",
+      "regs": [
+        "С884НС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025505",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.482Z",
+      "regs": [
+        "3373ОЕ72"
+      ],
+      "regs_in_registry": [
+        "3373ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1025540",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.487Z",
+      "regs": [
+        "3007"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025548",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.493Z",
+      "regs": [
+        "2282"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025553",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.498Z",
+      "regs": [
+        "20165"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025555",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-06T08:44:04.328Z",
+      "regs": [
+        "А021АТ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025567",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-09T02:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.504Z",
+      "regs": [
+        "Р904КР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025573",
+      "date_out_plan": "2026-05-05T15:02:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.335Z",
+      "regs": [
+        "С880НС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025600",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.341Z",
+      "regs": [
+        "Х373УУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025615",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.363Z",
+      "regs": [
+        "В175ОЕ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025630",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.370Z",
+      "regs": [
+        "В175ОЕ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025644",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-16T15:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:31.543Z",
+      "regs": [
+        "Х651ЕО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025662",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:04.377Z",
+      "regs": [
+        "В178ОС172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025676",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-10T02:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:31.555Z",
+      "regs": [
+        "А927ОХ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025680",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.385Z",
+      "regs": [
+        "С406УН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025695",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.391Z",
+      "regs": [
+        "С406УН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025714",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.406Z",
+      "regs": [
+        "А406ОВ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025731",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.399Z",
+      "regs": [
+        "А406ОВ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025750",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.413Z",
+      "regs": [
+        "2120АУ72",
+        "ВВ517672",
+        "Х185МХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025766",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:31.594Z",
+      "regs": [
+        "К604АН186"
+      ],
+      "regs_in_registry": [
+        "К604АН186"
+      ]
+    },
+    {
+      "pl_id": "1025821",
+      "date_out_plan": "2026-05-05T14:00:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.427Z",
+      "regs": [
+        "С842НС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025838",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T12:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.157Z",
+      "regs": [
+        "У359СХ86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025852",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.449Z",
+      "regs": [
+        "С141МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025856",
+      "date_out_plan": "2026-05-04T02:00:00.000Z",
+      "date_in_plan": "2026-05-10T12:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.150Z",
+      "regs": [
+        "В142СЕ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025871",
+      "date_out_plan": "2026-05-04T02:00:00.000Z",
+      "date_in_plan": "2026-05-10T12:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.178Z",
+      "regs": [
+        "Е763ОВ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025875",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.192Z",
+      "regs": [
+        "5112УР86"
+      ],
+      "regs_in_registry": [
+        "5112УР86"
+      ]
+    },
+    {
+      "pl_id": "1025877",
+      "date_out_plan": "2026-05-04T01:00:00.000Z",
+      "date_in_plan": "2026-05-10T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.200Z",
+      "regs": [
+        "В029АУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025880",
+      "date_out_plan": "2026-05-04T02:00:00.000Z",
+      "date_in_plan": "2026-05-10T12:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.186Z",
+      "regs": [
+        "Е014СУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025892",
+      "date_out_plan": "2026-05-01T00:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-03T00:30:31.682Z",
+      "regs": [
+        "С824РК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025893",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.687Z",
+      "regs": [
+        "Р439ХС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025929",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.715Z",
+      "regs": [
+        "О050ТР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025936",
+      "date_out_plan": "2026-05-05T14:01:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.469Z",
+      "regs": [
+        "Р665КХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025983",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.498Z",
+      "regs": [
+        "Х585ХК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1025994",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-11T18:59:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.741Z",
+      "regs": [
+        "Т087ХУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026008",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.505Z",
+      "regs": [
+        "С243ОХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026035",
+      "date_out_plan": "2026-04-30T03:00:00.000Z",
+      "date_in_plan": "2026-05-21T15:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-02T00:30:39.953Z",
+      "regs": [
+        "А525АТ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026088",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.479Z",
+      "regs": [
+        "Х751УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026092",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.485Z",
+      "regs": [
+        "У369ММ797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026097",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.534Z",
+      "regs": [
+        "С253ОХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026124",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.491Z",
+      "regs": [
+        "Х572ОА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026134",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.540Z",
+      "regs": [
+        "А661АУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026147",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-31T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.496Z",
+      "regs": [
+        "616923"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026165",
+      "date_out_plan": "2026-05-06T01:00:00.000Z",
+      "date_in_plan": "2026-05-10T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.028Z",
+      "regs": [
+        "К356ТХ750"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026178",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:04.555Z",
+      "regs": [
+        "А934МУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026193",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.513Z",
+      "regs": [
+        "3727ХЕ50"
+      ],
+      "regs_in_registry": [
+        "3727ХЕ50"
+      ]
+    },
+    {
+      "pl_id": "1026206",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-03T00:30:34.508Z",
+      "regs": [
+        "К319ТХ750"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026212",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:31.843Z",
+      "regs": [
+        "5351ОА72"
+      ],
+      "regs_in_registry": [
+        "5351ОА72"
+      ]
+    },
+    {
+      "pl_id": "1026235",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.994Z",
+      "regs": [
+        "Х193МК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026250",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.584Z",
+      "regs": [
+        "Р030МС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026277",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:04.590Z",
+      "regs": [
+        "С887НС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026288",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.876Z",
+      "regs": [
+        "С599ХО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026292",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.865Z",
+      "regs": [
+        "Х679КО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026313",
+      "date_out_plan": "2026-05-05T14:01:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.612Z",
+      "regs": [
+        "С165МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026384",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.627Z",
+      "regs": [
+        "6540ВЕ72",
+        "А471ВК172",
+        "ХУ841186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026390",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.920Z",
+      "regs": [
+        "А101СТ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026396",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-05T20:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.519Z",
+      "regs": [
+        "К656УС86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026411",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-10T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.530Z",
+      "regs": [
+        "У334ТУ750"
+      ],
+      "regs_in_registry": [
+        "У334ТУ750"
+      ]
+    },
+    {
+      "pl_id": "1026417",
+      "date_out_plan": "2026-05-05T14:30:00.000Z",
+      "date_in_plan": "2026-05-06T02:30:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.634Z",
+      "regs": [
+        "Т051СС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026467",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.641Z",
+      "regs": [
+        "0609АХ72",
+        "2070АР86",
+        "АО256886",
+        "У519ХУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026482",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.649Z",
+      "regs": [
+        "0609АХ72",
+        "2070АР86",
+        "АО256886",
+        "У519ХУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026508",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:31.997Z",
+      "regs": [
+        "16247"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026510",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.009Z",
+      "regs": [
+        "50814"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026513",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.020Z",
+      "regs": [
+        "52894"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026515",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.025Z",
+      "regs": [
+        "6858"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026554",
+      "date_out_plan": "2026-05-03T22:00:00.000Z",
+      "date_in_plan": "2026-05-10T10:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-04-30T03:30:45.638Z",
+      "regs": [
+        "Р882ОУ186"
+      ],
+      "regs_in_registry": [
+        "Р882ОУ186"
+      ]
+    },
+    {
+      "pl_id": "1026581",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.670Z",
+      "regs": [
+        "В430НС172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026597",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.053Z",
+      "regs": [
+        "1688ТО72"
+      ],
+      "regs_in_registry": [
+        "1688ТО72"
+      ]
+    },
+    {
+      "pl_id": "1026608",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.676Z",
+      "regs": [
+        "Е878СР186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026619",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.064Z",
+      "regs": [
+        "3388ТС72"
+      ],
+      "regs_in_registry": [
+        "3388ТС72"
+      ]
+    },
+    {
+      "pl_id": "1026631",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.075Z",
+      "regs": [
+        "1490"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026636",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.698Z",
+      "regs": [
+        "С881НС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026652",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.091Z",
+      "regs": [
+        "2559"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026654",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-10T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.691Z",
+      "regs": [
+        "К228ВВ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026660",
+      "date_out_plan": "2026-05-05T09:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.705Z",
+      "regs": [
+        "Х215ЕО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026678",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.119Z",
+      "regs": [
+        "0025ОА72"
+      ],
+      "regs_in_registry": [
+        "0025ОА72"
+      ]
+    },
+    {
+      "pl_id": "1026683",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.102Z",
+      "regs": [
+        "2517ТВ72"
+      ],
+      "regs_in_registry": [
+        "2517ТВ72"
+      ]
+    },
+    {
+      "pl_id": "1026687",
+      "date_out_plan": "2026-05-04T01:00:00.000Z",
+      "date_in_plan": "2026-05-10T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.450Z",
+      "regs": [
+        "Е029АР186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026688",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-09T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.152Z",
+      "regs": [
+        "О487СЕ89"
+      ],
+      "regs_in_registry": [
+        "О487СЕ89"
+      ]
+    },
+    {
+      "pl_id": "1026690",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.435Z",
+      "regs": [
+        "Р597ТО186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026696",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.135Z",
+      "regs": [
+        "4220"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026698",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.456Z",
+      "regs": [
+        "К644НХ186"
+      ],
+      "regs_in_registry": [
+        "К644НХ186"
+      ]
+    },
+    {
+      "pl_id": "1026699",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.146Z",
+      "regs": [
+        "50238"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026709",
+      "date_out_plan": "2026-05-05T14:30:00.000Z",
+      "date_in_plan": "2026-05-06T02:30:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.726Z",
+      "regs": [
+        "С241МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026769",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.185Z",
+      "regs": [
+        "Х702МУ72"
+      ],
+      "regs_in_registry": [
+        "Х702МУ72"
+      ]
+    },
+    {
+      "pl_id": "1026772",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-09T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.740Z",
+      "regs": [
+        "Р182ЕС72"
+      ],
+      "regs_in_registry": [
+        "Р182ЕС72"
+      ]
+    },
+    {
+      "pl_id": "1026775",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-03T00:30:32.174Z",
+      "regs": [
+        "Х533УК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026777",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.180Z",
+      "regs": [
+        "7984ТК72"
+      ],
+      "regs_in_registry": [
+        "7984ТК72"
+      ]
+    },
+    {
+      "pl_id": "1026780",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-15T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.201Z",
+      "regs": [
+        "О087СТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026802",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.229Z",
+      "regs": [
+        "3909"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026805",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.212Z",
+      "regs": [
+        "3910"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026807",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.207Z",
+      "regs": [
+        "Х871УН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026836",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.552Z",
+      "regs": [
+        "3017"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026845",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.761Z",
+      "regs": [
+        "Р930РУ123"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026878",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.557Z",
+      "regs": [
+        "52709"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026903",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.768Z",
+      "regs": [
+        "А188СН172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026937",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.790Z",
+      "regs": [
+        "Х570РХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026960",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.810Z",
+      "regs": [
+        "О890МА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1026998",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.824Z",
+      "regs": [
+        "С217МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027017",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.832Z",
+      "regs": [
+        "Т482КН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027045",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.337Z",
+      "regs": [
+        "С929РК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027069",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.563Z",
+      "regs": [
+        "20160"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027070",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-03T00:30:32.364Z",
+      "regs": [
+        "Р069ЕС72"
+      ],
+      "regs_in_registry": [
+        "Р069ЕС72"
+      ]
+    },
+    {
+      "pl_id": "1027119",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.600Z",
+      "regs": [
+        "Р045МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027140",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:32.437Z",
+      "regs": [
+        "К170УТ72"
+      ],
+      "regs_in_registry": [
+        "К170УТ72"
+      ]
+    },
+    {
+      "pl_id": "1027184",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.465Z",
+      "regs": [
+        "Х838ОА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027193",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.470Z",
+      "regs": [
+        "2097АР86",
+        "С429ХУ86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027206",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.859Z",
+      "regs": [
+        "Т482КН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027233",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:32.503Z",
+      "regs": [
+        "8551ОВ72"
+      ],
+      "regs_in_registry": [
+        "8551ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1027241",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-10T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.035Z",
+      "regs": [
+        "1798ОВ72"
+      ],
+      "regs_in_registry": [
+        "1798ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1027243",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.574Z",
+      "regs": [
+        "1798ОВ72"
+      ],
+      "regs_in_registry": [
+        "1798ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1027250",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-03T00:30:32.515Z",
+      "regs": [
+        "7985ТК72"
+      ],
+      "regs_in_registry": [
+        "7985ТК72"
+      ]
+    },
+    {
+      "pl_id": "1027300",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.867Z",
+      "regs": [
+        "У664СТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027326",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.881Z",
+      "regs": [
+        "Р390ХС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027342",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:04.873Z",
+      "regs": [
+        "Р390ХС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027350",
+      "date_out_plan": "2026-05-05T09:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.888Z",
+      "regs": [
+        "АО41072"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027352",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T00:30:31.225Z",
+      "regs": [
+        "Н885УУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027356",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-03T00:30:32.604Z",
+      "regs": [
+        "С822РК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027360",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.973Z",
+      "regs": [
+        "С822РК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027377",
+      "date_out_plan": "2026-05-05T09:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:04.895Z",
+      "regs": [
+        "С815УК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027403",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T18:50:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.661Z",
+      "regs": [
+        "Р169УУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027409",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.670Z",
+      "regs": [
+        "9966АР86",
+        "Р128АА186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027412",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.677Z",
+      "regs": [
+        "2069АР86",
+        "ВЕ460486",
+        "Р046АА186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027415",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.672Z",
+      "regs": [
+        "7500ОВ72"
+      ],
+      "regs_in_registry": [
+        "7500ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1027425",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.690Z",
+      "regs": [
+        "АС650786",
+        "Х206УС86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027537",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-31T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.761Z",
+      "regs": [
+        "У513ХО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027558",
+      "date_out_plan": "2026-04-30T23:00:00.000Z",
+      "date_in_plan": "2026-06-05T11:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-02T00:30:40.719Z",
+      "regs": [
+        "Р013ТО186"
+      ],
+      "regs_in_registry": [
+        "Р013ТО186"
+      ]
+    },
+    {
+      "pl_id": "1027573",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.965Z",
+      "regs": [
+        "Т220ХА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027619",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.944Z",
+      "regs": [
+        "А695ХМ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027671",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:04.986Z",
+      "regs": [
+        "Т219ХА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027715",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.007Z",
+      "regs": [
+        "Х627МР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027721",
+      "date_out_plan": "2026-05-03T22:00:00.000Z",
+      "date_in_plan": "2026-05-06T10:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:02.789Z",
+      "regs": [
+        "Р762МТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027764",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.982Z",
+      "regs": [
+        "Р762МТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027805",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-31T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.911Z",
+      "regs": [
+        "К441КО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027820",
+      "date_out_plan": "2026-05-01T00:50:00.000Z",
+      "date_in_plan": "2026-05-06T18:50:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.895Z",
+      "regs": [
+        "У913ТА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1027833",
+      "date_out_plan": "2026-05-05T02:00:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.022Z",
+      "regs": [
+        "У071ОК797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028006",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T00:30:31.438Z",
+      "regs": [
+        "0023ОА72"
+      ],
+      "regs_in_registry": [
+        "0023ОА72"
+      ]
+    },
+    {
+      "pl_id": "1028049",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.048Z",
+      "regs": [
+        "ВА551872",
+        "С283ОА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028076",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.596Z",
+      "regs": [
+        "7062ОВ72"
+      ],
+      "regs_in_registry": [
+        "7062ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1028085",
+      "date_out_plan": "2026-05-05T23:00:00.000Z",
+      "date_in_plan": "2026-05-06T23:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-01T00:30:39.598Z",
+      "regs": [
+        "У039АХ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028105",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.085Z",
+      "regs": [
+        "Х133ВК797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028120",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.612Z",
+      "regs": [
+        "3100ОЕ72"
+      ],
+      "regs_in_registry": [
+        "3100ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1028123",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.618Z",
+      "regs": [
+        "2556"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028124",
+      "date_out_plan": "2026-04-30T01:00:00.000Z",
+      "date_in_plan": "2026-05-15T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-02T00:30:40.369Z",
+      "regs": [
+        "М618РС186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028125",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-10T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:32.985Z",
+      "regs": [
+        "Е029НН86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028134",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-05T22:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.055Z",
+      "regs": [
+        "С183УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028162",
+      "date_out_plan": "2026-05-05T13:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.061Z",
+      "regs": [
+        "С128УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028181",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.099Z",
+      "regs": [
+        "В085НН172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028196",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.106Z",
+      "regs": [
+        "С192УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028228",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T00:30:31.482Z",
+      "regs": [
+        "В173ОК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028236",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-05T22:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.068Z",
+      "regs": [
+        "С190УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028247",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T00:30:31.493Z",
+      "regs": [
+        "Х378УУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028248",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.053Z",
+      "regs": [
+        "0504ОК72"
+      ],
+      "regs_in_registry": [
+        "0504ОК72"
+      ]
+    },
+    {
+      "pl_id": "1028258",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.121Z",
+      "regs": [
+        "Т053СС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028269",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.128Z",
+      "regs": [
+        "С687УЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028285",
+      "date_out_plan": "2026-05-05T13:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.074Z",
+      "regs": [
+        "С156УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028303",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.081Z",
+      "regs": [
+        "А321ЕС172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028350",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-15T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.085Z",
+      "regs": [
+        "С353ХХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028352",
+      "date_out_plan": "2026-05-01T02:00:00.000Z",
+      "date_in_plan": "2026-05-15T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:30.877Z",
+      "regs": [
+        "У913ТА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028370",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.123Z",
+      "regs": [
+        "4471ОЕ72"
+      ],
+      "regs_in_registry": [
+        "4471ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1028379",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:33.096Z",
+      "regs": [
+        "15968"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028380",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:33.166Z",
+      "regs": [
+        "52698"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028381",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:33.101Z",
+      "regs": [
+        "5896"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028382",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:33.134Z",
+      "regs": [
+        "51593"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028383",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:33.172Z",
+      "regs": [
+        "50222"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028385",
+      "date_out_plan": "2026-05-04T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T18:50:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.002Z",
+      "regs": [
+        "А070ВУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028397",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:06.088Z",
+      "regs": [
+        "А823ВК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028412",
+      "date_out_plan": "2026-05-04T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T18:50:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:02.987Z",
+      "regs": [
+        "У730УМ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028419",
+      "date_out_plan": "2026-05-04T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T18:50:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.008Z",
+      "regs": [
+        "С160УО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028469",
+      "date_out_plan": "2026-05-05T09:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.172Z",
+      "regs": [
+        "С824РК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028483",
+      "date_out_plan": "2026-05-04T07:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.037Z",
+      "regs": [
+        "7399АХ72",
+        "М206ЕМ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028490",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.281Z",
+      "regs": [
+        "К633ХО186"
+      ],
+      "regs_in_registry": [
+        "К633ХО186"
+      ]
+    },
+    {
+      "pl_id": "1028499",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.656Z",
+      "regs": [
+        "3724ХЕ50"
+      ],
+      "regs_in_registry": [
+        "3724ХЕ50"
+      ]
+    },
+    {
+      "pl_id": "1028505",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.214Z",
+      "regs": [
+        "Х397РР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028514",
+      "date_out_plan": "2026-05-03T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:23.572Z",
+      "regs": [
+        "Е014СУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028523",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.179Z",
+      "regs": [
+        "С700УЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028539",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.086Z",
+      "regs": [
+        "С999ХТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028548",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.335Z",
+      "regs": [
+        "Р163КЕ72"
+      ],
+      "regs_in_registry": [
+        "Р163КЕ72"
+      ]
+    },
+    {
+      "pl_id": "1028591",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.228Z",
+      "regs": [
+        "К989УЕ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028595",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:33.395Z",
+      "regs": [
+        "К957УЕ72"
+      ],
+      "regs_in_registry": [
+        "К957УЕ72"
+      ]
+    },
+    {
+      "pl_id": "1028617",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.221Z",
+      "regs": [
+        "Р458НМ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028678",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.094Z",
+      "regs": [
+        "У146МА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028694",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.235Z",
+      "regs": [
+        "Т858УТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028706",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-05T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.479Z",
+      "regs": [
+        "8527ОВ72"
+      ],
+      "regs_in_registry": [
+        "8527ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1028719",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:33.507Z",
+      "regs": [
+        "А420ТЕ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028726",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.512Z",
+      "regs": [
+        "4451УЕ86"
+      ],
+      "regs_in_registry": [
+        "4451УЕ86"
+      ]
+    },
+    {
+      "pl_id": "1028732",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.529Z",
+      "regs": [
+        "7975АО86",
+        "К409АН186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028733",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.242Z",
+      "regs": [
+        "В177ОК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028750",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.264Z",
+      "regs": [
+        "А927ОХ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028800",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.271Z",
+      "regs": [
+        "Р921НУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028814",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.678Z",
+      "regs": [
+        "А113ЕУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028815",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.684Z",
+      "regs": [
+        "Н011ТР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028819",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-03T00:30:33.573Z",
+      "regs": [
+        "7510ОВ72"
+      ],
+      "regs_in_registry": [
+        "7510ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1028820",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.579Z",
+      "regs": [
+        "3104ОЕ72"
+      ],
+      "regs_in_registry": [
+        "3104ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1028827",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-15T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.585Z",
+      "regs": [
+        "У876УС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028832",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.601Z",
+      "regs": [
+        "4472ОЕ72"
+      ],
+      "regs_in_registry": [
+        "4472ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1028837",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-03T00:30:34.701Z",
+      "regs": [
+        "О217ОС72"
+      ],
+      "regs_in_registry": [
+        "О217ОС72"
+      ]
+    },
+    {
+      "pl_id": "1028852",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.740Z",
+      "regs": [
+        "9990ХО50"
+      ],
+      "regs_in_registry": [
+        "9990ХО50"
+      ]
+    },
+    {
+      "pl_id": "1028858",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.757Z",
+      "regs": [
+        "3123ОА72"
+      ],
+      "regs_in_registry": [
+        "3123ОА72"
+      ]
+    },
+    {
+      "pl_id": "1028866",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.101Z",
+      "regs": [
+        "К648АА186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028893",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.780Z",
+      "regs": [
+        "8529ОВ72"
+      ],
+      "regs_in_registry": [
+        "8529ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1028898",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.802Z",
+      "regs": [
+        "60169"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028899",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.808Z",
+      "regs": [
+        "60198"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028900",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.814Z",
+      "regs": [
+        "50815"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028901",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.821Z",
+      "regs": [
+        "60168"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028902",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.827Z",
+      "regs": [
+        "1804"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028903",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.833Z",
+      "regs": [
+        "3292"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028904",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.791Z",
+      "regs": [
+        "1957"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028905",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.840Z",
+      "regs": [
+        "2044"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028906",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.846Z",
+      "regs": [
+        "2050"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028907",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.852Z",
+      "regs": [
+        "52699"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028908",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.858Z",
+      "regs": [
+        "2048"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028909",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.865Z",
+      "regs": [
+        "3362"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028916",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-16T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.375Z",
+      "regs": [
+        "А832ТМ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028920",
+      "date_out_plan": "2026-05-01T00:00:00.000Z",
+      "date_in_plan": "2026-05-08T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.612Z",
+      "regs": [
+        "А022МХ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028922",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.163Z",
+      "regs": [
+        "2658АУ72",
+        "К399ТЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028930",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.651Z",
+      "regs": [
+        "У791КА750"
+      ],
+      "regs_in_registry": [
+        "У791КА750"
+      ]
+    },
+    {
+      "pl_id": "1028932",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.662Z",
+      "regs": [
+        "Х118ЕО72"
+      ],
+      "regs_in_registry": [
+        "Х118ЕО72"
+      ]
+    },
+    {
+      "pl_id": "1028945",
+      "date_out_plan": "2026-05-05T09:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.278Z",
+      "regs": [
+        "АО41272"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028952",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.618Z",
+      "regs": [
+        "9272ОЕ72"
+      ],
+      "regs_in_registry": [
+        "9272ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1028958",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-06-02T15:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-04T00:30:31.608Z",
+      "regs": [
+        "0812АХ72",
+        "9268АТ72",
+        "ВВ034172",
+        "М118УН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1028969",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.286Z",
+      "regs": [
+        "В401НК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029002",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.293Z",
+      "regs": [
+        "А538АТ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029011",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:33.784Z",
+      "regs": [
+        "4682ТО72"
+      ],
+      "regs_in_registry": [
+        "4682ТО72"
+      ]
+    },
+    {
+      "pl_id": "1029014",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.789Z",
+      "regs": [
+        "О942ХЕ72"
+      ],
+      "regs_in_registry": [
+        "О942ХЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029023",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.300Z",
+      "regs": [
+        "А618АУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029038",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:33.811Z",
+      "regs": [
+        "2738ОЕ72"
+      ],
+      "regs_in_registry": [
+        "2738ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029043",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:33.823Z",
+      "regs": [
+        "2741ОЕ72"
+      ],
+      "regs_in_registry": [
+        "2741ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029061",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.307Z",
+      "regs": [
+        "А984УМ89"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029076",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.314Z",
+      "regs": [
+        "Р595МО186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029082",
+      "date_out_plan": "2026-05-01T02:00:00.000Z",
+      "date_in_plan": "2026-05-15T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.856Z",
+      "regs": [
+        "С888ЕО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029084",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-08T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.867Z",
+      "regs": [
+        "0946ТО72"
+      ],
+      "regs_in_registry": [
+        "0946ТО72"
+      ]
+    },
+    {
+      "pl_id": "1029106",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-06-01T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.873Z",
+      "regs": [
+        "Х673НК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029110",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-06-01T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.878Z",
+      "regs": [
+        "Х223КК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029112",
+      "date_out_plan": "2026-05-01T04:00:00.000Z",
+      "date_in_plan": "2026-05-06T04:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.871Z",
+      "regs": [
+        "Т564ОХ797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029144",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.328Z",
+      "regs": [
+        "А765АТ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029170",
+      "date_out_plan": "2026-05-04T09:00:00.000Z",
+      "date_in_plan": "2026-06-05T09:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:03.226Z",
+      "regs": [
+        "Н429ХВ86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029207",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:33.952Z",
+      "regs": [
+        "6645ТА72"
+      ],
+      "regs_in_registry": [
+        "6645ТА72"
+      ]
+    },
+    {
+      "pl_id": "1029217",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-15T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.974Z",
+      "regs": [
+        "Х411НК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029224",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.985Z",
+      "regs": [
+        "У971ХН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029229",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:33.996Z",
+      "regs": [
+        "A00002521"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029236",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.114Z",
+      "regs": [
+        "У513ЕВ790"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029245",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.007Z",
+      "regs": [
+        "А00002520"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029252",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-05T21:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.342Z",
+      "regs": [
+        "Т115РР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029276",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-06-01T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.024Z",
+      "regs": [
+        "О444ОУ86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029317",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.079Z",
+      "regs": [
+        "3431ТК72"
+      ],
+      "regs_in_registry": [
+        "3431ТК72"
+      ]
+    },
+    {
+      "pl_id": "1029325",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.051Z",
+      "regs": [
+        "6029ОА72"
+      ],
+      "regs_in_registry": [
+        "6029ОА72"
+      ]
+    },
+    {
+      "pl_id": "1029326",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-03T00:30:34.090Z",
+      "regs": [
+        "0089ОК72"
+      ],
+      "regs_in_registry": [
+        "0089ОК72"
+      ]
+    },
+    {
+      "pl_id": "1029327",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.085Z",
+      "regs": [
+        "0089ОК72"
+      ],
+      "regs_in_registry": [
+        "0089ОК72"
+      ]
+    },
+    {
+      "pl_id": "1029333",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.121Z",
+      "regs": [
+        "У567ЕВ790"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029344",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.371Z",
+      "regs": [
+        "Т251РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029355",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.107Z",
+      "regs": [
+        "А064АХ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029356",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.123Z",
+      "regs": [
+        "А064АХ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029357",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.129Z",
+      "regs": [
+        "А064АХ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029364",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.364Z",
+      "regs": [
+        "Х796УО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029382",
+      "date_out_plan": "2026-05-05T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T01:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.378Z",
+      "regs": [
+        "Х796УО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029397",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "CREATE",
+      "created_at": "2026-05-03T00:30:34.134Z",
+      "regs": [
+        "М498КТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029404",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.156Z",
+      "regs": [
+        "9735ОЕ72"
+      ],
+      "regs_in_registry": [
+        "9735ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029407",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.150Z",
+      "regs": [
+        "У971ХН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029414",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.173Z",
+      "regs": [
+        "Х683МТ72"
+      ],
+      "regs_in_registry": [
+        "Х683МТ72"
+      ]
+    },
+    {
+      "pl_id": "1029418",
+      "date_out_plan": "2026-05-01T02:00:00.000Z",
+      "date_in_plan": "2026-05-16T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.184Z",
+      "regs": [
+        "Р275НУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029445",
+      "date_out_plan": "2026-05-05T14:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.400Z",
+      "regs": [
+        "Е676МХ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029448",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.195Z",
+      "regs": [
+        "5518ОЕ72"
+      ],
+      "regs_in_registry": [
+        "5518ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029452",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.906Z",
+      "regs": [
+        "А113ЕУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029503",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.216Z",
+      "regs": [
+        "К633ХО186"
+      ],
+      "regs_in_registry": [
+        "К633ХО186"
+      ]
+    },
+    {
+      "pl_id": "1029510",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.233Z",
+      "regs": [
+        "1121"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029512",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.911Z",
+      "regs": [
+        "А049ЕС172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029514",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.238Z",
+      "regs": [
+        "1121"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029517",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.243Z",
+      "regs": [
+        "8405"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029520",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.249Z",
+      "regs": [
+        "8405"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029531",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.266Z",
+      "regs": [
+        "2323ТО72"
+      ],
+      "regs_in_registry": [
+        "2323ТО72"
+      ]
+    },
+    {
+      "pl_id": "1029535",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-04T00:30:31.799Z",
+      "regs": [
+        "0811АХ72",
+        "А585ВТ172",
+        "ВЕ699772"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029536",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-04T00:30:31.783Z",
+      "regs": [
+        "ВА549172",
+        "С335РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029537",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-04T00:30:31.805Z",
+      "regs": [
+        "6541ВЕ72",
+        "А868ВК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029538",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-04T00:30:31.772Z",
+      "regs": [
+        "1557АС86",
+        "2976АХ72",
+        "О445НХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029539",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-04T00:30:31.789Z",
+      "regs": [
+        "2248АР86",
+        "А762МН172",
+        "ВЕ774472"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029540",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-04T00:30:31.794Z",
+      "regs": [
+        "ВА713372",
+        "С751РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029545",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.277Z",
+      "regs": [
+        "7953ОЕ72"
+      ],
+      "regs_in_registry": [
+        "7953ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029548",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.282Z",
+      "regs": [
+        "9354ТХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029549",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-05T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.288Z",
+      "regs": [
+        "9354ТХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029556",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.923Z",
+      "regs": [
+        "4683ТО72"
+      ],
+      "regs_in_registry": [
+        "4683ТО72"
+      ]
+    },
+    {
+      "pl_id": "1029568",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-03T00:30:34.307Z",
+      "regs": [
+        "К793АА186"
+      ],
+      "regs_in_registry": [
+        "К793АА186"
+      ]
+    },
+    {
+      "pl_id": "1029575",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.959Z",
+      "regs": [
+        "О217ОС72"
+      ],
+      "regs_in_registry": [
+        "О217ОС72"
+      ]
+    },
+    {
+      "pl_id": "1029576",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.935Z",
+      "regs": [
+        "О943ХЕ72"
+      ],
+      "regs_in_registry": [
+        "О943ХЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029581",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.976Z",
+      "regs": [
+        "8939ОЕ72"
+      ],
+      "regs_in_registry": [
+        "8939ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029585",
+      "date_out_plan": "2026-05-02T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-04T00:30:32.001Z",
+      "regs": [
+        "О943ХЕ72"
+      ],
+      "regs_in_registry": [
+        "О943ХЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029598",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.300Z",
+      "regs": [
+        "9805ТВ86"
+      ],
+      "regs_in_registry": [
+        "9805ТВ86"
+      ]
+    },
+    {
+      "pl_id": "1029601",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.319Z",
+      "regs": [
+        "9805ТВ86"
+      ],
+      "regs_in_registry": [
+        "9805ТВ86"
+      ]
+    },
+    {
+      "pl_id": "1029613",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.422Z",
+      "regs": [
+        "Х533УК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029632",
+      "date_out_plan": "2026-05-05T04:00:00.000Z",
+      "date_in_plan": "2026-05-06T04:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.135Z",
+      "regs": [
+        "Т564ОХ797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029648",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.429Z",
+      "regs": [
+        "В401НК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029661",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.151Z",
+      "regs": [
+        "Р052НУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029684",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.349Z",
+      "regs": [
+        "7510ОВ72"
+      ],
+      "regs_in_registry": [
+        "7510ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1029689",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:35.000Z",
+      "regs": [
+        "60170"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029690",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:35.006Z",
+      "regs": [
+        "60199"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029692",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-01T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:35.011Z",
+      "regs": [
+        "3301"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029697",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:59:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.356Z",
+      "regs": [
+        "6645ТА72"
+      ],
+      "regs_in_registry": [
+        "6645ТА72"
+      ]
+    },
+    {
+      "pl_id": "1029702",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-05-10T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-03T00:30:34.362Z",
+      "regs": [
+        "У811МТ797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029703",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-04T00:30:31.857Z",
+      "regs": [
+        "0609АХ72",
+        "2070АР86",
+        "АХ297472",
+        "О143ЕК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029704",
+      "date_out_plan": "2026-05-02T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-04T00:30:31.851Z",
+      "regs": [
+        "0566ВА89",
+        "АТ630672",
+        "О139СЕ89"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029709",
+      "date_out_plan": "2026-05-02T05:00:00.000Z",
+      "date_in_plan": "2026-06-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T00:30:32.045Z",
+      "regs": [
+        "А113ЕУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029710",
+      "date_out_plan": "2026-05-03T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:23.768Z",
+      "regs": [
+        "0566ВА89",
+        "АТ630672",
+        "О139СЕ89"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029711",
+      "date_out_plan": "2026-05-03T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:23.774Z",
+      "regs": [
+        "0609АХ72",
+        "2070АР86",
+        "АХ297472",
+        "О143ЕК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029713",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-03T00:30:34.368Z",
+      "regs": [
+        "0451ОЕ72"
+      ],
+      "regs_in_registry": [
+        "0451ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1029740",
+      "date_out_plan": "2026-05-03T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T15:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-05T00:30:23.815Z",
+      "regs": [
+        "ВА713172",
+        "С774РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029742",
+      "date_out_plan": "2026-05-03T01:00:00.000Z",
+      "date_in_plan": "2026-05-31T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:23.809Z",
+      "regs": [
+        "Р029МР186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029748",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T00:30:30.519Z",
+      "regs": [
+        "Х569МА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029749",
+      "date_out_plan": "2026-05-03T03:00:00.000Z",
+      "date_in_plan": "2026-06-01T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:24.139Z",
+      "regs": [
+        "С148РА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029790",
+      "date_out_plan": "2026-05-04T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.325Z",
+      "regs": [
+        "Х673НК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029840",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:03.411Z",
+      "regs": [
+        "ВА546972",
+        "С744РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029841",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:03.397Z",
+      "regs": [
+        "ВА549272",
+        "С725РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029843",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.382Z",
+      "regs": [
+        "7964ВВ72",
+        "ВВ034172",
+        "У526ХУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029862",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T00:30:29.931Z",
+      "regs": [
+        "Х378РА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029873",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-11T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.433Z",
+      "regs": [
+        "С271СА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029874",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.439Z",
+      "regs": [
+        "А298ВТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029875",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.447Z",
+      "regs": [
+        "Е941СР186"
+      ],
+      "regs_in_registry": [
+        "Е941СР186"
+      ]
+    },
+    {
+      "pl_id": "1029876",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.455Z",
+      "regs": [
+        "0539АТ86",
+        "М589ХС86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029878",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.462Z",
+      "regs": [
+        "А604ЕУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029879",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T03:30:29.589Z",
+      "regs": [
+        "Е941СР186"
+      ],
+      "regs_in_registry": [
+        "Е941СР186"
+      ]
+    },
+    {
+      "pl_id": "1029880",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T03:30:29.584Z",
+      "regs": [
+        "7253УХ86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029884",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T12:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.469Z",
+      "regs": [
+        "С087КУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029885",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-12T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.483Z",
+      "regs": [
+        "С918РВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029886",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.490Z",
+      "regs": [
+        "8931ОВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029918",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-31T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-04T03:30:29.594Z",
+      "regs": [
+        "С937КХ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029919",
+      "date_out_plan": "2026-05-05T09:00:00.000Z",
+      "date_in_plan": "2026-05-06T09:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.465Z",
+      "regs": [
+        "Н429ХВ86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029929",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.472Z",
+      "regs": [
+        "ВВ075972",
+        "ВВ517672",
+        "ВЕ699772",
+        "У061СК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029932",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-31T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.250Z",
+      "regs": [
+        "У235УС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1029982",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-05T22:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.529Z",
+      "regs": [
+        "С615ТН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030028",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-09T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.569Z",
+      "regs": [
+        "7500ОВ72"
+      ],
+      "regs_in_registry": [
+        "7500ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1030033",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.501Z",
+      "regs": [
+        "М349МО797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030045",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-11T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.575Z",
+      "regs": [
+        "0725"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030048",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-11T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.562Z",
+      "regs": [
+        "1955"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030052",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.583Z",
+      "regs": [
+        "7964ВВ72",
+        "ВВ034172",
+        "У526ХУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030077",
+      "date_out_plan": "2026-05-06T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.288Z",
+      "regs": [
+        "6763ОЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030083",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.304Z",
+      "regs": [
+        "6764ТУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030093",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.309Z",
+      "regs": [
+        "4191"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030094",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.507Z",
+      "regs": [
+        "4191"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030100",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.487Z",
+      "regs": [
+        "5360ОВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030103",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.458Z",
+      "regs": [
+        "A00002662"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030105",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.325Z",
+      "regs": [
+        "4191"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030123",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.349Z",
+      "regs": [
+        "1946ТУ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030138",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.515Z",
+      "regs": [
+        "В177ОК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030150",
+      "date_out_plan": "2026-05-04T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:03.604Z",
+      "regs": [
+        "7368ОВ72"
+      ],
+      "regs_in_registry": [
+        "7368ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1030156",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.377Z",
+      "regs": [
+        "7952ОЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030175",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:22.636Z",
+      "regs": [
+        "D00003801"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030188",
+      "date_out_plan": "2026-05-01T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.996Z",
+      "regs": [
+        "8526ОВ72"
+      ],
+      "regs_in_registry": [
+        "8526ОВ72"
+      ]
+    },
+    {
+      "pl_id": "1030191",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.158Z",
+      "regs": [
+        "У146МА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030207",
+      "date_out_plan": "2026-05-06T01:00:00.000Z",
+      "date_in_plan": "2026-05-06T14:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.551Z",
+      "regs": [
+        "А626ХК172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030210",
+      "date_out_plan": "2026-05-05T12:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.558Z",
+      "regs": [
+        "С407ХР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030215",
+      "date_out_plan": "2026-05-05T13:00:00.000Z",
+      "date_in_plan": "2026-05-11T18:58:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.607Z",
+      "regs": [
+        "8140АУ72",
+        "О459КТ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030222",
+      "date_out_plan": "2026-05-05T14:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.587Z",
+      "regs": [
+        "Е341СУ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030238",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.622Z",
+      "regs": [
+        "Т053СС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030256",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T19:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.166Z",
+      "regs": [
+        "Р836ОА186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030269",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-06-01T01:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T00:30:20.382Z",
+      "regs": [
+        "У971ХН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030272",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.658Z",
+      "regs": [
+        "2658АУ72",
+        "К399ТЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030273",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.666Z",
+      "regs": [
+        "ВВ075972",
+        "С727РО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030283",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.688Z",
+      "regs": [
+        "Р666ТВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030285",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.740Z",
+      "regs": [
+        "ВА546972",
+        "С744РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030288",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-05T20:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.173Z",
+      "regs": [
+        "С199УА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030311",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:06.202Z",
+      "regs": [
+        "2975АХ72",
+        "9267АТ72",
+        "О856МЕ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030312",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.208Z",
+      "regs": [
+        "Р164НК186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030322",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.761Z",
+      "regs": [
+        "У791КА750"
+      ],
+      "regs_in_registry": [
+        "У791КА750"
+      ]
+    },
+    {
+      "pl_id": "1030326",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.768Z",
+      "regs": [
+        "С918РВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030328",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.783Z",
+      "regs": [
+        "Х533УК72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030332",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-07T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.775Z",
+      "regs": [
+        "8416ХУ86",
+        "У912ХТ86"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030342",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.797Z",
+      "regs": [
+        "К867РА186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030344",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.804Z",
+      "regs": [
+        "С959ХО72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030345",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "NOTUSED",
+      "created_at": "2026-05-06T08:44:05.862Z",
+      "regs": [
+        "Х474НА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030362",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-14T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.834Z",
+      "regs": [
+        "ВА713172",
+        "С774РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030364",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-08T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.841Z",
+      "regs": [
+        "А983ЕР172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030369",
+      "date_out_plan": "2026-05-01T02:00:00.000Z",
+      "date_in_plan": "2026-05-10T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-05T03:30:22.112Z",
+      "regs": [
+        "Т972ММ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030374",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-16T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.869Z",
+      "regs": [
+        "АЕ058224"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030379",
+      "date_out_plan": "2026-05-05T14:02:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.884Z",
+      "regs": [
+        "С220МН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030399",
+      "date_out_plan": "2026-05-05T14:00:00.000Z",
+      "date_in_plan": "2026-05-06T02:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.899Z",
+      "regs": [
+        "Р886МР186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030426",
+      "date_out_plan": "2026-05-05T23:00:00.000Z",
+      "date_in_plan": "2026-05-10T11:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.372Z",
+      "regs": [
+        "Р971НЕ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030427",
+      "date_out_plan": "2026-05-05T23:00:00.000Z",
+      "date_in_plan": "2026-05-10T11:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.343Z",
+      "regs": [
+        "7388АР28"
+      ],
+      "regs_in_registry": [
+        "7388АР28"
+      ]
+    },
+    {
+      "pl_id": "1030428",
+      "date_out_plan": "2026-05-05T23:00:00.000Z",
+      "date_in_plan": "2026-06-10T11:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.358Z",
+      "regs": [
+        "7455АР/28"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030429",
+      "date_out_plan": "2026-05-05T23:00:00.000Z",
+      "date_in_plan": "2026-05-10T11:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.365Z",
+      "regs": [
+        "Р038ХА186"
+      ],
+      "regs_in_registry": [
+        "Р038ХА186"
+      ]
+    },
+    {
+      "pl_id": "1030430",
+      "date_out_plan": "2026-05-05T23:00:00.000Z",
+      "date_in_plan": "2026-05-10T11:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.351Z",
+      "regs": [
+        "Р017СТ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030431",
+      "date_out_plan": "2026-05-05T23:00:00.000Z",
+      "date_in_plan": "2026-05-06T12:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.379Z",
+      "regs": [
+        "Р366ТМ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030434",
+      "date_out_plan": "2026-05-05T05:00:00.000Z",
+      "date_in_plan": "2026-05-10T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.244Z",
+      "regs": [
+        "У369ММ797"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030450",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.252Z",
+      "regs": [
+        "63167"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030456",
+      "date_out_plan": "2026-05-05T08:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "GIVED_BACK",
+      "created_at": "2026-05-06T08:44:05.912Z",
+      "regs": [
+        "ВА713072",
+        "С716РН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030460",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-11T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.258Z",
+      "regs": [
+        "Х569МА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030462",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.933Z",
+      "regs": [
+        "Х474НА72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030522",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-10T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.266Z",
+      "regs": [
+        "К319ТХ750"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030573",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.953Z",
+      "regs": [
+        "АУ6928",
+        "О526МВ72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030575",
+      "date_out_plan": "2026-05-05T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:05.960Z",
+      "regs": [
+        "0812АХ72",
+        "9268АТ72",
+        "ВВ034172",
+        "М118УН72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030585",
+      "date_out_plan": "2026-05-01T01:00:00.000Z",
+      "date_in_plan": "2026-05-31T18:55:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:43:56.914Z",
+      "regs": [
+        "А113ЕУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030589",
+      "date_out_plan": "2026-05-05T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T18:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:05.967Z",
+      "regs": [
+        "А075ВУ172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030616",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.273Z",
+      "regs": [
+        "Н921МС797"
+      ],
+      "regs_in_registry": [
+        "Н921МС797"
+      ]
+    },
+    {
+      "pl_id": "1030617",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.280Z",
+      "regs": [
+        "К128МО797"
+      ],
+      "regs_in_registry": [
+        "К128МО797"
+      ]
+    },
+    {
+      "pl_id": "1030618",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.294Z",
+      "regs": [
+        "6013ВЕ72",
+        "А531АР172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030619",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.322Z",
+      "regs": [
+        "6497УТ77",
+        "8412ХУ86",
+        "Р338ХС72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030620",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.287Z",
+      "regs": [
+        "В078НН172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030621",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T17:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.301Z",
+      "regs": [
+        "В126НО172"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030622",
+      "date_out_plan": "2026-05-05T17:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "CLOSED",
+      "created_at": "2026-05-06T08:44:06.316Z",
+      "regs": [
+        "Р605МО186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030635",
+      "date_out_plan": "2026-05-05T16:00:00.000Z",
+      "date_in_plan": "2026-05-06T05:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.308Z",
+      "regs": [
+        "Р233УВ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030652",
+      "date_out_plan": "2026-05-05T22:00:00.000Z",
+      "date_in_plan": "2026-05-06T10:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.330Z",
+      "regs": [
+        "Р326ОА186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030749",
+      "date_out_plan": "2026-05-05T22:00:00.000Z",
+      "date_in_plan": "2026-05-06T10:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:44:06.336Z",
+      "regs": [
+        "Р134ОЕ186"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030823",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:43:56.942Z",
+      "regs": [
+        "6029ТР72"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030854",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-06-12T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:43:56.963Z",
+      "regs": [
+        "4108ТВ86"
+      ],
+      "regs_in_registry": [
+        "4108ТВ86"
+      ]
+    },
+    {
+      "pl_id": "1030855",
+      "date_out_plan": "2026-05-01T05:00:00.000Z",
+      "date_in_plan": "2026-06-15T19:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:43:57.730Z",
+      "regs": [
+        "У154УС750"
+      ],
+      "regs_in_registry": []
+    },
+    {
+      "pl_id": "1030858",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-12T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-06T08:43:56.970Z",
+      "regs": [
+        "4108ТВ86"
+      ],
+      "regs_in_registry": [
+        "4108ТВ86"
+      ]
+    },
+    {
+      "pl_id": "1031370",
+      "date_out_plan": "2026-05-01T03:00:00.000Z",
+      "date_in_plan": "2026-05-06T15:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-07T10:34:52.199Z",
+      "regs": [
+        "7629ОЕ72"
+      ],
+      "regs_in_registry": [
+        "7629ОЕ72"
+      ]
+    },
+    {
+      "pl_id": "1031375",
+      "date_out_plan": "2026-05-01T15:00:00.000Z",
+      "date_in_plan": "2026-05-06T03:00:00.000Z",
+      "status": "PRINTING",
+      "created_at": "2026-05-07T10:34:52.206Z",
+      "regs": [
+        "7629ОЕ72"
+      ],
+      "regs_in_registry": [
+        "7629ОЕ72"
+      ]
+    }
+  ]
+}

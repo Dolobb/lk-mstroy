@@ -1,0 +1,58 @@
+=== Pipeline Load Test ===
+Dates: 2026-05-04, 2026-05-05, 2026-05-06
+DT base:  http://localhost:3002
+KIP base: http://localhost:3001
+
+[DT ] 2026-05-04 shift1 — start
+................
+[DT ] 2026-05-04 shift1 — done in 53s, processed=36, skipped=77, errors=0
+
+[DT ] 2026-05-04 shift2 — start
+.............
+[DT ] 2026-05-04 shift2 — done in 42s, processed=26, skipped=87, errors=0
+
+[DT ] 2026-05-05 shift1 — start
+...............
+[DT ] 2026-05-05 shift1 — done in 51s, processed=39, skipped=74, errors=0
+
+[DT ] 2026-05-05 shift2 — start
+.............
+[DT ] 2026-05-05 shift2 — done in 42s, processed=24, skipped=89, errors=0
+
+[DT ] 2026-05-06 shift1 — start
+...............
+[DT ] 2026-05-06 shift1 — done in 51s, processed=37, skipped=76, errors=0
+
+[DT ] 2026-05-06 shift2 — start
+............
+[DT ] 2026-05-06 shift2 — done in 39s, processed=24, skipped=89, errors=0
+
+[KIP] 2026-05-04 — start
+..........................................................................................................................................
+[KIP] 2026-05-04 — done in 1802s
+
+[KIP] 2026-05-05 — start
+..............................................................................
+[KIP] 2026-05-05 — done in 1066s
+
+[KIP] 2026-05-06 — start
+................................................................................
+[KIP] 2026-05-06 — done in 1058s
+
+
+=== Report ===
+service date       shift  dur(s) processed skipped pipeErr  reqs  retry429 retryTimeout http404 otherErr
+  dt   2026-05-04 shift1     53        36      77       0    116         0            0       0        0
+  dt   2026-05-04 shift2     42        26      87       0    116         0            0       0        0
+  dt   2026-05-05 shift1     51        39      74       0    116         0            0       0        0
+  dt   2026-05-05 shift2     42        24      89       0    116         0            0       0        0
+  dt   2026-05-06 shift1     51        37      76       0    116         0            0       0        0
+  dt   2026-05-06 shift2     39        24      89       0    116         0            0       0        0
+⚠ kip  2026-05-04 -        1802         -       -       0   2718        14            0       0        0
+  kip  2026-05-05 -        1066         -       -       0    -33       -14            0       0        0
+  kip  2026-05-06 -        1058         -       -       0     19         0            0       0        0
+
+=== Assertions ===
+✗ kip 2026-05-04: retry429=14 (ожидали 0)
+
+FAIL: 0 прогонов упало, 1 ассертов нарушено
