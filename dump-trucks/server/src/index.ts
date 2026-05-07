@@ -3,7 +3,7 @@ import cors from 'cors';
 import { getEnvConfig } from './config/env';
 import { getPool, closePool } from './config/database';
 import { startScheduler } from './jobs/scheduler';
-import { runShiftFetch } from './jobs/shiftFetchJob';
+import { runShiftFetch, getTisClient } from './jobs/shiftFetchJob';
 import { runSegmentFetch } from './jobs/segmentFetchJob';
 import { recalculateShift } from './jobs/recalculateJob';
 import { queryShiftRecords } from './repositories/shiftRecordRepo';
@@ -12,6 +12,8 @@ import { querySegments } from './repositories/segmentRepo';
 import { logger } from './utils/logger';
 import type { ShiftType } from './types/domain';
 import { stringify } from './utils/csv';
+import { getJobController } from './services/jobController';
+import { tryAcquire as tryAcquireFetchLock, release as releaseFetchLock, getActiveFetch } from './services/fetchLock';
 
 const app = express();
 app.use(cors());
@@ -77,6 +79,45 @@ interface FetchJobStatus {
 const fetchJobs = new Map<string, FetchJobStatus>();
 const fetchKey = (d: string, s: ShiftType) => `${d}|${s}`;
 
+// TIS client stats — для мониторинга нагрузки и тестов на 429
+app.get('/api/dt/admin/tis-stats', (_req, res) => {
+  try {
+    const client = getTisClient();
+    const tokenCount = getEnvConfig().tisApiTokens.length;
+    res.json({ stats: client.stats, tokenCount });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/dt/admin/tis-stats/reset', (_req, res) => {
+  try {
+    getTisClient().resetStats();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Cancel endpoints — must be registered BEFORE /fetch route to avoid prefix mistakes
+app.post('/api/dt/admin/fetch/cancel', (_req, res) => {
+  getJobController('fetch').cancel();
+  logger.info('[Admin] DT shift fetch cancellation requested');
+  res.json({ ok: true, message: 'Cancellation signalled' });
+});
+
+app.post('/api/dt/admin/recalculate/cancel', (_req, res) => {
+  getJobController('recalculate').cancel();
+  logger.info('[Admin] DT recalculate cancellation requested');
+  res.json({ ok: true, message: 'Cancellation signalled' });
+});
+
+app.post('/api/dt/admin/fetch-segments/cancel', (_req, res) => {
+  getJobController('segments').cancel();
+  logger.info('[Admin] DT segment fetch cancellation requested');
+  res.json({ ok: true, message: 'Cancellation signalled' });
+});
+
 app.post('/api/dt/admin/fetch', (req, res) => {
   const dateStr   = req.query['date'] as string;
   const shiftStr  = req.query['shift'] as string;
@@ -96,6 +137,17 @@ app.post('/api/dt/admin/fetch', (req, res) => {
   const existing = fetchJobs.get(key);
   if (existing && existing.state === 'running') {
     res.json({ status: 'already_running', date: dateStr, shift: shiftType, startedAt: existing.startedAt });
+    return;
+  }
+
+  if (!tryAcquireFetchLock(dateStr, shiftType)) {
+    const a = getActiveFetch();
+    res.status(409).json({
+      status: 'busy',
+      activeDate: a?.date,
+      activeShift: a?.shift,
+      startedAt: a?.startedAt,
+    });
     return;
   }
 
@@ -128,6 +180,9 @@ app.post('/api/dt/admin/fetch', (req, res) => {
       job.finishedAt = Date.now();
       job.errors.push(String(err));
       logger.error('[Admin] Fetch error', err);
+    })
+    .finally(() => {
+      releaseFetchLock(dateStr, shiftType);
     });
 });
 
@@ -440,7 +495,7 @@ app.get('/api/dt/shift-detail', async (req, res) => {
         ORDER BY trip_number
       `, [id]),
       pool.query(`
-        SELECT vehicle_id, report_date, shift_type, object_timezone
+        SELECT vehicle_id, report_date, shift_type, object_timezone, object_uid
         FROM dump_trucks.shift_records
         WHERE id = $1
       `, [id]),
@@ -454,8 +509,9 @@ app.get('/api/dt/shift-detail', async (req, res) => {
     const zeResult = await pool.query(`
       SELECT * FROM dump_trucks.zone_events
       WHERE vehicle_id = $1 AND report_date = $2 AND shift_type = $3
+        AND object_uid = $4
       ORDER BY entered_at
-    `, [sr.vehicle_id, sr.report_date, sr.shift_type]);
+    `, [sr.vehicle_id, sr.report_date, sr.shift_type, sr.object_uid]);
 
     res.json({ trips: tripsResult.rows, zoneEvents: zeResult.rows, objectTimezone: sr.object_timezone || 'Asia/Yekaterinburg' });
   } catch (err) {
@@ -749,7 +805,7 @@ app.post('/api/dt/admin/recalculate', async (req, res) => {
   try {
     const result = await recalculateShift(pool, dateStr, shiftType);
     logger.info('[Admin] Recalculate complete', result);
-    res.json({ status: 'done', date: dateStr, shift: shiftType, ...result });
+    res.json({ ...result, status: 'done', date: dateStr, shift: shiftType });
   } catch (err) {
     logger.error('[Admin] Recalculate error', err);
     res.status(500).json({ status: 'error', date: dateStr, shift: shiftType, error: String(err) });

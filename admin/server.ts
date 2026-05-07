@@ -725,31 +725,58 @@ async function registerWorkers(): Promise<void> {
       );
       const preCount: number = preCountRes.rows[0]?.cnt ?? 0;
 
-      // Kick off the pipeline on dump-trucks server (returns immediately)
+      // Kick off the pipeline on dump-trucks server (returns immediately).
+      // 409 = busy: dump-trucks держит глобальный лок (один runShiftFetch одновременно).
+      // Параллельные fetch-и контёнтят TIS-токены, поэтому ждём окна и ретрайним.
       const startUrl = `http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=${shift}`;
-      const t0 = Date.now();
+      const BUSY_RETRY_MS = 30_000;
+      const BUSY_DEADLINE_MS = Date.now() + 60 * 60 * 1000; // 1 час
       let startRes: Response;
-      try {
-        startRes = await fetch(startUrl, { method: 'POST' });
-      } catch (err) {
-        log.error({
+      while (true) {
+        const t0 = Date.now();
+        try {
+          startRes = await fetch(startUrl, { method: 'POST' });
+        } catch (err) {
+          log.error({
+            category: 'http', service: 'dump-trucks', runId, pipeline: 'dt_daily',
+            msg: 'connection refused', fields: { url: startUrl, error: String(err) },
+          });
+          throw new Error(`fetch failed: ${String(err)}`);
+        }
+        log.info({
           category: 'http', service: 'dump-trucks', runId, pipeline: 'dt_daily',
-          msg: 'connection refused', fields: { url: startUrl, error: String(err) },
+          msg: `${startRes.status} POST ${startUrl}`, fields: { ms: Date.now() - t0 },
         });
-        throw new Error(`fetch failed: ${String(err)}`);
-      }
-      log.info({
-        category: 'http', service: 'dump-trucks', runId, pipeline: 'dt_daily',
-        msg: `${startRes.status} POST ${startUrl}`, fields: { ms: Date.now() - t0 },
-      });
-      if (!startRes.ok) {
-        throw new Error(`Failed to start fetch: HTTP ${startRes.status}`);
+        if (startRes.status === 409) {
+          if (Date.now() >= BUSY_DEADLINE_MS) {
+            throw new Error('Failed to start fetch: dump-trucks busy >1h');
+          }
+          let busyInfo = '';
+          try {
+            const b = await startRes.json() as { activeDate?: string; activeShift?: string };
+            busyInfo = `${b.activeDate ?? '?'}/${b.activeShift ?? '?'}`;
+          } catch { /* ignore parse errors */ }
+          log.info({
+            category: 'pipeline', pipeline: 'dt_daily', runId, date, shift,
+            msg: `dump-trucks busy (active=${busyInfo}), retry in ${BUSY_RETRY_MS / 1000}s`,
+          });
+          await new Promise((r) => setTimeout(r, BUSY_RETRY_MS));
+          continue;
+        }
+        if (!startRes.ok) {
+          throw new Error(`Failed to start fetch: HTTP ${startRes.status}`);
+        }
+        break;
       }
 
       // Poll status until done/error/timeout
       const POLL_INTERVAL_MS = 15_000;
       const POLL_DEADLINE_MS = Date.now() + 50 * 60 * 1000; // 50 min
       let final: { state: string; vehiclesProcessed?: number; vehiclesSkipped?: number; errors?: string[] } | null = null;
+      // dump-trucks хранит fetchJobs в in-memory Map; tsx-watch рестарт стирает его →
+      // status вернёт {state:'not_found'}. Раньше это приводило к 50-мин зомби.
+      // 3 подряд not_found (~45с) → fallback на data-check по shift_records.
+      let notFoundCount = 0;
       while (Date.now() < POLL_DEADLINE_MS) {
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
         try {
@@ -757,6 +784,25 @@ async function registerWorkers(): Promise<void> {
           if (!sRes.ok) continue;
           const body = await sRes.json() as { state: string; vehiclesProcessed?: number; vehiclesSkipped?: number; errors?: string[] };
           if (body.state === 'done' || body.state === 'error') { final = body; break; }
+          if (body.state === 'not_found') {
+            if (++notFoundCount >= 3) {
+              const post = await mainPool.query<{ cnt: number }>(
+                `SELECT COUNT(*)::int AS cnt FROM dump_trucks.shift_records WHERE report_date=$1 AND shift_type=$2`,
+                [date, shift],
+              );
+              const inserted = (post.rows[0]?.cnt ?? 0) - preCount;
+              log.warn({
+                category: 'pipeline', pipeline: 'dt_daily', runId, date, shift,
+                msg: `dt-server lost in-memory job (likely tsx restart); recovered via data-check (+${inserted})`,
+              });
+              final = inserted > 0
+                ? { state: 'done', vehiclesProcessed: inserted, vehiclesSkipped: 0, errors: [] }
+                : { state: 'error', errors: [`dt-server lost job and no new shift_records appeared for ${date} ${shift}`] };
+              break;
+            }
+          } else {
+            notFoundCount = 0;
+          }
         } catch { /* transient — retry */ }
       }
       if (!final) throw new Error('Timeout waiting for fetch completion (50 min)');
@@ -1823,13 +1869,52 @@ app.get('/api/admin/fetch/status', async (_req, res) => {
   });
 });
 
+// Helper: forward cancel to downstream service. Best-effort — failures don't block local cancel.
+async function forwardCancel(url: string): Promise<void> {
+  try {
+    const r = await fetch(url, { method: 'POST' });
+    if (!r.ok) console.warn(`[cancel] downstream ${url} → HTTP ${r.status}`);
+  } catch (e) {
+    console.warn(`[cancel] downstream ${url} unreachable: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+// Drain pending pg-boss jobs from the given queues. Currently-running handler
+// finishes naturally (its polling loop sees the cancelled-state from downstream),
+// but no further jobs are pulled because the queues are empty.
+async function drainPgBossQueues(queueNames: string[]): Promise<void> {
+  for (const name of queueNames) {
+    try {
+      await boss.deleteAllJobs(name);
+      console.log(`[cancel] drained pg-boss queue: ${name}`);
+    } catch (e) {
+      console.warn(`[cancel] failed to drain queue ${name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+}
+
 // POST cancel fetch (должен быть ДО /fetch/:service, иначе Express перехватит service=cancel)
-app.post('/api/admin/fetch/cancel', (_req, res) => {
+// Cancellation is full-stack: drains pg-boss queues, breaks legacy orchestrator,
+// forwards to downstream. Without queue drain, pg-boss workers re-fire fetches
+// the moment the downstream finishes its current cancel — that was the source
+// of the "zombie pipeline" symptom (cancel takes 50 min to actually stop).
+app.post('/api/admin/fetch/cancel', async (_req, res) => {
   if (!fetchProgress.active) {
-    res.json({ ok: true, message: 'Нет активной загрузки' });
+    // Even when local orchestrator isn't active, drain pg-boss queues — they
+    // may hold cron-enqueued jobs that we still want to abort on demand.
+    await drainPgBossQueues(['fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift']);
+    res.json({ ok: true, message: 'Нет активной загрузки (очереди очищены)' });
     return;
   }
   fetchProgress.cancelRequested = true;
+  // 1. Drain pg-boss queues FIRST so workers don't pull a fresh job in the gap.
+  await drainPgBossQueues(['fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift']);
+  // 2. Forward cancel to whichever downstream is currently processing.
+  if (fetchProgress.service === 'kip') {
+    await forwardCancel('http://localhost:3001/api/admin/fetch/cancel');
+  } else if (fetchProgress.service === 'dump-trucks') {
+    await forwardCancel('http://localhost:3002/api/dt/admin/fetch/cancel');
+  }
   res.json({ ok: true, message: 'Отмена запрошена' });
 });
 
@@ -1954,12 +2039,20 @@ app.get('/api/admin/recalc/status', async (_req, res) => {
 });
 
 // POST cancel recalc (должен быть ДО /recalc/:service, иначе Express не дойдёт до него)
-app.post('/api/admin/recalc/cancel', (_req, res) => {
+app.post('/api/admin/recalc/cancel', async (_req, res) => {
   if (!recalcProgress.active) {
-    res.json({ ok: true, message: 'Нет активного пересчёта' });
+    await drainPgBossQueues(['recalc-kip-date', 'recalc-dt-date']);
+    res.json({ ok: true, message: 'Нет активного пересчёта (очереди очищены)' });
     return;
   }
   recalcProgress.cancelRequested = true;
+  await drainPgBossQueues(['recalc-kip-date', 'recalc-dt-date']);
+  if (recalcProgress.service === 'kip') {
+    await forwardCancel('http://localhost:3001/api/admin/recalculate/cancel');
+  } else if (recalcProgress.service === 'dump-trucks') {
+    // DT recalc fires both shifts in parallel — cancel covers both
+    await forwardCancel('http://localhost:3002/api/dt/admin/recalculate/cancel');
+  }
   res.json({ ok: true, message: 'Отмена пересчёта запрошена' });
 });
 
@@ -2023,12 +2116,15 @@ app.get('/api/admin/fetch-segments/status', (_req, res) => {
   });
 });
 
-app.post('/api/admin/fetch-segments/cancel', (_req, res) => {
+app.post('/api/admin/fetch-segments/cancel', async (_req, res) => {
   if (!segmentProgress.active) {
-    res.json({ ok: true, message: 'Нет активной загрузки сегментов' });
+    await drainPgBossQueues(['fetch-dt-segments']);
+    res.json({ ok: true, message: 'Нет активной загрузки сегментов (очереди очищены)' });
     return;
   }
   segmentProgress.cancelRequested = true;
+  await drainPgBossQueues(['fetch-dt-segments']);
+  await forwardCancel('http://localhost:3002/api/dt/admin/fetch-segments/cancel');
   res.json({ ok: true, message: 'Отмена загрузки сегментов запрошена' });
 });
 
@@ -2166,12 +2262,13 @@ app.post('/api/admin/kip-segments/fetch', async (req, res) => {
   runKipSegBulk(dates, force).catch(console.error);
 });
 
-app.post('/api/admin/kip-segments/cancel', (_req, res) => {
+app.post('/api/admin/kip-segments/cancel', async (_req, res) => {
   if (!kipSegBulk.active) {
     res.json({ ok: true, message: 'Нет активной выгрузки' });
     return;
   }
   kipSegBulk.cancelRequested = true;
+  await forwardCancel('http://localhost:3001/api/segments/cancel');
   res.json({ ok: true, message: 'Отмена запрошена' });
 });
 

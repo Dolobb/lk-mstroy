@@ -129,6 +129,7 @@ export async function queryDtTripsData(
       ON sr.vehicle_id = ze.vehicle_id
       AND sr.report_date = ze.report_date
       AND sr.shift_type = ze.shift_type
+      AND ze.object_uid = sr.object_uid
     WHERE ($1::date IS NULL OR ze.report_date >= $1)
       AND ($2::date IS NULL OR ze.report_date <= $2)
       AND ze.zone_tag IN ('dt_loading', 'dt_unloading')

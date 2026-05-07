@@ -1188,7 +1188,9 @@ const CoverageDashboard: React.FC<{
   onRecalc: (service: 'kip' | 'dump-trucks', from: string, to: string) => void;
   onCancel: () => void;
   onCancelRecalc: () => void;
-}> = ({ from, to, fetchStatus, recalcStatus, onFetch, onRecalc, onCancel, onCancelRecalc }) => {
+  cancellingFetch?: boolean;
+  cancellingRecalc?: boolean;
+}> = ({ from, to, fetchStatus, recalcStatus, onFetch, onRecalc, onCancel, onCancelRecalc, cancellingFetch, cancellingRecalc }) => {
   const [data, setData] = useState<CoverageDashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -1386,10 +1388,11 @@ const CoverageDashboard: React.FC<{
           )}
           <button
             onClick={onCancel}
-            className="self-start flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+            disabled={cancellingFetch}
+            className="self-start flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 disabled:cursor-wait transition-colors"
             style={{ fontSize: '10px' }}
           >
-            <XCircle className="size-3" /> Отмена
+            <XCircle className="size-3" /> {cancellingFetch ? 'Отмена…' : 'Отмена'}
           </button>
         </div>
       )}
@@ -1421,10 +1424,11 @@ const CoverageDashboard: React.FC<{
           )}
           <button
             onClick={onCancelRecalc}
-            className="self-start flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+            disabled={cancellingRecalc}
+            className="self-start flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 disabled:cursor-wait transition-colors"
             style={{ fontSize: '10px' }}
           >
-            <XCircle className="size-3" /> Отмена
+            <XCircle className="size-3" /> {cancellingRecalc ? 'Отмена…' : 'Отмена'}
           </button>
         </div>
       )}
@@ -1576,6 +1580,23 @@ export const AdminPage: React.FC = () => {
   const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthCard[]>([]);
   const [pipelineRuns, setPipelineRuns] = useState<PipelineRun[]>([]);
   const [pipelineErrors, setPipelineErrors] = useState<PipelineErrorEntry[]>([]);
+
+  // "Cancel in flight" UI state — keeps button locked until status flips to inactive
+  const [cancelling, setCancelling] = useState({ fetch: false, recalc: false, dtSegments: false, kipSegments: false });
+
+  // Auto-clear cancelling flags when corresponding job becomes inactive
+  useEffect(() => {
+    if (cancelling.fetch && !fetchStatus.active) setCancelling(c => ({ ...c, fetch: false }));
+  }, [cancelling.fetch, fetchStatus.active]);
+  useEffect(() => {
+    if (cancelling.recalc && !recalcStatus.active) setCancelling(c => ({ ...c, recalc: false }));
+  }, [cancelling.recalc, recalcStatus.active]);
+  useEffect(() => {
+    if (cancelling.dtSegments && !segmentStatus.active) setCancelling(c => ({ ...c, dtSegments: false }));
+  }, [cancelling.dtSegments, segmentStatus.active]);
+  useEffect(() => {
+    if (cancelling.kipSegments && !kipSegBulk.active) setCancelling(c => ({ ...c, kipSegments: false }));
+  }, [cancelling.kipSegments, kipSegBulk.active]);
 
   const [dbOpen, setDbOpen] = useState(false);
   const [dbTables, setDbTables] = useState<DbTablePreset[]>([]);
@@ -1747,6 +1768,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleCancel = async () => {
+    setCancelling(c => ({ ...c, fetch: true }));
     await cancelFetch();
     await loadFetchStatus();
   };
@@ -1761,6 +1783,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleCancelRecalc = async () => {
+    setCancelling(c => ({ ...c, recalc: true }));
     await cancelRecalc();
     await loadRecalcStatus();
   };
@@ -1775,6 +1798,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleCancelSegmentFetch = async () => {
+    setCancelling(c => ({ ...c, dtSegments: true }));
     await cancelSegmentFetch();
     await loadSegmentStatus();
   };
@@ -1793,6 +1817,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleKipSegCancel = async () => {
+    setCancelling(c => ({ ...c, kipSegments: true }));
     await fetch('/api/admin/kip-segments/cancel', { method: 'POST' });
   };
 
@@ -1903,14 +1928,10 @@ export const AdminPage: React.FC = () => {
             }
             await loadRecalcStatus();
           }}
-          onCancel={async () => {
-            await cancelFetch();
-            await loadFetchStatus();
-          }}
-          onCancelRecalc={async () => {
-            await cancelRecalc();
-            await loadRecalcStatus();
-          }}
+          onCancel={handleCancel}
+          onCancelRecalc={handleCancelRecalc}
+          cancellingFetch={cancelling.fetch}
+          cancellingRecalc={cancelling.recalc}
         />
       </div>
 
@@ -1988,11 +2009,12 @@ export const AdminPage: React.FC = () => {
             {fetchStatus.active && (
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                disabled={cancelling.fetch}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 disabled:cursor-wait transition-colors font-medium"
                 style={{ fontSize: '11px' }}
               >
                 <XCircle className="size-3" />
-                Отмена
+                {cancelling.fetch ? 'Отмена…' : 'Отмена'}
               </button>
             )}
             <label className="flex items-center gap-1.5 ml-2 cursor-pointer select-none" style={{ fontSize: '11px' }}>
@@ -2175,11 +2197,12 @@ export const AdminPage: React.FC = () => {
             {recalcStatus.active && (
               <button
                 onClick={handleCancelRecalc}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                disabled={cancelling.recalc}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 disabled:cursor-wait transition-colors font-medium"
                 style={{ fontSize: '11px' }}
               >
                 <XCircle className="size-3" />
-                Отмена
+                {cancelling.recalc ? 'Отмена…' : 'Отмена'}
               </button>
             )}
           </div>
@@ -2263,11 +2286,12 @@ export const AdminPage: React.FC = () => {
             {isSegmentFetching && (
               <button
                 onClick={handleCancelSegmentFetch}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                disabled={cancelling.dtSegments}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 disabled:cursor-wait transition-colors font-medium"
                 style={{ fontSize: '11px' }}
               >
                 <XCircle className="size-3" />
-                Отмена
+                {cancelling.dtSegments ? 'Отмена…' : 'Отмена'}
               </button>
             )}
           </div>
@@ -2387,11 +2411,12 @@ export const AdminPage: React.FC = () => {
             {kipSegBulk.active && (
               <button
                 onClick={handleKipSegCancel}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors font-medium"
+                disabled={cancelling.kipSegments}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-50 disabled:cursor-wait transition-colors font-medium"
                 style={{ fontSize: '11px' }}
               >
                 <XCircle className="size-3" />
-                Отмена
+                {cancelling.kipSegments ? 'Отмена…' : 'Отмена'}
               </button>
             )}
           </div>

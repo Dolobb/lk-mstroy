@@ -128,6 +128,34 @@ export interface TisParking {
   address?: string;
 }
 
+// === getPassports ===
+
+export interface TisPassportTerminal {
+  id: number;
+  code: string;
+  isMain: boolean;
+  isActive: boolean;
+}
+
+export interface TisPassport {
+  idMO: number;
+  regNumber: string;
+  modelOrMarkOrModif: string;
+  kindType?: string;
+  garageNumber?: string;
+  organization?: number;
+  invNumber?: string;
+  registered: boolean;
+  vin?: string;
+  abonentTerminals?: TisPassportTerminal[];
+}
+
+export interface TisPassportsResponse {
+  passports: TisPassport[];
+  organization?: number;
+  total?: number;
+}
+
 export interface TisMonitoringStats {
   moUid?: string;
   orgName?: string;

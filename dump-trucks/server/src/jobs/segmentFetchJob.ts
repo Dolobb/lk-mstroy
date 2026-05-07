@@ -16,6 +16,7 @@ import { analyzeZones } from '../services/zoneAnalyzer';
 import { getAllDtZones } from '../repositories/filterRepo';
 import { replaceSegments, getRecordIdsWithSegments } from '../repositories/segmentRepo';
 import { logger } from '../utils/logger';
+import { getJobController, isCancelledError, CancelledError } from '../services/jobController';
 import type { ShiftSegment, GeoZone, ShiftType } from '../types/domain';
 
 const SEGMENT_COUNT = 24;
@@ -44,6 +45,9 @@ export async function runSegmentFetch(options: {
 }): Promise<SegmentFetchResult> {
   const pool = getPool();
   const config = getEnvConfig();
+  const jobController = getJobController('segments');
+  if (jobController.isCancelled()) jobController.reset();
+  const signal = jobController.signal;
   const result: SegmentFetchResult = {
     recordsProcessed: 0,
     recordsSkipped: 0,
@@ -120,8 +124,9 @@ export async function runSegmentFetch(options: {
   const maxConcurrency = Math.min(config.tisApiTokens.length, records.length);
 
   await runWithConcurrency(records, async (record) => {
+    if (jobController.isCancelled()) return;
     try {
-      const segments = await fetchSegmentsForRecord(tisClient, record, boundaryZones);
+      const segments = await fetchSegmentsForRecord(tisClient, record, boundaryZones, signal);
 
       // Save in transaction
       const dbClient = await pool.connect();
@@ -138,12 +143,20 @@ export async function runSegmentFetch(options: {
         dbClient.release();
       }
     } catch (err) {
+      if (isCancelledError(err)) {
+        logger.info(`[SegmentFetch] Cancelled (caught) record=${record.id}`);
+        return;
+      }
       const msg = `Record ${record.id} (idMO=${record.vehicle_id}): ${String(err)}`;
       logger.error(`[SegmentFetch] ${msg}`);
       result.errors.push(msg);
     }
   }, maxConcurrency);
 
+  if (jobController.isCancelled()) {
+    logger.info(`[SegmentFetch] Cancelled. processed=${result.recordsProcessed} skipped=${result.recordsSkipped}`);
+    result.errors.push('cancelled');
+  }
   logger.info(`[SegmentFetch] Done: processed=${result.recordsProcessed} skipped=${result.recordsSkipped} errors=${result.errors.length}`);
   return result;
 }
@@ -155,6 +168,7 @@ async function fetchSegmentsForRecord(
   tisClient: TisClient,
   record: ShiftRecordRow,
   boundaryZones: GeoZone[],
+  signal?: AbortSignal,
 ): Promise<ShiftSegment[]> {
   const segments: ShiftSegment[] = [];
   const shiftStartMs = record.shift_start.getTime();
@@ -163,6 +177,7 @@ async function fetchSegmentsForRecord(
   const objectBoundaryZones = boundaryZones.filter(z => z.objectUid === record.object_uid);
 
   for (let i = 0; i < SEGMENT_COUNT; i++) {
+    if (signal?.aborted) throw new CancelledError();
     const segStart = new Date(shiftStartMs + i * SEGMENT_DURATION_MIN * 60 * 1000);
     const segEnd = new Date(shiftStartMs + (i + 1) * SEGMENT_DURATION_MIN * 60 * 1000);
 
@@ -173,7 +188,7 @@ async function fetchSegmentsForRecord(
     let inBoundary = false;
 
     try {
-      const monitoring = await tisClient.getMonitoringStats(record.vehicle_id, segStart, segEnd);
+      const monitoring = await tisClient.getMonitoringStats(record.vehicle_id, segStart, segEnd, signal);
 
       if (monitoring) {
         engineTimeSec = monitoring.engineTime ?? 0;

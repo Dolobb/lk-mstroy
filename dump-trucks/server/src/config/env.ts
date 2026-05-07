@@ -24,6 +24,8 @@ export interface DtEnvConfig {
   tisApiUrl: string;
   tisApiTokens: string[];
   testIdMos: number[] | null;  // null = не тест-режим
+  rateLimitPerVehicleMs: number;
+  fetchConcurrency: number | null; // null = по числу токенов
 }
 
 let _config: DtEnvConfig | null = null;
@@ -39,6 +41,11 @@ export function getEnvConfig(): DtEnvConfig {
   const tokensRaw = optionalEnv('TIS_API_TOKENS', '');
   const tokens = tokensRaw ? tokensRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
 
+  const concurrencyRaw = process.env['FETCH_CONCURRENCY'];
+  const fetchConcurrency = concurrencyRaw && !isNaN(parseInt(concurrencyRaw, 10))
+    ? parseInt(concurrencyRaw, 10)
+    : null;
+
   _config = {
     dbHost:     optionalEnv('DB_HOST', 'localhost'),
     dbPort:     parseInt(optionalEnv('DB_PORT', '5433'), 10),
@@ -50,6 +57,8 @@ export function getEnvConfig(): DtEnvConfig {
     tisApiUrl:  optionalEnv('TIS_API_URL', ''),
     tisApiTokens: tokens,
     testIdMos,
+    rateLimitPerVehicleMs: parseInt(optionalEnv('RATE_LIMIT_PER_VEHICLE_MS', '30000'), 10),
+    fetchConcurrency,
   };
 
   return _config;

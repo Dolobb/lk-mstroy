@@ -13,7 +13,7 @@ export function getPool(): Pool {
       database: config.dbName,
       user: config.dbUser,
       password: config.dbPassword,
-      max: 10,
+      max: 25,
       idleTimeoutMillis: 30000,
     });
     pool.on('error', (err) => {

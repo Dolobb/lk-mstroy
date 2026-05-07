@@ -35,6 +35,8 @@ export interface PlSummaryEvent {
   dbOverlapCount: number;
   plsWithSamosval: number;
   uniqueVehicles: number;
+  vehiclesFromPL?: number;
+  vehiclesDiscovered?: number;
   dateOutDist: Record<string, number>;
 }
 

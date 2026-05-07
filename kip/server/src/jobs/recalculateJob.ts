@@ -19,6 +19,7 @@ import { matchFuelNorm } from '../services/vehicleFilter';
 import { calculateKpi, type FuelSensorInfo } from '../services/kpiCalculator';
 import { fillGapsForDate } from './gapFillJob';
 import { logger } from '../utils/logger';
+import { getJobController, isCancelledError } from '../services/jobController';
 
 const TRACK_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
 
@@ -83,6 +84,8 @@ export async function recalculateForDate(
   pool: Pool,
   date: string,
 ): Promise<RecalculateResult> {
+  const jobController = getJobController('recalculate');
+  if (jobController.isCancelled()) jobController.reset();
   const result: RecalculateResult = { date, processed: 0, skipped: 0, condition1Applied: 0, condition3Applied: 0, errors: [] };
 
   logger.info(`[Recalculate] Starting recalculate for date=${date}`);
@@ -101,6 +104,11 @@ export async function recalculateForDate(
   const lastPositions = new Map<string, { lat: number | null; lon: number | null }>();
 
   for (const raw of rawRecords) {
+    if (jobController.isCancelled()) {
+      logger.info(`[Recalculate] Cancelled mid-loop for ${date} after ${result.processed} processed`);
+      result.errors.push('cancelled');
+      return result;
+    }
     try {
       if (!raw.track_json || !raw.fuel_json || raw.engine_time_sec == null) {
         logger.warn(`[Recalculate] Skipping ${raw.vehicle_id} (${raw.shift_type}): missing raw data`);
@@ -212,10 +220,20 @@ export async function recalculateForDate(
         `kip=${kpi.utilization_ratio.toFixed(1)}% load=${kpi.load_efficiency_pct.toFixed(1)}% dept=${departmentUnit || 'n/a'}`,
       );
     } catch (err) {
+      if (isCancelledError(err)) {
+        logger.info(`[Recalculate] Cancelled (caught) for ${date}`);
+        result.errors.push('cancelled');
+        return result;
+      }
       const msg = `${raw.vehicle_id} (${raw.shift_type}): ${String(err)}`;
       logger.error(`[Recalculate] Error: ${msg}`);
       result.errors.push(msg);
     }
+  }
+
+  if (jobController.isCancelled()) {
+    result.errors.push('cancelled');
+    return result;
   }
 
   // ── Условие 3: создать нулевые записи для отсутствующих смен ──────────────

@@ -34,12 +34,13 @@ import { logger } from '../utils/logger';
 import { auditLog } from '../utils/auditLog';
 import { dayjs } from '../utils/dateFormat';
 import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
+import { getJobController, isCancelledError } from '../services/jobController';
 import type { ShiftType, GeoZone, ZoneEvent, Trip, ShiftKpi, WorkType } from '../types/domain';
 
 // Singleton клиент и лимитер
 let tisClient: TisClient | null = null;
 
-function getTisClient(): TisClient {
+export function getTisClient(): TisClient {
   if (!tisClient) {
     const config = getEnvConfig();
     if (config.tisApiTokens.length === 0) {
@@ -48,7 +49,7 @@ function getTisClient(): TisClient {
     tisClient = new TisClient({
       baseUrl:     config.tisApiUrl,
       tokenPool:   new TokenPool(config.tisApiTokens),
-      rateLimiter: new PerVehicleRateLimiter(30_000),
+      rateLimiter: new PerVehicleRateLimiter(config.rateLimitPerVehicleMs),
     });
   }
   return tisClient;
@@ -90,6 +91,10 @@ export async function runShiftFetch(
   const config = getEnvConfig();
   const pool = getPool();
   const client = getTisClient();
+  const jobController = getJobController('fetch');
+  // Reset only after a completed cancellation so concurrent shift1/shift2 share the signal
+  if (jobController.isCancelled()) jobController.reset();
+  const signal = jobController.signal;
   const result: FetchJobResult = {
     date: dateStr,
     shiftType,
@@ -153,7 +158,8 @@ export async function runShiftFetch(
   logger.info(`[ShiftFetch] Fetching route lists: ${dayjs(fromDate).format('DD.MM.YYYY')} – ${dayjs(toDate).format('DD.MM.YYYY')}`);
   let routeLists;
   try {
-    routeLists = await client.getRouteListsByDateOut(fromDate, toDate);
+    jobController.throwIfCancelled();
+    routeLists = await client.getRouteListsByDateOut(fromDate, toDate, signal);
   } catch (err) {
     const msg = `Failed to fetch route lists: ${String(err)}`;
     logger.error(`[ShiftFetch] ${msg}`);
@@ -191,7 +197,8 @@ export async function runShiftFetch(
   const reqFrom = dayjs(dateStr).subtract(2, 'month').toDate();
   logger.info(`[ShiftFetch] Fetching requests: ${dayjs(reqFrom).format('DD.MM.YYYY')} – ${dayjs(toDate).format('DD.MM.YYYY')}`);
   try {
-    const rawRequests = await client.getRequests(reqFrom, toDate);
+    jobController.throwIfCancelled();
+    const rawRequests = await client.getRequests(reqFrom, toDate, signal);
     const parsedRequests = parseRequests(rawRequests);
     await upsertRequests(pool, parsedRequests);
     logger.info(`[ShiftFetch] Upserted ${parsedRequests.length} requests`);
@@ -303,7 +310,38 @@ export async function runShiftFetch(
     }
   }
 
-  logger.info(`[ShiftFetch] Vehicles to process: ${vehiclesMap.size}`);
+  const vehiclesFromPL = vehiclesMap.size;
+
+  // --- 5b. Discovery via getPassports ---
+  // Дополнительный проход: самосвалы из паспортного справочника TIS, которые
+  // не попали в vehiclesMap через ПЛ. Эти ТС работают без заявки → сохраняются
+  // с pl_id=null, request_numbers=[]. UI показывает их как «без заявки».
+  // Пропускается в тест-режиме (там обрабатываем ровно testIdMos).
+  let discoveredCount = 0;
+  if (config.testIdMos === null || config.testIdMos.length === 0) {
+    try {
+      jobController.throwIfCancelled();
+      const passports = await client.getPassports(signal);
+      const samosvalPassports = passports.filter(p =>
+        p.registered === true &&
+        (p.modelOrMarkOrModif || '').toLowerCase().includes('самосвал')
+      );
+      for (const p of samosvalPassports) {
+        if (vehiclesMap.has(p.idMO)) continue;
+        vehiclesMap.set(p.idMO, {
+          regNumber:      p.regNumber || '',
+          nameMO:         p.modelOrMarkOrModif || `Vehicle-${p.idMO}`,
+          requestNumbers: [],
+        });
+        discoveredCount++;
+      }
+      logger.info(`[ShiftFetch] Passport discovery: ${passports.length} total passports, ${samosvalPassports.length} samosvals, +${discoveredCount} new (not in PL)`);
+    } catch (err) {
+      logger.warn(`[ShiftFetch] getPassports failed (non-critical, skipping discovery): ${String(err)}`);
+    }
+  }
+
+  logger.info(`[ShiftFetch] Vehicles to process: ${vehiclesMap.size} (from PL: ${vehiclesFromPL}, discovered: ${discoveredCount})`);
 
   // --- AUDIT: pipeline summary --------------------------------------------
   {
@@ -323,6 +361,8 @@ export async function runShiftFetch(
       dbOverlapCount,
       plsWithSamosval: parsedPLs.length,
       uniqueVehicles: vehiclesMap.size,
+      vehiclesFromPL,
+      vehiclesDiscovered: discoveredCount,
       dateOutDist,
     });
   }
@@ -337,8 +377,9 @@ export async function runShiftFetch(
 
   const onsiteRecordIds: number[] = [];
 
-  // Обрабатываем ТС последовательно (rate limit)
-  for (const [idMO, vehicleInfo] of vehiclesMap) {
+  type VehicleEntry = [number, typeof vehiclesMap extends Map<number, infer V> ? V : never];
+
+  const processOneVehicle = async (idMO: number, vehicleInfo: NonNullable<ReturnType<typeof vehiclesMap.get>>): Promise<void> => {
     try {
       logger.info(`[ShiftFetch] Processing idMO=${idMO} (${vehicleInfo.nameMO})`);
 
@@ -352,7 +393,7 @@ export async function runShiftFetch(
       }
 
       // Fetch мониторинга
-      let monitoring = await client.getMonitoringStats(idMO, queryStart, queryEnd);
+      let monitoring = await client.getMonitoringStats(idMO, queryStart, queryEnd, signal);
 
       if (!monitoring) {
         logger.warn(`[ShiftFetch] No monitoring data for idMO=${idMO}`);
@@ -363,7 +404,7 @@ export async function runShiftFetch(
           detectedObject: null, verdict: 'no_monitoring',
         });
         result.vehiclesSkipped++;
-        continue;
+        return;
       }
 
       // Step A: 45-мин фильтр — ТС с двигателем < 45 мин не работало (ночная стоянка и т.п.)
@@ -392,7 +433,7 @@ export async function runShiftFetch(
           dbClient.release();
         }
         result.vehiclesSkipped++;
-        continue;
+        return;
       }
 
       let track = monitoring.track || [];
@@ -413,7 +454,9 @@ export async function runShiftFetch(
           usedTz = detectedTz;
           ({ queryStart, queryEnd } = computeShiftWindow(usedTz));
 
-          monitoring = await client.getMonitoringStats(idMO, queryStart, queryEnd);
+          // Сбрасываем per-idMO лимит, чтобы re-query не ждал 30с
+          client.getRateLimiter().reset(idMO);
+          monitoring = await client.getMonitoringStats(idMO, queryStart, queryEnd, signal);
           if (!monitoring) {
             logger.warn(`[ShiftFetch] No monitoring data for idMO=${idMO} after re-query`);
             auditLog({
@@ -424,7 +467,7 @@ export async function runShiftFetch(
               verdict: 'no_monitoring', reason: 'after tz re-query',
             });
             result.vehiclesSkipped++;
-            continue;
+            return;
           }
           track = monitoring.track || [];
           zoneEvents = analyzeZones(track, allZones);
@@ -443,7 +486,7 @@ export async function runShiftFetch(
           verdict: 'no_object_detected',
         });
         result.vehiclesSkipped++;
-        continue;
+        return;
       }
 
       // Step D: Обработка каждого candidate-объекта
@@ -606,6 +649,10 @@ export async function runShiftFetch(
       }
 
     } catch (err) {
+      if (isCancelledError(err)) {
+        logger.info(`[ShiftFetch] Cancelled (caught) idMO=${idMO}`);
+        throw err;
+      }
       const msg = `idMO=${idMO}: ${String(err)}`;
       logger.error(`[ShiftFetch] Error processing vehicle: ${msg}`);
       auditLog({
@@ -617,10 +664,43 @@ export async function runShiftFetch(
       result.errors.push(msg);
       result.vehiclesSkipped++;
     }
+  };
+
+  // Worker pool: используем все доступные TIS-токены параллельно.
+  // PerVehicleRateLimiter ключуется по idMO — разные ТС не блокируют друг друга.
+  const entries: VehicleEntry[] = Array.from(vehiclesMap.entries()) as VehicleEntry[];
+  const tokenCount = config.tisApiTokens.length;
+  const concurrency = Math.max(1, Math.min(
+    config.fetchConcurrency ?? tokenCount,
+    entries.length,
+  ));
+  let taskIndex = 0;
+  logger.info(`[ShiftFetch] Worker pool: concurrency=${concurrency} (tokens=${tokenCount}, vehicles=${entries.length})`);
+
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (true) {
+      if (jobController.isCancelled()) return;
+      const i = taskIndex++;
+      if (i >= entries.length) return;
+      const [idMO, vehicleInfo] = entries[i];
+      try {
+        await processOneVehicle(idMO, vehicleInfo);
+      } catch (err) {
+        if (isCancelledError(err)) return;
+        // processOneVehicle уже сам ловит non-cancel ошибки; throw сюда не дойдёт.
+        // Защита на всякий случай — логируем и продолжаем.
+        logger.error(`[ShiftFetch] Worker error idMO=${idMO}`, err);
+      }
+    }
+  });
+  await Promise.all(workers);
+
+  if (jobController.isCancelled()) {
+    logger.info(`[ShiftFetch] Cancelled during worker pool; processed=${result.vehiclesProcessed}/${entries.length}`);
   }
 
   // Fire-and-forget: trigger segment fetch for onsite records
-  if (onsiteRecordIds.length > 0) {
+  if (onsiteRecordIds.length > 0 && !jobController.isCancelled()) {
     logger.info(`[ShiftFetch] Triggering segment fetch for ${onsiteRecordIds.length} onsite records`);
     runSegmentFetch({ shiftRecordIds: onsiteRecordIds })
       .then(segResult => logger.info('[ShiftFetch] Segment fetch complete', segResult))
@@ -639,6 +719,12 @@ export async function runShiftFetch(
   return result;
 
   } catch (err) {
+    if (isCancelledError(err)) {
+      logger.info(`[ShiftFetch] Cancelled for ${dateStr} ${shiftType}`);
+      await tracker.fail('cancelled');
+      result.errors.push('cancelled');
+      return result;
+    }
     await tracker.fail(err instanceof Error ? err.message : String(err));
     throw err;
   }

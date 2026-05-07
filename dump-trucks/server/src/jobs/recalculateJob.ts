@@ -20,6 +20,7 @@ import { replaceTrips } from '../repositories/tripRepo';
 import { replaceZoneEvents } from '../repositories/zoneEventRepo';
 import { getOrgByIdMO } from '../services/orgLookup';
 import { logger } from '../utils/logger';
+import { getJobController, isCancelledError } from '../services/jobController';
 import type { ShiftType, GeoZone } from '../types/domain';
 
 interface RawTrackPoint {
@@ -72,6 +73,8 @@ export async function recalculateShift(
   dateStr: string,
   shiftType: ShiftType,
 ): Promise<RecalculateResult> {
+  const jobController = getJobController('recalculate');
+  if (jobController.isCancelled()) jobController.reset();
   const result: RecalculateResult = { date: dateStr, shiftType, processed: 0, skipped: 0, errors: [] };
 
   logger.info(`[DT Recalculate] Starting: date=${dateStr} shift=${shiftType}`);
@@ -125,6 +128,11 @@ export async function recalculateShift(
 
   // --- Process each shift record ---
   for (const sr of rows) {
+    if (jobController.isCancelled()) {
+      logger.info(`[DT Recalculate] Cancelled for ${dateStr} ${shiftType} after ${result.processed} processed`);
+      result.errors.push('cancelled');
+      return result;
+    }
     try {
       const raw = sr.raw_monitoring;
 
@@ -232,6 +240,11 @@ export async function recalculateShift(
         dbClient.release();
       }
     } catch (err) {
+      if (isCancelledError(err)) {
+        logger.info(`[DT Recalculate] Cancelled (caught) for idMO=${sr.vehicle_id}`);
+        result.errors.push('cancelled');
+        return result;
+      }
       const msg = `idMO=${sr.vehicle_id}: ${String(err)}`;
       logger.error(`[DT Recalculate] Error: ${msg}`);
       result.errors.push(msg);

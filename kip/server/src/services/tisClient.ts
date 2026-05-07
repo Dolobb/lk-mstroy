@@ -3,6 +3,7 @@ import { TokenPool } from './tokenPool';
 import { PerVehicleRateLimiter } from './rateLimiter';
 import { logger } from '../utils/logger';
 import { formatDateParam, formatDateTimeParam } from '../utils/dateFormat';
+import { CancelledError, abortableSleep, isCancelledError } from './jobController';
 import type {
   TisRequest,
   TisRouteList,
@@ -18,10 +19,21 @@ interface TisClientOptions {
 const MAX_RETRY_TIMEOUT = 3;
 const BACKOFF_TIMEOUT_BASE_MS = 1_000; // exponential: 1s, 2s, 4s
 
+export interface TisClientStats {
+  requests: number;
+  retry429: number;
+  retryTimeout: number;
+  http404: number;
+  otherErrors: number;
+}
+
 export class TisClient {
   private baseUrl: string;
   private tokenPool: TokenPool;
   private rateLimiter: PerVehicleRateLimiter;
+  public stats: TisClientStats = {
+    requests: 0, retry429: 0, retryTimeout: 0, http404: 0, otherErrors: 0,
+  };
 
   constructor(options: TisClientOptions) {
     this.baseUrl = options.baseUrl;
@@ -31,6 +43,10 @@ export class TisClient {
 
   get tokens(): TokenPool {
     return this.tokenPool;
+  }
+
+  resetStats(): void {
+    this.stats = { requests: 0, retry429: 0, retryTimeout: 0, http404: 0, otherErrors: 0 };
   }
 
   /**
@@ -43,6 +59,7 @@ export class TisClient {
   private async requestWithRetry<T>(
     command: string,
     params: Record<string, string | number>,
+    signal?: AbortSignal,
   ): Promise<T | null> {
     const baseParams = Object.fromEntries(
       Object.entries(params).map(([k, v]) => [k, String(v)]),
@@ -51,10 +68,11 @@ export class TisClient {
     // Outer loop: on 429 rotate to next token; after all tokens exhausted — wait 30s once
     const totalTokens = this.tokenPool.size;
     for (let tokenAttempt = 0; tokenAttempt <= totalTokens; tokenAttempt++) {
+      if (signal?.aborted) throw new CancelledError();
       if (tokenAttempt === totalTokens) {
         // All tokens returned 429 — wait 30s before final attempt
         logger.warn(`429 on all ${totalTokens} tokens for ${command}, waiting 30s`);
-        await this.sleep(30_000);
+        await abortableSleep(30_000, signal);
       }
 
       const token = this.tokenPool.next();
@@ -64,20 +82,25 @@ export class TisClient {
 
       // Inner loop: retry on network timeout with same token
       for (let attemptTimeout = 0; attemptTimeout <= MAX_RETRY_TIMEOUT; attemptTimeout++) {
+        if (signal?.aborted) throw new CancelledError();
         try {
-          const response = await axios.post<T>(url, null, { timeout: 30_000 });
+          this.stats.requests++;
+          const response = await axios.post<T>(url, null, { timeout: 30_000, signal });
           return response.data;
         } catch (err) {
+          if (isCancelledError(err)) throw new CancelledError();
           const axiosErr = err as AxiosError;
 
           // 404 → no data
           if (axiosErr.response?.status === 404) {
+            this.stats.http404++;
             logger.warn(`404 Not Found: ${command}`, params);
             return null;
           }
 
           // 429 → try next token immediately
           if (axiosErr.response?.status === 429) {
+            this.stats.retry429++;
             logger.warn(`429 on token attempt ${tokenAttempt + 1}/${totalTokens} for ${command}`);
             got429 = true;
             break;
@@ -85,16 +108,18 @@ export class TisClient {
 
           // Timeout → exponential backoff, retry inner loop
           if (axiosErr.code === 'ECONNABORTED' || axiosErr.code === 'ETIMEDOUT') {
+            this.stats.retryTimeout++;
             if (attemptTimeout < MAX_RETRY_TIMEOUT) {
               const waitMs = BACKOFF_TIMEOUT_BASE_MS * Math.pow(2, attemptTimeout);
               logger.warn(`Timeout on ${command}, retry ${attemptTimeout + 1}/${MAX_RETRY_TIMEOUT} in ${waitMs}ms`);
-              await this.sleep(waitMs);
+              await abortableSleep(waitMs, signal);
               continue;
             }
             throw new Error(`Timeout after ${MAX_RETRY_TIMEOUT} retries: ${command}`);
           }
 
           // Other errors — throw immediately
+          this.stats.otherErrors++;
           throw err;
         }
       }
@@ -105,24 +130,26 @@ export class TisClient {
     throw new Error(`429 for all ${totalTokens + 1} token attempts on ${command}`);
   }
 
-  async getRequests(fromDate: Date, toDate: Date): Promise<TisRequest[]> {
+  async getRequests(fromDate: Date, toDate: Date, signal?: AbortSignal): Promise<TisRequest[]> {
     const result = await this.requestWithRetry<{ list: TisRequest[] }>(
       'getRequests',
       {
         fromDate: formatDateParam(fromDate),
         toDate: formatDateParam(toDate),
       },
+      signal,
     );
     return result?.list ?? [];
   }
 
-  async getRouteListsByDateOut(fromDate: Date, toDate: Date): Promise<TisRouteList[]> {
+  async getRouteListsByDateOut(fromDate: Date, toDate: Date, signal?: AbortSignal): Promise<TisRouteList[]> {
     const result = await this.requestWithRetry<{ list: TisRouteList[] }>(
       'getRouteListsByDateOut',
       {
         fromDate: formatDateParam(fromDate),
         toDate: formatDateParam(toDate),
       },
+      signal,
     );
     return result?.list ?? [];
   }
@@ -131,8 +158,10 @@ export class TisClient {
     idMO: number,
     fromDate: Date,
     toDate: Date,
+    signal?: AbortSignal,
   ): Promise<TisMonitoringStats | null> {
-    await this.rateLimiter.waitForSlot(idMO);
+    await this.rateLimiter.waitForSlot(idMO, signal);
+    if (signal?.aborted) throw new CancelledError();
 
     return this.requestWithRetry<TisMonitoringStats>(
       'getMonitoringStats',
@@ -141,6 +170,7 @@ export class TisClient {
         fromDate: formatDateTimeParam(fromDate),
         toDate: formatDateTimeParam(toDate),
       },
+      signal,
     );
   }
 
@@ -154,6 +184,7 @@ export class TisClient {
     idMO: number,
     fromDate: Date,
     toDate: Date,
+    signal?: AbortSignal,
   ): Promise<TisMonitoringStats | null> {
     const params = new URLSearchParams({
       token,
@@ -166,10 +197,12 @@ export class TisClient {
     const url = `${this.baseUrl}?${params}`;
 
     for (let attempt = 0; attempt <= MAX_RETRY_TIMEOUT; attempt++) {
+      if (signal?.aborted) throw new CancelledError();
       try {
-        const response = await axios.post<TisMonitoringStats>(url, null, { timeout: 30_000 });
+        const response = await axios.post<TisMonitoringStats>(url, null, { timeout: 30_000, signal });
         return response.data;
       } catch (err) {
+        if (isCancelledError(err)) throw new CancelledError();
         const axiosErr = err as AxiosError;
 
         if (axiosErr.response?.status === 404) {
@@ -185,7 +218,7 @@ export class TisClient {
           if (attempt < MAX_RETRY_TIMEOUT) {
             const waitMs = BACKOFF_TIMEOUT_BASE_MS * Math.pow(2, attempt);
             logger.warn(`[Direct] Timeout idMO=${idMO} seg, retry ${attempt + 1}/${MAX_RETRY_TIMEOUT} in ${waitMs}ms`);
-            await this.sleep(waitMs);
+            await abortableSleep(waitMs, signal);
             continue;
           }
           logger.error(`[Direct] Timeout after ${MAX_RETRY_TIMEOUT} retries for idMO=${idMO}`);

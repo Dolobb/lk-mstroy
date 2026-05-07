@@ -35,6 +35,9 @@ export function loadEnvConfig(): EnvConfig {
     serverPort: parseInt(optionalEnv('SERVER_PORT', '3001'), 10),
     nodeEnv: optionalEnv('NODE_ENV', 'development'),
     rateLimitPerVehicleMs: parseInt(optionalEnv('RATE_LIMIT_PER_VEHICLE_MS', '30000'), 10),
+    fetchConcurrency: process.env['FETCH_CONCURRENCY'] && !isNaN(parseInt(process.env['FETCH_CONCURRENCY']!, 10))
+      ? parseInt(process.env['FETCH_CONCURRENCY']!, 10)
+      : null,
   };
 }
 

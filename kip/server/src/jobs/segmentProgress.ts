@@ -138,6 +138,23 @@ export function hasSlot(): boolean {
   return state.active.length < state.maxConcurrent;
 }
 
+/** Drop everything pending in the queue (cancellation). Active jobs are NOT touched. */
+export function clearQueue(): void {
+  for (const job of state.queue) {
+    job.status = 'error';
+    job.error = 'cancelled';
+    state.completed.push(job);
+  }
+  state.queue.length = 0;
+  if (state.completed.length > 50) {
+    state.completed.splice(0, state.completed.length - 50);
+  }
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+}
+
 /**
  * Smart queue: find first job whose idMO is NOT in cooldown.
  * Jobs without idMO (not yet resolved) are allowed — cooldown checked in the job itself.

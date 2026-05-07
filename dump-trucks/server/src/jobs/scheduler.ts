@@ -8,6 +8,31 @@ import cron from 'node-cron';
 import { runShiftFetch } from './shiftFetchJob';
 import { logger } from '../utils/logger';
 import { dayjs } from '../utils/dateFormat';
+import { tryAcquire as tryAcquireFetchLock, release as releaseFetchLock, getActiveFetch } from '../services/fetchLock';
+import type { ShiftType } from '../types/domain';
+
+async function runShiftFetchLocked(date: string, shift: ShiftType): Promise<void> {
+  // Если admin-воркер уже что-то крутит — ждём окно. Не запускаем параллельно
+  // (параллельные fetch-и контёнтят TIS-токены).
+  const MAX_WAIT_MS = 60 * 60 * 1000; // 1 час
+  const POLL_MS = 30_000;
+  const deadline = Date.now() + MAX_WAIT_MS;
+  while (!tryAcquireFetchLock(date, shift)) {
+    const a = getActiveFetch();
+    if (Date.now() >= deadline) {
+      logger.warn(`[Scheduler] fetch lock busy >1h (active=${a?.date}/${a?.shift}), skipping ${date}/${shift}`);
+      return;
+    }
+    logger.info(`[Scheduler] fetch lock busy (active=${a?.date}/${a?.shift}), retry ${date}/${shift} in ${POLL_MS / 1000}s`);
+    await new Promise((r) => setTimeout(r, POLL_MS));
+  }
+  try {
+    const result = await runShiftFetch(date, shift);
+    logger.info(`[Scheduler] ${shift} done`, result);
+  } finally {
+    releaseFetchLock(date, shift);
+  }
+}
 
 export function startScheduler(): void {
   if (process.env.CRON_DISABLED === 'true') {
@@ -20,8 +45,7 @@ export function startScheduler(): void {
     const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
     logger.info(`[Scheduler] Triggered: shift2 for ${yesterday}`);
     try {
-      const result = await runShiftFetch(yesterday, 'shift2');
-      logger.info('[Scheduler] shift2 done', result);
+      await runShiftFetchLocked(yesterday, 'shift2');
     } catch (err) {
       logger.error('[Scheduler] shift2 failed', err);
     }
@@ -34,8 +58,7 @@ export function startScheduler(): void {
     const today = dayjs().format('YYYY-MM-DD');
     logger.info(`[Scheduler] Triggered: shift1 for ${today}`);
     try {
-      const result = await runShiftFetch(today, 'shift1');
-      logger.info('[Scheduler] shift1 done', result);
+      await runShiftFetchLocked(today, 'shift1');
     } catch (err) {
       logger.error('[Scheduler] shift1 failed', err);
     }

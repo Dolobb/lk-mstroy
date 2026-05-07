@@ -20,7 +20,7 @@ import type { ZoneEvent, Trip } from '../types/domain';
 
 const MIN_LOADING_DWELL_SEC   = 3 * 60;   // 3 мин — погрузка
 const MIN_UNLOADING_DWELL_SEC = 3 * 60;   // 3 мин — выгрузка
-const MAX_TRIP_DURATION_MIN   = 4 * 60;   // 4 часа — явная аномалия
+const MAX_TRIP_DURATION_MIN   = 6 * 60;   // 6 часов — явная аномалия
 
 export function buildTrips(events: ZoneEvent[]): Trip[] {
   // Только реальные остановки (не транзит)

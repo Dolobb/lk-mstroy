@@ -29,6 +29,7 @@ import {
   setCooldownChecker,
   setNextCooldownFn,
 } from './segmentProgress';
+import { getJobController, isCancelledError, abortableSleep } from '../services/jobController';
 
 const SEGMENT_COUNT = 24;
 const SEGMENT_DURATION_MIN = 30;
@@ -49,12 +50,12 @@ function canFetchNow(idMO: number): boolean {
   return Date.now() - last >= COOLDOWN_MS;
 }
 
-async function waitCooldown(idMO: number): Promise<void> {
+async function waitCooldown(idMO: number, signal?: AbortSignal): Promise<void> {
   const last = lastFetchByIdMO.get(idMO) ?? 0;
   const remaining = COOLDOWN_MS - (Date.now() - last);
   if (remaining > 0) {
     logger.info(`[KipSegmentFetch] Waiting ${Math.ceil(remaining / 1000)}s cooldown for idMO=${idMO}`);
-    await sleep(remaining);
+    await abortableSleep(remaining, signal);
   }
 }
 
@@ -75,9 +76,6 @@ function nextCooldownExpiry(): number | null {
   return shortest;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 /* ─── TIS Client singleton ─── */
 
@@ -135,10 +133,18 @@ export async function fetchKipSegments(
 ): Promise<void> {
   const client = getTisClient();
   const pool = getPool();
+  const jobController = getJobController('segments');
+  if (jobController.isCancelled()) jobController.reset();
+  const signal = jobController.signal;
 
   markRunning(vehicleId, date, shiftType);
 
   try {
+    if (jobController.isCancelled()) {
+      markError(vehicleId, date, shiftType, 'cancelled');
+      return;
+    }
+
     // 1. Find idMO
     const idMO = await findIdMO(vehicleId);
     if (!idMO) {
@@ -146,7 +152,7 @@ export async function fetchKipSegments(
     }
 
     // 2. Wait cooldown for this idMO
-    await waitCooldown(idMO);
+    await waitCooldown(idMO, signal);
 
     // 3. Get all tokens
     const allTokens = client.tokens.getAll();
@@ -175,7 +181,7 @@ export async function fetchKipSegments(
 
         try {
           const monitoring = await client.getMonitoringStatsDirect(
-            token, idMO, win.start, win.end,
+            token, idMO, win.start, win.end, signal,
           );
 
           if (monitoring) {
@@ -224,12 +230,19 @@ export async function fetchKipSegments(
 
     markDone(vehicleId, date, shiftType);
   } catch (err) {
+    if (isCancelledError(err)) {
+      markError(vehicleId, date, shiftType, 'cancelled');
+      logger.info(`[KipSegmentFetch] Cancelled for ${vehicleId} ${date} ${shiftType}`);
+      return;
+    }
     markError(vehicleId, date, shiftType, String(err));
     logger.error(`[KipSegmentFetch] Failed for ${vehicleId} ${date} ${shiftType}: ${String(err)}`);
   }
 
-  // Process next in queue
-  processQueue();
+  // Process next in queue (unless cancellation was requested)
+  if (!getJobController('segments').isCancelled()) {
+    processQueue();
+  }
 }
 
 /* ─── Queue processor ─── */

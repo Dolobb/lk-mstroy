@@ -1,3 +1,5 @@
+import { abortableSleep } from './jobController';
+
 export class PerVehicleRateLimiter {
   private lastCallMap: Map<number, number> = new Map();
   private intervalMs: number;
@@ -6,16 +8,20 @@ export class PerVehicleRateLimiter {
     this.intervalMs = intervalMs;
   }
 
-  async waitForSlot(idMO: number): Promise<void> {
+  async waitForSlot(idMO: number, signal?: AbortSignal): Promise<void> {
     const now = Date.now();
     const lastCall = this.lastCallMap.get(idMO) || 0;
     const elapsed = now - lastCall;
 
     if (elapsed < this.intervalMs) {
       const waitMs = this.intervalMs - elapsed;
-      await new Promise(resolve => setTimeout(resolve, waitMs));
+      await abortableSleep(waitMs, signal);
     }
 
     this.lastCallMap.set(idMO, Date.now());
+  }
+
+  reset(idMO: number): void {
+    this.lastCallMap.delete(idMO);
   }
 }

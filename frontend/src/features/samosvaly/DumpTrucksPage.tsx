@@ -2594,19 +2594,19 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
   const { resolvedTheme } = useTheme();
   const [records, setRecords] = useState<ShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [scrollOffset, setScrollOffset] = useState(0);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [expandedVehicles, setExpandedVehicles] = useState<Set<string>>(new Set());
   const [collapsedObjects, setCollapsedObjects] = useState<Set<string>>(new Set());
   const [tripPopup, setTripPopup] = useState<{ shiftRecord: ShiftRecord; x: number; y: number } | null>(null);
-  const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const initialScrollRef = useRef(false);
 
   const PAGE_STEPS = [8, 12, 16, 24, 31] as const;
 
   useEffect(() => {
     setLoading(true);
+    initialScrollRef.current = false;
     const params: { dateFrom?: string; dateTo?: string } = {};
     if (!isAllTime) {
       const [y, m] = orderMonth.split('-').map(Number);
@@ -2615,7 +2615,6 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
     }
     fetchShiftRecords(params).then(r => {
       setRecords(r);
-      setScrollOffset(0);
     }).finally(() => setLoading(false));
   }, [orderMonth, isAllTime]);
 
@@ -2637,6 +2636,29 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
     wrap.addEventListener('scroll', handler, { passive: true });
     return () => wrap.removeEventListener('scroll', handler);
   }, [tripPopup]);
+
+  // Auto-scroll: place today's column near the right edge on first render after data loads
+  useEffect(() => {
+    if (loading || initialScrollRef.current || records.length === 0 || !wrapRef.current) return;
+    const wrap = wrapRef.current;
+    const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Yekaterinburg' }).format(new Date());
+    const sorted = [...new Set(records.map(r => toDateStr(r.reportDate)))].sort();
+    if (sorted.length === 0) return;
+    const dates = hideEmpty
+      ? sorted
+      : generateDateRange(sorted[0]!, sorted[sorted.length - 1]!);
+    let targetIdx = dates.indexOf(todayStr);
+    if (targetIdx < 0) {
+      const firstFuture = dates.findIndex(d => d > todayStr);
+      targetIdx = firstFuture > 0 ? firstFuture - 1 : dates.length - 1;
+    }
+    if (targetIdx < 0) return;
+    const FIRST_COL_W = 180;
+    const DATE_COL_W = 80; // 2 sub-cols × 40px
+    const targetRight = FIRST_COL_W + (targetIdx + 1) * DATE_COL_W;
+    wrap.scrollLeft = Math.max(0, targetRight - wrap.clientWidth);
+    initialScrollRef.current = true;
+  }, [loading, records, hideEmpty]);
 
   if (loading) return (
     <div className="sv-empty">
@@ -2720,14 +2742,9 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
   const tripsFont = Math.max(6, Math.round(9 * zoomScale));
   const thPad = Math.max(1, Math.round(3 * zoomScale));
   const MIN_DATE_COLS = 4;
-  const paddingCols = Math.max(0, MIN_DATE_COLS - Math.min(filteredDates.length, pageSize));
+  const paddingCols = Math.max(0, MIN_DATE_COLS - filteredDates.length);
 
-  const needsNav = filteredDates.length > pageSize;
-  const maxOffset = needsNav ? filteredDates.length - pageSize : 0;
-  const clampedOffset = Math.min(scrollOffset, Math.max(0, maxOffset));
-  const visibleDates = needsNav
-    ? filteredDates.slice(clampedOffset, clampedOffset + pageSize)
-    : filteredDates;
+  const visibleDates = filteredDates;
 
   // Total trips per date
   const totalByDate = new Map<string, number>();
@@ -2806,23 +2823,8 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
     setCollapsedObjects(prev => { const s = new Set(prev); s.has(name) ? s.delete(name) : s.add(name); return s; });
   };
 
-  // Drag-to-scroll
-  const onMouseDown = (e: React.MouseEvent) => {
-    if (!needsNav) return;
-    dragRef.current = { startX: e.clientX, startOffset: scrollOffset };
-    e.preventDefault();
-  };
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!dragRef.current) return;
-    const dx = dragRef.current.startX - e.clientX;
-    const colWidth = 56;
-    const shift = Math.round(dx / colWidth);
-    setScrollOffset(Math.max(0, Math.min(maxOffset, dragRef.current.startOffset + shift)));
-  };
-  const onMouseUp = () => { dragRef.current = null; };
-
-  const zoomIn  = () => { const i = PAGE_STEPS.indexOf(pageSize as typeof PAGE_STEPS[number]); if (i > 0) { onPageSizeChange(PAGE_STEPS[i - 1]!); setScrollOffset(0); } };
-  const zoomOut = () => { const i = PAGE_STEPS.indexOf(pageSize as typeof PAGE_STEPS[number]); if (i < PAGE_STEPS.length - 1) { onPageSizeChange(PAGE_STEPS[i + 1]!); setScrollOffset(0); } };
+  const zoomIn  = () => { const i = PAGE_STEPS.indexOf(pageSize as typeof PAGE_STEPS[number]); if (i > 0) onPageSizeChange(PAGE_STEPS[i - 1]!); };
+  const zoomOut = () => { const i = PAGE_STEPS.indexOf(pageSize as typeof PAGE_STEPS[number]); if (i < PAGE_STEPS.length - 1) onPageSizeChange(PAGE_STEPS[i + 1]!); };
 
   const colSpanAll = 1 + (visibleDates.length + paddingCols) * 2;
   const objectEntries = [...objectVehicles.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -2852,7 +2854,7 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
   const allExpanded = totalExpandable > 0 && expandedVehicles.size >= totalExpandable;
 
   return (
-    <div ref={wrapRef} className="sv-gantt sv-gg-wrap" onMouseMove={needsNav ? onMouseMove : undefined} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+    <div ref={wrapRef} className="sv-gantt sv-gg-wrap"
       style={{ '--gg-cell-h': `${cellH}px`, '--gg-cell-font': `${cellFont}px`, '--gg-reg-font': `${regFont}px`, '--gg-model-font': `${modelFont}px`, '--gg-date-font': `${dateHFont}px`, '--gg-trips-font': `${tripsFont}px`, '--gg-th-pad': `${thPad}px` } as React.CSSProperties}>
       <table>
         <thead>
@@ -2884,12 +2886,6 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
                     </>)}
                   </svg>
                 </button>
-                {needsNav && (<>
-                  <button className="sv-gantt-nav-btn" disabled={scrollOffset <= 0}
-                    onClick={() => setScrollOffset(Math.max(0, scrollOffset - 1))}>&#9664;</button>
-                  <button className="sv-gantt-nav-btn" disabled={scrollOffset >= maxOffset}
-                    onClick={() => setScrollOffset(Math.min(maxOffset, scrollOffset + 1))}>&#9654;</button>
-                </>)}
               </span>
             </th>
             {visibleDates.map(d => {
@@ -2917,7 +2913,7 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
               <th key={`pad-${i}`} colSpan={2}></th>
             ))}
           </tr>
-          <tr className={needsNav ? 'sv-gantt-draggable' : ''} onMouseDown={onMouseDown}>
+          <tr>
             <th style={{ width: 180, minWidth: 180 }}></th>
             {visibleDates.map(d => (
               <React.Fragment key={d}><th>1</th><th>2</th></React.Fragment>
@@ -2973,7 +2969,7 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
                 </td>
               </tr>
               {!collapsedObjects.has(objName) && <>
-              <tr className={`sv-gg-obj-dates${needsNav ? ' sv-gantt-draggable' : ''}`} onMouseDown={needsNav ? onMouseDown : undefined}>
+              <tr className="sv-gg-obj-dates">
                 <td></td>
                 {visibleDates.map(d => {
                   const ot = objTripsByDate.get(d) ?? 0;

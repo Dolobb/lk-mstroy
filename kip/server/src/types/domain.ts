@@ -69,6 +69,7 @@ export interface EnvConfig {
   serverPort: number;
   nodeEnv: string;
   rateLimitPerVehicleMs: number;
+  fetchConcurrency: number | null; // null = по числу токенов
 }
 
 // Weekly / detail API types

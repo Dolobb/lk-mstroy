@@ -3,7 +3,7 @@ import path from 'path';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { startScheduler } from './jobs/scheduler';
-import { runDailyFetch } from './jobs/dailyFetchJob';
+import { runDailyFetch, getLastDailyTisClient } from './jobs/dailyFetchJob';
 import { recalculateForDate } from './jobs/recalculateJob';
 import { fillGapsForDate } from './jobs/gapFillJob';
 // Eager-load segmentFetchJob so it registers processQueueFn before any request arrives
@@ -12,6 +12,7 @@ import { getPool } from './config/database';
 import { logger } from './utils/logger';
 import { getFilteredGeozonesGeoJson, getFilteredGeozonesGeoJsonAsync, invalidateCache, preloadZones } from './services/geozoneAnalyzer';
 import { getVehicleInfo, getRegisteredVehicles } from './services/vehicleRegistry';
+import { getJobController } from './services/jobController';
 
 dotenv.config();
 
@@ -283,6 +284,51 @@ app.get('/api/admin/recalculate/status', (req, res) => {
   }
   recalcJobStatus.delete(date);
   res.json({ status: 'done', errors: job.errors, processed: job.processed, skipped: job.skipped });
+});
+
+// Admin endpoint: cancel in-flight daily fetch (cooperative)
+app.post('/api/admin/fetch/cancel', (_req, res) => {
+  getJobController('fetch').cancel();
+  logger.info('[Admin] Daily fetch cancellation requested');
+  res.json({ ok: true, message: 'Cancellation signalled' });
+});
+
+// Admin endpoint: cancel in-flight recalculate
+app.post('/api/admin/recalculate/cancel', (_req, res) => {
+  getJobController('recalculate').cancel();
+  logger.info('[Admin] Recalculate cancellation requested');
+  res.json({ ok: true, message: 'Cancellation signalled' });
+});
+
+// Admin endpoint: cancel KIP segment fetch (clears queue + aborts current)
+app.post('/api/segments/cancel', async (_req, res) => {
+  getJobController('segments').cancel();
+  try {
+    const { clearQueue } = await import('./jobs/segmentProgress');
+    clearQueue();
+  } catch { /* noop */ }
+  logger.info('[Admin] KIP segment fetch cancellation requested');
+  res.json({ ok: true, message: 'Cancellation signalled' });
+});
+
+// TIS client stats — для мониторинга нагрузки и тестов на 429
+app.get('/api/admin/tis-stats', (_req, res) => {
+  const client = getLastDailyTisClient();
+  if (!client) {
+    res.json({ stats: null, message: 'No daily fetch has run yet in this process' });
+    return;
+  }
+  res.json({ stats: client.stats, tokenCount: client.tokens.size });
+});
+
+app.post('/api/admin/tis-stats/reset', (_req, res) => {
+  const client = getLastDailyTisClient();
+  if (!client) {
+    res.json({ ok: false, message: 'No daily fetch has run yet in this process' });
+    return;
+  }
+  client.resetStats();
+  res.json({ ok: true });
 });
 
 // Admin endpoint: manually trigger daily fetch for a specific date

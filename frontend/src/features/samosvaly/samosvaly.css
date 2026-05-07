@@ -730,7 +730,21 @@ table.sv-at tr:hover { background: var(--sv-hover-bg); }
 .sv-constructor-col-row input { cursor: pointer; }
 
 /* ====== TAB 3: GLOBAL GANTT ====== */
-.sv-gg-wrap { overflow: auto; height: 100%; position: relative; padding-top: 0; }
+.sv-gg-wrap {
+  overflow: auto;
+  height: 100%;
+  position: relative;
+  /* Zero out padding so sticky first column pins flush against the container edge (no gap) */
+  padding: 0;
+  /* Reserve space for the scrollbar so layout doesn't jump and bar is always at the edge */
+  scrollbar-gutter: stable;
+  /* Firefox: bold, visible scrollbar (override inherited thin/faded from .sv-gantt) */
+  scrollbar-width: auto;
+  scrollbar-color: rgba(96,165,250,0.55) rgba(255,255,255,0.06);
+}
+[data-theme="light"] .sv-gg-wrap {
+  scrollbar-color: rgba(59,130,246,0.55) rgba(0,0,0,0.06);
+}
 .sv-gg-wrap thead { position: sticky; top: 0; z-index: 6; }
 .sv-gg-wrap thead th { background: #0A1220; }
 [data-theme="light"] .sv-gg-wrap thead th { background: #F1F5F9; }
@@ -740,16 +754,63 @@ table.sv-at tr:hover { background: var(--sv-hover-bg); }
 .sv-gg-wrap th:not(:first-child),
 .sv-gg-wrap td:not(:first-child) { width: 40px; min-width: 40px; }
 
-/* Persistent horizontal/vertical scrollbar */
-.sv-gg-wrap::-webkit-scrollbar { width: 8px; height: 10px; }
-.sv-gg-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-.sv-gg-wrap::-webkit-scrollbar-corner { background: var(--sv-thead-bg); }
-.sv-gg-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 5px; }
-.sv-gg-wrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
-[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-track { background: rgba(0,0,0,0.02); }
-[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-corner { background: var(--sv-thead-bg); }
-[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
-[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.32); }
+/* Sticky first column — vehicle/object names always visible during horizontal scroll */
+.sv-gg-wrap thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 8; /* above column sticky (5) and thead sticky (6) */
+}
+.sv-gg-wrap tbody tr:not(.sv-gg-obj-header) > td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: #0A1220;
+}
+[data-theme="light"] .sv-gg-wrap tbody tr:not(.sv-gg-obj-header) > td:first-child {
+  background: #F1F5F9;
+}
+/* Subtle right-edge shadow on the sticky column so it visually separates */
+.sv-gg-wrap thead th:first-child::after,
+.sv-gg-wrap tbody tr:not(.sv-gg-obj-header) > td:first-child::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 6px;
+  height: 100%;
+  background: linear-gradient(to right, rgba(0,0,0,0.35), transparent);
+  pointer-events: none;
+}
+[data-theme="light"] .sv-gg-wrap thead th:first-child::after,
+[data-theme="light"] .sv-gg-wrap tbody tr:not(.sv-gg-obj-header) > td:first-child::after {
+  background: linear-gradient(to right, rgba(0,0,0,0.10), transparent);
+}
+
+/* Persistent, prominent horizontal/vertical scrollbar (WebKit) */
+.sv-gg-wrap::-webkit-scrollbar { width: 14px; height: 17px; }
+.sv-gg-wrap::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.sv-gg-wrap::-webkit-scrollbar-corner { background: rgba(255,255,255,0.06); }
+.sv-gg-wrap::-webkit-scrollbar-thumb {
+  background: rgba(96,165,250,0.55);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 10px;
+  min-width: 40px;
+  min-height: 40px;
+}
+.sv-gg-wrap::-webkit-scrollbar-thumb:hover { background: rgba(96,165,250,0.85); background-clip: padding-box; }
+.sv-gg-wrap::-webkit-scrollbar-thumb:active { background: rgba(96,165,250,1); background-clip: padding-box; }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.06);
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-corner { background: rgba(0,0,0,0.06); }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.55); background-clip: padding-box; }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.85); background-clip: padding-box; }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-thumb:active { background: rgba(59,130,246,1); background-clip: padding-box; }
 
 /* Object collapse toggle icon */
 .sv-gg-obj-collapse-icon {
@@ -963,12 +1024,19 @@ td.sv-obj-return {
   background: repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(107,114,128,0.06) 3px, rgba(107,114,128,0.06) 6px) !important;
 }
 
-/* Object header enhanced background */
+/* Object header enhanced background — solid + translucent blue overlay so the sticky cell isn't see-through */
 .sv-gg-obj-header td {
-  background: rgba(59,130,246,0.06) !important;
+  background: linear-gradient(rgba(59,130,246,0.06), rgba(59,130,246,0.06)), #0A1220 !important;
 }
 [data-theme="light"] .sv-gg-obj-header td {
-  background: rgba(59,130,246,0.04) !important;
+  background: linear-gradient(rgba(59,130,246,0.04), rgba(59,130,246,0.04)), #F1F5F9 !important;
+}
+/* Pin object-name row to the left so the section title stays visible during horizontal scroll.
+   The td has colSpan covering all columns; sticky-left:0 keeps its left edge (where the text sits) at the viewport edge. */
+.sv-gg-wrap tbody tr.sv-gg-obj-header > td {
+  position: sticky;
+  left: 0;
+  z-index: 4;
 }
 
 /* Per-object date sub-row */
