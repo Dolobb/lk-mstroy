@@ -2597,9 +2597,11 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
   const [scrollOffset, setScrollOffset] = useState(0);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [expandedVehicles, setExpandedVehicles] = useState<Set<string>>(new Set());
+  const [collapsedObjects, setCollapsedObjects] = useState<Set<string>>(new Set());
   const [tripPopup, setTripPopup] = useState<{ shiftRecord: ShiftRecord; x: number; y: number } | null>(null);
   const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const PAGE_STEPS = [8, 12, 16, 24, 31] as const;
 
@@ -2625,6 +2627,15 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, [tripPopup]);
+
+  // Close popup on scroll (so it doesn't stay detached from the cell)
+  useEffect(() => {
+    if (!tripPopup || !wrapRef.current) return;
+    const wrap = wrapRef.current;
+    const handler = () => setTripPopup(null);
+    wrap.addEventListener('scroll', handler, { passive: true });
+    return () => wrap.removeEventListener('scroll', handler);
   }, [tripPopup]);
 
   if (loading) return (
@@ -2765,11 +2776,14 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
         e.stopPropagation();
         const el = e.currentTarget as HTMLElement;
         const rect = el.getBoundingClientRect();
-        const x = Math.min(rect.left, window.innerWidth - 520);
-        const y = rect.bottom + 4 > window.innerHeight - 420
-          ? Math.max(4, rect.top - 404)
-          : rect.bottom + 4;
-        setTripPopup({ shiftRecord: shiftRec, x: Math.max(4, x), y });
+        const POPUP_W = 600;
+        const POPUP_H = 420;
+        const MARGIN = 8;
+        const x = Math.max(MARGIN, Math.min(rect.left, window.innerWidth - POPUP_W - MARGIN));
+        const y = rect.bottom + MARGIN + POPUP_H > window.innerHeight
+          ? Math.max(MARGIN, rect.top - POPUP_H - MARGIN)
+          : rect.bottom + MARGIN;
+        setTripPopup({ shiftRecord: shiftRec, x, y });
       }
     };
     const nc = ggNormClass(trips, cellNorm);
@@ -2786,6 +2800,10 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
       if (s.has(key)) s.delete(key); else s.add(key);
       return s;
     });
+  };
+
+  const toggleObjectCollapse = (name: string) => {
+    setCollapsedObjects(prev => { const s = new Set(prev); s.has(name) ? s.delete(name) : s.add(name); return s; });
   };
 
   // Drag-to-scroll
@@ -2834,7 +2852,7 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
   const allExpanded = totalExpandable > 0 && expandedVehicles.size >= totalExpandable;
 
   return (
-    <div className="sv-gantt sv-gg-wrap" onMouseMove={needsNav ? onMouseMove : undefined} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+    <div ref={wrapRef} className="sv-gantt sv-gg-wrap" onMouseMove={needsNav ? onMouseMove : undefined} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
       style={{ '--gg-cell-h': `${cellH}px`, '--gg-cell-font': `${cellFont}px`, '--gg-reg-font': `${regFont}px`, '--gg-model-font': `${modelFont}px`, '--gg-date-font': `${dateHFont}px`, '--gg-trips-font': `${tripsFont}px`, '--gg-th-pad': `${thPad}px` } as React.CSSProperties}>
       <table>
         <thead>
@@ -2948,9 +2966,13 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
 
           return (
             <tbody key={objName}>
-              <tr className="sv-gg-obj-header">
-                <td colSpan={colSpanAll}>{objName}</td>
+              <tr className="sv-gg-obj-header" onClick={() => toggleObjectCollapse(objName)} style={{ cursor: 'pointer' }}>
+                <td colSpan={colSpanAll}>
+                  <span className="sv-gg-obj-collapse-icon">{collapsedObjects.has(objName) ? '+' : '−'}</span>
+                  {objName}
+                </td>
               </tr>
+              {!collapsedObjects.has(objName) && <>
               <tr className={`sv-gg-obj-dates${needsNav ? ' sv-gantt-draggable' : ''}`} onMouseDown={needsNav ? onMouseDown : undefined}>
                 <td></td>
                 {visibleDates.map(d => {
@@ -3128,6 +3150,7 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
                   </React.Fragment>
                 );
               })}
+              </>}
             </tbody>
           );
         })}

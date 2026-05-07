@@ -730,10 +730,29 @@ table.sv-at tr:hover { background: var(--sv-hover-bg); }
 .sv-constructor-col-row input { cursor: pointer; }
 
 /* ====== TAB 3: GLOBAL GANTT ====== */
-.sv-gg-wrap { overflow: auto; height: 100%; position: relative; }
+.sv-gg-wrap { overflow: auto; height: 100%; position: relative; padding-top: 0; }
 .sv-gg-wrap thead { position: sticky; top: 0; z-index: 6; }
 .sv-gg-wrap thead th { background: #0A1220; }
 [data-theme="light"] .sv-gg-wrap thead th { background: #F1F5F9; }
+
+/* Persistent horizontal/vertical scrollbar */
+.sv-gg-wrap::-webkit-scrollbar { width: 8px; height: 10px; }
+.sv-gg-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+.sv-gg-wrap::-webkit-scrollbar-corner { background: var(--sv-thead-bg); }
+.sv-gg-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 5px; }
+.sv-gg-wrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-track { background: rgba(0,0,0,0.02); }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-corner { background: var(--sv-thead-bg); }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
+[data-theme="light"] .sv-gg-wrap::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.32); }
+
+/* Object collapse toggle icon */
+.sv-gg-obj-collapse-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; font-size: 14px; font-weight: 700;
+  margin-right: 6px; vertical-align: middle;
+  color: var(--sv-pill-a-text); flex-shrink: 0;
+}
 
 /* Zoom control bar */
 .sv-gg-zoom-bar {
@@ -980,18 +999,28 @@ td.sv-obj-return {
   border-left: 1px dashed rgba(0,0,0,0.04);
 }
 
-/* Global gantt (.sv-gg-wrap) */
+/* Global gantt (.sv-gg-wrap) — day boundaries (brighter) */
 .sv-gg-wrap tbody tr:not(.sv-gg-obj-header):not(.sv-gg-obj-dates):not(.sv-gg-sub-row) td:nth-child(2n):not(:first-child) {
-  border-left: 1px solid rgba(255,255,255,0.08);
+  border-left: 1px solid rgba(255,255,255,0.20);
 }
 .sv-gg-wrap tbody tr:not(.sv-gg-obj-header):not(.sv-gg-obj-dates):not(.sv-gg-sub-row) td:nth-child(2n+1):not(:first-child) {
-  border-left: 1px dashed rgba(255,255,255,0.05);
+  border-left: 1px dashed rgba(255,255,255,0.08);
 }
 [data-theme="light"] .sv-gg-wrap tbody tr:not(.sv-gg-obj-header):not(.sv-gg-obj-dates):not(.sv-gg-sub-row) td:nth-child(2n):not(:first-child) {
-  border-left: 1px solid rgba(0,0,0,0.06);
+  border-left: 1px solid rgba(0,0,0,0.14);
 }
 [data-theme="light"] .sv-gg-wrap tbody tr:not(.sv-gg-obj-header):not(.sv-gg-obj-dates):not(.sv-gg-sub-row) td:nth-child(2n+1):not(:first-child) {
-  border-left: 1px dashed rgba(0,0,0,0.04);
+  border-left: 1px dashed rgba(0,0,0,0.07);
+}
+
+/* Sub-rows and per-object date row also get date separators */
+.sv-gg-wrap tbody tr.sv-gg-obj-dates td:nth-child(2n):not(:first-child),
+.sv-gg-wrap tbody tr.sv-gg-sub-row td:nth-child(2n):not(:first-child) {
+  border-left: 1px solid rgba(255,255,255,0.14);
+}
+[data-theme="light"] .sv-gg-wrap tbody tr.sv-gg-obj-dates td:nth-child(2n):not(:first-child),
+[data-theme="light"] .sv-gg-wrap tbody tr.sv-gg-sub-row td:nth-child(2n):not(:first-child) {
+  border-left: 1px solid rgba(0,0,0,0.10);
 }
 
 /* Route point outside boundary */
