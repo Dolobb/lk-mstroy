@@ -91,7 +91,7 @@ export const generateDumpTruckSummary = tool({
            sr.trips_count, sr.work_type,
            COALESCE(avg_load.avg_loading_sec, 0) AS avg_loading_dwell_sec,
            COALESCE(avg_unload.avg_unloading_sec, 0) AS avg_unloading_dwell_sec
-         FROM dump_trucks.shift_records sr
+         FROM dump_trucks.shift_records_active sr
          LEFT JOIN LATERAL (
            SELECT AVG(ze.duration_sec) AS avg_loading_sec
            FROM dump_trucks.zone_events ze

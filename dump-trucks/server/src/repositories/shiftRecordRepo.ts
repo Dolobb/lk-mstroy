@@ -192,7 +192,7 @@ export async function queryShiftRecords(
       dwell.avg_unloading_dwell_sec,
       trip_agg.avg_travel_to_unload_min,
       trip_agg.avg_return_to_load_min
-    FROM dump_trucks.shift_records sr
+    FROM dump_trucks.shift_records_active sr
     LEFT JOIN LATERAL (
       SELECT
         AVG(duration_sec) FILTER (WHERE zone_tag = 'dt_loading'  AND duration_sec >= 180) AS avg_loading_dwell_sec,

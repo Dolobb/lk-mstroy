@@ -11,9 +11,8 @@ import { Feature, Polygon, MultiPolygon } from 'geojson';
 export interface GeoObject {
   uid: string;
   name: string;
-  smu: string | null;
-  region: string | null;
   timezone: string;
+  minTripsPerShift: number;
 }
 
 /**
@@ -23,11 +22,10 @@ export async function getDtObjects(pool: Pool): Promise<GeoObject[]> {
   const result = await pool.query<{
     uid: string;
     name: string;
-    smu: string | null;
-    region: string | null;
     timezone: string;
+    min_trips_per_shift: number;
   }>(`
-    SELECT DISTINCT o.uid, o.name, o.smu, o.region, o.timezone
+    SELECT DISTINCT o.uid, o.name, o.timezone, o.min_trips_per_shift
     FROM geo.objects o
     JOIN geo.zones z ON z.object_id = o.id
     JOIN geo.zone_tags zt ON zt.zone_id = z.id
@@ -36,11 +34,10 @@ export async function getDtObjects(pool: Pool): Promise<GeoObject[]> {
   `);
 
   return result.rows.map(r => ({
-    uid:      r.uid,
-    name:     r.name,
-    smu:      r.smu,
-    region:   r.region,
-    timezone: r.timezone,
+    uid:              r.uid,
+    name:             r.name,
+    timezone:         r.timezone,
+    minTripsPerShift: r.min_trips_per_shift,
   }));
 }
 
@@ -55,6 +52,7 @@ export async function getDtZonesForObject(
   const result = await pool.query<{
     uid: string;
     name: string;
+    object_name: string;
     tag: string;
     geojson: string;
     min_duration_sec: number;
@@ -62,6 +60,7 @@ export async function getDtZonesForObject(
     SELECT
       z.uid,
       z.name,
+      o.name AS object_name,
       zt.tag,
       ST_AsGeoJSON(z.geom)::text AS geojson,
       z.min_duration_sec
@@ -84,6 +83,7 @@ export async function getDtZonesForObject(
       uid:            r.uid,
       name:           r.name,
       objectUid,
+      objectName:     r.object_name,
       tag:            r.tag as ZoneTag,
       geojson,
       minDurationSec: r.min_duration_sec,
@@ -99,6 +99,7 @@ export async function getAllDtZones(pool: Pool): Promise<GeoZone[]> {
     uid: string;
     name: string;
     object_uid: string;
+    object_name: string;
     tag: string;
     geojson: string;
     min_duration_sec: number;
@@ -107,6 +108,7 @@ export async function getAllDtZones(pool: Pool): Promise<GeoZone[]> {
       z.uid,
       z.name,
       o.uid AS object_uid,
+      o.name AS object_name,
       zt.tag,
       ST_AsGeoJSON(z.geom)::text AS geojson,
       z.min_duration_sec
@@ -128,6 +130,7 @@ export async function getAllDtZones(pool: Pool): Promise<GeoZone[]> {
       uid:            r.uid,
       name:           r.name,
       objectUid:      r.object_uid,
+      objectName:     r.object_name,
       tag:            r.tag as ZoneTag,
       geojson,
       minDurationSec: r.min_duration_sec,

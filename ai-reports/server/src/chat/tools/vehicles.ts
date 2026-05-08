@@ -38,7 +38,7 @@ export const queryVehicleRegistry = tool({
              sr.name_mo AS vehicle_name,
              sr.vehicle_id AS id_mo,
              'dump_trucks' AS source
-           FROM dump_trucks.shift_records sr
+           FROM dump_trucks.shift_records_active sr
            ${dtWhere}
            ORDER BY sr.reg_number`,
           dtParams,

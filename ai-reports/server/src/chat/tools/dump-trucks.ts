@@ -51,7 +51,7 @@ export const queryDumpTruckData = tool({
            sr.request_numbers, sr.pl_id,
            COALESCE(avg_load.avg_loading_sec, 0) AS avg_loading_dwell_sec,
            COALESCE(avg_unload.avg_unloading_sec, 0) AS avg_unloading_dwell_sec
-         FROM dump_trucks.shift_records sr
+         FROM dump_trucks.shift_records_active sr
          LEFT JOIN LATERAL (
            SELECT AVG(ze.duration_sec) AS avg_loading_sec
            FROM dump_trucks.zone_events ze
@@ -103,12 +103,16 @@ export const queryDumpTruckTrips = tool({
       let params: unknown[];
 
       if (shiftRecordId) {
-        tripsQuery = `SELECT * FROM dump_trucks.trips WHERE shift_record_id = $1 ORDER BY trip_number`;
+        tripsQuery = `
+          SELECT t.* FROM dump_trucks.trips t
+          WHERE t.shift_record_id = $1
+            AND EXISTS (SELECT 1 FROM dump_trucks.shift_records_active sra WHERE sra.id = t.shift_record_id)
+          ORDER BY t.trip_number`;
         params = [shiftRecordId];
       } else {
         tripsQuery = `
           SELECT t.* FROM dump_trucks.trips t
-          JOIN dump_trucks.shift_records sr ON t.shift_record_id = sr.id
+          JOIN dump_trucks.shift_records_active sr ON t.shift_record_id = sr.id
           WHERE sr.report_date >= $1 AND sr.report_date <= $2
             AND sr.reg_number = $3
           ORDER BY sr.report_date, t.trip_number`;

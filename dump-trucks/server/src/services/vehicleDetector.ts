@@ -49,7 +49,7 @@ export function detectObject(
     if (count > 0 && (best === null || count > best.pointsInside)) {
       best = {
         objectUid:    zone.objectUid,
-        objectName:   zone.name,
+        objectName:   zone.objectName,
         boundaryZone: zone,
         pointsInside: count,
       };
@@ -85,7 +85,7 @@ export function detectAllObjects(
     if (count > 0) {
       candidates.push({
         objectUid:    zone.objectUid,
-        objectName:   zone.name,
+        objectName:   zone.objectName,
         boundaryZone: zone,
         pointsInside: count,
       });

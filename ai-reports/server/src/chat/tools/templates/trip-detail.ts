@@ -294,7 +294,7 @@ export const generateTripDetail = tool({
       const { rows: allShiftRecords } = await pool.query<ShiftRecord>(
         `SELECT sr.id, sr.vehicle_id, sr.reg_number, sr.name_mo,
                 sr.report_date, sr.shift_type, sr.object_name, sr.trips_count
-         FROM dump_trucks.shift_records sr
+         FROM dump_trucks.shift_records_active sr
          WHERE ${srConditions.join(' AND ')}
          ORDER BY sr.report_date, sr.shift_type, sr.reg_number`,
         srParams,

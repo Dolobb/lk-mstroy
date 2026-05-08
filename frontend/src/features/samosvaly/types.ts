@@ -3,7 +3,8 @@
 export interface DtObject {
   uid: string;
   name: string;
-  smu: string | null;
+  timezone: string;
+  minTripsPerShift: number;
 }
 
 export interface OrderSummary {

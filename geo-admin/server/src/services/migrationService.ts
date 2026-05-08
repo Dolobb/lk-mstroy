@@ -42,8 +42,6 @@ async function findOrCreateObject(
   pool: Pool,
   uid: string,
   name: string,
-  smu: string | null,
-  region: string | null,
 ): Promise<number> {
   const existing = await pool.query<{ id: number }>(
     'SELECT id FROM geo.objects WHERE uid = $1',
@@ -52,10 +50,10 @@ async function findOrCreateObject(
   if (existing.rows.length > 0) return existing.rows[0].id;
 
   const { rows } = await pool.query<{ id: number }>(`
-    INSERT INTO geo.objects (uid, name, smu, region)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO geo.objects (uid, name)
+    VALUES ($1, $2)
     RETURNING id
-  `, [uid, name, smu, region]);
+  `, [uid, name]);
 
   return rows[0].id;
 }
@@ -98,32 +96,18 @@ export async function migrateFromFiles(): Promise<{
     const objectsBefore = Number(beforeRows[0].count);
 
     for (const feature of features) {
-      const { zoneName, uid: zoneUid, region } = feature.properties;
+      const { zoneName, uid: zoneUid } = feature.properties;
 
-      // Разбить по первой запятой+пробел
+      // Разбить по первой запятой+пробел — берём только имя объекта (после запятой).
       const commaIdx = zoneName.indexOf(', ');
-      let smu: string | null;
-      let objectName: string;
-
-      if (commaIdx !== -1) {
-        smu        = zoneName.slice(0, commaIdx).trim();
-        objectName = zoneName.slice(commaIdx + 2).trim();
-      } else {
-        smu        = null;
-        objectName = zoneName.trim();
-      }
+      const objectName =
+        commaIdx !== -1 ? zoneName.slice(commaIdx + 2).trim() : zoneName.trim();
 
       // uid объекта — slug из имени объекта (не из uid зоны)
       const objectUid = slugify(objectName).slice(0, 50) || slugify(zoneName).slice(0, 50);
 
       try {
-        const objectId = await findOrCreateObject(
-          pool,
-          objectUid,
-          objectName,
-          smu,
-          region || null,
-        );
+        const objectId = await findOrCreateObject(pool, objectUid, objectName);
 
         // Вставить зону (idempotent)
         const { rows: zoneRows } = await pool.query<{ id: number }>(`

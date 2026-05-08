@@ -214,7 +214,7 @@ app.get('/api/dt/trips', async (req, res) => {
     const result = await pool.query(`
       SELECT t.*, sr.reg_number, sr.name_mo, sr.object_name, sr.report_date, sr.shift_type
       FROM dump_trucks.trips t
-      JOIN dump_trucks.shift_records sr ON sr.id = t.shift_record_id
+      JOIN dump_trucks.shift_records_active sr ON sr.id = t.shift_record_id
       WHERE t.shift_record_id = $1
       ORDER BY t.trip_number
     `, [id]);
@@ -233,11 +233,18 @@ app.get('/api/dt/zone-events', async (req, res) => {
     const pool = getPool();
     const { vehicleId, date, shiftType } = req.query;
     const result = await pool.query(`
-      SELECT * FROM dump_trucks.zone_events
-      WHERE ($1::int IS NULL OR vehicle_id = $1)
-        AND ($2::date IS NULL OR report_date = $2)
-        AND ($3::text IS NULL OR shift_type = $3)
-      ORDER BY entered_at
+      SELECT ze.* FROM dump_trucks.zone_events ze
+      WHERE ($1::int IS NULL OR ze.vehicle_id = $1)
+        AND ($2::date IS NULL OR ze.report_date = $2)
+        AND ($3::text IS NULL OR ze.shift_type = $3)
+        AND EXISTS (
+          SELECT 1 FROM dump_trucks.shift_records_active sra
+          WHERE sra.vehicle_id  = ze.vehicle_id
+            AND sra.report_date = ze.report_date
+            AND sra.shift_type  = ze.shift_type
+            AND sra.object_uid  = ze.object_uid
+        )
+      ORDER BY ze.entered_at
     `, [vehicleId || null, date || null, shiftType || null]);
     res.json({ data: result.rows, total: result.rowCount });
   } catch (err) {
@@ -269,7 +276,7 @@ app.get('/api/dt/orders', async (req, res) => {
         (SELECT ROUND(AVG(shift_rate)::numeric, 1)
          FROM (
            SELECT SUM(sr2.trips_count)::float / NULLIF(COUNT(DISTINCT sr2.vehicle_id), 0) AS shift_rate
-           FROM dump_trucks.shift_records sr2
+           FROM dump_trucks.shift_records_active sr2
            WHERE sr2.request_numbers @> ARRAY[r.number]
              AND sr2.trips_count > 0
              AND ($1::date IS NULL OR sr2.report_date >= $1)
@@ -279,7 +286,7 @@ app.get('/api/dt/orders', async (req, res) => {
         ) AS trips_per_veh_day
       FROM dump_trucks.requests r
       -- INNER JOIN: берём только заявки с реальной активностью ТС в указанный период
-      INNER JOIN dump_trucks.shift_records sr
+      INNER JOIN dump_trucks.shift_records_active sr
         ON sr.request_numbers @> ARRAY[r.number]
         AND ($1::date IS NULL OR sr.report_date >= $1)
         AND ($2::date IS NULL OR sr.report_date <= $2)
@@ -411,7 +418,7 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
         movement_pct,
         object_uid,
         request_numbers
-      FROM dump_trucks.shift_records
+      FROM dump_trucks.shift_records_active
       WHERE request_numbers @> ARRAY[$1::int]
       ORDER BY reg_number, report_date, shift_type
     `, [num]);
@@ -419,7 +426,7 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
       SELECT
         TO_CHAR(MIN(report_date), 'YYYY-MM-DD') AS date_from,
         TO_CHAR(MAX(report_date), 'YYYY-MM-DD') AS date_to
-      FROM dump_trucks.shift_records
+      FROM dump_trucks.shift_records_active
       WHERE request_numbers @> ARRAY[$1::int]
     `, [num]);
     const { date_from, date_to } = rangeResult.rows[0] ?? {};
@@ -431,7 +438,7 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
       const presenceResult = await pool.query(`
         WITH order_vehicles AS (
           SELECT DISTINCT vehicle_id
-          FROM dump_trucks.shift_records
+          FROM dump_trucks.shift_records_active
           WHERE request_numbers @> ARRAY[$1::int]
         )
         SELECT sr.reg_number,
@@ -439,7 +446,7 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
                sr.shift_type,
                sr.request_numbers,
                sr.object_uid
-        FROM dump_trucks.shift_records sr
+        FROM dump_trucks.shift_records_active sr
         JOIN order_vehicles ov ON sr.vehicle_id = ov.vehicle_id
         WHERE sr.report_date BETWEEN $2::date AND $3::date
           AND NOT (sr.request_numbers @> ARRAY[$1::int])
@@ -490,13 +497,14 @@ app.get('/api/dt/shift-detail', async (req, res) => {
 
     const [tripsResult, srResult] = await Promise.all([
       pool.query(`
-        SELECT * FROM dump_trucks.trips
-        WHERE shift_record_id = $1
-        ORDER BY trip_number
+        SELECT t.* FROM dump_trucks.trips t
+        WHERE t.shift_record_id = $1
+          AND EXISTS (SELECT 1 FROM dump_trucks.shift_records_active sra WHERE sra.id = t.shift_record_id)
+        ORDER BY t.trip_number
       `, [id]),
       pool.query(`
         SELECT vehicle_id, report_date, shift_type, object_timezone, object_uid
-        FROM dump_trucks.shift_records
+        FROM dump_trucks.shift_records_active
         WHERE id = $1
       `, [id]),
     ]);
@@ -549,7 +557,7 @@ app.get('/api/dt/export/summary.csv', async (req, res) => {
         sr.kip_pct,
         sr.movement_pct,
         sr.request_numbers
-      FROM dump_trucks.shift_records sr
+      FROM dump_trucks.shift_records_active sr
       WHERE ($1::date IS NULL OR sr.report_date >= $1)
         AND ($2::date IS NULL OR sr.report_date <= $2)
         AND ($3::text IS NULL OR sr.object_uid = $3)
@@ -609,7 +617,7 @@ app.get('/api/dt/export/trips.csv', async (req, res) => {
         t.distance_km,
         t.volume_m3
       FROM dump_trucks.trips t
-      JOIN dump_trucks.shift_records sr ON sr.id = t.shift_record_id
+      JOIN dump_trucks.shift_records_active sr ON sr.id = t.shift_record_id
       WHERE ($1::date IS NULL OR sr.report_date >= $1)
         AND ($2::date IS NULL OR sr.report_date <= $2)
         AND ($3::text IS NULL OR sr.object_uid = $3)
@@ -662,13 +670,14 @@ app.get('/api/dt/export/zone-events.csv', async (req, res) => {
         TO_CHAR(ze.exited_at  AT TIME ZONE COALESCE(sr.object_timezone, 'Asia/Yekaterinburg'), 'HH24:MI') AS exited_at,
         ROUND(ze.duration_sec::numeric / 60, 1) AS duration_min
       FROM dump_trucks.zone_events ze
-      LEFT JOIN dump_trucks.shift_records sr
-        ON sr.vehicle_id = ze.vehicle_id
+      JOIN dump_trucks.shift_records_active sr
+        ON sr.vehicle_id  = ze.vehicle_id
         AND sr.report_date = ze.report_date
-        AND sr.shift_type = ze.shift_type
-        AND ($3::text IS NULL OR sr.object_uid = $3)
+        AND sr.shift_type  = ze.shift_type
+        AND sr.object_uid  = ze.object_uid
       WHERE ($1::date IS NULL OR ze.report_date >= $1)
         AND ($2::date IS NULL OR ze.report_date <= $2)
+        AND ($3::text IS NULL OR sr.object_uid = $3)
       ORDER BY ze.report_date, ze.shift_type, ze.vehicle_id, ze.entered_at
     `, [dateFrom || null, dateTo || null, objectUid || null]);
 

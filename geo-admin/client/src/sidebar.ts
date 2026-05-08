@@ -1,14 +1,15 @@
 import type { GeoObject } from './api.js';
 
 let onObjectSelect: ((uid: string) => void) | null = null;
-let onNewObject: (() => void) | null = null;
+let onObjectEdit:   ((obj: GeoObject) => void) | null = null;
 
 export function initSidebar(handlers: {
   onObjectSelect: (uid: string) => void;
-  onNewObject: () => void;
+  onNewObject:    () => void;
+  onObjectEdit:   (obj: GeoObject) => void;
 }): void {
   onObjectSelect = handlers.onObjectSelect;
-  onNewObject = handlers.onNewObject;
+  onObjectEdit   = handlers.onObjectEdit;
 
   document.getElementById('btn-new-object')?.addEventListener('click', () => {
     handlers.onNewObject();
@@ -30,14 +31,24 @@ export function renderObjectList(objects: GeoObject[]): void {
     const item = document.createElement('div');
     item.className = 'object-item';
     item.dataset.uid = obj.uid;
+    const minTrips = obj.min_trips_per_shift ?? 0;
+    const minTripsLabel = minTrips > 0
+      ? `<span class="object-min-trips" title="Минимум рейсов на смену">мин ${minTrips}</span>`
+      : '';
     item.innerHTML = `
       <div class="object-header">
         <span class="object-arrow">▶</span>
         <span class="object-name">${escapeHtml(obj.name)}</span>
+        ${minTripsLabel}
         <span class="zone-count" title="Зоны">${obj.zone_count ?? 0}</span>
+        <button class="object-btn-edit" title="Редактировать объект">✏</button>
       </div>
-      ${obj.smu ? `<div class="object-smu">${escapeHtml(obj.smu)}</div>` : ''}
     `;
+
+    item.querySelector('.object-btn-edit')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onObjectEdit?.(obj);
+    });
 
     item.querySelector('.object-header')?.addEventListener('click', () => {
       const isOpen = item.classList.contains('open');
@@ -137,7 +148,7 @@ export function showObjectZones(
 }
 
 export function showNewObjectForm(onSubmit: (data: {
-  name: string; smu: string; region: string;
+  name: string; minTripsPerShift: number;
 }) => void): void {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modal-content');
@@ -149,11 +160,12 @@ export function showNewObjectForm(onSubmit: (data: {
       <label>Название объекта *
         <input type="text" name="name" required placeholder="Карьер Сингапай" />
       </label>
-      <label>СМУ
-        <input type="text" name="smu" placeholder="СМУ г. Тюмень" />
-      </label>
-      <label>Регион
-        <input type="text" name="region" placeholder="Тюменская область" />
+      <label>Минимум рейсов за смену
+        <input type="number" name="minTripsPerShift" value="0" min="0" step="1" />
+        <small class="form-hint">
+          Если самосвал на этом объекте за смену сделал меньше рейсов, его работа на объекте
+          игнорируется (не считается рейс/КИП/топливо). 0 — фильтр выключен.
+        </small>
       </label>
       <div class="form-actions">
         <button type="submit" class="btn-primary">Создать</button>
@@ -168,12 +180,52 @@ export function showNewObjectForm(onSubmit: (data: {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const data = {
-      name:   (form.elements.namedItem('name') as HTMLInputElement).value.trim(),
-      smu:    (form.elements.namedItem('smu') as HTMLInputElement).value.trim(),
-      region: (form.elements.namedItem('region') as HTMLInputElement).value.trim(),
+      name:             (form.elements.namedItem('name') as HTMLInputElement).value.trim(),
+      minTripsPerShift: parseInt((form.elements.namedItem('minTripsPerShift') as HTMLInputElement).value, 10) || 0,
     };
     hideModal();
     onSubmit(data);
+  });
+}
+
+export function showEditObjectForm(
+  current: { name: string; minTripsPerShift: number },
+  onSubmit: (data: { name: string; minTripsPerShift: number }) => void,
+): void {
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modal-content');
+  if (!modal || !content) return;
+
+  content.innerHTML = `
+    <h3>Редактировать объект</h3>
+    <form id="edit-object-form">
+      <label>Название объекта *
+        <input type="text" name="name" required value="${escapeHtml(current.name)}" />
+      </label>
+      <label>Минимум рейсов за смену
+        <input type="number" name="minTripsPerShift" value="${current.minTripsPerShift}" min="0" step="1" />
+        <small class="form-hint">
+          Если самосвал на этом объекте за смену сделал меньше рейсов, его работа на объекте
+          игнорируется (не считается рейс/КИП/топливо). 0 — фильтр выключен.
+        </small>
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Сохранить</button>
+        <button type="button" class="btn-cancel" id="modal-close">Отмена</button>
+      </div>
+    </form>
+  `;
+
+  modal.classList.remove('hidden');
+  document.getElementById('modal-close')?.addEventListener('click', hideModal);
+  document.getElementById('edit-object-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    hideModal();
+    onSubmit({
+      name:             (form.elements.namedItem('name') as HTMLInputElement).value.trim(),
+      minTripsPerShift: parseInt((form.elements.namedItem('minTripsPerShift') as HTMLInputElement).value, 10) || 0,
+    });
   });
 }
 

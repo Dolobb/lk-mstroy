@@ -37,23 +37,23 @@ app.get('/api/geo/objects/:uid', async (req: Request, res: Response, next: NextF
 
 app.post('/api/geo/objects', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, smu, region, timezone } = req.body as {
-      name?: string; smu?: string; region?: string; timezone?: string;
+    const { name, timezone, minTripsPerShift } = req.body as {
+      name?: string; timezone?: string; minTripsPerShift?: number;
     };
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
-    const obj = await objectRepo.createObject({ name, smu, region, timezone });
+    const obj = await objectRepo.createObject({ name, timezone, minTripsPerShift });
     res.status(201).json(obj);
   } catch (err) { next(err); }
 });
 
 app.put('/api/geo/objects/:uid', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, smu, region, timezone } = req.body as {
-      name?: string; smu?: string | null; region?: string | null; timezone?: string;
+    const { name, timezone, minTripsPerShift } = req.body as {
+      name?: string; timezone?: string; minTripsPerShift?: number;
     };
-    const obj = await objectRepo.updateObject(req.params.uid, { name, smu, region, timezone });
+    const obj = await objectRepo.updateObject(req.params.uid, { name, timezone, minTripsPerShift });
     if (!obj) return res.status(404).json({ error: 'Not found' });
     res.json(obj);
   } catch (err) { next(err); }

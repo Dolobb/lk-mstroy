@@ -28,7 +28,7 @@ export const queryGeoData = tool({
       const objWhere = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
       const { rows: objects } = await pool.query(
-        `SELECT o.id, o.uid, o.name, o.smu, o.region, o.timezone
+        `SELECT o.id, o.uid, o.name, o.timezone, o.min_trips_per_shift
          FROM geo.objects o ${objWhere}
          ORDER BY o.name`,
         params,

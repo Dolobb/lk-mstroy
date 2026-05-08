@@ -58,12 +58,16 @@ export async function querySegments(
     distance_km: string;
     track_points_count: number;
   }>(`
-    SELECT segment_index, segment_start, segment_end,
-           engine_time_sec, moving_time_sec,
-           in_boundary, distance_km, track_points_count
-    FROM dump_trucks.shift_segments
-    WHERE shift_record_id = $1
-    ORDER BY segment_index
+    SELECT ss.segment_index, ss.segment_start, ss.segment_end,
+           ss.engine_time_sec, ss.moving_time_sec,
+           ss.in_boundary, ss.distance_km, ss.track_points_count
+    FROM dump_trucks.shift_segments ss
+    WHERE ss.shift_record_id = $1
+      AND EXISTS (
+        SELECT 1 FROM dump_trucks.shift_records_active sra
+        WHERE sra.id = ss.shift_record_id
+      )
+    ORDER BY ss.segment_index
   `, [shiftRecordId]);
 
   return result.rows.map(r => ({

@@ -161,6 +161,23 @@ async function init(): Promise<void> {
         }
       });
     },
+    onObjectEdit: (obj) => {
+      sidebar.showEditObjectForm(
+        { name: obj.name, minTripsPerShift: obj.min_trips_per_shift ?? 0 },
+        async (updated) => {
+          try {
+            const saved = await api.updateObject(obj.uid, updated);
+            const idx = loadedObjects.findIndex(o => o.uid === obj.uid);
+            if (idx !== -1) {
+              loadedObjects[idx] = { ...loadedObjects[idx], ...saved };
+            }
+            sidebar.renderObjectList(loadedObjects);
+          } catch (err) {
+            sidebar.showError(`Ошибка обновления объекта: ${(err as Error).message}`);
+          }
+        },
+      );
+    },
   });
 
   // Загрузить объекты

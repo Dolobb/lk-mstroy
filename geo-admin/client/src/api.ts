@@ -18,8 +18,7 @@ export interface GeoObject {
   id: number;
   uid: string;
   name: string;
-  smu: string | null;
-  region: string | null;
+  min_trips_per_shift: number;
   zone_count?: number;
 }
 
@@ -45,10 +44,10 @@ export const getObjects = (): Promise<GeoObject[]> =>
 export const getObject = (uid: string): Promise<ObjectWithZones> =>
   request('GET', `/objects/${uid}`);
 
-export const createObject = (data: { name: string; smu?: string; region?: string }): Promise<GeoObject> =>
+export const createObject = (data: { name: string; minTripsPerShift?: number }): Promise<GeoObject> =>
   request('POST', '/objects', data);
 
-export const updateObject = (uid: string, data: { name?: string; smu?: string | null; region?: string | null }): Promise<GeoObject> =>
+export const updateObject = (uid: string, data: { name?: string; minTripsPerShift?: number }): Promise<GeoObject> =>
   request('PUT', `/objects/${uid}`, data);
 
 export const deleteObject = (uid: string): Promise<{ deleted: boolean; uid: string }> =>

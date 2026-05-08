@@ -13,10 +13,8 @@ const SYNTHETIC_POINT_INTERVAL_MS = 20 * 60 * 1000;
 interface GeozoneProperties {
   zoneName: string;
   uid: string;
-  zoneGroup: string;
   controlType: number;
   objectName?: string;
-  smu?: string;
   timezone?: string;
 }
 
@@ -43,11 +41,10 @@ async function loadZonesFromDb(): Promise<ParsedZone[]> {
       name: string;
       geojson: string;
       object_name: string | null;
-      smu: string | null;
       timezone: string | null;
     }>(`
       SELECT z.uid, z.name, ST_AsGeoJSON(z.geom)::text AS geojson,
-             o.name AS object_name, o.smu, o.timezone
+             o.name AS object_name, o.timezone
       FROM geo.zones z
       JOIN geo.objects o ON o.id = z.object_id
       JOIN geo.zone_tags zt ON zt.zone_id = z.id
@@ -65,10 +62,8 @@ async function loadZonesFromDb(): Promise<ParsedZone[]> {
           properties: {
             zoneName: row.name,
             uid: row.uid,
-            zoneGroup: row.smu ?? '',
             controlType: 1,
             objectName: row.object_name ?? undefined,
-            smu: row.smu ?? undefined,
             timezone: row.timezone ?? undefined,
           },
           geometry,

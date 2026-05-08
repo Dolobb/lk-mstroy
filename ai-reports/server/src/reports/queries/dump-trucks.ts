@@ -105,7 +105,7 @@ export async function queryDtTripsData(
       TO_CHAR(t.unloaded_at AT TIME ZONE COALESCE(sr.object_timezone, 'Asia/Yekaterinburg'), 'HH24:MI') AS unloaded_at,
       t.travel_to_unload_min,
       t.return_to_load_min
-    FROM dump_trucks.shift_records sr
+    FROM dump_trucks.shift_records_active sr
     LEFT JOIN dump_trucks.trips t ON t.shift_record_id = sr.id
     WHERE ($1::date IS NULL OR sr.report_date >= $1)
       AND ($2::date IS NULL OR sr.report_date <= $2)
@@ -125,7 +125,7 @@ export async function queryDtTripsData(
       TO_CHAR(ze.exited_at  AT TIME ZONE COALESCE(sr.object_timezone, 'Asia/Yekaterinburg'), 'HH24:MI') AS exited_at,
       ROUND(ze.duration_sec::numeric / 60, 1) AS duration_min
     FROM dump_trucks.zone_events ze
-    JOIN dump_trucks.shift_records sr
+    JOIN dump_trucks.shift_records_active sr
       ON sr.vehicle_id = ze.vehicle_id
       AND sr.report_date = ze.report_date
       AND sr.shift_type = ze.shift_type
@@ -318,13 +318,13 @@ export async function queryDtFilters(dateFrom: string, dateTo: string) {
 
   const [objects, vehicles] = await Promise.all([
     pool.query(
-      `SELECT DISTINCT object_uid, object_name FROM dump_trucks.shift_records
+      `SELECT DISTINCT object_uid, object_name FROM dump_trucks.shift_records_active
        WHERE report_date BETWEEN $1 AND $2 AND object_uid IS NOT NULL
        ORDER BY object_name`,
       [dateFrom, dateTo],
     ),
     pool.query(
-      `SELECT DISTINCT reg_number FROM dump_trucks.shift_records
+      `SELECT DISTINCT reg_number FROM dump_trucks.shift_records_active
        WHERE report_date BETWEEN $1 AND $2 AND reg_number IS NOT NULL
        ORDER BY reg_number`,
       [dateFrom, dateTo],

@@ -48,6 +48,7 @@ export interface GeoZone {
   uid: string;
   name: string;
   objectUid: string;
+  objectName: string;
   tag: ZoneTag;
   geojson: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>;
   minDurationSec: number;
