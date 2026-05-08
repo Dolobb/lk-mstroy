@@ -749,10 +749,18 @@ table.sv-at tr:hover { background: var(--sv-hover-bg); }
 .sv-gg-wrap thead th { background: #0A1220; }
 [data-theme="light"] .sv-gg-wrap thead th { background: #F1F5F9; }
 
-/* Allow horizontal overflow so the scrollbar actually appears */
-.sv-gg-wrap table { width: auto; min-width: 100%; }
+/* Table is exactly as wide as its cells need — never stretches to container.
+   Auto layout (the default for tables) sizes each col by its width hints, max-content sums them. */
+.sv-gg-wrap table { width: max-content; table-layout: auto; }
 .sv-gg-wrap th:not(:first-child),
 .sv-gg-wrap td:not(:first-child) { width: 40px; min-width: 40px; }
+/* Lock first column to 180px regardless of data volume */
+.sv-gg-wrap thead th:first-child,
+.sv-gg-wrap tbody tr:not(.sv-gg-obj-header) > td:first-child {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+}
 
 /* Sticky first column — vehicle/object names always visible during horizontal scroll */
 .sv-gg-wrap thead th:first-child {

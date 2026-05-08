@@ -2177,7 +2177,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
   const [selectedChip, setSelectedChip] = useState<string | null>(null);
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [collapsedSmu, setCollapsedSmu] = useState<Set<string>>(new Set());
+  const [collapsedObj, setCollapsedObj] = useState<Set<string>>(new Set());
   const [pinnedVehicles, setPinnedVehicles] = useState<Set<string>>(new Set());
 
   const togOrder = (key: string) => setExpanded(prev => {
@@ -2240,7 +2240,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
     });
   }
 
-  const toggleSmu = (key: string) => setCollapsedSmu(prev => {
+  const toggleObj = (key: string) => setCollapsedObj(prev => {
     const s = new Set(prev); s.has(key) ? s.delete(key) : s.add(key); return s;
   });
   const togglePin = (regNumber: string) => {
@@ -2249,33 +2249,34 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
     });
   };
 
-  // SMU grouping
-  type SmuGroup = { smu: string; vehicles: typeof vehicleRows };
-  const uidToSmu = new Map(objects.map(o => [o.uid, o.smu ?? 'Без СМУ']));
+  // Группировка по объектам (geo.objects.name).
+  // ТС попадает в группу того объекта, на котором у неё больше всего смен в выборке.
+  type ObjectGroup = { objectName: string; vehicles: typeof vehicleRows };
+  const uidToObjectName = new Map(objects.map(o => [o.uid, o.name]));
 
-  const smuGroups: SmuGroup[] = (() => {
-    const smuMap = new Map<string, typeof vehicleRows>();
+  const objectGroups: ObjectGroup[] = (() => {
+    const objMap = new Map<string, typeof vehicleRows>();
     vehicleRows.forEach(v => {
-      const smuCounts = new Map<string, number>();
+      const objCounts = new Map<string, number>();
       v.allRecs.forEach(r => {
-        const smu = uidToSmu.get(r.objectUid) ?? 'Без СМУ';
-        smuCounts.set(smu, (smuCounts.get(smu) ?? 0) + 1);
+        const name = uidToObjectName.get(r.objectUid) ?? r.objectName ?? 'Без объекта';
+        objCounts.set(name, (objCounts.get(name) ?? 0) + 1);
       });
-      const topSmu = [...smuCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без СМУ';
-      if (!smuMap.has(topSmu)) smuMap.set(topSmu, []);
-      smuMap.get(topSmu)!.push(v);
+      const topObj = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
+      if (!objMap.has(topObj)) objMap.set(topObj, []);
+      objMap.get(topObj)!.push(v);
     });
-    return [...smuMap.entries()]
+    return [...objMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([smu, vehicles]) => ({ smu, vehicles }));
+      .map(([objectName, vehicles]) => ({ objectName, vehicles }));
   })();
 
   // Pinned vehicles rendered first
   const pinnedRows = vehicleRows.filter(v => pinnedVehicles.has(v.regNumber));
-  const unpinnedSmuGroups = smuGroups.map(sg => ({
-    ...sg,
-    vehicles: sg.vehicles.filter(v => !pinnedVehicles.has(v.regNumber)),
-  })).filter(sg => sg.vehicles.length > 0);
+  const unpinnedObjectGroups = objectGroups.map(g => ({
+    ...g,
+    vehicles: g.vehicles.filter(v => !pinnedVehicles.has(v.regNumber)),
+  })).filter(g => g.vehicles.length > 0);
 
   // Aggregates block renders inside ShiftSubTable footer, not in the main table
   const visibleBlocks = getVisibleBlocks(settings).filter(b => b !== 'aggregates');
@@ -2305,7 +2306,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
             <span className="sv-empty-text">Нет данных за выбранный период</span>
           </div>
         ) : (<>
-          {/* SMU summary strip */}
+          {/* Object summary strip */}
           <div className="sv-smu-strip">
             {(() => {
               // "All" totals card
@@ -2316,19 +2317,19 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
               const cards: { title: string; vehicles: number; trips: number; kip: number }[] = [
                 { title: 'Все', vehicles: allVehicles, trips: allTrips, kip: allKip },
               ];
-              // Per-SMU cards
-              const smuCardMap = new Map<string, ShiftRecord[]>();
+              // Per-object cards
+              const objCardMap = new Map<string, ShiftRecord[]>();
               filteredRecords.forEach(r => {
-                const smu = uidToSmu.get(r.objectUid) ?? 'Без СМУ';
-                if (!smuCardMap.has(smu)) smuCardMap.set(smu, []);
-                smuCardMap.get(smu)!.push(r);
+                const name = uidToObjectName.get(r.objectUid) ?? r.objectName ?? 'Без объекта';
+                if (!objCardMap.has(name)) objCardMap.set(name, []);
+                objCardMap.get(name)!.push(r);
               });
-              [...smuCardMap.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([smu, recs]) => {
+              [...objCardMap.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([name, recs]) => {
                 const veh = new Set(recs.map(r => r.regNumber)).size;
                 const trips = recs.reduce((s, r) => s + r.tripsCount, 0);
                 const kips = recs.filter(r => r.shiftType === 'shift1' && r.kipPct > 0).map(r => r.kipPct);
                 const kip = kips.length ? Math.round(kips.reduce((a, b) => a + b, 0) / kips.length) : 0;
-                cards.push({ title: smu, vehicles: veh, trips, kip });
+                cards.push({ title: name, vehicles: veh, trips, kip });
               });
               return cards.map(c => (
                 <div key={c.title} className="sv-smu-card">
@@ -2552,22 +2553,22 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                   {/* Pinned rows */}
                   {pinnedRows.map((v, vi) => renderVehicleRow(v, `pin_${v.regNumber}`, true))}
 
-                  {/* SMU groups */}
-                  {unpinnedSmuGroups.map((sg, si) => {
-                    const smuKey = `smu_${si}`;
-                    const smuOpen = !collapsedSmu.has(smuKey);
+                  {/* Object groups */}
+                  {unpinnedObjectGroups.map((g, gi) => {
+                    const objKey = `obj_${gi}`;
+                    const objOpen = !collapsedObj.has(objKey);
                     return (
-                      <React.Fragment key={smuKey}>
-                        <tr className="sv-smu-row" onClick={() => toggleSmu(smuKey)}>
+                      <React.Fragment key={objKey}>
+                        <tr className="sv-smu-row" onClick={() => toggleObj(objKey)}>
                           <td colSpan={totalCols}>
                             <div className="sv-smu-header">
-                              <span className={`sv-tree-expand ${smuOpen ? 'open' : ''}`}>▶</span>
-                              <span className="sv-smu-name">{sg.smu}</span>
-                              <span className="sv-smu-badge">{sg.vehicles.length} ТС</span>
+                              <span className={`sv-tree-expand ${objOpen ? 'open' : ''}`}>▶</span>
+                              <span className="sv-smu-name">{g.objectName}</span>
+                              <span className="sv-smu-badge">{g.vehicles.length} ТС</span>
                             </div>
                           </td>
                         </tr>
-                        {smuOpen && sg.vehicles.map((v, vi) => renderVehicleRow(v, `${smuKey}_v${vi}`))}
+                        {objOpen && g.vehicles.map((v, vi) => renderVehicleRow(v, `${objKey}_v${vi}`))}
                       </React.Fragment>
                     );
                   })}
