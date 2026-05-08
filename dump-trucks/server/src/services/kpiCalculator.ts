@@ -8,19 +8,20 @@
  *   - factVolumeM3:  суммарный объём из рейсов (если известен)
  */
 
-import type { Trip, ShiftKpi, WorkType } from '../types/domain';
+import type { Trip, ShiftKpi, WorkType, EngineTimeSource } from '../types/domain';
 
 export function calculateKpi(params: {
   shiftStart: Date;
   shiftEnd: Date;
   engineTimeSec: number;
+  engineTimeSource: EngineTimeSource;
   movingTimeSec: number;
   distanceKm: number;
   onsiteSec: number;
   trips: Trip[];
   workType: WorkType;
 }): ShiftKpi {
-  const { shiftStart, shiftEnd, engineTimeSec, movingTimeSec, distanceKm, onsiteSec, trips, workType } = params;
+  const { shiftStart, shiftEnd, engineTimeSec, engineTimeSource, movingTimeSec, distanceKm, onsiteSec, trips, workType } = params;
 
   const shiftDurationSec = Math.max(1, (shiftEnd.getTime() - shiftStart.getTime()) / 1000);
 
@@ -34,6 +35,7 @@ export function calculateKpi(params: {
 
   return {
     engineTimeSec,
+    engineTimeSource,
     movingTimeSec,
     distanceKm,
     onsiteMin,

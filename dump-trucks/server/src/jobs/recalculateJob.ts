@@ -8,7 +8,7 @@
  */
 
 import type { Pool } from 'pg';
-import { dayjs } from '../utils/dateFormat';
+import { dayjs, parseDdMmYyyyHhmm } from '../utils/dateFormat';
 import { analyzeZones, calcOnsiteSec } from '../services/zoneAnalyzer';
 import { detectObject } from '../services/vehicleDetector';
 import { buildTrips } from '../services/tripBuilder';
@@ -170,8 +170,21 @@ export async function recalculateShift(
       // Onsite time
       const onsiteSec = calcOnsiteSec(objectZoneEvents, objectUid);
 
-      // Work type
-      const engineTimeSec = raw.engineTime ?? 0;
+      // Work type — с geo-fallback (как в shiftFetchJob)
+      const sensorEngineSec = raw.engineTime ?? 0;
+      let engineTimeSec = sensorEngineSec;
+      let engineTimeSource: 'sensor' | 'geo' = 'sensor';
+      const MIN_ENGINE_SEC_RECALC = 2700;
+      if (sensorEngineSec < MIN_ENGINE_SEC_RECALC && objectZoneEvents.length > 0 && raw.track && raw.track.length >= 2) {
+        const firstTs = parseDdMmYyyyHhmm(raw.track[0]!.time);
+        const lastTs = parseDdMmYyyyHhmm(raw.track[raw.track.length - 1]!.time);
+        if (firstTs && lastTs && lastTs.getTime() > firstTs.getTime()) {
+          const span = Math.round((lastTs.getTime() - firstTs.getTime()) / 1000);
+          const shiftSpanSec = Math.round((shiftEnd.getTime() - shiftStart.getTime()) / 1000);
+          engineTimeSec = Math.min(span, shiftSpanSec);
+          engineTimeSource = 'geo';
+        }
+      }
       const workType = classifyWorkType(engineTimeSec, onsiteSec, trips);
 
       // KPI
@@ -179,6 +192,7 @@ export async function recalculateShift(
         shiftStart,
         shiftEnd,
         engineTimeSec,
+        engineTimeSource,
         movingTimeSec: raw.movingTime  ?? 0,
         distanceKm:    Number(raw.distance ?? 0),
         onsiteSec,
@@ -205,6 +219,7 @@ export async function recalculateShift(
           shiftStart,
           shiftEnd,
           engineTimeSec:  kpi.engineTimeSec,
+          engineTimeSource: kpi.engineTimeSource,
           movingTimeSec:  kpi.movingTimeSec,
           distanceKm:     kpi.distanceKm,
           onsiteMin:      kpi.onsiteMin,

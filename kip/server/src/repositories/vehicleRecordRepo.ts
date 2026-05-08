@@ -26,6 +26,7 @@ export interface VehicleRecordRow {
   fuel_value_end: number | null;
   is_gap_filled: boolean;
   object_timezone?: string | null;
+  engine_time_source?: 'sensor' | 'geo';
 }
 
 const NUMERIC_FIELDS: (keyof VehicleRecordRow)[] = [
@@ -57,7 +58,7 @@ export async function getVehicleRecords(
 ): Promise<VehicleRecordRow[]> {
   const pool = getPool();
 
-  let query = `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled FROM vehicle_records WHERE report_date = $1`;
+  let query = `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled, engine_time_source FROM vehicle_records WHERE report_date = $1`;
   const params: unknown[] = [date];
 
   if (shift) {
@@ -225,7 +226,7 @@ export async function getVehicleDetails(
   const pool = getPool();
 
   const result = await pool.query(
-    `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled
+    `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled, engine_time_source
      FROM vehicle_records
      WHERE vehicle_id = $1 AND report_date BETWEEN $2 AND $3
      ORDER BY report_date DESC, shift_type`,
@@ -333,9 +334,10 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
        fuel_consumed_total, fuel_rate_fact, max_work_allowed,
        fuel_rate_norm, fuel_max_calc, fuel_variance,
        load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified,
-       fuel_value_begin, fuel_value_end, is_gap_filled, object_timezone
+       fuel_value_begin, fuel_value_end, is_gap_filled, object_timezone,
+       engine_time_source
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
      ON CONFLICT (report_date, shift_type, vehicle_id)
      DO UPDATE SET
        vehicle_model = EXCLUDED.vehicle_model,
@@ -358,7 +360,8 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
        fuel_value_begin = EXCLUDED.fuel_value_begin,
        fuel_value_end = EXCLUDED.fuel_value_end,
        is_gap_filled = EXCLUDED.is_gap_filled,
-       object_timezone = EXCLUDED.object_timezone`,
+       object_timezone = EXCLUDED.object_timezone,
+       engine_time_source = EXCLUDED.engine_time_source`,
     [
       record.report_date,
       record.shift_type,
@@ -384,6 +387,7 @@ export async function upsertVehicleRecord(record: VehicleRecordRow): Promise<voi
       record.fuel_value_end,
       record.is_gap_filled,
       record.object_timezone ?? 'Asia/Yekaterinburg',
+      record.engine_time_source ?? 'sensor',
     ],
   );
 }

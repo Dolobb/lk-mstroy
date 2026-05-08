@@ -65,6 +65,7 @@ export interface VehicleDetailRow {
   load_efficiency_pct: number;
   utilization_ratio: number;
   track_simplified?: TrackPoint[] | null;
+  engine_time_source?: 'sensor' | 'geo';
 }
 
 // Request linked to a vehicle

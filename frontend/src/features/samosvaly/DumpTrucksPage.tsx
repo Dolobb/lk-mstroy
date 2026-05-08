@@ -2038,6 +2038,7 @@ interface AnalyticsFilters {
 // Агрегаты по набору записей
 function aggRecs(recs: ShiftRecord[]) {
   const engineSec  = recs.reduce((s, r) => s + r.engineTimeSec, 0);
+  const hasGeoEngine = recs.some(r => r.engineTimeSource === 'geo' && r.engineTimeSec > 0);
   const movingSec  = recs.reduce((s, r) => s + r.movingTimeSec, 0);
   const onsiteMin  = recs.reduce((s, r) => s + r.onsiteMin, 0);
   const lds = recs.map(r => r.avgLoadingDwellSec).filter((v): v is number => v !== null && v > 0);
@@ -2048,7 +2049,7 @@ function aggRecs(recs: ShiftRecord[]) {
   const rtls = recs.map(r => r.avgReturnToLoadMin).filter((v): v is number => v !== null && v > 0);
   const avgTravelToUnload = ttus.length ? Math.round(ttus.reduce((a, b) => a + b, 0) / ttus.length) : null;
   const avgReturnToLoad   = rtls.length ? Math.round(rtls.reduce((a, b) => a + b, 0) / rtls.length) : null;
-  return { engineSec, movingSec, onsiteMin, avgLoad, avgUnload, avgTravelToUnload, avgReturnToLoad };
+  return { engineSec, hasGeoEngine, movingSec, onsiteMin, avgLoad, avgUnload, avgTravelToUnload, avgReturnToLoad };
 }
 
 
@@ -2128,7 +2129,7 @@ function renderCell(
       if (!kipVal && !movVal) return <span>—</span>;
       return <MiniBar primary={{ value: kipVal, label: 'КИП' }} secondary={{ value: movVal, label: 'Движение' }} />;
     }
-    case 'engineTotal': return <span className="sv-td-agg">{fmtHours(agg.engineSec)}</span>;
+    case 'engineTotal': return <span className="sv-td-agg">{fmtHours(agg.engineSec)}{agg.hasGeoEngine && <span className="sv-engine-geo" title="Время работы оценено по GPS-точкам (нет CAN-bus сенсора)"> (гео)</span>}</span>;
     case 'movingTotal': return <span className="sv-td-agg">{fmtHours(agg.movingSec)}</span>;
     case 'onsiteMin': return <span className="sv-td-agg">{agg.onsiteMin > 0 ? `${agg.onsiteMin}м` : '—'}</span>;
     case 'avgLoadingDwell': return <span className="sv-td-agg">{fmtDwell(agg.avgLoad)}</span>;

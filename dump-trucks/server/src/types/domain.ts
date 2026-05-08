@@ -79,9 +79,14 @@ export interface Trip {
   returnToLoadMin: number | null;    // от выхода выгрузки до входа в следующую погрузку
 }
 
+// Источник engine_time_sec: 'sensor' = TIS engineTime (CAN-bus);
+// 'geo' = derived from GPS track range when sensor is silent.
+export type EngineTimeSource = 'sensor' | 'geo';
+
 // KPI для смены
 export interface ShiftKpi {
   engineTimeSec: number;
+  engineTimeSource: EngineTimeSource;
   movingTimeSec: number;
   distanceKm: number;
   onsiteMin: number;
@@ -119,6 +124,7 @@ export interface ShiftRecordInput {
   shiftStart: Date;
   shiftEnd: Date;
   engineTimeSec: number;
+  engineTimeSource: EngineTimeSource;
   movingTimeSec: number;
   distanceKm: number;
   onsiteMin: number;

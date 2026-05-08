@@ -32,7 +32,7 @@ import { replaceTrips } from '../repositories/tripRepo';
 import { replaceZoneEvents } from '../repositories/zoneEventRepo';
 import { logger } from '../utils/logger';
 import { auditLog } from '../utils/auditLog';
-import { dayjs } from '../utils/dateFormat';
+import { dayjs, parseDdMmYyyyHhmm } from '../utils/dateFormat';
 import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 import { getJobController, isCancelledError } from '../services/jobController';
 import type { ShiftType, GeoZone, ZoneEvent, Trip, ShiftKpi, WorkType } from '../types/domain';
@@ -407,15 +407,39 @@ export async function runShiftFetch(
         return;
       }
 
-      // Step A: 45-мин фильтр — ТС с двигателем < 45 мин не работало (ночная стоянка и т.п.)
-      const engineTimeSec = monitoring.engineTime ?? 0;
+      // Step A: 45-мин фильтр (с geo-fallback).
+      // Сначала анализируем трек/зоны, чтобы при engineTime=0 от сенсора иметь возможность
+      // оценить время работы по диапазону GPS-точек (для машин без CAN-bus).
+      const sensorEngineSec = monitoring.engineTime ?? 0;
+      let track = monitoring.track || [];
+      let zoneEvents = analyzeZones(track, allZones);
+
+      let engineTimeSec = sensorEngineSec;
+      let engineTimeSource: 'sensor' | 'geo' = 'sensor';
+
+      if (sensorEngineSec < MIN_ENGINE_SEC && zoneEvents.length > 0 && track.length >= 2) {
+        const firstTs = parseDdMmYyyyHhmm(track[0]!.time);
+        const lastTs = parseDdMmYyyyHhmm(track[track.length - 1]!.time);
+        if (firstTs && lastTs && lastTs.getTime() > firstTs.getTime()) {
+          const span = Math.round((lastTs.getTime() - firstTs.getTime()) / 1000);
+          const shiftSpanSec = Math.round((shiftEnd.getTime() - shiftStart.getTime()) / 1000);
+          engineTimeSec = Math.min(span, shiftSpanSec);
+          engineTimeSource = 'geo';
+          logger.info(
+            `[ShiftFetch] idMO=${idMO}: geo-fallback engine=${Math.round(engineTimeSec / 60)}m ` +
+            `(sensor=${Math.round(sensorEngineSec / 60)}m, span=${Math.round(span / 60)}m, zoneEvents=${zoneEvents.length})`,
+          );
+        }
+      }
+
       if (engineTimeSec < MIN_ENGINE_SEC) {
-        logger.info(`[ShiftFetch] idMO=${idMO}: engine ${Math.round(engineTimeSec / 60)} min < 45 min threshold, cleaning up stale records`);
+        logger.info(`[ShiftFetch] idMO=${idMO}: engine ${Math.round(engineTimeSec / 60)} min < 45 min threshold (source=${engineTimeSource}), cleaning up stale records`);
         auditLog({
           kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
           idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
-          tz: usedTz, engineSec: engineTimeSec, trackPoints: (monitoring.track || []).length,
-          zoneEvents: 0, detectedObject: null, verdict: 'engine_below_threshold',
+          tz: usedTz, engineSec: engineTimeSec, engineSource: engineTimeSource,
+          trackPoints: track.length, zoneEvents: zoneEvents.length,
+          detectedObject: null, verdict: 'engine_below_threshold',
         });
         // Удаляем старые записи для этого ТС/дата/смена (если были)
         const dbClient = await pool.connect();
@@ -436,12 +460,7 @@ export async function runShiftFetch(
         return;
       }
 
-      let track = monitoring.track || [];
-      logger.info(`[ShiftFetch] idMO=${idMO}: ${track.length} track points, engine=${Math.round(engineTimeSec / 60)} min`);
-
-      // Анализ зон
-      let zoneEvents = analyzeZones(track, allZones);
-      logger.info(`[ShiftFetch] idMO=${idMO}: ${zoneEvents.length} zone events`);
+      logger.info(`[ShiftFetch] idMO=${idMO}: ${track.length} track points, engine=${Math.round(engineTimeSec / 60)} min (source=${engineTimeSource}), ${zoneEvents.length} zone events`);
 
       // Step C: Определение ВСЕХ объектов (вместо одного)
       let candidates = detectAllObjects(track, allZones);
@@ -472,7 +491,22 @@ export async function runShiftFetch(
           track = monitoring.track || [];
           zoneEvents = analyzeZones(track, allZones);
           candidates = detectAllObjects(track, allZones);
-          logger.info(`[ShiftFetch] idMO=${idMO}: re-query done. ${track.length} track points, ${zoneEvents.length} zone events, ${candidates.length} candidate objects`);
+
+          // Пересчёт engineTimeSec/Source с новыми данными
+          const newSensorEngineSec = monitoring.engineTime ?? 0;
+          engineTimeSec = newSensorEngineSec;
+          engineTimeSource = 'sensor';
+          if (newSensorEngineSec < MIN_ENGINE_SEC && zoneEvents.length > 0 && track.length >= 2) {
+            const firstTs = parseDdMmYyyyHhmm(track[0]!.time);
+            const lastTs = parseDdMmYyyyHhmm(track[track.length - 1]!.time);
+            if (firstTs && lastTs && lastTs.getTime() > firstTs.getTime()) {
+              const span = Math.round((lastTs.getTime() - firstTs.getTime()) / 1000);
+              const shiftSpanSec = Math.round((shiftEnd.getTime() - shiftStart.getTime()) / 1000);
+              engineTimeSec = Math.min(span, shiftSpanSec);
+              engineTimeSource = 'geo';
+            }
+          }
+          logger.info(`[ShiftFetch] idMO=${idMO}: re-query done. ${track.length} track points, engine=${Math.round(engineTimeSec / 60)}m (source=${engineTimeSource}), ${zoneEvents.length} zone events, ${candidates.length} candidate objects`);
         }
       }
 
@@ -481,8 +515,8 @@ export async function runShiftFetch(
         auditLog({
           kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
           idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
-          tz: usedTz, engineSec: engineTimeSec, trackPoints: track.length,
-          zoneEvents: zoneEvents.length, detectedObject: null,
+          tz: usedTz, engineSec: engineTimeSec, engineSource: engineTimeSource,
+          trackPoints: track.length, zoneEvents: zoneEvents.length, detectedObject: null,
           verdict: 'no_object_detected',
         });
         result.vehiclesSkipped++;
@@ -523,6 +557,7 @@ export async function runShiftFetch(
           shiftStart,
           shiftEnd,
           engineTimeSec,
+          engineTimeSource,
           movingTimeSec: monitoring.movingTime ?? 0,
           distanceKm:    Number(monitoring.distance ?? 0),
           onsiteSec,
@@ -548,6 +583,7 @@ export async function runShiftFetch(
           shiftStart,
           shiftEnd,
           engineTimeSec,
+          engineTimeSource,
           movingTimeSec: monitoring.movingTime ?? 0,
           distanceKm:    Number(monitoring.distance ?? 0),
           onsiteSec:     0,
@@ -594,6 +630,7 @@ export async function runShiftFetch(
             shiftStart,
             shiftEnd,
             engineTimeSec:  rec.kpi.engineTimeSec,
+            engineTimeSource: rec.kpi.engineTimeSource,
             movingTimeSec:  rec.kpi.movingTimeSec,
             distanceKm:     rec.kpi.distanceKm,
             onsiteMin:      rec.kpi.onsiteMin,
@@ -634,8 +671,8 @@ export async function runShiftFetch(
         auditLog({
           kind: 'vehicle_decision', runId: tracker.runId, date: dateStr, shift: shiftType,
           idMO, nameMO: vehicleInfo.nameMO, plId: vehicleInfo.plId,
-          tz: usedTz, engineSec: engineTimeSec, trackPoints: track.length,
-          zoneEvents: zoneEvents.length,
+          tz: usedTz, engineSec: engineTimeSec, engineSource: engineTimeSource,
+          trackPoints: track.length, zoneEvents: zoneEvents.length,
           detectedObject: validRecords[0]?.objectUid ?? null,
           verdict: 'processed',
           reason: validRecords.map(r => `${r.objectUid}:${r.workType}`).join(','),

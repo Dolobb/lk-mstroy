@@ -1453,3 +1453,6 @@ td.sv-obj-return {
   --_gantt-tick: rgba(0,0,0,0.20);
   --_gantt-label: #64748B;
 }
+
+/* Geo-fallback marker: engine_time_source = geo */
+.sv-root .sv-engine-geo { color: #F97316; font-weight: 500; font-size: 0.85em; }

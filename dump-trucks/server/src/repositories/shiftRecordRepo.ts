@@ -16,6 +16,7 @@ export interface ShiftRecord {
   shiftStart: Date | null;
   shiftEnd: Date | null;
   engineTimeSec: number;
+  engineTimeSource: 'sensor' | 'geo';
   movingTimeSec: number;
   distanceKm: number;
   onsiteMin: number;
@@ -45,7 +46,7 @@ export async function upsertShiftRecord(
       organization,
       object_uid, object_name, object_timezone, work_type,
       shift_start, shift_end,
-      engine_time_sec, moving_time_sec, distance_km,
+      engine_time_sec, engine_time_source, moving_time_sec, distance_km,
       onsite_min, trips_count, fact_volume_m3,
       kip_pct, movement_pct,
       pl_id, request_numbers,
@@ -55,11 +56,11 @@ export async function upsertShiftRecord(
       $6,
       $7, $8, $9, $10,
       $11, $12,
-      $13, $14, $15,
-      $16, $17, $18,
-      $19, $20,
-      $21, $22,
-      $23, NOW()
+      $13, $14, $15, $16,
+      $17, $18, $19,
+      $20, $21,
+      $22, $23,
+      $24, NOW()
     )
     ON CONFLICT (report_date, shift_type, vehicle_id, object_uid) DO UPDATE SET
       reg_number       = EXCLUDED.reg_number,
@@ -70,6 +71,7 @@ export async function upsertShiftRecord(
       shift_start      = EXCLUDED.shift_start,
       shift_end        = EXCLUDED.shift_end,
       engine_time_sec  = EXCLUDED.engine_time_sec,
+      engine_time_source = EXCLUDED.engine_time_source,
       moving_time_sec  = EXCLUDED.moving_time_sec,
       distance_km      = EXCLUDED.distance_km,
       onsite_min       = EXCLUDED.onsite_min,
@@ -96,6 +98,7 @@ export async function upsertShiftRecord(
     input.shiftStart,
     input.shiftEnd,
     input.engineTimeSec,
+    input.engineTimeSource,
     input.movingTimeSec,
     input.distanceKm,
     input.onsiteMin,
@@ -160,6 +163,7 @@ export async function queryShiftRecords(
     shift_start: Date | null;
     shift_end: Date | null;
     engine_time_sec: string;
+    engine_time_source: string;
     moving_time_sec: string;
     distance_km: string;
     onsite_min: string;
@@ -179,7 +183,7 @@ export async function queryShiftRecords(
       sr.vehicle_id, sr.reg_number, sr.name_mo, sr.organization,
       sr.object_uid, sr.object_name, sr.object_timezone, sr.work_type,
       sr.shift_start, sr.shift_end,
-      sr.engine_time_sec, sr.moving_time_sec,
+      sr.engine_time_sec, sr.engine_time_source, sr.moving_time_sec,
       sr.distance_km, sr.onsite_min,
       sr.trips_count, sr.fact_volume_m3,
       sr.kip_pct, sr.movement_pct,
@@ -224,6 +228,7 @@ export async function queryShiftRecords(
     shiftStart:    r.shift_start,
     shiftEnd:      r.shift_end,
     engineTimeSec: Number(r.engine_time_sec),
+    engineTimeSource: (r.engine_time_source as 'sensor' | 'geo') ?? 'sensor',
     movingTimeSec: Number(r.moving_time_sec),
     distanceKm:    Number(r.distance_km),
     onsiteMin:     Number(r.onsite_min),

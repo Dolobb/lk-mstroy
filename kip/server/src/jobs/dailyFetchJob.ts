@@ -15,7 +15,7 @@ import type { FuelSensorInfo } from '../services/kpiCalculator';
 import { getPool } from '../config/database';
 import { getEnvConfig } from '../config/env';
 import { logger } from '../utils/logger';
-import { dayjs } from '../utils/dateFormat';
+import { dayjs, parseDdMmYyyyHhmm, secondsToHours } from '../utils/dateFormat';
 import { fillGapsForDate } from './gapFillJob';
 import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 import { getJobController, isCancelledError } from '../services/jobController';
@@ -153,9 +153,36 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
 
       // Geozone analysis: determine time inside work zones and department unit
       const geozoneResult = await analyzeTrackGeozones(monitoring.fullTrack);
+
+      // Geo-fallback: если CAN-bus датчик молчит (engineTime=0), но машина пересекала
+      // рабочие зоны — оценить engine_on_time по диапазону GPS-точек смены.
+      const MIN_ENGINE_SEC_KIP = 2700; // 45 мин — синхронно с самосвалами
+      const sensorEngineSec = stats.engineTime ?? 0;
+      let engineOnTime = monitoring.engineOnTime; // часы (от parseMonitoringStats)
+      let engineTimeSource: 'sensor' | 'geo' = 'sensor';
+      if (
+        sensorEngineSec < MIN_ENGINE_SEC_KIP &&
+        geozoneResult.totalStayTime > 0 &&
+        stats.track.length >= 2
+      ) {
+        const firstTs = parseDdMmYyyyHhmm(stats.track[0]!.time);
+        const lastTs = parseDdMmYyyyHhmm(stats.track[stats.track.length - 1]!.time);
+        if (firstTs && lastTs && lastTs.getTime() > firstTs.getTime()) {
+          const spanSec = Math.round((lastTs.getTime() - firstTs.getTime()) / 1000);
+          const shiftSpanSec = Math.round((task.shift.to.getTime() - task.shift.from.getTime()) / 1000);
+          const cappedSec = Math.min(spanSec, shiftSpanSec);
+          engineOnTime = secondsToHours(cappedSec);
+          engineTimeSource = 'geo';
+          logger.info(
+            `[KIP geo-fallback] ${task.regNumber} (${task.shift.shiftType} ${task.shift.date}): ` +
+            `engine=${engineOnTime.toFixed(2)}h (sensor=${(sensorEngineSec/3600).toFixed(2)}h, span=${(spanSec/3600).toFixed(2)}h)`,
+          );
+        }
+      }
+
       let totalStayTime = geozoneResult.totalStayTime > 0
         ? geozoneResult.totalStayTime
-        : monitoring.engineOnTime; // fallback if no zones matched or track empty
+        : engineOnTime; // fallback if no zones matched or track empty
       const departmentUnit = geozoneResult.departmentUnit;
 
       // Изменение B: if vehicle started and ended in the same zone but totalStayTime < 12h,
@@ -197,7 +224,7 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
 
       const kpi = calculateKpi({
         total_stay_time: totalStayTime,
-        engine_on_time: monitoring.engineOnTime,
+        engine_on_time: engineOnTime,
         fuel_consumed_total: monitoring.fuelConsumedTotal,
         fuel_rate_norm: fuelRateNorm,
         fuelSensor,
@@ -211,7 +238,7 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
         company_name: task.companyName,
         department_unit: departmentUnit,
         total_stay_time: totalStayTime,
-        engine_on_time: monitoring.engineOnTime,
+        engine_on_time: engineOnTime,
         idle_time: kpi.idle_time,
         fuel_consumed_total: monitoring.fuelConsumedTotal,
         fuel_rate_fact: kpi.fuel_rate_fact,
@@ -228,6 +255,7 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
         fuel_value_end: monitoring.fuelValueEnd,
         is_gap_filled: false,
         object_timezone: geozoneResult.objectTimezone,
+        engine_time_source: engineTimeSource,
       });
 
       successCount++;

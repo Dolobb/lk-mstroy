@@ -19,6 +19,7 @@ import { matchFuelNorm } from '../services/vehicleFilter';
 import { calculateKpi, type FuelSensorInfo } from '../services/kpiCalculator';
 import { fillGapsForDate } from './gapFillJob';
 import { logger } from '../utils/logger';
+import { parseDdMmYyyyHhmm, secondsToHours } from '../utils/dateFormat';
 import { getJobController, isCancelledError } from '../services/jobController';
 
 const TRACK_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
@@ -125,7 +126,24 @@ export async function recalculateForDate(
       }));
 
       const fuels = raw.fuel_json as RawFuel[];
-      const engineOnTime = raw.engine_time_sec / 3600; // seconds → hours
+      const sensorEngineSec = raw.engine_time_sec ?? 0;
+      let engineOnTime = sensorEngineSec / 3600; // seconds → hours
+      let engineTimeSource: 'sensor' | 'geo' = 'sensor';
+
+      // Geo-fallback при молчащем CAN-bus сенсоре (как в shiftFetchJob/dailyFetchJob)
+      const MIN_ENGINE_SEC_KIP_RC = 2700;
+      if (sensorEngineSec < MIN_ENGINE_SEC_KIP_RC && rawTrack.length >= 2) {
+        const firstTs = parseDdMmYyyyHhmm(rawTrack[0]!.time);
+        const lastTs = parseDdMmYyyyHhmm(rawTrack[rawTrack.length - 1]!.time);
+        if (firstTs && lastTs && lastTs.getTime() > firstTs.getTime()) {
+          const spanSec = Math.round((lastTs.getTime() - firstTs.getTime()) / 1000);
+          // Cap = 12h (стандартная длительность смены), без точного shift window
+          const cappedSec = Math.min(spanSec, 12 * 3600);
+          engineOnTime = secondsToHours(cappedSec);
+          engineTimeSource = 'geo';
+        }
+      }
+
       const fuelConsumedTotal = fuels.reduce((sum, f) => sum + (f.rate ?? 0), 0);
       const fuelValueBegin = fuels.reduce((sum, f) => sum + (f.valueBegin ?? 0), 0);
       const fuelValueEnd = fuels.reduce((sum, f) => sum + (f.valueEnd ?? 0), 0);
@@ -207,6 +225,7 @@ export async function recalculateForDate(
         fuel_value_end:      fuelValueEnd,
         is_gap_filled:       false,
         object_timezone:     geozoneResult.objectTimezone,
+        engine_time_source:  engineTimeSource,
       });
 
       // Фиксируем обработанную смену и позицию для условия 3

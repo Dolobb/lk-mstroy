@@ -57,6 +57,7 @@ export interface VehicleDecisionEvent {
   plId?: number;
   tz: string;
   engineSec: number;
+  engineSource?: 'sensor' | 'geo';
   trackPoints: number;
   zoneEvents: number;
   detectedObject: string | null;

@@ -177,6 +177,14 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
                       </TableCell>
                       <TableCell className="text-foreground" style={{ fontSize: '11px', padding: '5px 8px' }}>
                         {hoursToHmm(row.engine_on_time)}
+                        {row.engine_time_source === 'geo' && (
+                          <span
+                            title="Время работы оценено по GPS-точкам (нет CAN-bus сенсора)"
+                            style={{ color: '#F97316', fontWeight: 500, marginLeft: 3 }}
+                          >
+                            (гео)
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-foreground" style={{ fontSize: '11px', padding: '5px 8px' }}>
                         {hoursToHmm(row.idle_time)}

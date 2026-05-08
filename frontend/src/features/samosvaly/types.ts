@@ -113,6 +113,7 @@ export interface ShiftRecord {
   shiftStart: string | null;
   shiftEnd: string | null;
   engineTimeSec: number;
+  engineTimeSource: 'sensor' | 'geo';
   movingTimeSec: number;
   distanceKm: number;
   onsiteMin: number;
