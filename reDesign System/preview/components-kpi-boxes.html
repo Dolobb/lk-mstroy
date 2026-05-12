@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:14px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .kpi{padding:10px 12px;background:var(--card-inner);border:1px solid var(--card-inner-border);border-radius:10px}
+  .kpi.active{border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.06)}
+  .kpi .l{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--fg-1);letter-spacing:.5px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi .r{display:flex;justify-content:space-between;font-size:10px;color:var(--fg-3);margin-top:2px}
+  .kpi .r b{color:var(--fg-1);font-weight:700;font-variant-numeric:tabular-nums}
+</style></head><body data-theme="dark">
+<div class="grid">
+  <div class="kpi"><div class="l">ВСЕ</div><div class="r"><span>ТС</span><b>76</b></div><div class="r"><span>Работа</span><b>17 508 рейс.</b></div><div class="r"><span>Ср.КИП</span><b style="color:#60A5FA">63%</b></div></div>
+  <div class="kpi active"><div class="l">СМУ БЕЛОГОРСК</div><div class="r"><span>ТС</span><b>18</b></div><div class="r"><span>Работа</span><b>14 074 рейс.</b></div><div class="r"><span>Ср.КИП</span><b style="color:#EF4444">42%</b></div></div>
+  <div class="kpi"><div class="l">БОДАЙБО, КАРЬЕР</div><div class="r"><span>ТС</span><b>9</b></div><div class="r"><span>Работа</span><b>1 805 рейс.</b></div><div class="r"><span>Ср.КИП</span><b style="color:#22C55E">90%</b></div></div>
+  <div class="kpi"><div class="l">ЕКАТЕРИНБУРГ</div><div class="r"><span>ТС</span><b>13</b></div><div class="r"><span>Работа</span><b>1 496 рейс.</b></div><div class="r"><span>Ср.КИП</span><b style="color:#22C55E">95%</b></div></div>
+</div>
+</body></html>

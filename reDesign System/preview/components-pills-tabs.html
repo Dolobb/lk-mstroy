@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:14px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;font-size:11px;font-weight:500;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:6px;color:var(--fg-2);cursor:pointer;font-family:inherit}
+  .pill.active{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border-color:transparent}
+  .pill.orange.active{background:linear-gradient(135deg,#F97316,#EA580C)}
+  .pill.sm{padding:3px 8px;font-size:10px}
+  .nav-btn{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;font-size:11px;font-weight:600;border:none;background:transparent;color:var(--fg-2);border-radius:8px;cursor:pointer;text-transform:uppercase;letter-spacing:.3px}
+  .nav-btn.active{background:#F97316;color:#fff;box-shadow:0 0 20px rgba(249,115,22,.25)}
+  .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--fg-3);margin-right:8px}
+</style></head><body data-theme="dark">
+<div class="row"><span class="lbl">Nav</span><button class="nav-btn">Главная</button><button class="nav-btn active">Аналитика</button><button class="nav-btn">Самосвалы</button></div>
+<div class="row"><span class="lbl">Filter pills</span><button class="pill">Все</button><button class="pill orange active">Σ %</button><button class="pill active">Σ Время</button><button class="pill sm">Самосв.</button><button class="pill sm">Краны авт.</button></div>
+<div class="row"><span class="lbl">View tabs</span>
+  <div style="display:inline-flex;gap:3px;background:rgba(255,255,255,.03);padding:3px;border-radius:8px;border:1px solid rgba(255,255,255,.06)">
+    <button class="pill sm" style="background:rgba(249,115,22,.12);color:#F97316;border-color:transparent">Таблица</button>
+    <button class="pill sm" style="background:transparent;border-color:transparent;color:var(--fg-3)">Карточки</button>
+    <button class="pill sm" style="background:transparent;border-color:transparent;color:var(--fg-3)">Карта</button>
+  </div>
+</div>
+</body></html>
