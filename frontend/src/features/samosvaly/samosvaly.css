@@ -647,8 +647,7 @@ table.sv-at tr:hover { background: var(--sv-hover-bg); }
 .sv-veh-model { font-size: 9px; font-weight: 400; color: var(--sv-text-3); line-height: 1.2; }
 
 /* Onsite row highlight */
-.sv-onsite-row { opacity: 0.65; }
-.sv-onsite-row td:first-child .sv-reg-num { color: var(--sv-text-3); }
+
 
 /* Header group 5 (aggregates) */
 .sv-th-g5 { background: rgba(96,165,250,0.05); }

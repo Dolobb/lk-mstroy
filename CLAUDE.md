@@ -8,6 +8,7 @@
 
 | Что нужно | Куда смотреть |
 |-----------|--------------|
+| **Бизнес-правила, среда, операционка** | **Obsidian vault** (см. ниже) |
 | Сервисная карта, порты, БД | `NAVIGATION.md` → раздел «Сервисная карта» |
 | «Хочу изменить X» — где файл? | `NAVIGATION.md` → раздел «Сценарии разработчика» (16 сценариев) |
 | Схемы всех таблиц БД | `NAVIGATION.md` → раздел «Схема баз данных» |
@@ -19,13 +20,34 @@
 | Что реализовано, ограничения | `<сервис>/docs/HISTORY.md` |
 | Запуск, конфиг, расширение | `<сервис>/docs/DEVGUIDE.md` |
 
+### Внешняя база знаний — Obsidian vault
+
+Перед чтением документации/исходников **сначала проверить vault** по теме.
+
+**Путь:** `C:/Users/user_ogtr1/Documents/пмворкк/obsidian-vault/02-Projects/ЛК Мстрой/`
+**Доступ:** MCP-сервер `obsidian` (search / read-file). Если MCP недоступен — читать как обычные файлы.
+
+**Что лежит в vault (чего нет в docs/):**
+
+| Раздел | Содержание |
+|--------|-----------|
+| `Architecture/Services/*.md` | Каждый сервис отдельной заметкой (KIP, DumpTrucks, Tyagachi, VehicleStatus, GeoAdmin, Frontend, **Admin**, AIReports) |
+| `Architecture/Algorithms.md` | КИП формулы + условия 1–5 (реализация) + структура `fuel_json` |
+| `Architecture/Database/*.md` | PG16 / PG17 / SQLite таблицы (включая `monitoring_raw`) |
+| `Architecture/API/TIS-API.md` | Протокол + структура `getMonitoringStats` |
+| `Architecture/Machine-Quirks.md` | Особенности **этой Windows-машины**: PG `:5432`, прокси для googleapis, git.exe path |
+| `Process/PL-timing.md` | ПЛ оформляются заранее — невалидные гипотезы просадки |
+| `Process/Admin-UI-First.md` | Операционка — только через Admin UI, не через curl |
+| `Bugs & Solutions/*.md` | Решённые проблемы со ссылками на причины |
+| `_Index.md` / `_Overview.md` | Стартовые точки |
+
 ### Правило
 
 ```
-NAVIGATION.md → docs/*.md → исходный код
+Obsidian vault → NAVIGATION.md → docs/*.md → исходный код
 ```
 
-Не читать исходники пока docs не проверены и недостаточны.
+Не читать исходники пока vault и docs не проверены и недостаточны. Vault особенно важен для вопросов вида «почему сделано так», «как это запустить через UI», «что-то не работает в среде» — там лежат знания, которые из кода не выводятся.
 
 ---
 

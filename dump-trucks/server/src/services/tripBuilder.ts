@@ -10,28 +10,22 @@
  *   проехать через полигон выгрузки транзитом, не выгружаясь.
  *   Решение: фильтр по минимальному времени в зоне.
  *
- * Пороги (настраиваемые):
- *   MIN_LOADING_DWELL_SEC  — минимум в зоне погрузки (реальная погрузка)
- *   MIN_UNLOADING_DWELL_SEC — минимум в зоне выгрузки (реальная выгрузка)
+ * Пороги:
  *   MAX_TRIP_DURATION_MIN  — максимальная длительность одного рейса
+ *
+ * Транзитные проезды отфильтрованы на уровне zoneAnalyzer через
+ * geo.zones.min_duration_sec (per-zone). Дополнительный фильтр здесь
+ * раньше резал реальные короткие выгрузки на мо-9 (≈135–180s) и приводил
+ * к матчингу погрузок с дальними выгрузками через ночь.
  */
 
 import type { ZoneEvent, Trip } from '../types/domain';
 
-const MIN_LOADING_DWELL_SEC   = 3 * 60;   // 3 мин — погрузка
-const MIN_UNLOADING_DWELL_SEC = 3 * 60;   // 3 мин — выгрузка
-const MAX_TRIP_DURATION_MIN   = 6 * 60;   // 6 часов — явная аномалия
+const MAX_TRIP_DURATION_MIN = 6 * 60;   // 6 часов — явная аномалия
 
 export function buildTrips(events: ZoneEvent[]): Trip[] {
-  // Только реальные остановки (не транзит)
-  const loadingEvents = events.filter(e =>
-    e.zoneTag === 'dt_loading' &&
-    (e.durationSec ?? 0) >= MIN_LOADING_DWELL_SEC
-  );
-  const unloadingEvents = events.filter(e =>
-    e.zoneTag === 'dt_unloading' &&
-    (e.durationSec ?? 0) >= MIN_UNLOADING_DWELL_SEC
-  );
+  const loadingEvents   = events.filter(e => e.zoneTag === 'dt_loading');
+  const unloadingEvents = events.filter(e => e.zoneTag === 'dt_unloading');
 
   const trips: Trip[] = [];
   const usedUnloadings = new Set<number>(); // индексы использованных выгрузок

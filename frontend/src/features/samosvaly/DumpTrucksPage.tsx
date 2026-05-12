@@ -138,8 +138,9 @@ const BLOCK_COLUMNS: Record<BlockId, Array<{ id: string; label: string }>> = {
     { id: 'organization', label: 'Организация' },
   ],
   work: [
-    { id: 'shiftsCount',  label: 'Смены' },
-    { id: 'totalTrips',   label: 'Рейсы' },
+    { id: 'shiftsCount',      label: 'Смены' },
+    { id: 'totalTrips',       label: 'Рейсы' },
+    { id: 'onsiteShiftsCount', label: 'По месту' },
   ],
   kpi: [
     { id: 'kipBar',       label: 'КИП' },
@@ -181,7 +182,16 @@ function loadUserSettings(name: string): UserSettings {
     if (!raw) return getDefaultSettings();
     const saved = JSON.parse(raw) as Partial<UserSettings>;
     const def = getDefaultSettings();
-    return { ...def, ...saved };
+    const merged = { ...def, ...saved } as UserSettings;
+    (Object.keys(BLOCK_COLUMNS) as BlockId[]).forEach(b => {
+      if (!merged.columnOrder[b]) merged.columnOrder[b] = [...def.columnOrder[b]];
+      if (!merged.columnVisibility[b]) merged.columnVisibility[b] = { ...def.columnVisibility[b] } as Record<string, boolean>;
+      BLOCK_COLUMNS[b].forEach(col => {
+        if (!merged.columnOrder[b].includes(col.id)) merged.columnOrder[b].push(col.id);
+        if (!(col.id in merged.columnVisibility[b])) merged.columnVisibility[b][col.id] = true;
+      });
+    });
+    return merged;
   } catch {
     return getDefaultSettings();
   }
@@ -1625,7 +1635,7 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }
 // ─────────────────────────────────────────────
 //  Analytics sub-table (trips + zone events)
 // ─────────────────────────────────────────────
-function ShiftSubTable({ shiftRecord, shiftAgg, visibleAggCols }: {
+export function ShiftSubTable({ shiftRecord, shiftAgg, visibleAggCols }: {
   shiftRecord: Pick<ShiftRecord, 'id' | 'shiftType' | 'reportDate'>;
   shiftAgg?: { engineTimeSec: number; movingTimeSec: number; onsiteMin: number; kipPct: number; movementPct: number };
   visibleAggCols?: Set<string>; // undefined = show all
@@ -2032,7 +2042,6 @@ interface PeriodState {
 interface AnalyticsFilters {
   shift: 'all' | 'shift1' | 'shift2';
   objectUid: string;
-  showOnsite: boolean;
 }
 
 // Агрегаты по набору записей
@@ -2054,8 +2063,9 @@ function aggRecs(recs: ShiftRecord[]) {
 
 
 const _today = new Date();
+const _yesterday = new Date(_today.getTime() - 86400000);
 const DEFAULT_DATE_FROM = new Date(_today.getFullYear(), _today.getMonth(), 1).toISOString().slice(0, 10);
-const DEFAULT_DATE_TO   = _today.toISOString().slice(0, 10);
+const DEFAULT_DATE_TO   = _yesterday.toISOString().slice(0, 10);
 
 // Helper: render a single cell value for a given column in a given block
 function renderCell(
@@ -2119,6 +2129,10 @@ function renderCell(
       const abbrevStr = abbrevs.join(', ');
       const fullStr = fullNames.join(', ');
       return <span style={{ fontSize: 10 }} title={fullStr}>{abbrevStr}</span>;
+    }
+    case 'onsiteShiftsCount': {
+      const onsiteCount = recs.filter(r => r.workType === 'onsite').length;
+      return <span>{onsiteCount > 0 ? onsiteCount : '—'}</span>;
     }
     case 'totalTrips': return <span style={{ fontWeight: 700, color: '#F97316' }}>{totalTrips || '—'}</span>;
     case 'kipBar': {
@@ -2193,7 +2207,6 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
   const filteredRecords = records.filter(r => {
     if (filters.shift !== 'all' && r.shiftType !== filters.shift) return false;
     if (filters.objectUid && r.objectUid !== filters.objectUid) return false;
-    if (!filters.showOnsite && r.workType !== 'delivery') return false;
     return true;
   });
 
@@ -2267,7 +2280,11 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
       objMap.get(topObj)!.push(v);
     });
     return [...objMap.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([an, a], [bn, b]) => {
+        if (an === 'Без объекта') return 1;
+        if (bn === 'Без объекта') return -1;
+        return b.length - a.length;
+      })
       .map(([objectName, vehicles]) => ({ objectName, vehicles }));
   })();
 
@@ -2324,7 +2341,11 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                 if (!objCardMap.has(name)) objCardMap.set(name, []);
                 objCardMap.get(name)!.push(r);
               });
-              [...objCardMap.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([name, recs]) => {
+              [...objCardMap.entries()].sort(([an, a], [bn, b]) => {
+                if (an === 'Без объекта') return 1;
+                if (bn === 'Без объекта') return -1;
+                return b.length - a.length;
+              }).forEach(([name, recs]) => {
                 const veh = new Set(recs.map(r => r.regNumber)).size;
                 const trips = recs.reduce((s, r) => s + r.tripsCount, 0);
                 const kips = recs.filter(r => r.shiftType === 'shift1' && r.kipPct > 0).map(r => r.kipPct);
@@ -2332,7 +2353,12 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                 cards.push({ title: name, vehicles: veh, trips, kip });
               });
               return cards.map(c => (
-                <div key={c.title} className="sv-smu-card">
+                <div key={c.title} className="sv-smu-card" style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    if (c.title === 'Все') { document.querySelector('.sv-an-table-wrap')?.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+                    document.getElementById(`obj-scroll-${c.title}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                >
                   <div className="sv-smu-card-title">{c.title}</div>
                   <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
                   <div className="sv-smu-card-row"><span>Рейсов</span><span className="sv-smu-card-val">{c.trips}</span></div>
@@ -2452,7 +2478,6 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                 const renderVehicleRow = (v: typeof vehicleRows[0], k0: string, isPinned?: boolean) => {
                 const isOpen = expanded.has(k0);
                 const allRecs = v.allRecs;
-                const isOnsite = allRecs.some(r => r.workType === 'onsite') && allRecs.every(r => r.workType !== 'delivery');
 
                 const ctx0 = { regNumber: v.regNumber, nameMO: v.nameMO,
                   reqNum: [...new Set(v.orders.map(o => o.reqNum))].join(', ') };
@@ -2460,7 +2485,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                 return (
                   <React.Fragment key={k0}>
                     <tr
-                      className={`sv-lv0 ${isOnsite ? 'sv-onsite-row' : ''}${isPinned ? ' sv-pinned-row' : ''}`}
+                      className={`sv-lv0${isPinned ? ' sv-pinned-row' : ''}`}
                       style={{ cursor: 'pointer' }}
                       onClick={() => togOrder(k0)}
                     >
@@ -2522,7 +2547,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                     )}
 
                     {/* ShiftSubTable for selected chip */}
-                    {selectedChip && isOpen && (() => {
+                    {selectedChip && isOpen && selectedChip.startsWith(v.regNumber + '_') && (() => {
                       const chipRecs = findRecsForChip(selectedChip, allRecs);
                       if (!chipRecs.length) return null;
                       return (
@@ -2559,7 +2584,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                     const objOpen = !collapsedObj.has(objKey);
                     return (
                       <React.Fragment key={objKey}>
-                        <tr className="sv-smu-row" onClick={() => toggleObj(objKey)}>
+                        <tr id={`obj-scroll-${g.objectName}`} className="sv-smu-row" onClick={() => toggleObj(objKey)}>
                           <td colSpan={totalCols}>
                             <div className="sv-smu-header">
                               <span className={`sv-tree-expand ${objOpen ? 'open' : ''}`}>▶</span>
@@ -3225,7 +3250,7 @@ export function DumpTrucksPage() {
   const [dateTo, setDateTo]     = useState(DEFAULT_DATE_TO);
 
   // Analytics-only filters
-  const [analyticsFilters, setAnalyticsFilters] = useState<AnalyticsFilters>({ shift: 'all', objectUid: '', showOnsite: false });
+  const [analyticsFilters, setAnalyticsFilters] = useState<AnalyticsFilters>({ shift: 'all', objectUid: '' });
 
   // Compute month boundaries for orders API
   const orderMonthFrom = `${orderMonth}-01`;
@@ -3544,12 +3569,6 @@ export function DumpTrucksPage() {
               </select>
             </div>
             <div className="sv-filter-sep" />
-            <label className="sv-fg" style={{ cursor: 'pointer', userSelect: 'none' }}>
-              <div className="sv-fg-label">По месту</div>
-              <input type="checkbox"
-                checked={analyticsFilters.showOnsite}
-                onChange={e => setAnalyticsFilters(f => ({ ...f, showOnsite: e.target.checked }))} />
-            </label>
           </>
         )}
 

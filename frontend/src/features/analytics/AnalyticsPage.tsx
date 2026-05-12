@@ -5,6 +5,7 @@ import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
 import { ShiftGanttBar } from '@/components/ShiftGanttBar';
 import { abbreviateOrg } from '@/features/samosvaly/orgAbbrev';
+import { ShiftSubTable } from '@/features/samosvaly/DumpTrucksPage';
 import '@/features/samosvaly/samosvaly.css';
 import {
   fetchUnifiedData,
@@ -86,11 +87,32 @@ function matchesTypeFilter(row: UnifiedVehicleRow, filters: Set<string>): boolea
   return false;
 }
 
+function getTypeLabel(row: UnifiedVehicleRow): string {
+  if (row.source === 'dump_truck') {
+    const hasOnsite = row.records.some(r => r.workType === 'onsite');
+    const hasDelivery = row.records.some(r => r.workType === 'delivery');
+    if (hasOnsite && !hasDelivery) return 'Самосв. по месту';
+    return 'Самосв. доставка';
+  }
+  const vt = row.vehicleType.toLowerCase();
+  if (vt.includes('краны автомобильные')) return 'Краны авт.';
+  if (vt.includes('краны гусеничные')) return 'Краны гусен.';
+  if (vt.includes('краны пневмоколёсные')) return 'Краны пневмо.';
+  if (vt.includes('бульдозер')) return 'Бульдозер';
+  if (vt.includes('каток')) return 'Каток';
+  if (vt === 'погрузчик') return 'Погрузчик';
+  if (vt === 'экскаватор гусеничный') return 'Экск. гусен.';
+  if (vt === 'экскаватор колесный') return 'Экск. колесный';
+  if (vt === 'экскаватор-погрузчик') return 'Экск.-погрузчик';
+  return row.vehicleType;
+}
+
 // ─── Defaults ───────────────────────────────────────────
 
 const _today = new Date();
+const _yesterday = new Date(_today.getTime() - 86400000);
 const DEFAULT_DATE_FROM = new Date(_today.getFullYear(), _today.getMonth(), 1).toISOString().slice(0, 10);
-const DEFAULT_DATE_TO = _today.toISOString().slice(0, 10);
+const DEFAULT_DATE_TO = _yesterday.toISOString().slice(0, 10);
 
 // ─── Component ──────────────────────────────────────────
 
@@ -283,26 +305,43 @@ export function AnalyticsPage() {
       gMap.get(group)!.push(v);
     });
     return [...gMap.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([an, a], [bn, b]) => {
+        if (an === 'Без объекта' || an === 'Без подразделения') return 1;
+        if (bn === 'Без объекта' || bn === 'Без подразделения') return -1;
+        return b.length - a.length;
+      })
       .map(([groupName, vehicles]) => ({ groupName, vehicles }));
   }, [sortedRows]);
 
   // ─── Summary strip ──────────────────────────────────
 
   const summaryCards = React.useMemo(() => {
-    const allVehicles = sortedRows.length;
-    const dtCount = sortedRows.filter(r => r.source === 'dump_truck').length;
-    const dstCount = sortedRows.filter(r => r.source === 'dst').length;
-    const totalTrips = sortedRows.reduce((s, r) => s + r.totalTrips, 0);
+    const dtVehicles = sortedRows.filter(r => r.source === 'dump_truck');
+    const totalTrips = dtVehicles.reduce((s, r) => s + r.totalTrips, 0);
+    const totalFuel = sortedRows.filter(r => r.source === 'dst').reduce((s, r) => s + r.totalFuelL, 0);
     const kipVals = sortedRows.filter(r => r.avgKipPct > 0).map(r => r.avgKipPct);
-    const avgKip = kipVals.length ? Math.round(kipVals.reduce((a, b) => a + b, 0) / kipVals.length) : 0;
+    const allKip = kipVals.length ? Math.round(kipVals.reduce((a, b) => a + b, 0) / kipVals.length) : 0;
 
-    return [
-      { title: 'Все ТС', value: String(allVehicles), sub: `${dtCount} сам. + ${dstCount} ДСТ` },
-      { title: 'Рейсов', value: String(totalTrips), sub: 'самосвалы' },
-      { title: 'Ср. КИП', value: avgKip > 0 ? `${avgKip}%` : '—', sub: 'все типы', className: avgKip > 0 ? kipColor(avgKip) : '' },
+    const workText = [totalTrips > 0 ? `${totalTrips} рейс.` : null, totalFuel > 0 ? `${Math.round(totalFuel)} л` : null]
+      .filter(Boolean).join(', ') || '—';
+
+    const cards = [
+      { title: 'Все', vehicles: sortedRows.length, work: workText, kip: allKip },
     ];
-  }, [sortedRows]);
+
+    groups.forEach(g => {
+      const gDt = g.vehicles.filter(r => r.source === 'dump_truck');
+      const gTrips = gDt.reduce((s, r) => s + r.totalTrips, 0);
+      const gFuel = g.vehicles.filter(r => r.source === 'dst').reduce((s, r) => s + r.totalFuelL, 0);
+      const gKips = g.vehicles.filter(r => r.avgKipPct > 0).map(r => r.avgKipPct);
+      const gKip = gKips.length ? Math.round(gKips.reduce((a, b) => a + b, 0) / gKips.length) : 0;
+      const gWork = [gTrips > 0 ? `${gTrips} рейс.` : null, gFuel > 0 ? `${Math.round(gFuel)} л` : null]
+        .filter(Boolean).join(', ') || '—';
+      cards.push({ title: g.groupName, vehicles: g.vehicles.length, work: gWork, kip: gKip });
+    });
+
+    return cards;
+  }, [sortedRows, groups]);
 
   // ─── Handlers ───────────────────────────────────────
 
@@ -490,15 +529,19 @@ export function AnalyticsPage() {
         />
       </div>
 
-      {/* Summary strip */}
+      {/* Summary strip — per-object cards like samosvaly */}
       <div className="sv-smu-strip" style={{ marginBottom: 8 }}>
         {summaryCards.map(c => (
-          <div key={c.title} className="sv-smu-card">
+          <div key={c.title} className="sv-smu-card" style={{ cursor: 'pointer' }}
+            onClick={() => {
+              if (c.title === 'Все') { document.querySelector('.sv-an-table-wrap')?.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+              document.getElementById(`obj-scroll-${c.title}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          >
             <div className="sv-smu-card-title">{c.title}</div>
-            <div className="sv-smu-card-row">
-              <span className={`sv-smu-card-val ${c.className ?? ''}`}>{c.value}</span>
-            </div>
-            <div className="sv-smu-card-row" style={{ fontSize: 9, opacity: 0.6 }}>{c.sub}</div>
+            <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
+            <div className="sv-smu-card-row"><span>Работа</span><span className="sv-smu-card-val">{c.work}</span></div>
+            <div className="sv-smu-card-row"><span>Ср.КИП</span><span className={`sv-smu-card-val ${c.kip > 0 ? kipColor(c.kip) : ''}`}>{c.kip > 0 ? `${c.kip}%` : '—'}</span></div>
           </div>
         ))}
       </div>
@@ -579,7 +622,7 @@ export function AnalyticsPage() {
                 return (
                   <React.Fragment key={gKey}>
                     {/* Group header */}
-                    <tr className="sv-smu-row" onClick={() => toggleGroup(gKey)}>
+                    <tr id={`obj-scroll-${g.groupName}`} className="sv-smu-row" onClick={() => toggleGroup(gKey)}>
                       <td colSpan={totalCols}>
                         <div className="sv-smu-header">
                           <span className={`sv-tree-expand ${isGroupOpen ? 'open' : ''}`}>▶</span>
@@ -595,9 +638,9 @@ export function AnalyticsPage() {
                       const isOpen = expanded.has(vKey);
                       const records = getRecords(v);
                       const isLoadingDst = v.source === 'dst' && loadingDetails.has(v.regNumber);
-                      const sourceTag = v.source === 'dump_truck'
-                        ? <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#F97316', marginLeft: 6 }}>СМ</span>
-                        : <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: 'rgba(96,165,250,0.15)', color: '#60A5FA', marginLeft: 6 }}>ДСТ</span>;
+                      const typeLabel = getTypeLabel(v);
+                      const isDt = v.source === 'dump_truck';
+                      const sourceTag = <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: isDt ? 'rgba(249,115,22,0.15)' : 'rgba(96,165,250,0.15)', color: isDt ? '#F97316' : '#60A5FA', marginLeft: 6 }}>{typeLabel}</span>;
 
                       return (
                         <React.Fragment key={vKey}>
@@ -655,7 +698,7 @@ export function AnalyticsPage() {
                           )}
 
                           {/* Detail row for selected chip */}
-                          {selectedChip && isOpen && (() => {
+                          {selectedChip && isOpen && selectedChip.startsWith(v.regNumber + '_') && (() => {
                             const chipRecs = findRecsForChip(selectedChip, records);
                             if (!chipRecs.length) return null;
                             const rec = chipRecs[0]!;
@@ -669,7 +712,10 @@ export function AnalyticsPage() {
                                         <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
                                           {cr.workType === 'onsite'
                                             ? <ShiftGanttBar shiftRecordId={cr.id!} timezone={cr.objectTimezone} />
-                                            : <DtShiftDetail rec={cr} />
+                                            : <ShiftSubTable
+                                                shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
+                                                shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
+                                              />
                                           }
                                         </div>
                                       ))
@@ -695,35 +741,6 @@ export function AnalyticsPage() {
           </table>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── DT Shift Detail ──────────────────────────────────
-
-function DtShiftDetail({ rec }: { rec: UnifiedRecord }) {
-  return (
-    <div style={{
-      padding: '8px 12px',
-      background: 'var(--sv-sub-hdr)',
-      border: '1px solid var(--sv-sub-border)',
-      borderRadius: 8,
-      fontSize: 11,
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-      gap: '4px 16px',
-    }}>
-      <div><span style={{ opacity: 0.6 }}>Двигатель:</span> {fmtHours(rec.engineTimeSec)}</div>
-      <div><span style={{ opacity: 0.6 }}>Движение:</span> {fmtHours(rec.movingTimeSec ?? 0)}</div>
-      <div><span style={{ opacity: 0.6 }}>Рейсов:</span> {rec.tripsCount ?? 0}</div>
-      <div><span style={{ opacity: 0.6 }}>КИП:</span> <span className={kipColor(rec.kipPct)}>{Math.round(rec.kipPct)}%</span></div>
-      <div><span style={{ opacity: 0.6 }}>Движение:</span> {Math.round(rec.secondaryPct)}%</div>
-      {rec.onsiteMin != null && rec.onsiteMin > 0 && (
-        <div><span style={{ opacity: 0.6 }}>На объекте:</span> {rec.onsiteMin}м</div>
-      )}
-      {rec.distanceKm != null && rec.distanceKm > 0 && (
-        <div><span style={{ opacity: 0.6 }}>Пробег:</span> {rec.distanceKm.toFixed(1)} км</div>
-      )}
     </div>
   );
 }
