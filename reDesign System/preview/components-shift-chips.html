@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:14px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .strip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;font-size:10px;font-weight:600;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:6px;color:var(--fg-2);font-variant-numeric:tabular-nums}
+  .chip .bar{width:24px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+  .chip .bar i{display:block;height:100%}
+  .chip.zero{color:var(--fg-4)}
+  .chip.active-day{border-color:rgba(249,115,22,.45);background:rgba(249,115,22,.10);color:#F97316}
+  .bg-kg{background:#22C55E}.bg-kb{background:#60A5FA}.bg-kr{background:#EF4444}
+  .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--fg-3);margin-right:6px}
+</style></head><body data-theme="dark">
+<div class="strip"><span class="lbl">Смены — последние 8</span>
+  <span class="chip"><span>30.04</span><span style="opacity:.4">·</span><span>C1</span><span style="opacity:.4">·</span><span>8р</span><span class="bar"><i class="bg-kg" style="width:84%"></i></span></span>
+  <span class="chip"><span>30.04</span><span style="opacity:.4">·</span><span>C2</span><span style="opacity:.4">·</span><span>11р</span><span class="bar"><i class="bg-kg" style="width:91%"></i></span></span>
+  <span class="chip zero"><span>01.05</span><span style="opacity:.4">·</span><span>C1</span><span style="opacity:.4">·</span><span>Op</span></span>
+  <span class="chip"><span>01.05</span><span style="opacity:.4">·</span><span>C2</span><span style="opacity:.4">·</span><span>5р</span><span class="bar"><i class="bg-kb" style="width:62%"></i></span></span>
+  <span class="chip"><span>02.05</span><span style="opacity:.4">·</span><span>C1</span><span style="opacity:.4">·</span><span>14р</span><span class="bar"><i class="bg-kg" style="width:95%"></i></span></span>
+  <span class="chip"><span>02.05</span><span style="opacity:.4">·</span><span>C2</span><span style="opacity:.4">·</span><span>3р</span><span class="bar"><i class="bg-kr" style="width:42%"></i></span></span>
+  <span class="chip active-day"><span>03.05</span><span style="opacity:.4">·</span><span>C1</span><span style="opacity:.4">·</span><span>9р</span><span class="bar"><i class="bg-kg" style="width:87%"></i></span></span>
+  <span class="chip"><span>03.05</span><span style="opacity:.4">·</span><span>C2</span><span style="opacity:.4">·</span><span>7р</span><span class="bar"><i class="bg-kb" style="width:68%"></i></span></span>
+</div>
+<div class="strip"><span class="lbl">КИП-мини-бар</span>
+  <span style="display:inline-flex;align-items:center;gap:6px">
+    <span style="width:60px;height:5px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:3px;overflow:hidden;display:inline-block"><i style="display:block;height:100%;width:87%;background:#22C55E;border-radius:3px"></i></span>
+    <b style="font-size:10px;color:#22C55E;font-variant-numeric:tabular-nums">87%</b>
+  </span>
+  <span style="display:inline-flex;align-items:center;gap:6px">
+    <span style="width:60px;height:5px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:3px;overflow:hidden;display:inline-block"><i style="display:block;height:100%;width:63%;background:#60A5FA;border-radius:3px"></i></span>
+    <b style="font-size:10px;color:#60A5FA;font-variant-numeric:tabular-nums">63%</b>
+  </span>
+  <span style="display:inline-flex;align-items:center;gap:6px">
+    <span style="width:60px;height:5px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:3px;overflow:hidden;display:inline-block"><i style="display:block;height:100%;width:42%;background:#EF4444;border-radius:3px"></i></span>
+    <b style="font-size:10px;color:#EF4444;font-variant-numeric:tabular-nums">42%</b>
+  </span>
+</div>
+</body></html>

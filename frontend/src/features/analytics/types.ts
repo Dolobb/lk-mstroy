@@ -1,5 +1,23 @@
 export type VehicleSource = 'dump_truck' | 'dst';
 
+// ─── Geo-admin types ─────────────────────────────────────
+
+export interface DstZoneProperties {
+  uid: string;
+  name: string;
+  object_uid: string;
+  object_name: string;
+  tags: string[];
+  min_duration_sec: number;
+}
+
+/** Одна зона с тегом dst_zone из geo-admin (GeoJSON Feature) */
+export interface DstZoneFeature {
+  type: 'Feature';
+  properties: DstZoneProperties;
+  geometry: { type: 'Polygon'; coordinates: number[][][] };
+}
+
 export interface UnifiedRecord {
   // Идентификация
   source: VehicleSource;
@@ -58,6 +76,9 @@ export interface UnifiedVehicleRow {
   // Для lazy-loading ДСТ деталей
   kipVehicleId?: string;
   departmentUnit?: string;
+  // Координаты последней фиксации (из KIP weekly) — для geo-матчинга
+  latitude?: number | null;
+  longitude?: number | null;
   // Pre-loaded request numbers (KIP weekly provides them without expand)
   requestNumbers?: number[];
   // Число смен без данных (KIP gap-fill). Показывается бейджиком «⚑N» рядом с counter смен.

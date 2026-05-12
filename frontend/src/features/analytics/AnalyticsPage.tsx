@@ -14,8 +14,9 @@ import {
   fetchKipSegments,
   fetchKipSegmentProgress,
   triggerKipSegmentFetch,
+  fetchDstZones,
 } from './api';
-import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress } from './types';
+import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -37,6 +38,18 @@ function toDateStr(isoDate: string): string {
 
 function kipColor(v: number): string {
   return v >= 75 ? 'sv-v-g' : v >= 50 ? 'sv-v-b' : 'sv-v-r';
+}
+
+// Ray-casting point-in-polygon. GeoJSON ring coords are [lng, lat].
+function pointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi))
+      inside = !inside;
+  }
+  return inside;
 }
 
 // ─── Vehicle type filters ───────────────────────────────
@@ -153,6 +166,9 @@ export function AnalyticsPage() {
   // KIP segments state
   const [kipSegProgress, setKipSegProgress] = useState<KipSegmentProgress | null>(null);
 
+  // Geo-admin: dst_zone polygons для геоматчинга ДСТ → объекты
+  const [dstZones, setDstZones] = useState<DstZoneFeature[]>([]);
+
   // ─── Fetch data ─────────────────────────────────────
 
   useEffect(() => {
@@ -180,6 +196,14 @@ export function AnalyticsPage() {
 
     return () => { cancelled = true; };
   }, [dateFrom, dateTo]);
+
+  // ─── Load dst_zones once (geo-admin, static) ─────────
+
+  useEffect(() => {
+    fetchDstZones()
+      .then(setDstZones)
+      .catch(err => console.warn('[geo-admin] dst_zones недоступны:', err));
+  }, []);
 
   // ─── Lazy load DST details on expand ────────────────
 
@@ -283,35 +307,80 @@ export function AnalyticsPage() {
     });
   }, [allRows, sortCol, sortDir]);
 
+  // ─── Geo-match DST vehicles → objectUid ─────────────
+
+  // regNumber → { objectUid, objectName } для ДСТ машин внутри dst_zone полигонов
+  const dstGeoMatch = React.useMemo(() => {
+    const result = new Map<string, { objectUid: string; objectName: string }>();
+    if (!dstZones.length) return result;
+
+    dstRows.forEach(v => {
+      if (v.latitude == null || v.longitude == null) return;
+      for (const feat of dstZones) {
+        const ring = feat.geometry.coordinates[0];
+        if (!ring) continue;
+        if (pointInPolygon(v.latitude, v.longitude, ring)) {
+          result.set(v.regNumber, {
+            objectUid: feat.properties.object_uid,
+            objectName: feat.properties.object_name,
+          });
+          break; // первое совпадение достаточно
+        }
+      }
+    });
+    return result;
+  }, [dstRows, dstZones]);
+
   // ─── Grouping by SMU/department ─────────────────────
 
-  type GroupEntry = { groupName: string; vehicles: UnifiedVehicleRow[] };
+  type GroupEntry = { groupName: string; groupUid?: string; vehicles: UnifiedVehicleRow[] };
 
   const groups: GroupEntry[] = React.useMemo(() => {
-    const gMap = new Map<string, UnifiedVehicleRow[]>();
+    // key → { groupName, groupUid, vehicles }
+    const gMap = new Map<string, GroupEntry>();
+
+    const addToGroup = (key: string, groupName: string, v: UnifiedVehicleRow, groupUid?: string) => {
+      if (!gMap.has(key)) gMap.set(key, { groupName, groupUid, vehicles: [] });
+      gMap.get(key)!.vehicles.push(v);
+    };
+
     sortedRows.forEach(v => {
-      let group: string;
       if (v.source === 'dump_truck') {
-        const objCounts = new Map<string, number>();
+        // Наиболее частый объект по objectName + objectUid
+        const nameCounts = new Map<string, number>();
+        const uidForName = new Map<string, string>();
         v.records.forEach(r => {
           const name = r.objectName ?? 'Без объекта';
-          objCounts.set(name, (objCounts.get(name) ?? 0) + 1);
+          nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+          if (r.objectUid) uidForName.set(name, r.objectUid);
         });
-        group = [...objCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
+        const topName = [...nameCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
+        const topUid = uidForName.get(topName);
+        const key = topUid ?? topName;
+        addToGroup(key, topName, v, topUid);
       } else {
-        group = v.departmentUnit || 'Без подразделения';
+        // DST: основная группа по departmentUnit
+        const deptKey = v.departmentUnit || 'Без подразделения';
+        addToGroup(deptKey, deptKey, v);
+
+        // Дополнительно: если машина попала в dst_zone — дублируем в объектную группу
+        const geo = dstGeoMatch.get(v.regNumber);
+        if (geo) {
+          addToGroup(geo.objectUid, geo.objectName, v, geo.objectUid);
+        }
       }
-      if (!gMap.has(group)) gMap.set(group, []);
-      gMap.get(group)!.push(v);
     });
+
     return [...gMap.entries()]
-      .sort(([an, a], [bn, b]) => {
-        if (an === 'Без объекта' || an === 'Без подразделения') return 1;
-        if (bn === 'Без объекта' || bn === 'Без подразделения') return -1;
-        return b.length - a.length;
+      .sort(([, a], [, b]) => {
+        const aBez = a.groupName === 'Без объекта' || a.groupName === 'Без подразделения';
+        const bBez = b.groupName === 'Без объекта' || b.groupName === 'Без подразделения';
+        if (aBez && !bBez) return 1;
+        if (bBez && !aBez) return -1;
+        return b.vehicles.length - a.vehicles.length;
       })
-      .map(([groupName, vehicles]) => ({ groupName, vehicles }));
-  }, [sortedRows]);
+      .map(([, entry]) => entry);
+  }, [sortedRows, dstGeoMatch]);
 
   // ─── Summary strip ──────────────────────────────────
 
@@ -639,8 +708,10 @@ export function AnalyticsPage() {
                       const records = getRecords(v);
                       const isLoadingDst = v.source === 'dst' && loadingDetails.has(v.regNumber);
                       const typeLabel = getTypeLabel(v);
-                      const isDt = v.source === 'dump_truck';
-                      const sourceTag = <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: isDt ? 'rgba(249,115,22,0.15)' : 'rgba(96,165,250,0.15)', color: isDt ? '#F97316' : '#60A5FA', marginLeft: 6 }}>{typeLabel}</span>;
+                      const isGeoMatched = v.source === 'dst' && dstGeoMatch.has(v.regNumber);
+                      const sourceTag = v.source === 'dump_truck'
+                        ? <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#F97316', marginLeft: 6 }}>{typeLabel}</span>
+                        : <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: isGeoMatched ? 'rgba(167,139,250,0.2)' : 'rgba(96,165,250,0.15)', color: isGeoMatched ? '#A78BFA' : '#60A5FA', marginLeft: 6 }}>{typeLabel}{isGeoMatched && ' ◉'}</span>;
 
                       return (
                         <React.Fragment key={vKey}>

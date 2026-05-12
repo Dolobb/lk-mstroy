@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:18px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .r{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border-radius:8px;background:var(--card-inner);border:1px solid var(--card-inner-border)}
+  .r .b{background:var(--brand-secondary);border:1px solid rgba(96,165,250,.6)}
+  .r .n{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--fg-2)}
+  .r .h{font-family:var(--font-mono);font-size:9px;color:var(--fg-3)}
+  .shadows{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .sh{height:60px;border-radius:10px;background:var(--card-inner);border:1px solid var(--card-inner-border);display:flex;align-items:end;padding:6px;font-size:9px;color:var(--fg-3);text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+</style></head><body data-theme="dark">
+<div class="grid">
+  <div class="r"><div class="b" style="width:36px;height:36px;border-radius:6px"></div><div class="n">pill</div><div class="h">6 px</div></div>
+  <div class="r"><div class="b" style="width:36px;height:36px;border-radius:8px"></div><div class="n">sm</div><div class="h">8 px</div></div>
+  <div class="r"><div class="b" style="width:36px;height:36px;border-radius:10px"></div><div class="n">md</div><div class="h">10 px</div></div>
+  <div class="r"><div class="b" style="width:36px;height:36px;border-radius:14px"></div><div class="n">lg</div><div class="h">14 px</div></div>
+  <div class="r"><div class="b" style="width:36px;height:36px;border-radius:16px"></div><div class="n">xl</div><div class="h">16 px</div></div>
+  <div class="r"><div class="b" style="width:36px;height:36px;border-radius:50%"></div><div class="n">full</div><div class="h">9999</div></div>
+</div>
+<div class="shadows">
+  <div class="sh" style="box-shadow:0 4px 16px rgba(0,0,0,.4)">card</div>
+  <div class="sh" style="box-shadow:0 8px 24px rgba(0,0,0,.6)">popover</div>
+  <div class="sh" style="box-shadow:0 0 20px rgba(249,115,22,.25)">cta orange glow</div>
+</div>
+</body></html>

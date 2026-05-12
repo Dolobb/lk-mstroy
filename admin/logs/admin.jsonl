@@ -2036,8 +2036,8 @@
 {"ts":"2026-05-05T21:32:02.136Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-05T21:32:02.140Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-05T21:37:02.147Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
-{"ts":"2026-05-05T21:37:02.151Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-05T21:37:02.151Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
+{"ts":"2026-05-05T21:37:02.151Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-05T21:42:02.158Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-05T21:42:02.162Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-05T21:42:02.163Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
@@ -2129,8 +2129,8 @@
 {"ts":"2026-05-06T00:07:02.601Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T00:07:02.602Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T00:12:02.612Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
-{"ts":"2026-05-06T00:12:02.614Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T00:12:02.614Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
+{"ts":"2026-05-06T00:12:02.614Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T00:17:02.632Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T00:17:02.634Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T00:17:02.635Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
@@ -2275,14 +2275,14 @@
 {"ts":"2026-05-06T04:12:03.774Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:12:03.781Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:12:03.785Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
-{"ts":"2026-05-06T04:15:26.768Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:26.768Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:15:26.838Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:15:26.768Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:26.838Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:15:26.838Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:31.793Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:31.794Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:15:36.784Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:36.784Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:15:36.784Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:41.792Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:41.793Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:15:46.783Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2346,8 +2346,8 @@
 {"ts":"2026-05-06T04:18:30.389Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:18:35.382Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:18:35.383Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:18:40.380Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:18:40.380Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:18:40.380Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:18:59.390Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:18:59.390Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:19:59.401Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2365,10 +2365,10 @@
 {"ts":"2026-05-06T04:23:59.428Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:24:59.420Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:24:59.421Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:25:59.419Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:25:59.419Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:26:59.471Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:25:59.419Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:26:59.471Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:26:59.471Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:27:03.849Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:27:03.853Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:27:03.854Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
@@ -2376,8 +2376,8 @@
 {"ts":"2026-05-06T04:27:59.423Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:28:59.501Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:28:59.502Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:29:59.447Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:29:59.447Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:29:59.447Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:30:59.442Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:30:59.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:31:59.432Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2391,8 +2391,8 @@
 {"ts":"2026-05-06T04:33:59.452Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:34:59.445Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:34:59.445Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:35:59.448Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:35:59.448Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:35:59.448Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:36:59.450Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:36:59.450Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:37:03.892Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
@@ -2411,14 +2411,14 @@
 {"ts":"2026-05-06T04:42:03.910Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:42:03.912Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:42:03.913Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
-{"ts":"2026-05-06T04:42:59.467Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:42:59.467Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:43:59.449Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:42:59.467Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:43:59.449Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:43:59.449Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:44:59.434Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:44:59.435Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:45:59.462Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:45:59.462Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:45:59.462Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:46:59.456Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:46:59.456Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:47:03.936Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
@@ -2426,8 +2426,8 @@
 {"ts":"2026-05-06T04:47:03.939Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:47:59.460Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:47:59.461Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:48:59.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:48:59.442Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:48:59.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:49:04.027Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:49:04.028Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:49:05.418Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2452,8 +2452,8 @@
 {"ts":"2026-05-06T04:49:50.424Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:49:55.434Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:49:55.435Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:50:00.419Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:50:00.419Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:50:00.419Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:50:59.458Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:50:59.459Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:51:19.946Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2467,8 +2467,8 @@
 {"ts":"2026-05-06T04:51:25.692Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:51:30.225Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:51:30.225Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:51:35.208Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:51:35.208Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:51:35.208Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:51:40.220Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:51:40.222Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:51:45.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2482,8 +2482,8 @@
 {"ts":"2026-05-06T04:52:03.966Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:52:03.971Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T04:52:03.972Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
-{"ts":"2026-05-06T04:52:05.213Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:52:05.213Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:52:05.213Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:52:10.217Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:52:10.218Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:52:15.430Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2504,8 +2504,8 @@
 {"ts":"2026-05-06T04:52:50.432Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:52:55.423Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:52:55.424Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:53:00.413Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:53:00.413Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:53:00.413Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:53:05.428Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:53:05.429Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:53:10.417Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2514,8 +2514,8 @@
 {"ts":"2026-05-06T04:53:59.443Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:05.723Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:05.724Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:54:10.221Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:10.221Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:54:10.221Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:15.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:15.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:20.218Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2526,20 +2526,20 @@
 {"ts":"2026-05-06T04:54:30.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:35.218Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:35.219Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:54:40.413Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:40.413Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:54:45.426Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:54:40.413Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:45.426Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:54:50.414Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:54:45.426Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:50.414Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:54:50.414Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:55.418Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:54:55.418Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:00.219Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:00.219Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:05.427Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:05.428Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:55:10.426Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:10.426Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:55:10.426Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:15.444Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:15.445Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:20.430Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2552,8 +2552,8 @@
 {"ts":"2026-05-06T04:55:35.432Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:40.435Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:40.436Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T04:55:45.437Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:45.437Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T04:55:45.437Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:50.413Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:50.414Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T04:55:55.433Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2584,8 +2584,8 @@
 {"ts":"2026-05-06T05:03:59.456Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:04:59.460Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:04:59.460Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:05:59.478Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:05:59.478Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:05:59.478Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:06:59.454Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:06:59.454Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:07:04.032Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
@@ -2593,10 +2593,10 @@
 {"ts":"2026-05-06T05:07:04.037Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T05:07:59.471Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:07:59.472Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:08:59.458Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:08:59.458Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:09:59.472Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:08:59.458Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:09:59.472Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:09:59.472Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:10:59.461Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:10:59.462Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:11:47.654Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2614,8 +2614,8 @@
 {"ts":"2026-05-06T05:12:05.317Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:10.237Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:10.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:12:15.260Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:15.260Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:12:15.260Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:20.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:20.239Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:20.513Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
@@ -2623,10 +2623,10 @@
 {"ts":"2026-05-06T05:12:20.551Z","category":"spawn","service":"kip","msg":"process exited code=null","fields":{"code":null},"level":"warn"}
 {"ts":"2026-05-06T05:12:25.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:25.232Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:12:30.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:30.442Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:12:35.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:12:30.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:35.442Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:12:35.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:40.237Z","category":"spawn","service":"dump-trucks","msg":"stopping","level":"info"}
 {"ts":"2026-05-06T05:12:40.251Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:40.252Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2638,14 +2638,14 @@
 {"ts":"2026-05-06T05:12:50.442Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:55.440Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:12:55.441Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:13:00.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:00.237Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:13:00.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:05.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:05.232Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:10.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:10.235Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:13:15.252Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:15.252Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:13:15.252Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:20.236Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:20.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:25.251Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2654,16 +2654,16 @@
 {"ts":"2026-05-06T05:13:30.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:35.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:35.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:13:40.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:40.236Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:13:45.256Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:13:40.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:45.256Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:13:45.256Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:50.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:50.239Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:55.235Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:13:55.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:14:00.433Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:14:00.433Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:14:00.433Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:14:05.438Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:14:05.439Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:14:10.440Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2694,12 +2694,12 @@
 {"ts":"2026-05-06T05:15:10.225Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:15.262Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:15.263Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:15:20.232Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:20.232Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:15:25.240Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:15:20.232Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:25.240Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:15:30.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:15:25.240Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:30.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:15:30.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:35.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:35.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:15:40.245Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2724,18 +2724,18 @@
 {"ts":"2026-05-06T05:16:25.239Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:30.228Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:30.228Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:16:35.228Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:35.228Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:16:40.226Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:16:35.228Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:40.226Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:16:40.226Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:45.244Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:45.245Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:16:50.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:50.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:16:50.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:55.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:16:55.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:17:00.230Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:00.230Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:17:00.230Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:04.060Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T05:17:04.065Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T05:17:04.066Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
@@ -2743,20 +2743,20 @@
 {"ts":"2026-05-06T05:17:05.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:10.226Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:10.226Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:17:15.246Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:15.246Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:17:15.246Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:20.239Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:20.240Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:25.232Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:25.233Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:17:30.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:30.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:17:35.228Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:17:30.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:35.228Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:17:35.228Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:40.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:40.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:17:45.247Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:45.247Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:17:45.247Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:50.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:50.232Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:17:55.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2795,8 +2795,8 @@
 {"ts":"2026-05-06T05:19:15.243Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:19:20.244Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:19:20.245Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:19:25.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:19:25.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:19:25.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:19:30.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:19:30.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:19:35.229Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2819,38 +2819,38 @@
 {"ts":"2026-05-06T05:20:15.263Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:20.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:20.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:20:25.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:25.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:20:25.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:30.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:30.235Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:35.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:35.237Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:40.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:40.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:20:45.260Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:45.260Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:20:45.260Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:50.227Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:50.228Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:55.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:20:55.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:00.240Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:00.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:21:05.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:05.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:21:10.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:21:05.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:10.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:21:10.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:15.269Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:15.270Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:21:20.229Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:20.229Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:21:20.229Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:25.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:25.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:21:30.251Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:30.251Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:21:30.251Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:35.247Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:35.248Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:21:40.244Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:40.244Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:21:40.244Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:45.260Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:45.261Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:21:50.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2862,14 +2862,14 @@
 {"ts":"2026-05-06T05:22:04.084Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T05:22:04.092Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T05:22:04.095Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
-{"ts":"2026-05-06T05:22:05.230Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:05.230Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:22:05.230Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:10.229Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:10.229Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:15.258Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:15.259Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:22:20.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:20.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:22:20.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:25.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:25.243Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:30.246Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2884,10 +2884,10 @@
 {"ts":"2026-05-06T05:22:50.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:55.239Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:22:55.240Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:23:00.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:00.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:23:05.233Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:23:00.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:05.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:23:05.233Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:10.235Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:10.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:15.263Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2898,52 +2898,52 @@
 {"ts":"2026-05-06T05:23:25.237Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:30.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:30.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:23:35.255Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:35.255Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:23:35.255Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:40.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:40.235Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:23:45.251Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:45.251Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:23:50.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:23:45.251Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:50.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:23:50.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:55.232Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:23:55.233Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:24:00.243Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:00.243Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:24:00.243Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:05.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:05.232Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:10.230Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:10.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:24:15.263Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:15.263Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:24:15.263Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:20.225Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:20.226Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:25.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:25.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:24:30.239Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:30.239Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:24:35.248Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:24:30.239Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:35.248Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:24:40.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:24:35.248Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:40.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:24:45.249Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:24:40.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:45.249Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:24:45.249Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:50.232Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:50.233Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:55.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:24:55.239Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:00.257Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:00.258Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:25:05.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:05.236Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:25:05.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:10.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:10.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:15.257Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:15.258Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:20.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:20.243Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:25:25.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:25.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:25:25.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:30.240Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:30.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:25:35.235Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2972,8 +2972,8 @@
 {"ts":"2026-05-06T05:26:30.236Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:26:35.235Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:26:35.235Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:26:40.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:26:40.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:26:40.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:26:45.256Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:26:45.257Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:26:50.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2985,8 +2985,8 @@
 {"ts":"2026-05-06T05:27:04.098Z","category":"reconcile","msg":"stale-runs sweep failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T05:27:04.100Z","category":"reconcile","msg":"queue cleanup failed: AggregateError","level":"error"}
 {"ts":"2026-05-06T05:27:04.102Z","category":"reconcile","msg":"stale-pending sweep failed: AggregateError","level":"error"}
-{"ts":"2026-05-06T05:27:05.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:05.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:27:05.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:10.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:10.235Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:15.255Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -2999,8 +2999,8 @@
 {"ts":"2026-05-06T05:27:30.251Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:35.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:35.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:27:40.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:40.231Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:27:40.231Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:45.252Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:45.254Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:27:50.236Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -3033,8 +3033,8 @@
 {"ts":"2026-05-06T05:28:55.248Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:00.239Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:00.240Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:29:05.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:05.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:29:05.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:10.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:10.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:15.280Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -3045,8 +3045,8 @@
 {"ts":"2026-05-06T05:29:25.232Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:30.244Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:30.245Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:29:35.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:35.242Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:29:35.242Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:40.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:40.235Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:29:45.262Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -3059,38 +3059,38 @@
 {"ts":"2026-05-06T05:30:00.241Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:05.250Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:05.250Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:30:10.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:10.234Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:30:15.271Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:30:10.234Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:15.271Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:30:15.271Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:20.237Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:20.240Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:25.247Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:25.249Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:30:30.251Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:30.251Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:30:30.251Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:35.250Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:35.250Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:30:40.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:40.238Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:30:40.238Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:45.263Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:45.264Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:50.246Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:50.247Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:55.249Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:30:55.250Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:31:00.248Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:00.248Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:31:00.248Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:05.241Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:05.243Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:31:10.233Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:10.233Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:31:10.233Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:15.265Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:15.266Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:20.247Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:20.248Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
-{"ts":"2026-05-06T05:31:25.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:25.237Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
+{"ts":"2026-05-06T05:31:25.237Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:30.247Z","category":"admin","service":"dump-trucks","msg":"getDumpTrucksDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:30.247Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
 {"ts":"2026-05-06T05:31:35.252Z","category":"admin","service":"kip","msg":"getKipDates query failed","fields":{"error":"AggregateError","from":"2026-05-01","to":"2026-05-06"},"level":"error"}
@@ -4388,6 +4388,52 @@
 {"ts":"2026-05-12T09:16:55.963Z","category":"pipeline","pipeline":"dt_recalc","runId":"d7c5cb0b-8075-4a0d-abec-e5e58d198fc9","date":"2026-05-10","msg":"run started","fields":{"triggerType":"manual"},"level":"info"}
 {"ts":"2026-05-12T09:18:15.905Z","category":"http","service":"dump-trucks","runId":"d7c5cb0b-8075-4a0d-abec-e5e58d198fc9","pipeline":"dt_recalc","msg":"200/200 POST recalc shift1+shift2","fields":{"ms":79941,"status1":200,"status2":200},"level":"info"}
 {"ts":"2026-05-12T09:18:15.909Z","category":"pipeline","pipeline":"dt_recalc","runId":"d7c5cb0b-8075-4a0d-abec-e5e58d198fc9","date":"2026-05-10","msg":"run completed","level":"info"}
+{"ts":"2026-05-12T09:24:55.780Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-05-12T09:24:55.981Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-05-12T09:24:56.181Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-05-12T09:24:56.382Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-05-12T09:24:56.582Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-05-12T09:24:56.587Z","category":"spawn","service":"tyagachi","msg":"spawn error: spawn python ENOENT","fields":{"error":"spawn python ENOENT"},"level":"error"}
+{"ts":"2026-05-12T09:25:04.946Z","category":"spawn","service":"ai-reports","msg":"port 3006 still occupied after 8s, killing leftover listener","fields":{"port":3006},"level":"warn"}
+{"ts":"2026-05-12T09:25:07.973Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}
+{"ts":"2026-05-12T09:25:09.242Z","category":"spawn","service":"ai-reports","msg":"EADDRINUSE — port still held at child start","fields":{"port":3006},"level":"error"}
+{"ts":"2026-05-12T09:25:35.595Z","category":"spawn","service":"kip","msg":"stopping","level":"info"}
+{"ts":"2026-05-12T09:25:35.649Z","category":"spawn","service":"kip","msg":"process exited code=143","fields":{"code":143},"level":"warn"}
+{"ts":"2026-05-12T09:25:35.901Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-05-12T09:31:33.937Z","category":"handler","pipeline":"dt_daily","date":"2026-05-11","msg":"fan-out fetch-dt-date → both shifts","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-05-12T09:31:35.939Z","category":"pipeline","pipeline":"dt_daily","runId":"57a80278-0b81-4677-ad97-71095082b83b","date":"2026-05-11","shift":"shift1","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-05-12T09:31:35.942Z","category":"http","service":"dump-trucks","runId":"57a80278-0b81-4677-ad97-71095082b83b","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-05-11&shift=shift1","fields":{"ms":1},"level":"info"}
+{"ts":"2026-05-12T09:32:35.970Z","category":"pipeline","pipeline":"dt_daily","runId":"57a80278-0b81-4677-ad97-71095082b83b","date":"2026-05-11","shift":"shift1","msg":"run completed","fields":{"processed":32,"preCount":2,"postCount":35,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-05-12T09:32:35.978Z","category":"pipeline","pipeline":"dt_daily","runId":"47aeaa5f-fa1e-40da-9366-3d0b2e8cfa83","date":"2026-05-11","shift":"shift2","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-05-12T09:32:35.982Z","category":"http","service":"dump-trucks","runId":"47aeaa5f-fa1e-40da-9366-3d0b2e8cfa83","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-05-11&shift=shift2","fields":{"ms":3},"level":"info"}
+{"ts":"2026-05-12T09:33:06.002Z","category":"pipeline","pipeline":"dt_daily","runId":"47aeaa5f-fa1e-40da-9366-3d0b2e8cfa83","date":"2026-05-11","shift":"shift2","msg":"run completed","fields":{"processed":31,"preCount":17,"postCount":31,"perVehicleErrors":0,"status":"completed","inProgress":false},"level":"info"}
+{"ts":"2026-05-12T09:34:08.004Z","category":"pipeline","pipeline":"kip_daily","runId":"528ad707-3231-4904-924a-5bbdafde0a9b","date":"2026-05-11","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-05-12T09:34:08.009Z","category":"http","service":"kip","runId":"528ad707-3231-4904-924a-5bbdafde0a9b","pipeline":"kip_daily","msg":"200 POST http://localhost:3001/api/admin/fetch?date=2026-05-11","fields":{"ms":4},"level":"info"}
+{"ts":"2026-05-12T09:34:28.013Z","category":"pipeline","pipeline":"kip_daily","runId":"528ad707-3231-4904-924a-5bbdafde0a9b","date":"2026-05-11","msg":"run completed","fields":{"vehicles":3},"level":"info"}
+{"ts":"2026-05-12T09:34:28.017Z","category":"pipeline","pipeline":"kip_daily","runId":"528ad707-3231-4904-924a-5bbdafde0a9b","date":"2026-05-11","msg":"low activity: 3 ТС vs 7д-медиана 4 (порог 20)","fields":{"vehicles":3,"median":4,"threshold":20,"baseline_days":7},"level":"warn"}
+{"ts":"2026-05-12T09:34:56.021Z","category":"pipeline","pipeline":"dt_recalc","runId":"6b8a9a3d-a3f0-430a-8800-654ab0aee1d9","date":"2026-05-11","msg":"run started","fields":{"triggerType":"manual"},"level":"info"}
+{"ts":"2026-05-12T09:35:20.414Z","category":"http","service":"dump-trucks","runId":"6b8a9a3d-a3f0-430a-8800-654ab0aee1d9","pipeline":"dt_recalc","msg":"200/200 POST recalc shift1+shift2","fields":{"ms":24392,"status1":200,"status2":200},"level":"info"}
+{"ts":"2026-05-12T09:35:20.416Z","category":"pipeline","pipeline":"dt_recalc","runId":"6b8a9a3d-a3f0-430a-8800-654ab0aee1d9","date":"2026-05-11","msg":"run completed","level":"info"}
+{"ts":"2026-05-12T09:35:30.030Z","category":"pipeline","pipeline":"kip_recalc","runId":"46fc751e-5488-4620-9218-5b8ce00e994e","date":"2026-05-11","msg":"run started","fields":{"triggerType":"manual"},"level":"info"}
+{"ts":"2026-05-12T09:35:30.031Z","category":"http","service":"kip","runId":"46fc751e-5488-4620-9218-5b8ce00e994e","pipeline":"kip_recalc","msg":"200 POST http://localhost:3001/api/admin/recalculate?date=2026-05-11","fields":{"ms":1},"level":"info"}
+{"ts":"2026-05-12T09:35:40.039Z","category":"pipeline","pipeline":"kip_recalc","runId":"46fc751e-5488-4620-9218-5b8ce00e994e","date":"2026-05-11","msg":"run failed","fields":{"error":"Job lost (server restart?)"},"level":"error"}
+{"ts":"2026-05-12T09:35:40.058Z","category":"pipeline","pipeline":"kip_recalc","runId":"0a6a9d60-be14-4d5a-b61c-073c5c782159","date":"2026-05-11","msg":"run started","fields":{"triggerType":"manual"},"level":"info"}
+{"ts":"2026-05-12T09:35:40.059Z","category":"http","service":"kip","runId":"0a6a9d60-be14-4d5a-b61c-073c5c782159","pipeline":"kip_recalc","msg":"200 POST http://localhost:3001/api/admin/recalculate?date=2026-05-11","fields":{"ms":1},"level":"info"}
+{"ts":"2026-05-12T09:35:50.066Z","category":"pipeline","pipeline":"kip_recalc","runId":"0a6a9d60-be14-4d5a-b61c-073c5c782159","date":"2026-05-11","msg":"run completed","fields":{"errors":7},"level":"info"}
+{"ts":"2026-05-12T09:36:14.074Z","category":"pipeline","pipeline":"kip_daily","runId":"42560526-0482-47bc-abde-0dab82b5007b","date":"2026-05-07","msg":"run started","fields":{"triggerType":"manual","mode":"refresh"},"level":"info"}
+{"ts":"2026-05-12T09:36:14.075Z","category":"http","service":"kip","runId":"42560526-0482-47bc-abde-0dab82b5007b","pipeline":"kip_daily","msg":"200 POST http://localhost:3001/api/admin/fetch?date=2026-05-07","fields":{"ms":1},"level":"info"}
+{"ts":"2026-05-12T09:36:34.081Z","category":"pipeline","pipeline":"kip_daily","runId":"42560526-0482-47bc-abde-0dab82b5007b","date":"2026-05-07","msg":"run completed","fields":{"vehicles":4},"level":"info"}
+{"ts":"2026-05-12T09:36:34.084Z","category":"pipeline","pipeline":"kip_daily","runId":"42560526-0482-47bc-abde-0dab82b5007b","date":"2026-05-07","msg":"low activity: 4 ТС vs 7д-медиана 4 (порог 20)","fields":{"vehicles":4,"median":4,"threshold":20,"baseline_days":7},"level":"warn"}
+{"ts":"2026-05-12T10:00:26.817Z","category":"pipeline","pipeline":"dt_daily","runId":"cc4ffcd7-0efe-472f-b567-56705adb2128","date":"2026-05-12","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
+{"ts":"2026-05-12T10:00:26.833Z","category":"http","service":"dump-trucks","runId":"cc4ffcd7-0efe-472f-b567-56705adb2128","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-05-12&shift=shift1","fields":{"ms":11},"level":"info"}
 {"ts":"2026-05-12T10:00:28.868Z","category":"pipeline","pipeline":"dt_daily","runId":"c78ab364-d0da-430a-9591-d42d519ebf2f","date":"2026-05-12","shift":"shift1","msg":"run started","fields":{"triggerType":"cron","mode":"refresh"},"level":"info"}
 {"ts":"2026-05-12T10:00:28.878Z","category":"http","service":"dump-trucks","runId":"c78ab364-d0da-430a-9591-d42d519ebf2f","pipeline":"dt_daily","msg":"200 POST http://localhost:3002/api/dt/admin/fetch?date=2026-05-12&shift=shift1","fields":{"ms":7},"level":"info"}
+{"ts":"2026-05-12T10:01:12.063Z","category":"pipeline","pipeline":"dt_daily","runId":"cc4ffcd7-0efe-472f-b567-56705adb2128","date":"2026-05-12","shift":"shift1","msg":"run completed","fields":{"processed":34,"preCount":0,"postCount":37,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
 {"ts":"2026-05-12T10:01:29.535Z","category":"pipeline","pipeline":"dt_daily","runId":"c78ab364-d0da-430a-9591-d42d519ebf2f","date":"2026-05-12","shift":"shift1","msg":"run completed","fields":{"processed":46,"preCount":46,"postCount":49,"perVehicleErrors":0,"status":"completed","inProgress":true},"level":"info"}
+{"ts":"2026-05-12T11:03:42.704Z","category":"spawn","service":"kip","msg":"starting","fields":{"cmd":"npm","args":["run","dev:server"],"port":3001},"level":"info"}
+{"ts":"2026-05-12T11:03:42.904Z","category":"spawn","service":"dump-trucks","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3002},"level":"info"}
+{"ts":"2026-05-12T11:03:43.106Z","category":"spawn","service":"geo-admin","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3003},"level":"info"}
+{"ts":"2026-05-12T11:03:43.307Z","category":"spawn","service":"vehicle-status","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3004},"level":"info"}
+{"ts":"2026-05-12T11:03:43.508Z","category":"spawn","service":"tyagachi","msg":"starting","fields":{"cmd":"python","args":["main.py","--web","--port","8000"],"port":8000},"level":"info"}
+{"ts":"2026-05-12T11:03:43.510Z","category":"spawn","service":"tyagachi","msg":"spawn error: spawn python ENOENT","fields":{"error":"spawn python ENOENT"},"level":"error"}
+{"ts":"2026-05-12T11:03:43.710Z","category":"spawn","service":"ai-reports","msg":"starting","fields":{"cmd":"npm","args":["run","dev"],"port":3006},"level":"info"}

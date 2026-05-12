@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:14px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .card{padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--card-border);backdrop-filter:blur(16px);box-shadow:var(--shadow-card)}
+  .head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .plate{font-weight:800;font-size:14px;color:var(--fg-1)}
+  .model{font-size:11px;color:var(--fg-3)}
+  .org{font-size:9px;color:var(--fg-4);margin-left:auto;text-transform:uppercase;letter-spacing:.3px}
+  .meta{display:flex;gap:14px;margin:8px 0;flex-wrap:wrap}
+  .m{display:flex;flex-direction:column;gap:1px}
+  .m .l{font-size:8px;font-weight:700;color:var(--fg-4);text-transform:uppercase;letter-spacing:.4px}
+  .m .v{font-size:12px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
+  .kg{color:#22C55E}.kb{color:#60A5FA}.kr{color:#EF4444}
+  .chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;font-size:9px;font-weight:600;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:6px;color:var(--fg-2);font-variant-numeric:tabular-nums}
+</style></head><body data-theme="dark">
+<div class="card">
+  <div class="head">
+    <svg viewBox="0 0 64 40" width="40" height="22" fill="none" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 26 L8 8 L36 8 L36 26 Z"/><rect x="37" y="14" width="20" height="12" rx="2"/><path d="M37 18 L43 18 L43 14"/>
+      <line x1="4" y1="26" x2="57" y2="26"/><circle cx="14" cy="31" r="5"/><circle cx="44" cy="31" r="5"/><circle cx="55" cy="31" r="4"/>
+    </svg>
+    <div>
+      <div class="plate">P322TH196</div>
+      <div class="model">HINO 600 / Bell B40</div>
+    </div>
+    <span class="org">МО-36</span>
+  </div>
+  <div class="meta">
+    <div class="m"><span class="l">КИП</span><span class="v kg">93%</span></div>
+    <div class="m"><span class="l">Смены</span><span class="v">23</span></div>
+    <div class="m"><span class="l">Рейсы 24ч</span><span class="v">1</span></div>
+    <div class="m"><span class="l">Расход</span><span class="v">1272 л</span></div>
+    <div class="m"><span class="l">Двиг. итого</span><span class="v">257:36</span></div>
+  </div>
+  <div class="chips">
+    <span class="chip">10.05·C1·8р</span><span class="chip">10.05·C2·11р</span><span class="chip">11.05·C1·14р</span><span class="chip" style="opacity:.45">11.05·C2·Op</span><span class="chip">12.05·C1·9р</span><span class="chip">12.05·C2·7р</span>
+  </div>
+</div>
+</body></html>

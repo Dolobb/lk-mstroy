@@ -7,7 +7,18 @@ import type {
   KipSegmentProgress,
   UnifiedRecord,
   UnifiedVehicleRow,
+  DstZoneFeature,
 } from './types';
+
+// ─── Geo-admin API ──────────────────────────────────────
+
+/** Загружает все зоны с тегом dst_zone из geo-admin (статические данные, не зависят от периода) */
+export async function fetchDstZones(): Promise<DstZoneFeature[]> {
+  const r = await fetch('/api/geo/zones/by-tag/dst_zone');
+  if (!r.ok) throw new Error(`geo-admin unavailable: ${r.status}`);
+  const fc = await r.json() as { type: string; features: DstZoneFeature[] };
+  return fc.features ?? [];
+}
 
 // ─── KIP API ────────────────────────────────────────────
 
@@ -105,8 +116,8 @@ export function dtRecordToUnified(sr: ShiftRecord): UnifiedRecord {
     tripsCount: sr.tripsCount,
     workType: sr.workType,
     requestNumbers: sr.requestNumbers,
-    shiftStart: sr.shiftStart,
-    shiftEnd: sr.shiftEnd,
+    shiftStart: sr.shiftStart ?? undefined,
+    shiftEnd: sr.shiftEnd ?? undefined,
     objectTimezone: sr.objectTimezone,
   };
 }
@@ -181,6 +192,8 @@ export function kipWeeklyToVehicleRow(kv: KipWeeklyVehicle): UnifiedVehicleRow {
     departmentUnit: kv.department_unit,
     requestNumbers: kv.request_numbers ?? [],
     gapFilledCount: kv.gap_filled_count ?? 0,
+    latitude: kv.latitude,
+    longitude: kv.longitude,
   };
 }
 
