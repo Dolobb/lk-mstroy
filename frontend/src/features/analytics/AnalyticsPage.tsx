@@ -17,6 +17,7 @@ import {
   fetchDstZones,
 } from './api';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
+import { AnalyticsMapView } from './AnalyticsMapView';
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -146,6 +147,8 @@ export function AnalyticsPage() {
       return next.size === 0 ? new Set(['all']) : next;
     });
   };
+
+  const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
 
   const [dtRows, setDtRows] = useState<UnifiedVehicleRow[]>([]);
   const [dstRows, setDstRows] = useState<UnifiedVehicleRow[]>([]);
@@ -596,6 +599,24 @@ export function AnalyticsPage() {
             width: 180,
           }}
         />
+
+        {/* View toggle */}
+        <div style={{ display: 'flex', gap: 2, marginLeft: 'auto' }}>
+          <button
+            className={`sv-view-tab ${viewMode === 'table' ? 'active' : ''}`}
+            onClick={() => setViewMode('table')}
+            style={{ fontSize: 11, padding: '4px 12px' }}
+          >
+            Таблица
+          </button>
+          <button
+            className={`sv-view-tab ${viewMode === 'map' ? 'active' : ''}`}
+            onClick={() => setViewMode('map')}
+            style={{ fontSize: 11, padding: '4px 12px' }}
+          >
+            Карта
+          </button>
+        </div>
       </div>
 
       {/* Summary strip — per-object cards like samosvaly */}
@@ -646,7 +667,15 @@ export function AnalyticsPage() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Map view */}
+      {viewMode === 'map' && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+          <AnalyticsMapView groups={groups} />
+        </div>
+      )}
+
+      {/* Table view */}
+      {viewMode === 'table' && (
       <div className="sv-an-table-wrap" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {loading ? (
           <div className="sv-empty">
@@ -812,6 +841,7 @@ export function AnalyticsPage() {
           </table>
         )}
       </div>
+      )}
     </div>
   );
 }
