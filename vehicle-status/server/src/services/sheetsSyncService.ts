@@ -101,20 +101,16 @@ function unmergeSheet(sheet: XLSX.WorkSheet): string[][] {
 async function downloadXlsx(
   fileId: string,
   auth: InstanceType<typeof google.auth.JWT>,
+  signal?: AbortSignal,
 ): Promise<Buffer> {
-  // На этой машине авторизованные запросы к www.googleapis.com из Node висят
-  // (TLS встаёт, h2-стрим открывается, ответ не приходит — вероятно MITM-прокси
-  // мешает OpenSSL Node, но Schannel curl-а работает за <1с). Качаем curl-ом.
   const token = auth.credentials.access_token;
   if (!token) throw new Error('No access token after authorize()');
-  return downloadViaCurl(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, token);
+  return downloadViaCurl(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, token, signal);
 }
 
-async function downloadViaCurl(url: string, token: string): Promise<Buffer> {
+async function downloadViaCurl(url: string, token: string, signal?: AbortSignal): Promise<Buffer> {
   const { spawn } = await import('node:child_process');
   return new Promise<Buffer>((resolve, reject) => {
-    // На Win-машине пользователя исходящий трафик к googleapis работает только
-    // через локальный прокси. Адрес можно переопределить SYNC_HTTPS_PROXY в .env.
     const proxy = process.env.SYNC_HTTPS_PROXY || 'http://127.0.0.1:12334';
     const args = [
       '-sS', '-L', '--fail-with-body', '--max-time', '60',
@@ -122,16 +118,30 @@ async function downloadViaCurl(url: string, token: string): Promise<Buffer> {
       '-H', `Authorization: Bearer ${token}`,
       '-o', '-', url,
     ];
-    // ВАЖНО: NO_PROXY="*" из process.env заставляет curl игнорировать -x и идти
-    // напрямую — что на этой машине висит. Явно очищаем для child-процесса.
     const env = { ...process.env, NO_PROXY: '', no_proxy: '' };
     const child = spawn('curl', args, { windowsHide: true, env });
+
+    if (signal) {
+      if (signal.aborted) {
+        child.kill('SIGTERM');
+        reject(new Error('Download aborted'));
+        return;
+      }
+      signal.addEventListener('abort', () => {
+        child.kill('SIGTERM');
+      }, { once: true });
+    }
+
     const chunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
     child.stdout.on('data', c => chunks.push(c));
     child.stderr.on('data', c => errChunks.push(c));
     child.on('error', reject);
     child.on('close', code => {
+      if (signal?.aborted) {
+        reject(new Error('Download aborted'));
+        return;
+      }
       if (code === 0) return resolve(Buffer.concat(chunks));
       const stderr = Buffer.concat(errChunks).toString('utf8').slice(0, 300);
       reject(new Error(`curl exit ${code}: ${stderr}`));
@@ -168,6 +178,9 @@ interface ParsedVehicle {
 export interface SyncResult {
   processed: number;
   errors: string[];
+  downloadMs?: number;
+  parseMs?: number;
+  writeMs?: number;
 }
 
 export interface TabDiagnostic {
@@ -293,9 +306,17 @@ export async function runDiagnostic(): Promise<DiagnosticResult> {
   return { allSheetNames, tabs, unmatchedSheets };
 }
 
-export async function runSync(): Promise<SyncResult> {
+export async function runSync(signal?: AbortSignal): Promise<SyncResult> {
+  const t0 = Date.now();
+  let downloadMs: number | undefined;
+  let parseMs: number | undefined;
+  let writeMs: number | undefined;
+
   console.log('[Sync] Starting...');
   const config = getEnvConfig();
+
+  if (signal?.aborted) throw new Error('Sync cancelled before start');
+
   const credsPath = path.resolve(__dirname, '../../', config.googleCredsPath);
   console.log('[Sync] Creds path:', credsPath, 'exists:', fs.existsSync(credsPath));
   const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8')) as {
@@ -310,21 +331,30 @@ export async function runSync(): Promise<SyncResult> {
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
   });
   await auth.authorize();
+
+  if (signal?.aborted) throw new Error('Sync cancelled after auth');
+
   console.log('[Sync] JWT authorized');
 
   const today = new Date().toISOString().slice(0, 10);
   const errors: string[] = [];
 
   let xlsxBuffer: Buffer;
+  const tDownload = Date.now();
   try {
     console.log('[Sync] Downloading xlsx...');
-    xlsxBuffer = await downloadXlsx(config.googleSheetId, auth);
-    console.log(`[Sync] Downloaded ${(xlsxBuffer.length / 1024).toFixed(0)} KB`);
+    xlsxBuffer = await downloadXlsx(config.googleSheetId, auth, signal);
+    downloadMs = Date.now() - tDownload;
+    console.log(`[Sync] Downloaded ${(xlsxBuffer.length / 1024).toFixed(0)} KB in ${downloadMs}ms`);
   } catch (err) {
+    downloadMs = Date.now() - tDownload;
     console.error('[Sync] Download failed:', String(err));
-    return { processed: 0, errors: [`Failed to download file: ${String(err)}`] };
+    return { processed: 0, errors: [`Failed to download file: ${String(err)}`], downloadMs };
   }
 
+  if (signal?.aborted) throw new Error('Sync cancelled after download');
+
+  const tParse = Date.now();
   console.log('[Sync] Parsing workbook...');
   const workbook = XLSX.read(xlsxBuffer, { type: 'buffer' });
   console.log(`[Sync] Parsed ${workbook.SheetNames.length} sheets`);
@@ -413,11 +443,21 @@ export async function runSync(): Promise<SyncResult> {
     }
   }
 
+  parseMs = Date.now() - tParse;
+
+  if (signal?.aborted) throw new Error('Sync cancelled after parse');
+
+  const tWrite = Date.now();
   console.log('[Sync] Writing to DB...');
   const pool = getPool();
   let processed = 0;
 
   for (const [category, vehicles] of categoryData) {
+    if (signal?.aborted) {
+      writeMs = Date.now() - tWrite;
+      console.log('[Sync] Cancelled during DB write');
+      break;
+    }
     console.log(`[Sync] Category "${category}": ${vehicles.length} vehicles`);
     const client = await pool.connect();
     try {
@@ -437,7 +477,39 @@ export async function runSync(): Promise<SyncResult> {
     }
   }
 
-  return { processed, errors };
+  writeMs = Date.now() - tWrite;
+  console.log(`[Sync] DB write done in ${writeMs}ms`);
+
+  const totalMs = Date.now() - t0;
+  console.log(`[Sync] Total time: ${totalMs}ms`);
+  return { processed, errors, downloadMs, parseMs, writeMs };
+}
+
+export async function runSyncWithRetry(maxRetries: number = 2, signal?: AbortSignal): Promise<SyncResult> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (signal?.aborted) throw new Error('Sync retry aborted');
+    try {
+      const result = await runSync(signal);
+      if (result.processed > 0) return result;
+      if (attempt < maxRetries && result.errors.length > 0) {
+        console.log(`[Sync] Retry ${attempt + 1}/${maxRetries}: all categories failed (0 processed)`);
+        const delay = Math.min(15000 * Math.pow(2, attempt), 60000);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      return result;
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      if (attempt < maxRetries) {
+        const delay = Math.min(15000 * Math.pow(2, attempt), 60000);
+        console.log(`[Sync] Attempt ${attempt + 1} failed, retry in ${delay}ms: ${String(err)}`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        return { processed: 0, errors: [`All ${maxRetries + 1} attempts failed: ${String(err)}`] };
+      }
+    }
+  }
+  return { processed: 0, errors: ['Retry loop ended unexpectedly'] };
 }
 
 export async function debugRawRows(sheetName: string, plateFilter: string): Promise<any> {

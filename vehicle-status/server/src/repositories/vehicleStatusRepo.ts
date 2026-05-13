@@ -188,3 +188,148 @@ export async function querySnapshotDates(pool: Pool): Promise<string[]> {
   );
   return result.rows.map((r: { snapshot_date: string }) => r.snapshot_date);
 }
+
+export interface SyncLogEntry {
+  id: number;
+  startedAt: string;
+  finishedAt: string | null;
+  status: string;
+  trigger: string;
+  processed: number;
+  errors: string[];
+  errorMessage: string | null;
+  downloadMs: number | null;
+  parseMs: number | null;
+  writeMs: number | null;
+  snapshotDate: string | null;
+}
+
+export async function insertSyncLog(
+  pool: Pool,
+  trigger: string,
+  snapshotDate: string,
+): Promise<number> {
+  const result = await pool.query(
+    `INSERT INTO vehicle_status.sync_log (trigger, snapshot_date, status)
+     VALUES ($1, $2, 'in_progress')
+     RETURNING id`,
+    [trigger, snapshotDate],
+  );
+  return result.rows[0].id;
+}
+
+export async function updateSyncLog(
+  pool: Pool,
+  id: number,
+  data: {
+    status: string;
+    processed?: number;
+    errors?: string[];
+    errorMessage?: string;
+    downloadMs?: number;
+    parseMs?: number;
+    writeMs?: number;
+  },
+): Promise<void> {
+  await pool.query(
+    `UPDATE vehicle_status.sync_log SET
+       finished_at = NOW(),
+       status = $2,
+       processed = COALESCE($3, processed),
+       errors = $4,
+       error_message = $5,
+       download_ms = COALESCE($6, download_ms),
+       parse_ms = COALESCE($7, parse_ms),
+       write_ms = COALESCE($8, write_ms)
+     WHERE id = $1`,
+    [
+      id,
+      data.status,
+      data.processed ?? null,
+      data.errors ?? null,
+      data.errorMessage ?? null,
+      data.downloadMs ?? null,
+      data.parseMs ?? null,
+      data.writeMs ?? null,
+    ],
+  );
+}
+
+export async function querySyncLogs(
+  pool: Pool,
+  limit: number = 50,
+): Promise<SyncLogEntry[]> {
+  const result = await pool.query(
+    `SELECT id, started_at, finished_at, status, trigger, processed,
+            errors, error_message, download_ms, parse_ms, write_ms, snapshot_date
+     FROM vehicle_status.sync_log
+     ORDER BY started_at DESC
+     LIMIT $1`,
+    [limit],
+  );
+  return result.rows.map(r => ({
+    id: r.id,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+    status: r.status,
+    trigger: r.trigger,
+    processed: r.processed,
+    errors: r.errors || [],
+    errorMessage: r.error_message,
+    downloadMs: r.download_ms,
+    parseMs: r.parse_ms,
+    writeMs: r.write_ms,
+    snapshotDate: r.snapshot_date,
+  }));
+}
+
+export async function queryMissingSnapshotDates(
+  pool: Pool,
+  lookbackDays: number = 30,
+): Promise<string[]> {
+  const result = await pool.query(
+    `WITH date_series AS (
+       SELECT generate_series(
+         CURRENT_DATE - $1::integer,
+         CURRENT_DATE,
+         '1 day'::interval
+       )::date AS dt
+     )
+     SELECT ds.dt
+     FROM date_series ds
+     LEFT JOIN vehicle_status.snapshots s ON s.snapshot_date = ds.dt
+     WHERE s.snapshot_date IS NULL
+     ORDER BY ds.dt DESC`,
+    [lookbackDays],
+  );
+  return result.rows.map((r: { dt: string }) => r.dt);
+}
+
+export async function queryRecentSyncErrors(
+  pool: Pool,
+  sinceHours: number = 24,
+): Promise<SyncLogEntry[]> {
+  const result = await pool.query(
+    `SELECT id, started_at, finished_at, status, trigger, processed,
+            errors, error_message, download_ms, parse_ms, write_ms, snapshot_date
+     FROM vehicle_status.sync_log
+     WHERE status IN ('error', 'partial')
+       AND started_at > NOW() - $1::interval
+     ORDER BY started_at DESC`,
+    [`${sinceHours} hours`],
+  );
+  return result.rows.map(r => ({
+    id: r.id,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+    status: r.status,
+    trigger: r.trigger,
+    processed: r.processed,
+    errors: r.errors || [],
+    errorMessage: r.error_message,
+    downloadMs: r.download_ms,
+    parseMs: r.parse_ms,
+    writeMs: r.write_ms,
+    snapshotDate: r.snapshot_date,
+  }));
+}

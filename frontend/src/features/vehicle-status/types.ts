@@ -19,7 +19,21 @@ export interface SyncStatus {
   inProgress: boolean;
 }
 
-export interface FilterOptions {
+export interface SyncLogEntry {
+  id: number;
+  startedAt: string;
+  finishedAt: string | null;
+  status: string;
+  trigger: string;
+  processed: number;
+  errors: string[];
+  errorMessage: string | null;
+  downloadMs: number | null;
+  parseMs: number | null;
+  writeMs: number | null;
+  snapshotDate: string | null;
+}
+  export interface FilterOptions {
   categories: string[];
   branches: string[];
   vehicleTypes: string[];

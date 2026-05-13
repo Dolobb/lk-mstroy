@@ -1,4 +1,4 @@
-import type { VehicleRecord, SyncStatus, FilterOptions } from './types';
+import type { VehicleRecord, SyncStatus, SyncLogEntry, FilterOptions } from './types';
 
 const BASE = '/api/vs';
 
@@ -33,5 +33,10 @@ export async function fetchSnapshotDates(): Promise<string[]> {
 
 export async function fetchSnapshots(date: string): Promise<VehicleRecord[]> {
   const d = await get<{ data: VehicleRecord[] }>(`${BASE}/snapshots?date=${date}`);
+  return d.data;
+}
+
+export async function fetchSyncLogs(limit: number = 30): Promise<SyncLogEntry[]> {
+  const d = await get<{ data: SyncLogEntry[] }>(`${BASE}/sync-log?limit=${limit}`);
   return d.data;
 }

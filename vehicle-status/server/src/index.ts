@@ -3,8 +3,17 @@ import cors from 'cors';
 import cron from 'node-cron';
 import { getEnvConfig } from './config/env';
 import { getPool, closePool } from './config/database';
-import { queryAllVehicles, getFilterOptions, querySnapshotsByDate, querySnapshotDates } from './repositories/vehicleStatusRepo';
-import { runSync, runDiagnostic, type SyncResult, debugRawRows } from './services/sheetsSyncService';
+import {
+  queryAllVehicles,
+  getFilterOptions,
+  querySnapshotsByDate,
+  querySnapshotDates,
+  insertSyncLog,
+  updateSyncLog,
+  querySyncLogs,
+  queryMissingSnapshotDates,
+} from './repositories/vehicleStatusRepo';
+import { runSync, runSyncWithRetry, runDiagnostic, debugRawRows, type SyncResult } from './services/sheetsSyncService';
 
 const app = express();
 app.use(cors());
@@ -13,6 +22,89 @@ app.use(express.json());
 let lastSync: string | null = null;
 let lastResult: SyncResult | null = null;
 let syncInProgress = false;
+let activeSyncVersion = 0;
+let activeSyncController: AbortController | null = null;
+
+const TRIGGER_MANUAL = 'manual';
+const TRIGGER_CRON = 'cron';
+
+function abortRunningSync(): void {
+  if (activeSyncController) {
+    console.log('[Sync] Aborting stale sync operation');
+    activeSyncController.abort();
+    activeSyncController = null;
+  }
+}
+
+async function executeSync(trigger: string): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const pool = getPool();
+
+  const logId = await insertSyncLog(pool, trigger, today);
+  console.log(`[Sync] Log entry #${logId} created (trigger=${trigger}, date=${today})`);
+
+  activeSyncVersion = activeSyncVersion + 1;
+  const myVersion = activeSyncVersion;
+
+  abortRunningSync();
+  const controller = new AbortController();
+  activeSyncController = controller;
+
+  syncInProgress = true;
+
+  const timeout = setTimeout(() => {
+    console.error(`[Sync] #${myVersion} timeout (120s), aborting`);
+    controller.abort();
+    if (activeSyncVersion === myVersion) {
+      syncInProgress = false;
+      activeSyncController = null;
+      lastResult = { processed: 0, errors: ['Sync timed out after 120 seconds'] };
+      lastSync = new Date().toISOString();
+    }
+  }, 120_000);
+
+  try {
+    const result: SyncResult = await runSyncWithRetry(2, controller.signal);
+
+    clearTimeout(timeout);
+
+    if (activeSyncVersion === myVersion) {
+      lastResult = result;
+      lastSync = new Date().toISOString();
+      const hasErrors = result.errors.length > 0;
+      const status = hasErrors ? (result.processed > 0 ? 'partial' : 'error') : 'success';
+      await updateSyncLog(pool, logId, {
+        status,
+        processed: result.processed,
+        errors: result.errors,
+        downloadMs: result.downloadMs,
+        parseMs: result.parseMs,
+        writeMs: result.writeMs,
+      });
+      console.log(`[Sync] #${myVersion} ${status}: processed=${result.processed} errors=${result.errors.length}`);
+    } else {
+      console.log(`[Sync] #${myVersion} superseded, discarding result`);
+    }
+  } catch (err) {
+    clearTimeout(timeout);
+    if (activeSyncVersion === myVersion) {
+      lastResult = { processed: 0, errors: [String(err)] };
+      lastSync = new Date().toISOString();
+    }
+    await updateSyncLog(pool, logId, {
+      status: 'error',
+      processed: 0,
+      errors: [String(err)],
+      errorMessage: String(err),
+    });
+    console.error(`[Sync] #${myVersion} failed:`, String(err));
+  } finally {
+    if (activeSyncVersion === myVersion) {
+      syncInProgress = false;
+      activeSyncController = null;
+    }
+  }
+}
 
 app.get('/api/vs/health', (_req, res) => {
   res.json({ status: 'ok', service: 'vehicle-status', time: new Date().toISOString() });
@@ -40,35 +132,13 @@ app.get('/api/vs/vehicles/filters', async (_req, res) => {
   }
 });
 
-app.post('/api/vs/vehicles/sync', (req, res) => {
+app.post('/api/vs/vehicles/sync', (_req, res) => {
   res.json({ status: 'started' });
-
-  if (syncInProgress) return;
-  syncInProgress = true;
-
-  const syncTimeout = setTimeout(() => {
-    console.error('[Sync] Global timeout (120s), forcing reset');
-    syncInProgress = false;
-    lastResult = { processed: 0, errors: ['Sync timed out after 120 seconds'] };
-    lastSync = new Date().toISOString();
-  }, 120_000);
-
-  runSync()
-    .then(result => {
-      clearTimeout(syncTimeout);
-      lastResult = result;
-      lastSync = new Date().toISOString();
-      console.log(`[Sync] Done: processed=${result.processed} errors=${result.errors.length}`);
-    })
-    .catch(err => {
-      clearTimeout(syncTimeout);
-      lastResult = { processed: 0, errors: [String(err)] };
-      lastSync = new Date().toISOString();
-      console.error('[Sync] Failed', err);
-    })
-    .finally(() => {
-      syncInProgress = false;
-    });
+  if (syncInProgress) {
+    console.log('[Sync] Manual sync requested but sync already in progress, skipping');
+    return;
+  }
+  executeSync(TRIGGER_MANUAL).catch(err => console.error('[Sync] Manual sync wrapper failed', err));
 });
 
 app.get('/api/vs/vehicles/sync-status', (_req, res) => {
@@ -90,44 +160,71 @@ function startAutoSync() {
     console.log('[Cron] Auto-sync disabled (CRON_DISABLED=true)');
     return;
   }
-  const SCHEDULES = [
-    '0 8 * * *',
-    '0 13 * * *',
-    '0 16 * * *',
-    '30 23 * * *',
-  ];
-  for (const s of SCHEDULES) {
+
+  const schedules = process.env.CRON_SCHEDULES
+    ? process.env.CRON_SCHEDULES.split(',').map(s => s.trim())
+    : ['0 8 * * *', '0 13 * * *', '0 16 * * *', '30 23 * * *'];
+
+  for (const s of schedules) {
     cron.schedule(s, () => {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
       const mm = String(now.getMinutes()).padStart(2, '0');
-      console.log(`[Cron] Auto-sync triggered at ${hh}:${mm}`);
-      if (syncInProgress) return;
-      syncInProgress = true;
-      const syncTimeout = setTimeout(() => {
-        console.error('[Cron] Sync timeout (120s), forcing reset');
-        syncInProgress = false;
-        lastResult = { processed: 0, errors: ['Sync timed out after 120 seconds'] };
-        lastSync = new Date().toISOString();
-      }, 120_000);
-      runSync()
-        .then(result => {
-          clearTimeout(syncTimeout);
-          lastResult = result;
-          lastSync = new Date().toISOString();
-          console.log(`[Cron] Sync done: processed=${result.processed} errors=${result.errors.length}`);
-        })
-        .catch(err => {
-          clearTimeout(syncTimeout);
-          console.error('[Cron] Sync failed', err);
-        })
-        .finally(() => { syncInProgress = false; });
+      console.log(`[Cron] Auto-sync triggered at ${hh}:${mm} (schedule: ${s})`);
+
+      if (syncInProgress) {
+        console.log('[Cron] Sync already in progress, skipping this scheduled run');
+        return;
+      }
+
+      executeSync(TRIGGER_CRON).catch(err =>
+        console.error('[Cron] Sync wrapper failed', err),
+      );
     });
   }
-  console.log('[Cron] Auto-sync at 08:00, 13:00, 16:00, 23:30');
+
+  console.log(`[Cron] Auto-sync enabled: ${schedules.join(', ')}`);
 }
 
 startAutoSync();
+
+async function checkMissingSnapshots(): Promise<void> {
+  try {
+    const pool = getPool();
+    const missing = await queryMissingSnapshotDates(pool, 30);
+    if (missing.length > 0) {
+      console.warn(`[Startup] Missing snapshot dates (last 30 days): ${missing.join(', ')}`);
+    } else {
+      console.log('[Startup] All dates in last 30 days have snapshots');
+    }
+  } catch (err) {
+    console.error('[Startup] Failed to check missing snapshots', err);
+  }
+}
+
+app.get('/api/vs/sync-log', async (req, res) => {
+  try {
+    const pool = getPool();
+    const limit = parseInt(String(req.query.limit || '50'), 10);
+    const data = await querySyncLogs(pool, Math.min(limit, 200));
+    res.json({ data });
+  } catch (err) {
+    console.error('GET /api/vs/sync-log error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get('/api/vs/snapshots/missing', async (req, res) => {
+  try {
+    const pool = getPool();
+    const lookback = parseInt(String(req.query.days || '30'), 10);
+    const dates = await queryMissingSnapshotDates(pool, Math.min(lookback, 90));
+    res.json({ missing: dates });
+  } catch (err) {
+    console.error('GET /api/vs/snapshots/missing error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
 
 app.get('/api/vs/debug/raw', async (req, res) => {
   try {
@@ -171,6 +268,7 @@ const config = getEnvConfig();
 
 getPool().query('SELECT 1').then(() => {
   console.log(`[DB] Connected to ${config.dbName} at :${config.dbPort}`);
+  checkMissingSnapshots();
 }).catch(err => {
   console.error('[DB] Connection failed', err);
 });
@@ -181,6 +279,7 @@ app.listen(config.serverPort, () => {
 
 process.on('SIGTERM', async () => {
   console.log('[Server] SIGTERM received, shutting down...');
+  abortRunningSync();
   await closePool();
   process.exit(0);
 });

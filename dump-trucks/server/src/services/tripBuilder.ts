@@ -48,11 +48,11 @@ export function buildTrips(events: ZoneEvent[]): Trip[] {
       const u = unloadingEvents[i];
       if (u.enteredAt <= loadedAt) continue;
 
-      // Проверка разумности длительности рейса
-      if (u.exitedAt) {
-        const tripMin = (u.exitedAt.getTime() - loading.enteredAt.getTime()) / 60_000;
-        if (tripMin > MAX_TRIP_DURATION_MIN) continue;
-      }
+      // Проверка разумности времени доставки: от выезда с погрузки до въезда на выгрузку.
+      // НЕ используем exitedAt у выгрузки — машина может остаться там до конца смены
+      // (валидный сценарий: разгрузилась и заночевала на объекте).
+      const deliveryMin = (u.enteredAt.getTime() - loadedAt.getTime()) / 60_000;
+      if (deliveryMin > MAX_TRIP_DURATION_MIN) continue;
 
       bestUnloading = u;
       bestIdx = i;

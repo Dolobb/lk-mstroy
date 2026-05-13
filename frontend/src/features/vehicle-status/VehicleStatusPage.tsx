@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { RefreshCw, Filter, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, X, Pin, ChevronsDown, ChevronsUp } from 'lucide-react';
-import type { VehicleRecord, SyncStatus } from './types';
-import { fetchVehicles, fetchSyncStatus, triggerSync, fetchSnapshotDates, fetchSnapshots } from './api';
+import { RefreshCw, Filter, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, X, Pin, ChevronsDown, ChevronsUp, History } from 'lucide-react';
+import type { VehicleRecord, SyncStatus, SyncLogEntry } from './types';
+import { fetchVehicles, fetchSyncStatus, triggerSync, fetchSnapshotDates, fetchSnapshots, fetchSyncLogs } from './api';
 
 const PAGE_SIZE = 50;
 
@@ -214,6 +214,8 @@ export const VehicleStatusPage: React.FC = () => {
   const [snapshotMode, setSnapshotMode] = useState(false);
   const [snapshotDates, setSnapshotDates] = useState<string[]>([]);
   const [selectedSnapshotDate, setSelectedSnapshotDate] = useState<string>('');
+  const [showSyncHistory, setShowSyncHistory] = useState(false);
+  const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -329,6 +331,11 @@ export const VehicleStatusPage: React.FC = () => {
   }, []);
 
   useEffect(() => { loadSnapshotDates(); }, [loadSnapshotDates]);
+
+  useEffect(() => {
+    if (!showSyncHistory) return;
+    fetchSyncLogs(30).then(setSyncLogs).catch(() => {});
+  }, [showSyncHistory]);
 
   useEffect(() => {
     if (!snapshotMode || !selectedSnapshotDate) return;
@@ -485,6 +492,52 @@ export const VehicleStatusPage: React.FC = () => {
         </div>
       )}
       {error && <div className="shrink-0 text-xs text-destructive bg-destructive/10 rounded-lg p-2">{error}</div>}
+
+        {/* Sync History Panel */}
+        <div className="shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowSyncHistory(v => !v)}
+            style={{ fontSize: 11, color: showSyncHistory ? '#F97116' : 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            {showSyncHistory ? 'Скрыть журнал' : 'Журнал синхронизации'}
+          </button>
+          {showSyncHistory && syncLogs.length > 0 && (
+            <div className="mt-1 overflow-auto max-h-32 rounded-lg border border-border/30" style={{ background: 'var(--card)' }}>
+              <table className="w-full text-xs border-collapse" style={{ fontSize: 10 }}>
+                <thead>
+                  <tr className="border-b border-border/30 text-muted-foreground">
+                    <th className="px-2 py-1 text-left">Время</th>
+                    <th className="px-2 py-1 text-left">Тип</th>
+                    <th className="px-2 py-1 text-left">Статус</th>
+                    <th className="px-2 py-1 text-right">ТС</th>
+                    <th className="px-2 py-1 text-right">Загр.</th>
+                    <th className="px-2 py-1 text-right">Парс.</th>
+                    <th className="px-2 py-1 text-right">Запись</th>
+                    <th className="px-2 py-1 text-left">Ошибка</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {syncLogs.slice(0, 15).map(l => (
+                    <tr key={l.id} className={'border-b border-border/20' + (l.status === 'error' ? ' text-destructive' : l.status === 'partial' ? ' text-orange-500' : '')}>
+                      <td className="px-2 py-0.5 whitespace-nowrap">{formatDateTime(l.startedAt)}</td>
+                      <td className="px-2 py-0.5">{l.trigger === 'cron' ? 'cron' : 'руч'}</td>
+                      <td className="px-2 py-0.5 font-medium">{l.status}</td>
+                      <td className="px-2 py-0.5 text-right">{l.processed || 0}</td>
+                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.downloadMs != null ? (l.downloadMs / 1000).toFixed(1) + 's' : '—'}</td>
+                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.parseMs != null ? (l.parseMs / 1000).toFixed(1) + 's' : '—'}</td>
+                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.writeMs != null ? (l.writeMs / 1000).toFixed(1) + 's' : '—'}</td>
+                      <td className="px-2 py-0.5 max-w-48 truncate">{l.errors?.[0] || l.errorMessage || ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {showSyncHistory && syncLogs.length === 0 && (
+            <div className="mt-1 text-xs text-muted-foreground">Нет записей. Запустите синхронизацию.</div>
+          )}
+        </div>
 
       <div className="flex items-center gap-3 shrink-0 flex-wrap">
         <button
