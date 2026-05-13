@@ -8,6 +8,8 @@ import type {
   UnifiedRecord,
   UnifiedVehicleRow,
   DstZoneFeature,
+  GeoObject,
+  ZoneFeature,
 } from './types';
 
 // ─── Geo-admin API ──────────────────────────────────────
@@ -17,6 +19,22 @@ export async function fetchDstZones(): Promise<DstZoneFeature[]> {
   const r = await fetch('/api/geo/zones/by-tag/dst_zone');
   if (!r.ok) throw new Error(`geo-admin unavailable: ${r.status}`);
   const fc = await r.json() as { type: string; features: DstZoneFeature[] };
+  return fc.features ?? [];
+}
+
+export async function fetchGeoObjects(): Promise<GeoObject[]> {
+  const r = await fetch('/api/geo/objects');
+  if (!r.ok) throw new Error(`geo-admin unavailable: ${r.status}`);
+  return r.json() as Promise<GeoObject[]>;
+}
+
+export async function fetchZonesByObject(objectUid: string, tag?: string): Promise<ZoneFeature[]> {
+  const url = tag
+    ? `/api/geo/zones/by-object/${encodeURIComponent(objectUid)}?tags=${encodeURIComponent(tag)}`
+    : `/api/geo/zones/by-object/${encodeURIComponent(objectUid)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`geo-admin unavailable: ${r.status}`);
+  const fc = await r.json() as { type: string; features: ZoneFeature[] };
   return fc.features ?? [];
 }
 

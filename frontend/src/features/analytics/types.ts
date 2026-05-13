@@ -2,6 +2,29 @@ export type VehicleSource = 'dump_truck' | 'dst';
 
 // ─── Geo-admin types ─────────────────────────────────────
 
+export interface GeoObject {
+  id: number;
+  uid: string;
+  name: string;
+  timezone: string;
+}
+
+export interface ZoneFeatureProperties {
+  id: number;
+  uid: string;
+  object_id: number;
+  object_uid: string;
+  name: string;
+  tags: string[];
+  min_duration_sec: number;
+}
+
+export interface ZoneFeature {
+  type: 'Feature';
+  properties: ZoneFeatureProperties;
+  geometry: { type: 'Polygon'; coordinates: number[][][] };
+}
+
 export interface DstZoneProperties {
   uid: string;
   name: string;
