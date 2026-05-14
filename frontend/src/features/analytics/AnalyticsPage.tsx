@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
+import { Table2, LayoutGrid, Map as MapIcon } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
@@ -18,6 +19,8 @@ import {
 } from './api';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
 import { AnalyticsMapView } from './AnalyticsMapView';
+import { AnalyticsCardsView } from './AnalyticsCardsView';
+import { SUBGROUP_LABELS, SUBGROUP_COLORS, SUBGROUP_ORDER, vehicleCategory } from './categories';
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -101,24 +104,37 @@ function matchesTypeFilter(row: UnifiedVehicleRow, filters: Set<string>): boolea
   return false;
 }
 
-function getTypeLabel(row: UnifiedVehicleRow): string {
-  if (row.source === 'dump_truck') {
-    const hasOnsite = row.records.some(r => r.workType === 'onsite');
-    const hasDelivery = row.records.some(r => r.workType === 'delivery');
-    if (hasOnsite && !hasDelivery) return 'Самосв. по месту';
-    return 'Самосв. доставка';
+function subtypeLabel(v: UnifiedVehicleRow): string {
+  if (v.source === 'dump_truck') {
+    const hasOnsite = v.records.some(r => r.workType === 'onsite');
+    const hasDelivery = v.records.some(r => r.workType === 'delivery');
+    if (hasOnsite && !hasDelivery) return 'По месту';
+    return 'Доставка';
   }
-  const vt = row.vehicleType.toLowerCase();
-  if (vt.includes('краны автомобильные')) return 'Краны авт.';
-  if (vt.includes('краны гусеничные')) return 'Краны гусен.';
-  if (vt.includes('краны пневмоколёсные')) return 'Краны пневмо.';
+  const vt = v.vehicleType.toLowerCase();
+  if (vt.includes('краны автомобильные')) return 'Автомобильный';
+  if (vt.includes('краны гусеничные')) return 'Гусеничный';
+  if (vt.includes('краны пневмоколёсные')) return 'Пневмоколесный';
   if (vt.includes('бульдозер')) return 'Бульдозер';
   if (vt.includes('каток')) return 'Каток';
   if (vt === 'погрузчик') return 'Погрузчик';
-  if (vt === 'экскаватор гусеничный') return 'Экск. гусен.';
-  if (vt === 'экскаватор колесный') return 'Экск. колесный';
-  if (vt === 'экскаватор-погрузчик') return 'Экск.-погрузчик';
-  return row.vehicleType;
+  if (vt === 'экскаватор гусеничный') return 'Гусеничный';
+  if (vt === 'экскаватор колесный') return 'Колесный';
+  if (vt === 'экскаватор-погрузчик') return 'Погрузчик';
+  return v.vehicleType;
+}
+
+
+function subtypeBreakdown(cat: string, vehicles: UnifiedVehicleRow[]): string {
+  const counts = new Map<string, number>();
+  vehicles.forEach(v => {
+    const label = subtypeLabel(v);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => `${count} ${label}`)
+    .join(', ');
 }
 
 // ─── Defaults ───────────────────────────────────────────
@@ -148,7 +164,7 @@ export function AnalyticsPage() {
     });
   };
 
-  const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'map' | 'cards'>('table');
 
   const [dtRows, setDtRows] = useState<UnifiedVehicleRow[]>([]);
   const [dstRows, setDstRows] = useState<UnifiedVehicleRow[]>([]);
@@ -165,6 +181,8 @@ export function AnalyticsPage() {
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
+  const [focusedObjectUid, setFocusedObjectUid] = useState<string | null>(null);
 
   // KIP segments state
   const [kipSegProgress, setKipSegProgress] = useState<KipSegmentProgress | null>(null);
@@ -199,6 +217,11 @@ export function AnalyticsPage() {
 
     return () => { cancelled = true; };
   }, [dateFrom, dateTo]);
+
+  // Сброс фокуса при смене периода, фильтров или поиска
+  useEffect(() => {
+    setFocusedObjectUid(null);
+  }, [dateFrom, dateTo, shift, vehicleFilters, searchQuery]);
 
   // ─── Load dst_zones once (geo-admin, static) ─────────
 
@@ -385,34 +408,43 @@ export function AnalyticsPage() {
       .map(([, entry]) => entry);
   }, [sortedRows, dstGeoMatch]);
 
-  // ─── Summary strip ──────────────────────────────────
+  // ─── Filtered groups (focus) ────────────────────────
 
-  const summaryCards = React.useMemo(() => {
+  const filteredGroups = React.useMemo(() => {
+    if (focusedObjectUid === null) return groups;
+    return groups.filter(g => g.groupUid === focusedObjectUid);
+  }, [groups, focusedObjectUid]);
+
+  // ─── KPI strip (object summaries) ───────────────────
+
+  type ObjectSummary = { uid: string | null; title: string; vehicles: number; work: string; kip: number };
+
+  const objectSummaries: ObjectSummary[] = React.useMemo(() => {
     const dtVehicles = sortedRows.filter(r => r.source === 'dump_truck');
     const totalTrips = dtVehicles.reduce((s, r) => s + r.totalTrips, 0);
     const totalFuel = sortedRows.filter(r => r.source === 'dst').reduce((s, r) => s + r.totalFuelL, 0);
     const kipVals = sortedRows.filter(r => r.avgKipPct > 0).map(r => r.avgKipPct);
     const allKip = kipVals.length ? Math.round(kipVals.reduce((a, b) => a + b, 0) / kipVals.length) : 0;
-
-    const workText = [totalTrips > 0 ? `${totalTrips} рейс.` : null, totalFuel > 0 ? `${Math.round(totalFuel)} л` : null]
+    const allWork = [totalTrips > 0 ? `${totalTrips} рейс.` : null, totalFuel > 0 ? `${Math.round(totalFuel)} л` : null]
       .filter(Boolean).join(', ') || '—';
 
-    const cards = [
-      { title: 'Все', vehicles: sortedRows.length, work: workText, kip: allKip },
-    ];
+    const allCard: ObjectSummary = { uid: null, title: 'Все', vehicles: sortedRows.length, work: allWork, kip: allKip };
 
-    groups.forEach(g => {
-      const gDt = g.vehicles.filter(r => r.source === 'dump_truck');
-      const gTrips = gDt.reduce((s, r) => s + r.totalTrips, 0);
-      const gFuel = g.vehicles.filter(r => r.source === 'dst').reduce((s, r) => s + r.totalFuelL, 0);
-      const gKips = g.vehicles.filter(r => r.avgKipPct > 0).map(r => r.avgKipPct);
-      const gKip = gKips.length ? Math.round(gKips.reduce((a, b) => a + b, 0) / gKips.length) : 0;
-      const gWork = [gTrips > 0 ? `${gTrips} рейс.` : null, gFuel > 0 ? `${Math.round(gFuel)} л` : null]
-        .filter(Boolean).join(', ') || '—';
-      cards.push({ title: g.groupName, vehicles: g.vehicles.length, work: gWork, kip: gKip });
-    });
+    const objectCards: ObjectSummary[] = groups
+      .filter(g => g.groupUid !== undefined)
+      .map(g => {
+        const gDt = g.vehicles.filter(r => r.source === 'dump_truck');
+        const gTrips = gDt.reduce((s, r) => s + r.totalTrips, 0);
+        const gFuel = g.vehicles.filter(r => r.source === 'dst').reduce((s, r) => s + r.totalFuelL, 0);
+        const gKips = g.vehicles.filter(r => r.avgKipPct > 0).map(r => r.avgKipPct);
+        const gKip = gKips.length ? Math.round(gKips.reduce((a, b) => a + b, 0) / gKips.length) : 0;
+        const gWork = [gTrips > 0 ? `${gTrips} рейс.` : null, gFuel > 0 ? `${Math.round(gFuel)} л` : null]
+          .filter(Boolean).join(', ') || '—';
+        return { uid: g.groupUid!, title: g.groupName, vehicles: g.vehicles.length, work: gWork, kip: gKip };
+      })
+      .sort((a, b) => a.title.localeCompare(b.title, 'ru'));
 
-    return cards;
+    return [allCard, ...objectCards];
   }, [sortedRows, groups]);
 
   // ─── Handlers ───────────────────────────────────────
@@ -436,6 +468,14 @@ export function AnalyticsPage() {
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
+      const s = new Set(prev);
+      s.has(key) ? s.delete(key) : s.add(key);
+      return s;
+    });
+  };
+
+  const toggleSubgroup = (key: string) => {
+    setCollapsedSubgroups(prev => {
       const s = new Set(prev);
       s.has(key) ? s.delete(key) : s.add(key);
       return s;
@@ -560,9 +600,13 @@ export function AnalyticsPage() {
   const totalCols = 1 + COLUMNS.length;
 
   return (
-    <div className="sv-root" data-theme={resolvedTheme} style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 16px', minHeight: 0, overflow: 'hidden' }}>
+    <div className="sv-root" data-theme={resolvedTheme} style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 16px', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+      {/* Ambient halos */}
+      <div className="sv-amb sv-amb-o" />
+      <div className="sv-amb sv-amb-b" />
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div className="sv-an-filterbar">
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--sv-text-1)' }}>Аналитика</h2>
 
         <DateRangePicker
@@ -605,28 +649,33 @@ export function AnalyticsPage() {
           <button
             className={`sv-view-tab ${viewMode === 'table' ? 'active' : ''}`}
             onClick={() => setViewMode('table')}
-            style={{ fontSize: 11, padding: '4px 12px' }}
+            style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
-            Таблица
+            <Table2 size={12} />Таблица
+          </button>
+          <button
+            className={`sv-view-tab ${viewMode === 'cards' ? 'active' : ''}`}
+            onClick={() => setViewMode('cards')}
+            style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <LayoutGrid size={12} />Карточки
           </button>
           <button
             className={`sv-view-tab ${viewMode === 'map' ? 'active' : ''}`}
             onClick={() => setViewMode('map')}
-            style={{ fontSize: 11, padding: '4px 12px' }}
+            style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
-            Карта
+            <MapIcon size={12} />Карта
           </button>
         </div>
       </div>
 
-      {/* Summary strip — per-object cards like samosvaly */}
-      <div className="sv-smu-strip" style={{ marginBottom: 8 }}>
-        {summaryCards.map(c => (
-          <div key={c.title} className="sv-smu-card" style={{ cursor: 'pointer' }}
-            onClick={() => {
-              if (c.title === 'Все') { document.querySelector('.sv-an-table-wrap')?.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-              document.getElementById(`obj-scroll-${c.title}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
+      {/* KPI Strip — object focus boxes */}
+      {objectSummaries.length > 1 && (
+        <div className="sv-smu-strip" style={{ marginBottom: 8 }}>
+        {objectSummaries.map(c => (
+          <div key={c.uid ?? '__all'} className={`sv-smu-card ${focusedObjectUid === c.uid ? 'active' : ''}`} style={{ cursor: 'pointer' }}
+            onClick={() => setFocusedObjectUid(c.uid)}
           >
             <div className="sv-smu-card-title">{c.title}</div>
             <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
@@ -635,6 +684,7 @@ export function AnalyticsPage() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -670,9 +720,43 @@ export function AnalyticsPage() {
       {/* Map view */}
       {viewMode === 'map' && (
         <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-          <AnalyticsMapView groups={groups} />
+          <AnalyticsMapView groups={filteredGroups} dateFrom={dateFrom} dateTo={dateTo} />
         </div>
       )}
+
+      {/* Cards view */}
+      {viewMode === 'cards' && (loading ? (
+          <div className="sv-empty">
+            <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+            </svg>
+            <span className="sv-empty-text">Загрузка...</span>
+          </div>
+        ) : error ? (
+          <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#EF4444', fontSize: 12, margin: 'auto' }}>
+            {error}
+          </div>
+        ) : (
+        <AnalyticsCardsView
+          filteredGroups={filteredGroups}
+          objectSummaries={objectSummaries}
+          focusedObjectUid={focusedObjectUid}
+          onFocusObject={setFocusedObjectUid}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onPeriodShift={(days) => {
+            const [fy, fm, fd] = dateFrom.split('-').map(Number);
+            const [ty, tm, td] = dateTo.split('-').map(Number);
+            const f = new Date(Date.UTC(fy!, fm! - 1, fd! + days));
+            const t = new Date(Date.UTC(ty!, tm! - 1, td! + days));
+            setDateFrom(f.toISOString().slice(0, 10));
+            setDateTo(t.toISOString().slice(0, 10));
+          }}
+          dstRecords={dstDetails}
+          selectedChip={selectedChip}
+          onChipClick={(key) => setSelectedChip(selectedChip === key ? null : key)}
+        />
+      ))}
 
       {/* Table view */}
       {viewMode === 'table' && (
@@ -713,7 +797,7 @@ export function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {groups.map((g, gi) => {
+              {filteredGroups.map((g, gi) => {
                 const gKey = `grp_${gi}`;
                 const isGroupOpen = !collapsedGroups.has(gKey);
 
@@ -730,107 +814,137 @@ export function AnalyticsPage() {
                       </td>
                     </tr>
 
-                    {/* Vehicle rows */}
-                    {isGroupOpen && g.vehicles.map((v, vi) => {
-                      const vKey = `${gKey}_v${vi}`;
-                      const isOpen = expanded.has(vKey);
-                      const records = getRecords(v);
-                      const isLoadingDst = v.source === 'dst' && loadingDetails.has(v.regNumber);
-                      const typeLabel = getTypeLabel(v);
-                      const isGeoMatched = v.source === 'dst' && dstGeoMatch.has(v.regNumber);
-                      const sourceTag = v.source === 'dump_truck'
-                        ? <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: 'rgba(249,115,22,0.15)', color: '#F97316', marginLeft: 6 }}>{typeLabel}</span>
-                        : <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: isGeoMatched ? 'rgba(167,139,250,0.2)' : 'rgba(96,165,250,0.15)', color: isGeoMatched ? '#A78BFA' : '#60A5FA', marginLeft: 6 }}>{typeLabel}{isGeoMatched && ' ◉'}</span>;
+                    {/* Vehicle rows — sub-grouped by type */}
+                    {isGroupOpen && SUBGROUP_ORDER.map(cat => {
+                      const catVehicles = g.vehicles.filter(v => vehicleCategory(v) === cat);
+                      if (!catVehicles.length) return null;
+                      const subKey = `${gKey}_${cat}`;
+                      const isSubOpen = !collapsedSubgroups.has(subKey);
 
                       return (
-                        <React.Fragment key={vKey}>
-                          <tr
-                            className="sv-lv0"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => toggleExpand(vKey, v)}
-                          >
-                            <td>
-                              <div className="sv-tree-cell">
-                                <div className={`sv-tree-expand ${isOpen ? 'open' : ''}`}>▶</div>
-                                <div className="sv-vehicle-name-cell">
-                                  <span className="sv-reg-num">{v.regNumber}</span>
-                                  <span className="sv-veh-model">{v.nameMO}</span>
-                                  {sourceTag}
-                                </div>
+                        <React.Fragment key={subKey}>
+                          {/* Subgroup header */}
+                          <tr className="sv-subgroup-row" onClick={() => toggleSubgroup(subKey)}>
+                            <td colSpan={totalCols}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 24px', fontSize: 12, fontWeight: 500, color: 'var(--sv-text-2)' }}>
+                                <span className={`sv-tree-expand ${isSubOpen ? 'open' : ''}`}>▶</span>
+                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: SUBGROUP_COLORS[cat], flexShrink: 0 }} />
+                                <span>{SUBGROUP_LABELS[cat]}</span>
+                                <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, background: `${SUBGROUP_COLORS[cat]}1A`, color: SUBGROUP_COLORS[cat], fontWeight: 600 }}>{catVehicles.length} ТС</span>
+                                <span style={{ fontSize: 8, color: 'var(--sv-text-3)' }}>{subtypeBreakdown(cat, catVehicles)}</span>
                               </div>
                             </td>
-                            {COLUMNS.map(col => (
-                              <td key={col.id} style={'maxW' in col && col.maxW ? { maxWidth: col.maxW, overflow: 'hidden', textOverflow: 'ellipsis' } : undefined}>
-                                {renderCell(col.id, v)}
-                              </td>
-                            ))}
                           </tr>
 
-                          {/* Chip strip row */}
-                          {isOpen && (
-                            <tr className="sv-chip-row">
-                              <td colSpan={totalCols}>
-                                {isLoadingDst ? (
-                                  <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-2)' }}>
-                                    <svg className="sv-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" style={{ verticalAlign: 'middle', marginRight: 6 }}>
-                                      <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
-                                    </svg>
-                                    Загрузка деталей...
-                                  </div>
-                                ) : records.length === 0 ? (
-                                  <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-3)' }}>
-                                    {v.source === 'dst' ? 'Нет детальных данных' : 'Нет записей'}
-                                  </div>
-                                ) : (
-                                  <div className="sv-chip-strip">
-                                    {buildChips(records, v.regNumber).map(c => (
-                                      <ShiftChip
-                                        key={c.key}
-                                        {...c}
-                                        isSelected={selectedChip === c.key}
-                                        onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          )}
-
-                          {/* Detail row for selected chip */}
-                          {selectedChip && isOpen && selectedChip.startsWith(v.regNumber + '_') && (() => {
-                            const chipRecs = findRecsForChip(selectedChip, records);
-                            if (!chipRecs.length) return null;
-                            const rec = chipRecs[0]!;
+                          {/* Category vehicles */}
+                          {isSubOpen && catVehicles.map((v, vi) => {
+                            const vKey = `${subKey}_v${vi}`;
+                            const isOpen = expanded.has(vKey);
+                            const records = getRecords(v);
+                            const isLoadingDst = v.source === 'dst' && loadingDetails.has(v.regNumber);
+                            const catColor = SUBGROUP_COLORS[vehicleCategory(v)];
+                            const catDot = <span style={{ width: 5, height: 5, borderRadius: '50%', background: catColor, marginRight: 3, flexShrink: 0, display: 'inline-block' }} />;
+                            const sourceTag = (
+                              <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, color: catColor, marginLeft: 6, display: 'inline-flex', alignItems: 'center' }}>
+                                {catDot}{subtypeLabel(v)}
+                              </span>
+                            );
 
                             return (
-                              <tr className="sv-sub-row">
-                                <td colSpan={totalCols}>
-                                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                    {rec.source === 'dump_truck' && rec.id != null ? (
-                                      chipRecs.map(cr => (
-                                        <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
-                                          {cr.workType === 'onsite'
-                                            ? <ShiftGanttBar shiftRecordId={cr.id!} timezone={cr.objectTimezone} />
-                                            : <ShiftSubTable
-                                                shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
-                                                shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
-                                              />
-                                          }
-                                        </div>
-                                      ))
-                                    ) : rec.source === 'dst' ? (
-                                      <DstGanttSection rec={rec} />
-                                    ) : (
-                                      <div style={{ padding: 12, fontSize: 11, color: 'var(--sv-text-3)' }}>
-                                        Детали недоступны
+                              <React.Fragment key={vKey}>
+                                <tr
+                                  className="sv-lv0"
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => toggleExpand(vKey, v)}
+                                >
+                                  <td>
+                                    <div className="sv-tree-cell" style={{ paddingLeft: 40 }}>
+                                      <div className={`sv-tree-expand ${isOpen ? 'open' : ''}`}>▶</div>
+                                      <div className="sv-vehicle-name-cell">
+                                        <span className="sv-reg-num">{v.regNumber}</span>
+                                        <span className="sv-veh-model">{v.nameMO}</span>
+                                        {sourceTag}
                                       </div>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
+                                    </div>
+                                  </td>
+                                  {COLUMNS.map(col => (
+                                    <td key={col.id} style={'maxW' in col && col.maxW ? { maxWidth: col.maxW, overflow: 'hidden', textOverflow: 'ellipsis' } : undefined}>
+                                      {renderCell(col.id, v)}
+                                    </td>
+                                  ))}
+                                </tr>
+
+                                {/* Chip strip row */}
+                                {isOpen && (
+                                  <tr className="sv-chip-row">
+                                    <td colSpan={totalCols}>
+                                      {isLoadingDst ? (
+                                        <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-2)' }}>
+                                          <svg className="sv-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" style={{ verticalAlign: 'middle', marginRight: 6 }}>
+                                            <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+                                          </svg>
+                                          Загрузка деталей...
+                                        </div>
+                                      ) : records.length === 0 ? (
+                                        <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-3)' }}>
+                                          {v.source === 'dst' ? 'Нет детальных данных' : 'Нет записей'}
+                                        </div>
+                                      ) : (
+                                        <div className="sv-chip-strip">
+                                          {buildChips(records, v.regNumber).map(c => {
+                                            const { key: _k, ...chip } = c;
+                                            return (
+                                              <ShiftChip
+                                                key={c.key}
+                                                {...chip}
+                                                isSelected={selectedChip === c.key}
+                                                onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
+                                              />
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )}
+
+                                {/* Detail row for selected chip */}
+                                {selectedChip && isOpen && selectedChip.startsWith(v.regNumber + '_') && (() => {
+                                  const chipRecs = findRecsForChip(selectedChip, records);
+                                  if (!chipRecs.length) return null;
+                                  const rec = chipRecs[0]!;
+
+                                  return (
+                                    <tr className="sv-sub-row">
+                                      <td colSpan={totalCols}>
+                                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                          {rec.source === 'dump_truck' && rec.id != null ? (
+                                            chipRecs.map(cr => (
+                                              <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
+                                                {cr.workType === 'onsite'
+                                                  ? <ShiftGanttBar shiftRecordId={cr.id!} timezone={cr.objectTimezone} />
+                                                  : <ShiftSubTable
+                                                      shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
+                                                      shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
+                                                    />
+                                                }
+                                              </div>
+                                            ))
+                                          ) : rec.source === 'dst' ? (
+                                            <DstGanttSection rec={rec} />
+                                          ) : (
+                                            <div style={{ padding: 12, fontSize: 11, color: 'var(--sv-text-3)' }}>
+                                              Детали недоступны
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })()}
+                              </React.Fragment>
                             );
-                          })()}
+                          })}
                         </React.Fragment>
                       );
                     })}
@@ -1004,4 +1118,5 @@ function DstGanttSection({ rec }: { rec: UnifiedRecord }) {
     </div>
   );
 }
+
 

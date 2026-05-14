@@ -40,6 +40,8 @@
   --sv-donut-track: rgba(255,255,255,0.06);
   --sv-block-sep: rgba(255,255,255,0.10);
   --sv-tab-active-bg: rgba(249,115,22,0.12);
+  --sv-accent: #F97316;
+  --sv-accent-soft: rgba(249,115,22,0.08);
   --sv-tree-line: rgba(59,130,246,0.25);
   --sv-lv1-bg: rgba(59,130,246,0.04);
   --sv-lv2-bg: rgba(167,139,250,0.04);
@@ -1463,3 +1465,44 @@ td.sv-obj-return {
 
 /* Geo-fallback marker: engine_time_source = geo */
 .sv-root .sv-engine-geo { color: #F97316; font-weight: 500; font-size: 0.85em; }
+
+/* Subgroup row — lighter than object group header */
+.sv-subgroup-row { background: transparent; cursor: pointer; }
+.sv-subgroup-row:hover { background: var(--sv-hover-bg); }
+
+/* Active KPI strip box (Session 1) */
+.sv-smu-card.active {
+  border-color: var(--sv-accent);
+  background: var(--sv-accent-soft);
+}
+
+/* --- Cards View --- */
+.sv-veh-card { background: var(--sv-card); border: 1px solid var(--sv-card-border); border-radius: 10px; padding: 10px 12px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.sv-veh-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.sv-veh-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sv-veh-plate { font-weight: 800; font-size: 13px; color: var(--sv-text-1); }
+.sv-veh-model { font-size: 10px; color: var(--sv-text-3); margin-top: 1px; }
+.sv-veh-org { font-size: 9px; color: var(--sv-text-4); margin-left: auto; text-transform: uppercase; letter-spacing: 0.03em; }
+.sv-veh-meta { display: flex; gap: 10px; margin: 4px 0; flex-wrap: wrap; }
+.sv-veh-meta-item { display: flex; flex-direction: column; gap: 1px; }
+.sv-veh-meta-lbl { font-size: 8px; font-weight: 700; color: var(--sv-text-4); text-transform: uppercase; letter-spacing: 0.04em; }
+.sv-veh-meta-val { font-size: 11px; font-weight: 700; color: var(--sv-text-1); font-variant-numeric: tabular-nums; }
+.sv-veh-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+
+/* --- Analytics polish (session 5) --- */
+.sv-an-filterbar {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 12px; padding: 8px 10px; border-radius: 12px;
+  background: var(--sv-card);
+  border: 1px solid var(--sv-card-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+table.sv-at thead {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.sv-smu-card { transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease; }
+.sv-smu-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.sv-smu-card-val { font-variant-numeric: tabular-nums; }

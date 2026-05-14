@@ -1,0 +1,121 @@
+/* Analytics map pin — pill design with icon + plate + hover-expand KIP */
+
+.apin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform .25s ease;
+}
+.apin:hover { z-index: 10; transform: translateY(-3px); }
+
+.apin-compact {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 5px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid transparent;
+  transition: all .25s;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,.2));
+  white-space: nowrap;
+}
+.apin:hover .apin-compact { filter: drop-shadow(0 6px 18px rgba(0,0,0,.3)); }
+
+/* KIP colour borders */
+.apin.kip-green .apin-compact { border-color: rgba(34,197,94,0.45); }
+.apin.kip-blue  .apin-compact { border-color: rgba(59,130,246,0.45); }
+.apin.kip-red   .apin-compact { border-color: rgba(239,68,68,0.45); }
+.apin.kip-na    .apin-compact { border-color: rgba(148,163,184,0.45); }
+
+/* Selected */
+.apin.selected .apin-compact { border-width: 2px; filter: drop-shadow(0 0 8px rgba(59,130,246,0.45)); }
+.apin.kip-green.selected .apin-compact { border-color: rgba(34,197,94,0.9); }
+.apin.kip-blue.selected  .apin-compact { border-color: rgba(59,130,246,0.9); }
+.apin.kip-red.selected   .apin-compact { border-color: rgba(239,68,68,0.9); }
+.apin.kip-na.selected    .apin-compact { border-color: rgba(59,130,246,0.9); }
+
+/* Icon circle */
+.apin-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.apin.kip-green .apin-icon { background: linear-gradient(135deg,#22c55e,#16a34a); }
+.apin.kip-blue  .apin-icon { background: linear-gradient(135deg,#3b82f6,#2563eb); }
+.apin.kip-red   .apin-icon { background: linear-gradient(135deg,#ef4444,#dc2626); }
+.apin.kip-na    .apin-icon { background: linear-gradient(135deg,#94a3b8,#64748b); }
+
+.apin-icon-img {
+  width: 16px;
+  height: 16px;
+  display: block;
+  filter: brightness(0) invert(1) drop-shadow(0 0 1.5px rgba(255,255,255,0.9));
+}
+
+/* Plate */
+.apin-plate {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+}
+.apin.kip-na .apin-plate { color: #64748b; }
+
+/* Hover-expand */
+.apin-expand {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  max-width: 0;
+  overflow: hidden;
+  transition: all .3s ease;
+  opacity: 0;
+}
+.apin:hover .apin-expand { max-width: 60px; opacity: 1; margin-left: 4px; }
+.apin-sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(0,0,0,0.08);
+  margin-right: 5px;
+  flex-shrink: 0;
+}
+.apin-kip { font-size: 11px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.apin.kip-green .apin-kip { color: #16a34a; }
+.apin.kip-blue  .apin-kip { color: #2563eb; }
+.apin.kip-red   .apin-kip { color: #dc2626; }
+.apin-kip.no-data           { color: #94a3b8; }
+
+/* Tail dot */
+.apin-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  margin-top: 4px;
+  transition: all .25s;
+}
+.apin.kip-green .apin-dot { background:#22c55e; box-shadow:0 0 6px rgba(34,197,94,0.5); }
+.apin.kip-blue  .apin-dot { background:#3b82f6; box-shadow:0 0 6px rgba(59,130,246,0.5); }
+.apin.kip-red   .apin-dot { background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,0.5); }
+.apin.kip-na    .apin-dot { background:#94a3b8; box-shadow:none; }
+.apin:hover .apin-dot { transform: scale(1.5); }
+
+/* Connector stem */
+.apin-stem { width:1px; height:16px; margin-top:1px; transition:all .25s; }
+.apin.kip-green .apin-stem { background:linear-gradient(180deg,rgba(34,197,94,0.4),transparent); }
+.apin.kip-blue  .apin-stem { background:linear-gradient(180deg,rgba(59,130,246,0.4),transparent); }
+.apin.kip-red   .apin-stem { background:linear-gradient(180deg,rgba(239,68,68,0.4),transparent); }
+.apin.kip-na    .apin-stem { background:linear-gradient(180deg,rgba(148,163,184,0.4),transparent); }
