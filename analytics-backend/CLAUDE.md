@@ -32,6 +32,7 @@ Express + TypeScript. Два PG pool (Windows: оба `max` на :5432):
 | `src/services/tisClientFactory.ts` | Singleton из .env |
 | `src/services/trackSimplifier.ts` | ≤5мин/<50м пропуск, ignitionWork engineOn |
 | `src/services/dwellExtractor.ts` | Кластеры 50м/>5мин→dwell, centroid, max 2h gap |
+| `src/services/dtTrackReader.ts` | Читает треки самосвалов из dump_trucks.dt_tracks |
 | `src/services/dstRegistry.ts` | Активные ТС из kip_vehicles (TTL 1ч) |
 | `src/jobs/analyticsFetchJob.ts` | Pipeline: mapConcurrent(18) |
 | `src/jobs/retentionJob.ts` | DELETE >7 дней (CASCADE) |
@@ -39,6 +40,8 @@ Express + TypeScript. Два PG pool (Windows: оба `max` на :5432):
 | `src/routes/admin.ts` | POST /api/analytics/admin/fetch + /status |
 | `src/utils/trackParser.ts` | TisTrackPoint[] → ParsedTrackPoint[] |
 | `src/utils/geo.ts` | haversine |
+| `../admin/server.ts` | SERVICES entry + ANALYTICS_CRON_SCHEDULE + pg-boss worker |
+| `../frontend/vite.config.ts` | Proxy `/api/analytics` → `:3007` |
 
 ## TIS API
 
@@ -62,3 +65,4 @@ Express + TypeScript. Два PG pool (Windows: оба `max` на :5432):
 - **EngineOn**: ignitionWork (TIS) → speed>0 → neighbor check (2min window) → false
 - **Dwell: avg centroid** (не midpoint), max 2h temporal gap
 - **Retention**: стартовый вызов + cron в Сессии 4
+- **Dump truck tracks**: читаем `dump_trucks.dt_tracks` — упрощённые треки сохраняются dump-trucks pipeline при каждом run, analytics-backend только читает

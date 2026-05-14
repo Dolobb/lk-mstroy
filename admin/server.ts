@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { spawn, execSync, ChildProcess } from 'child_process';
@@ -83,6 +83,14 @@ const SERVICES: ServiceConfig[] = [
     args: ['run', 'dev'],
     cwd: path.join(ROOT, 'ai-reports/server'),
     port: 3006,
+  },
+  {
+    id: 'analytics',
+    name: 'Аналитика',
+    cmd: 'npm',
+    args: ['run', 'dev'],
+    cwd: path.join(ROOT, 'analytics-backend/server'),
+    port: 3007,
   },
 ];
 
@@ -408,6 +416,8 @@ const DT_CRON_SCHEDULE: DtCronEntry[] = [
     tasks: [{ shift: 'shift2', dayOffset: -1 }] },
 ];
 
+const ANALYTICS_CRON_SCHEDULE = '30 4 * * *'; // 04:30 UTC (~09:30 Yekat) — через час после KIP // ежедневно 04:00 UTC (~09:00 Yekaterinburg)
+
 function ekTodayIso(): string {
   const ykb = new Date(Date.now() + 5 * 3600_000);
   return ykb.toISOString().slice(0, 10);
@@ -426,7 +436,7 @@ function shiftDateIso(baseIso: string, offsetDays: number): string {
 async function getKnownQueues(): Promise<Set<string>> {
   const known = new Set<string>([
     'fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift',
-    'recalc-kip-date', 'recalc-dt-date', 'fetch-dt-segments',
+    'recalc-kip-date', 'recalc-dt-date', 'fetch-dt-segments', 'fetch-analytics-date',
   ]);
   try {
     const tzRes = await mainPool.query(`SELECT DISTINCT timezone FROM geo.objects WHERE timezone IS NOT NULL`);
@@ -438,6 +448,7 @@ async function getKnownQueues(): Promise<Set<string>> {
     known.add('kip-cron-asia-yekaterinburg');
   }
   for (const entry of DT_CRON_SCHEDULE) known.add(`dt-cron-${entry.time.replace(':', '')}`);
+  known.add('analytics-cron');
   return known;
 }
 
@@ -452,6 +463,7 @@ const STALE_THRESHOLDS_MIN: Record<string, number> = {
   kip_recalc:   35, // 25min handler + 10min buffer
   dt_recalc:    35, // ~25min handler + 10min buffer
   dt_segments:  25, // 15min handler + 10min buffer
+  analytics_daily: 25, // 15min handler + 10min buffer
 };
 const STALE_FALLBACK_MIN = 60; // unknown pipeline_name — be conservative
 // Largest threshold: the /fetch/status DB-fallback window must cover any
@@ -592,7 +604,7 @@ async function registerWorkers(): Promise<void> {
   const queues = [
     'fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift',
     'recalc-kip-date', 'recalc-dt-date',
-    'fetch-dt-segments',
+    'fetch-dt-segments', 'fetch-analytics-date',
   ];
   for (const q of queues) {
     await boss.createQueue(q);
@@ -1137,6 +1149,64 @@ async function registerWorkers(): Promise<void> {
     });
   }
 
+  // --- Analytics cron ---
+  const analyticsQueue = 'analytics-cron';
+  await boss.createQueue(analyticsQueue);
+  await boss.schedule(analyticsQueue, ANALYTICS_CRON_SCHEDULE, {});
+  await boss.work(analyticsQueue, async () => {
+    const today = ekTodayIso();
+    console.log(`[pg-boss cron] Analytics fetch for ${today}`);
+    await boss.send('fetch-analytics-date', { date: today, mode: 'normal', triggerType: 'cron' });
+  });
+
+  // fetch-analytics-date worker
+  const analyticsFetchHandler: Handler<FetchJobPayload> = async (jobs) => {
+    const { date, mode, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({ pipelineName: 'analytics_daily', triggerType, targetDate: date });
+    log.info({ category: 'pipeline', pipeline: 'analytics_daily', runId, date, msg: 'run started', fields: { triggerType, mode } });
+    try {
+      const url = `http://localhost:3007/api/analytics/admin/fetch?date=${date}${mode === 'force' ? '&force=true' : ''}`;
+      const t0 = Date.now();
+      try {
+        const r = await fetch(url, { method: 'POST' });
+        const body = await r.json().catch(() => ({}));
+        const jobId = body.jobId as string | undefined;
+        log.info({ category: 'http', service: 'analytics', runId, pipeline: 'analytics_daily', msg: `${r.status} POST ${url}`, fields: { ms: Date.now() - t0, jobId } });
+        if (jobId) {
+          const deadline = Date.now() + 20 * 60 * 1000;
+          while (Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            const sr = await fetch(`http://localhost:3007/api/analytics/admin/fetch/status?jobId=${jobId}`);
+            const sbody = await sr.json().catch(() => ({ status: 'running' }));
+            if (sbody.status === 'done') break;
+            if (sbody.status === 'error') throw new Error(`Analytics fetch error: ${sbody.error}`);
+          }
+          if (Date.now() >= deadline) {
+            log.warn({ category: 'pipeline', pipeline: 'analytics_daily', runId, date, msg: 'fetch polling timeout', fields: { elapsedMs: Date.now() - t0 + 20 * 60 * 1000 } });
+            throw new Error('Analytics fetch polling timeout after 20min');
+          }
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 120_000));
+        }
+      } catch (err) {
+        log.error({ category: 'http', service: 'analytics', runId, pipeline: 'analytics_daily', msg: 'request failed', fields: { url, error: String(err) } });
+        throw new Error(`fetch failed: ${String(err)}`);
+      }
+      const countRes = await mainPool.query(
+        `SELECT COUNT(DISTINCT vehicle_id)::int AS cnt FROM analytics.track_sessions WHERE date = $1`,
+        [date],
+      );
+      const cnt = countRes.rows[0]?.cnt ?? 0;
+      await pipelineRepo.completeRun(runId, { totalVehicles: cnt, successCount: cnt, errorCount: 0 });
+      log.info({ category: 'pipeline', pipeline: 'analytics_daily', runId, date, msg: 'run completed', fields: { vehicles: cnt } });
+    } catch (err) {
+      log.error({ category: 'pipeline', pipeline: 'analytics_daily', runId, date, msg: 'run failed', fields: { error: String(err) } });
+      await pipelineRepo.completeRun(runId, { totalVehicles: 0, successCount: 0, errorCount: 1, errors: [{ message: String(err) }] });
+      throw err;
+    }
+  };
+  await boss.work('fetch-analytics-date', analyticsFetchHandler);
+
   console.log('[pg-boss] Workers and cron schedules registered');
 }
 
@@ -1228,6 +1298,45 @@ async function getDumpTrucksDates(from: string, to: string): Promise<{ dates: st
       category: 'admin',
       service: 'dump-trucks',
       msg: 'getDumpTrucksDates query failed',
+      fields: { error: String(e), from, to },
+    });
+    return { dates: [], partial: [], error: String(e) };
+  }
+}
+
+async function getAnalyticsDates(from: string, to: string): Promise<{ dates: string[]; partial: string[]; error?: string }> {
+  try {
+    const res = await mainPool.query(
+      `SELECT date::text AS date, COUNT(DISTINCT vehicle_id)::int AS vehicle_count
+       FROM analytics.track_sessions
+       WHERE date BETWEEN $1 AND $2
+       GROUP BY date
+       ORDER BY date`,
+      [from, to],
+    );
+    const base = await mainPool.query(
+      `SELECT COUNT(DISTINCT vehicle_id)::int AS c
+       FROM analytics.track_sessions
+       WHERE date >= (CURRENT_DATE - INTERVAL '14 days')
+       GROUP BY date
+       ORDER BY c`,
+    );
+    const counts = base.rows.map((r: { c: number }) => Number(r.c)).filter((n: number) => n > 0);
+    const median = counts.length ? counts[Math.floor(counts.length / 2)] : 0;
+    const threshold = Math.max(5, Math.floor(median * 0.5));
+
+    const dates: string[] = [];
+    const partial: string[] = [];
+    for (const row of res.rows) {
+      const vc = Number(row.vehicle_count);
+      if (median > 0 && vc < threshold) partial.push(row.date);
+      else if (vc > 0) dates.push(row.date);
+    }
+    return { dates, partial };
+  } catch (e) {
+    log.error({
+      category: 'admin', service: 'analytics',
+      msg: 'getAnalyticsDates query failed',
       fields: { error: String(e), from, to },
     });
     return { dates: [], partial: [], error: String(e) };
@@ -1795,21 +1904,25 @@ app.get('/api/admin/data-coverage', async (req, res) => {
     return;
   }
 
-  const [kipResult, dtResult, kipRawResult] = await Promise.all([
+  const [kipResult, dtResult, kipRawResult, analyticsResult] = await Promise.all([
     getKipDates(from, to),
     getDumpTrucksDates(from, to),
     getKipRawDates(from, to),
+    getAnalyticsDates(from, to),
   ]);
 
   res.json({
     kip: kipResult.dates,
     dumpTrucks: dtResult.dates,
+    analytics: analyticsResult.dates,
+    analyticsPartial: analyticsResult.partial,
     dtPartial: dtResult.partial,
     rawDates: kipRawResult.dates,
     rawPartial: kipRawResult.partial,
     errors: {
       kip: kipResult.error ?? null,
       dumpTrucks: dtResult.error ?? null,
+      analytics: analyticsResult.error ?? null,
     },
     config: {
       kip: `${process.env.KIP_DB_HOST || 'localhost'}:${process.env.KIP_DB_PORT || 5432}/${process.env.KIP_DB_NAME || 'kip_vehicles'} user=${process.env.KIP_DB_USER || 'max'}`,

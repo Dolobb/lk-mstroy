@@ -35,6 +35,7 @@ import { auditLog } from '../utils/auditLog';
 import { dayjs, parseDdMmYyyyHhmm } from '../utils/dateFormat';
 import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 import { getJobController, isCancelledError } from '../services/jobController';
+import { processTrack, saveTrackForShift } from '../services/trackProcessor';
 import type { ShiftType, GeoZone, ZoneEvent, Trip, ShiftKpi, WorkType } from '../types/domain';
 
 // Singleton клиент и лимитер
@@ -615,6 +616,7 @@ export async function runShiftFetch(
         }
 
         // 2. Upsert каждого valid record + replace trips
+        let firstRecordId = 0;
         for (const rec of validRecords) {
           const shiftRecordId = await upsertShiftRecord(dbClient, {
             reportDate:     dayjs(dateStr).toDate(),
@@ -654,6 +656,8 @@ export async function runShiftFetch(
 
           await replaceTrips(dbClient, shiftRecordId, rec.trips);
 
+          if (firstRecordId === 0) firstRecordId = shiftRecordId;
+
           if (rec.kpi.workType === 'onsite') {
             onsiteRecordIds.push(shiftRecordId);
           }
@@ -664,6 +668,14 @@ export async function runShiftFetch(
 
         await dbClient.query('COMMIT');
         result.vehiclesProcessed++;
+
+        if (firstRecordId > 0 && vehicleInfo.regNumber && track.length >= 2) {
+          const processed = processTrack(track, monitoring.ignitionWork);
+          if (processed.length > 0) {
+            saveTrackForShift(pool, firstRecordId, vehicleInfo.regNumber, dateStr, processed)
+              .catch(err => logger.warn(`[ShiftFetch] Track save failed for ${vehicleInfo.regNumber}: ${String(err)}`));
+          }
+        }
 
         const summary = validRecords.map(r => `${r.objectUid}:${r.workType}(trips=${r.trips.length},kip=${r.kpi.kipPct}%)`).join(', ');
         logger.info(`[ShiftFetch] idMO=${idMO}: saved ${validRecords.length} record(s). ${summary}`);

@@ -6,6 +6,7 @@ import { extractDwells, TrackPoint } from '../services/dwellExtractor';
 import { logger } from '../utils/logger';
 import { getDstVehicles } from '../services/dstRegistry';
 import { parseTrackPoints } from '../utils/trackParser';
+import { getDumpTruckTracks } from '../services/dtTrackReader';
 import { Pool } from 'pg';
 
 export interface TrackResponse {
@@ -52,6 +53,11 @@ export async function getTracks(
       await cacheLiveTrack(pool, vehicleId, date, livePoints);
       allPoints = mergePoints(allPoints, livePoints);
     }
+  }
+
+  const dtPoints = await getDumpTruckTracks(vehicleId, fromDate, toDate);
+  if (dtPoints.length > 0) {
+    allPoints = mergePoints(allPoints, dtPoints);
   }
 
   return formatResponse(vehicleId, allPoints);

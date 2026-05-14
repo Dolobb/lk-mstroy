@@ -2,7 +2,13 @@ import { Router } from 'express';
 import { runAnalyticsFetch } from '../jobs/analyticsFetchJob';
 import { logger } from '../utils/logger';
 
+const JOB_TTL_MS = 3600_000; // 1 hour
+
 const jobs = new Map<string, { status: string; result?: unknown; error?: string }>();
+
+function scheduleCleanup(jobId: string) {
+  setTimeout(() => { jobs.delete(jobId); }, JOB_TTL_MS);
+}
 
 export function adminRouter(): Router {
   const router = Router();
@@ -18,6 +24,7 @@ export function adminRouter(): Router {
 
     const jobId = `fetch-${date}-${Date.now()}`;
     jobs.set(jobId, { status: 'running' });
+    scheduleCleanup(jobId);
 
     logger.info(`Manual analytics fetch: ${date} force=${force} job=${jobId}`);
     runAnalyticsFetch(date, force)

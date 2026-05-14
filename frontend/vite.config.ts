@@ -57,6 +57,7 @@ export default defineConfig({
       '/api/admin': quietProxy('http://localhost:3005'),
       '/api/reports': quietProxy('http://localhost:3006'),
       '/api/geo': quietProxy('http://localhost:3003'),
+      '/api/analytics': quietProxy('http://localhost:3007'),
     },
   },
   build: {

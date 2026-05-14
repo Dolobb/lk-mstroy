@@ -70,6 +70,12 @@ Admin fetch асинхронный, UI не знает когда он заве�
 
 ## История изменений
 
+- **2026-05-14 — Сессия 3 (аналитика треков):** Сохранение упрощённого трека для самосвалов.
+  - Миграция `011_dt_tracks.sql` — таблица `dump_trucks.dt_tracks` с полным упрощённым треком в JSONB (`track_simplified`). FK CASCADE от `shift_records`.
+  - `trackProcessor.ts` — simplifier (≤5мин/<50м пропуск, engineOn heuristic) + dwell extractor (50м/5мин/2ч gap кластеры), скопировано из analytics-backend без зависимостей.
+  - `shiftFetchJob.ts` — после COMMIT основного pipeline fire-and-forget сохранение трека через `saveTrackForShift()`. Трек из того же `getMonitoringStats` вызова, без удвоения TIS-нагрузки.
+  - `analytics-backend` читает `dump_trucks.dt_tracks` через `dtTrackReader.ts` и подмешивает в `GET /api/analytics/tracks`.
+
 - **2026-02-19:** Создан подпроект `dump-trucks/` (переименован из `samosvaly/`). Реализован Express backend, pipeline TIS API → PostgreSQL, схема `dump_trucks` с 4 таблицами (shift_records, trips, zone_events, requests), ZoneAnalyzer, TripBuilder, KpiCalculator, планировщик cron.
 
 - **2026-02-19:** Добавлена таблица `dump_trucks.repairs` (миграция 002). API-endpoint `GET /api/dt/repairs`. Тест-ТС: idMO {781, 15, 1581} через `DT_TEST_ID_MOS`.
