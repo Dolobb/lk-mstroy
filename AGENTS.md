@@ -102,12 +102,17 @@ Monorepo with 7 services. Admin (`:3005`) is a process manager that starts the 5
 
 ## Critical Facts
 
-### TIS API (external data source — all backends use it)В
+### TIS API (external data source — all backends use it)
 - **POST with empty body**, all params in query string: `POST {url}?token=...&format=json&command={cmd}&{params}`
 - Commands: `getRequests`, `getRouteListsByDateOut`, `getMonitoringStats`
 - `getMonitoringStats` dates: `DD.MM.YYYY HH:mm`; all others: `DD.MM.YYYY`
-- Rate limit: **1 req / 30s per idMO**; 18 tokens rotated round-robin
+- Rate limit: **1 req / 30s on `(token, idMO)` pair** — NOT globally per idMO
+- **Мультитокен обходит per-idMO лимит**: 18 токенов означают что один и тот же idMO можно дёрнуть **до 18 раз параллельно** в одном окне 30 сек (по одному через каждый токен). Реальная пауза 30 сек наступает только если на одну ТС нужно >18 запросов в одном окне (типовые сценарии — 1-14 запросов на ТС, никогда не упирается)
+- Разные idMO между собой **не блокируются** — параллельность не ограничена
+- **Узкое место — HTTP concurrency на стороне нашего бэка + латентность TIS (~1-3 сек/запрос)**, НЕ rate-limit
+- Оценки: live-fetch 100 ТС за 1-2 дня ≈ 5-15 сек; худший случай (7 дней, БД пуста, 1400 запросов) ≈ 2.5 мин при 18 parallel connections
 - Ready clients: `tyagachi/src/api/client.py`, `kip/server/src/services/tisClient.ts`
+- При 429 — линейный backoff в TokenPool: 10s, 20s, 30s до 5 попыток
 
 ### Databases
 - **Windows:** both PG16 and PG17 databases are on **port 5432** (single instance). Mac docs say 5432/5433 — ignore on Windows.

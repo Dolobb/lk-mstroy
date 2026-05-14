@@ -1,6 +1,6 @@
 # ЛК Мстрой — Навигация по коду
 
-> Быстрый поиск нужного места в коде. Все 6 сервисов в одном файле.
+> Быстрый поиск нужного места в коде. Все 7 сервисов в одном файле.
 
 ---
 
@@ -15,6 +15,7 @@
 | Состояние ТС | `vehicle-status/` | 3004 | PG17, `mstroy`, схема `vehicle_status` | Node.js / Express | Работает |
 | Гео-Администратор | `geo-admin/` | 3003 | PG17, `mstroy`, схема `geo` | Node.js / Express | Работает |
 | AI Отчёты | `ai-reports/` | 3006 | PG16 + PG17 + SQLite (читает из всех БД) | Node.js / Express / AI SDK v6 | Каркас готов |
+| Аналитика | `analytics-backend/` | 3007 | PG17, `mstroy`, схема `analytics` + read-only PG16 | Node.js / Express | Каркас готов |
 
 ---
 
