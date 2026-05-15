@@ -1,5 +1,19 @@
 # Analytics Backend — History
 
+## v0.5.0 — Сессия 7 (2026-05-15)
+
+**Endpoint `/positions` — все ТС на карте:**
+
+- **GET /api/analytics/positions?at=ISO** — три source с приоритетом:
+  1. `analytics.track_points` (pipeline/live-cache) — `DISTINCT ON (vehicle_id) ... ORDER BY ts DESC`
+  2. `dump_trucks.dt_tracks` — **SQL-side last point** через `track_simplified->-1->>'ts'` и т.д., без полного JS-итерации массива. Решает jsonb-трафик из v0.3.1.
+  3. `kip_vehicles.vehicle_records` — fallback (последняя daily-запись с lat/lng)
+- **Контракт**: `regNumber` (= vehicle_id), `lat/lng/ts`, `motionStatus/speed/heading/engineOn`, `source`. Без `vehicleId` (дублировал regNumber).
+- **TZ bugfix**: KIP fallback использует `+05:00` (Asia/Yekaterinburg) вместо bare `T23:59:59`.
+- **Fragile error matching**: `err.code === '42P01'` (undefined_table) вместо substring-match на русскоязычное сообщение PG.
+- **TanStack Query**: `usePositions(at, shouldPoll)` — `staleTime: 30s`, `placeholderData: keepPreviousData`, polling только для recent periods.
+- **Frontend merge**: `AnalyticsMapView` получает `positions?: PositionPoint[]`, мержит с `UnifiedVehicleRow` по `regNumber` без мутации `row.latitude/longitude`.
+
 ## v0.4.1 — Фиксы Сессии 4 (2026-05-14)
 
 - **Cron**: `30 4 * * *` (04:30 UTC) — через час после KIP cron 03:30 UTC, без пересечения токенов

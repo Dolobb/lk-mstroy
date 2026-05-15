@@ -7,7 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MiniBar } from '@/components/MiniBar';
 import { fetchGeoObjects, fetchZonesByObject } from './api';
-import type { GeoObject, ZoneFeature, UnifiedVehicleRow } from './types';
+import type { GeoObject, ZoneFeature, UnifiedVehicleRow, PositionPoint } from './types';
 import { vehicleCategory, SUBGROUP_COLORS, SUBGROUP_LABELS, SUBGROUP_ORDER } from './categories';
 import { createAnalyticsPin } from './analyticsPin';
 import './analyticsPin.css';
@@ -229,9 +229,11 @@ interface AnalyticsMapViewProps {
   groups: AnalyticsGroup[];
   dateFrom?: string;
   dateTo?: string;
+  overlayTopLeft?: React.ReactNode;
+  positions?: PositionPoint[];
 }
 
-export function AnalyticsMapView({ groups, dateFrom, dateTo }: AnalyticsMapViewProps) {
+export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions }: AnalyticsMapViewProps) {
   const [geoObjects, setGeoObjects] = useState<GeoObject[]>([]);
   const [boundaries, setBoundaries] = useState<Map<string, ZoneFeature>>(new Map());
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -313,8 +315,64 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo }: AnalyticsMapViewP
     return computeBounds(geoJsonRingToLeaflet(ring));
   }, [selectedData, allBounds]);
 
-  // ── Pin positions for selected zone ──
-  const allPins = useMemo(() => {
+  // ── All vehicle pins (positions + fallback) ──
+  const allPositionPins = useMemo(() => {
+    const rowMap = new Map<string, UnifiedVehicleRow>();
+    for (const g of groups) {
+      for (const v of g.vehicles) {
+        if (!rowMap.has(v.regNumber)) rowMap.set(v.regNumber, v);
+      }
+    }
+
+    const pins: Array<{ row: UnifiedVehicleRow; lat: number; lng: number }> = [];
+    const seen = new Set<string>();
+
+    // 1. Positions (track data) — highest priority
+    if (positions) {
+      for (const p of positions) {
+        const row = rowMap.get(p.regNumber);
+        if (!row) {
+          // Unknown vehicle — synthetic degraded row
+          pins.push({
+            row: {
+              regNumber: p.regNumber,
+              nameMO: p.regNumber,
+              organization: null,
+              vehicleType: '',
+              source: p.source === 'dt_tracks' ? 'dump_truck' : 'dst',
+              records: [],
+              shiftsCount: 0,
+              avgKipPct: 0,
+              avgSecondaryPct: 0,
+              secondaryLabel: 'Н/Д',
+              totalTrips: 0,
+              totalFuelL: 0,
+              engineTotalSec: 0,
+            },
+            lat: p.lat,
+            lng: p.lng,
+          });
+        } else {
+          pins.push({ row, lat: p.lat, lng: p.lng });
+        }
+        seen.add(p.regNumber);
+      }
+    }
+
+    // 2. Fallback: row.latitude/longitude for vehicles not in positions
+    for (const [reg, row] of rowMap) {
+      if (seen.has(reg)) continue;
+      if (row.latitude != null && row.longitude != null) {
+        pins.push({ row, lat: row.latitude, lng: row.longitude });
+        seen.add(reg);
+      }
+    }
+
+    return pins;
+  }, [positions, groups]);
+
+  // ── Synthetic pins for selected zone (vehicles without any coords) ──
+  const zoneSyntheticPins = useMemo(() => {
     if (!selectedData) return [];
     const ring = selectedData.boundary.geometry.coordinates[0];
     if (!ring) return [];
@@ -324,22 +382,15 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo }: AnalyticsMapViewP
     cLat /= ring.length;
     cLng /= ring.length;
 
-    const withCoords = selectedData.vehicles
-      .filter(v => v.latitude != null && v.longitude != null)
-      .map(v => ({ v, lat: v.latitude!, lng: v.longitude! }));
+    const seen = new Set(allPositionPins.map(p => p.row.regNumber));
+    const missing = selectedData.vehicles.filter(v => !seen.has(v.regNumber));
 
-    const withSet = new Set(withCoords.map(w => w.v.regNumber));
-    const withoutCoords = selectedData.vehicles
-      .filter(v => !withSet.has(v.regNumber));
-
-    const synthetic = withoutCoords.map((v, i) => {
-      const angle = (i / Math.max(withoutCoords.length, 1)) * Math.PI * 2;
+    return missing.map((v, i) => {
+      const angle = (i / Math.max(missing.length, 1)) * Math.PI * 2;
       const r = 0.0005 + (i % 3) * 0.0003;
-      return { v, lat: cLat + Math.cos(angle) * r, lng: cLng + Math.sin(angle) * r };
+      return { row: v, lat: cLat + Math.cos(angle) * r, lng: cLng + Math.sin(angle) * r };
     });
-
-    return [...withCoords, ...synthetic];
-  }, [selectedData]);
+  }, [selectedData, allPositionPins]);
 
   if (geoError) {
     return (
@@ -361,6 +412,26 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo }: AnalyticsMapViewP
   const mapContent = (
     <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+        {overlayTopLeft && (
+          <div style={{
+            position: 'absolute',
+            top: 12,
+            left: 12,
+            zIndex: 1000,
+            width: 'max-content',
+            pointerEvents: 'none',
+            padding: '6px 10px',
+            borderRadius: 10,
+            background: 'var(--sv-card, rgba(15,23,42,0.75))',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid var(--sv-card-border, rgba(255,255,255,0.08))',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          }}>
+            <div style={{ pointerEvents: 'auto' }}>
+              {overlayTopLeft}
+            </div>
+          </div>
+        )}
         <MapContainer
           center={[62, 80]}
           zoom={4}
@@ -407,25 +478,38 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo }: AnalyticsMapViewP
             );
           })}
 
-          {selectedUid && allPins.length > 0 && (
-            <MarkerClusterGroup chunkedLoading spiderfyDistanceMultiplier={2} showCoverageOnHover={false}>
-              {allPins.map(p => (
-                <Marker
-                  key={p.v.regNumber}
-                  position={[p.lat, p.lng] as LatLngTuple}
-                  icon={createAnalyticsPin(p.v)}
-                >
-                  <Tooltip sticky={false} direction="top" offset={[0, -52]}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.v.regNumber}</div>
-                    <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.v.nameMO}</div>
-                    <div style={{ fontSize: 11 }}>
-                      КИП {Math.round(p.v.avgKipPct)}%
-                    </div>
-                  </Tooltip>
-                </Marker>
-              ))}
-            </MarkerClusterGroup>
-          )}
+          <MarkerClusterGroup chunkedLoading spiderfyDistanceMultiplier={2} showCoverageOnHover={false}>
+            {allPositionPins.map(p => (
+              <Marker
+                key={p.row.regNumber}
+                position={[p.lat, p.lng] as LatLngTuple}
+                icon={createAnalyticsPin(p.row)}
+              >
+                <Tooltip sticky={false} direction="top" offset={[0, -52]}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
+                  <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
+                  <div style={{ fontSize: 11 }}>
+                    КИП {Math.round(p.row.avgKipPct)}%
+                  </div>
+                </Tooltip>
+              </Marker>
+            ))}
+            {selectedUid && zoneSyntheticPins.map(p => (
+              <Marker
+                key={`synth-${p.row.regNumber}`}
+                position={[p.lat, p.lng] as LatLngTuple}
+                icon={createAnalyticsPin(p.row)}
+              >
+                <Tooltip sticky={false} direction="top" offset={[0, -52]}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
+                  <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
+                  <div style={{ fontSize: 11 }}>
+                    КИП {Math.round(p.row.avgKipPct)}%
+                  </div>
+                </Tooltip>
+              </Marker>
+            ))}
+          </MarkerClusterGroup>
         </MapContainer>
 
         {!boundaryList.length && geoObjects.length > 0 && (

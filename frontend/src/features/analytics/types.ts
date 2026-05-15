@@ -174,3 +174,22 @@ export interface KipVehicleDetail {
   track_simplified: unknown;
   is_gap_filled: boolean;
 }
+
+// ─── Positions (Session 7) ───────────────────────────────
+
+export interface PositionPoint {
+  regNumber: string;
+  lat: number;
+  lng: number;
+  ts: string; // ISO
+  motionStatus: string;
+  speed: number | null;
+  heading: number | null;
+  engineOn: boolean | null;
+  source: 'track_points' | 'dt_tracks' | 'kip_records';
+}
+
+export interface PositionsResponse {
+  at: string;
+  positions: PositionPoint[];
+}

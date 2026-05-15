@@ -10,6 +10,7 @@ import type {
   DstZoneFeature,
   GeoObject,
   ZoneFeature,
+  PositionsResponse,
 } from './types';
 
 // ─── Geo-admin API ──────────────────────────────────────
@@ -96,6 +97,15 @@ export async function fetchKipSegments(
 
 export async function fetchKipSegmentProgress(): Promise<KipSegmentProgress> {
   return get<KipSegmentProgress>(`${KIP_BASE}/segments/progress`);
+}
+
+// ─── Positions API (Session 7) ─────────────────────────
+
+export async function fetchPositions(at: Date): Promise<PositionsResponse> {
+  const q = new URLSearchParams({ at: at.toISOString() });
+  const r = await fetch(`/api/analytics/positions?${q}`);
+  if (!r.ok) throw new Error(`Positions API error: ${r.status}`);
+  return r.json() as Promise<PositionsResponse>;
 }
 
 // ─── Converters ─────────────────────────────────────────

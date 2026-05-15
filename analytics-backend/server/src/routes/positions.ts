@@ -1,0 +1,183 @@
+import { Router } from 'express';
+import { getPool, getKipPool } from '../db';
+import { logger } from '../utils/logger';
+
+export interface PositionPoint {
+  regNumber: string;
+  lat: number;
+  lng: number;
+  ts: string; // ISO
+  motionStatus: string;
+  speed: number | null;
+  heading: number | null;
+  engineOn: boolean | null;
+  source: 'track_points' | 'dt_tracks' | 'kip_records';
+}
+
+interface TrackPointRow {
+  vehicle_id: string;
+  ts: string;
+  lat: number;
+  lng: number;
+  speed: number | null;
+  heading: number | null;
+  engine_on: boolean | null;
+  motion_status: string | null;
+}
+
+interface KipRecordRow {
+  vehicle_id: string;
+  latitude: string | null;
+  longitude: string | null;
+  report_date: string;
+}
+
+interface DtLastPointRow {
+  vehicle_id: string;
+  ts: string | null;   // bigint as string
+  lat: string | null;
+  lng: string | null;
+  speed: string | null;
+  heading: string | null;
+  engine_on: string | null;  // boolean as string
+  motion_status: string | null;
+}
+
+export async function getPositions(at: Date): Promise<PositionPoint[]> {
+  const pool = getPool();
+  const kipPool = getKipPool();
+  const atIso = at.toISOString();
+  const atDate = atIso.slice(0, 10);
+
+  const result = new Map<string, PositionPoint>();
+
+  // 1. Primary: analytics.track_points (detailed pipeline + live-cached tracks)
+  try {
+    const tpRes = await pool.query<TrackPointRow>(
+      `SELECT DISTINCT ON (vehicle_id)
+         vehicle_id, ts, lat, lng, speed, heading, engine_on, motion_status
+       FROM analytics.track_points
+       WHERE ts <= $1
+       ORDER BY vehicle_id, ts DESC`,
+      [atIso],
+    );
+    for (const r of tpRes.rows) {
+      result.set(r.vehicle_id, {
+        regNumber: r.vehicle_id,
+        lat: Number(r.lat),
+        lng: Number(r.lng),
+        ts: new Date(r.ts).toISOString(),
+        motionStatus: r.motion_status || 'unknown',
+        speed: r.speed !== null ? Number(r.speed) : null,
+        heading: r.heading !== null ? Number(r.heading) : null,
+        engineOn: r.engine_on ?? null,
+        source: 'track_points',
+      });
+    }
+  } catch (err) {
+    logger.error('Failed to query track_points for positions', err);
+  }
+
+  // 2. Dump trucks: last point from dt_tracks JSONB (SQL-side, no full-array fetch)
+  try {
+    const dtRes = await pool.query<DtLastPointRow>(
+      `SELECT vehicle_id,
+         (track_simplified->-1->>'ts')::bigint as ts,
+         (track_simplified->-1->>'lat') as lat,
+         (track_simplified->-1->>'lng') as lng,
+         (track_simplified->-1->>'speed') as speed,
+         (track_simplified->-1->>'heading') as heading,
+         (track_simplified->-1->>'engineOn') as engine_on,
+         track_simplified->-1->>'motionStatus' as motion_status
+       FROM dump_trucks.dt_tracks
+       WHERE date <= $1::date
+         AND date >= $1::date - INTERVAL '7 days'
+         AND jsonb_array_length(track_simplified) > 0`,
+      [atDate],
+    );
+    for (const r of dtRes.rows) {
+      if (!r.ts || !r.lat || !r.lng) continue;
+      const pt = new Date(Number(r.ts) * 1000);
+      if (pt > at) continue;
+      if (result.has(r.vehicle_id)) continue;
+      result.set(r.vehicle_id, {
+        regNumber: r.vehicle_id,
+        lat: Number(r.lat),
+        lng: Number(r.lng),
+        ts: pt.toISOString(),
+        motionStatus: r.motion_status || 'unknown',
+        speed: r.speed !== null ? Number(r.speed) : null,
+        heading: r.heading !== null ? Number(r.heading) : null,
+        engineOn: r.engine_on === 'true',
+        source: 'dt_tracks',
+      });
+    }
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === '42P01') {
+      logger.info('[Positions] dt_tracks table not yet migrated — skipping dump truck fallback');
+    } else {
+      logger.warn('Failed to query dt_tracks for positions', err);
+    }
+  }
+
+  // 3. KIP fallback: vehicle_records (last daily record with lat/lng)
+  try {
+    const kipRes = await kipPool.query<KipRecordRow>(
+      `SELECT DISTINCT ON (vehicle_id)
+         vehicle_id, latitude, longitude, report_date
+       FROM vehicle_records
+       WHERE latitude IS NOT NULL
+         AND longitude IS NOT NULL
+         AND report_date <= $1::date
+       ORDER BY vehicle_id, report_date DESC`,
+      [atDate],
+    );
+    for (const r of kipRes.rows) {
+      if (result.has(r.vehicle_id)) continue;
+      result.set(r.vehicle_id, {
+        regNumber: r.vehicle_id,
+        lat: Number(r.latitude!),
+        lng: Number(r.longitude!),
+        ts: new Date(`${r.report_date}T23:59:59.000+05:00`).toISOString(),
+        motionStatus: 'unknown',
+        speed: null,
+        heading: null,
+        engineOn: null,
+        source: 'kip_records',
+      });
+    }
+  } catch (err) {
+    logger.error('Failed to query KIP vehicle_records for positions', err);
+  }
+
+  return [...result.values()];
+}
+
+export function positionsRouter(): Router {
+  const router = Router();
+
+  router.get('/analytics/positions', async (req, res) => {
+    const atParam = req.query.at as string | undefined;
+    if (!atParam) {
+      res.status(400).json({ error: 'Query parameter "at" required in ISO format' });
+      return;
+    }
+    const at = new Date(atParam);
+    if (isNaN(at.getTime())) {
+      res.status(400).json({ error: 'Invalid "at" date format' });
+      return;
+    }
+
+    try {
+      const positions = await getPositions(at);
+      res.json({ at: at.toISOString(), positions });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error('Positions endpoint failed', err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  return router;
+}

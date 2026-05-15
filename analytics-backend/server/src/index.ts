@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { getPool, getKipPool } from './db';
 import { logger } from './utils/logger';
 import { tracksRouter } from './routes/tracks';
+import { positionsRouter } from './routes/positions';
 import { adminRouter } from './routes/admin';
 import { runRetention } from './jobs/retentionJob';
 
@@ -37,6 +38,7 @@ app.get('/api/analytics/health', async (_req, res) => {
 });
 
 app.use('/api', tracksRouter());
+app.use('/api', positionsRouter());
 app.use('/api', adminRouter());
 
 export default app;

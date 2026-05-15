@@ -19,6 +19,7 @@ import {
   fetchDstZones,
 } from './api';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
+import { usePositions } from './hooks/usePositions';
 import { AnalyticsMapView } from './AnalyticsMapView';
 import { AnalyticsCardsView } from './AnalyticsCardsView';
 import { SUBGROUP_LABELS, SUBGROUP_COLORS, SUBGROUP_ORDER, vehicleCategory } from './categories';
@@ -609,6 +610,17 @@ export function AnalyticsPage() {
 
   const totalCols = 1 + COLUMNS.length;
 
+  const datePicker = (
+    <DateTimeRangePicker
+      from={fromDate}
+      to={toDate}
+      onChange={(f, t) => {
+        setDateFrom(toYekatIso(f));
+        setDateTo(toYekatIso(t));
+      }}
+    />
+  );
+
   return (
     <div className="sv-root" data-theme={resolvedTheme} style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 16px', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {/* Ambient halos */}
@@ -621,14 +633,7 @@ export function AnalyticsPage() {
 
         <DataFreshnessBadge />
 
-        <DateTimeRangePicker
-          from={fromDate}
-          to={toDate}
-          onChange={(f, t) => {
-            setDateFrom(toYekatIso(f));
-            setDateTo(toYekatIso(t));
-          }}
-        />
+        {viewMode !== 'map' && datePicker}
 
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {TYPE_FILTERS.map(f => (
@@ -732,9 +737,12 @@ export function AnalyticsPage() {
 
       {/* Map view */}
       {viewMode === 'map' && (
-        <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-          <AnalyticsMapView groups={filteredGroups} dateFrom={dateFrom} dateTo={dateTo} />
-        </div>
+        <MapViewWithPositions
+          groups={filteredGroups}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          overlayTopLeft={datePicker}
+        />
       )}
 
       {/* Cards view */}
@@ -972,6 +980,18 @@ export function AnalyticsPage() {
       )}
     </div>
   );
+}
+
+// ─── MapView wrapper (positions hook) ───────────────────
+
+function MapViewWithPositions(props: React.ComponentProps<typeof AnalyticsMapView>) {
+  const toDate = props.dateTo ? new Date(props.dateTo) : new Date();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const isRecent = toDate >= startOfToday;
+  const at = isRecent ? new Date() : toDate;
+  const { data } = usePositions(at, isRecent);
+  return <AnalyticsMapView {...props} positions={data?.positions} />;
 }
 
 // ─── DST Shift Detail ─────────────────────────────────
