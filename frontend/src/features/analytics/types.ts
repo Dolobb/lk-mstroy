@@ -193,3 +193,26 @@ export interface PositionsResponse {
   at: string;
   positions: PositionPoint[];
 }
+
+// ─── Groups (Session 8) ─────────────────────────────────
+
+export interface AnalyticsGroup {
+  objectUid: string;
+  vehicleIds: string[];
+}
+
+export interface GroupsResponse {
+  from: string;
+  to: string;
+  objects: AnalyticsGroup[];
+  outside: string[];
+}
+
+export interface BigObject {
+  uid: string;
+  name: string;
+}
+
+export interface BigObjectsResponse {
+  objects: BigObject[];
+}

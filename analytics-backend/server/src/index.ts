@@ -5,6 +5,7 @@ import { getPool, getKipPool } from './db';
 import { logger } from './utils/logger';
 import { tracksRouter } from './routes/tracks';
 import { positionsRouter } from './routes/positions';
+import { groupsRouter } from './routes/groups';
 import { adminRouter } from './routes/admin';
 import { runRetention } from './jobs/retentionJob';
 
@@ -39,6 +40,7 @@ app.get('/api/analytics/health', async (_req, res) => {
 
 app.use('/api', tracksRouter());
 app.use('/api', positionsRouter());
+app.use('/api', groupsRouter());
 app.use('/api', adminRouter());
 
 export default app;

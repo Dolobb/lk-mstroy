@@ -1,5 +1,20 @@
 # Analytics Backend — History
 
+## v0.6.0 — Сессия 8 (2026-05-15)
+
+**Группы «Вне объектов» и фильтрация больших объектов:**
+
+- **GET /api/analytics/groups?from=&to=** — группировка по `visited_objects` из `analytics.track_sessions`:
+  - `objects`: массив `{objectUid, vehicleIds}` — ТС, посещавшие объект за период
+  - `outside`: массив vehicleIds — ТС без visited_objects за весь период (`bool_and(cardinality(visited_objects) = 0)`)
+- **GET /api/analytics/objects** — только «большие объекты» (имеющие зоны с тегами `dt_zone` И `dt_boundary` в `geo.zone_tags`). JOIN `geo.objects` + `geo.zones` + `geo.zone_tags`.
+- **Frontend**: `useGroups` + `useBigObjects` hooks (TanStack Query, `staleTime: 60s` / `5m`).
+- **KPI strip**: фильтрация объектных карточек только по big objects + синтетическая карточка «Вне объектов». Карточка неинтерактивна (drill-down не реализован). Фильтрация big objects не применяется пока данные загружаются (избегает пустого strip на холодном старте).
+
+**Known limitations:**
+- `outside` считается только по ТС с данными в `analytics.track_sessions`. ТС без треков (нет pipeline-записей за период) не попадает ни в `outside`, ни в `objects` — это by design, т.к. visited_objects строится из наличия трека.
+- `groupsData.objects` (массивы vehicleIds по объектам) загружаются но пока не используются в UI — заложено для future drill-down.
+
 ## v0.5.0 — Сессия 7 (2026-05-15)
 
 **Endpoint `/positions` — все ТС на карте:**

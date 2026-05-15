@@ -11,6 +11,8 @@ import type {
   GeoObject,
   ZoneFeature,
   PositionsResponse,
+  GroupsResponse,
+  BigObjectsResponse,
 } from './types';
 
 // ─── Geo-admin API ──────────────────────────────────────
@@ -106,6 +108,21 @@ export async function fetchPositions(at: Date): Promise<PositionsResponse> {
   const r = await fetch(`/api/analytics/positions?${q}`);
   if (!r.ok) throw new Error(`Positions API error: ${r.status}`);
   return r.json() as Promise<PositionsResponse>;
+}
+
+// ─── Groups API (Session 8) ──────────────────────────────
+
+export async function fetchGroups(from: string, to: string): Promise<GroupsResponse> {
+  const q = new URLSearchParams({ from, to });
+  const r = await fetch(`/api/analytics/groups?${q}`);
+  if (!r.ok) throw new Error(`Groups API error: ${r.status}`);
+  return r.json() as Promise<GroupsResponse>;
+}
+
+export async function fetchBigObjects(): Promise<BigObjectsResponse> {
+  const r = await fetch('/api/analytics/objects');
+  if (!r.ok) throw new Error(`Objects API error: ${r.status}`);
+  return r.json() as Promise<BigObjectsResponse>;
 }
 
 // ─── Converters ─────────────────────────────────────────

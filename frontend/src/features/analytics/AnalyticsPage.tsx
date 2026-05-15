@@ -20,6 +20,7 @@ import {
 } from './api';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
 import { usePositions } from './hooks/usePositions';
+import { useGroups, useBigObjects } from './hooks/useGroups';
 import { AnalyticsMapView } from './AnalyticsMapView';
 import { AnalyticsCardsView } from './AnalyticsCardsView';
 import { SUBGROUP_LABELS, SUBGROUP_COLORS, SUBGROUP_ORDER, vehicleCategory } from './categories';
@@ -153,6 +154,8 @@ const _yesterday = new Date(_today.getTime() - 86400000);
 const DEFAULT_DATE_FROM = toYekatIso(new Date(_today.getFullYear(), _today.getMonth(), 1));
 const DEFAULT_DATE_TO = toYekatIso(new Date(_yesterday.getFullYear(), _yesterday.getMonth(), _yesterday.getDate(), 23, 45));
 
+const OUTSIDE_GROUP_UID = '__outside' as const;
+
 // ─── Component ──────────────────────────────────────────
 
 export function AnalyticsPage() {
@@ -200,6 +203,10 @@ export function AnalyticsPage() {
 
   // Geo-admin: dst_zone polygons для геоматчинга ДСТ → объекты
   const [dstZones, setDstZones] = useState<DstZoneFeature[]>([]);
+
+  // Session 8: groups + big objects
+  const { data: groupsData } = useGroups(isoToYmd(dateFrom), isoToYmd(dateTo));
+  const { data: bigObjectsData } = useBigObjects();
 
   // ─── Fetch data ─────────────────────────────────────
 
@@ -423,6 +430,7 @@ export function AnalyticsPage() {
 
   const filteredGroups = React.useMemo(() => {
     if (focusedObjectUid === null) return groups;
+    if (focusedObjectUid === OUTSIDE_GROUP_UID) return []; // drill-down not yet implemented
     return groups.filter(g => g.groupUid === focusedObjectUid);
   }, [groups, focusedObjectUid]);
 
@@ -441,8 +449,12 @@ export function AnalyticsPage() {
 
     const allCard: ObjectSummary = { uid: null, title: 'Все', vehicles: sortedRows.length, work: allWork, kip: allKip };
 
+    const bigObjectUids = bigObjectsData !== undefined
+      ? new Set(bigObjectsData.objects.map(o => o.uid))
+      : null; // null = not loaded yet, don't filter
+
     const objectCards: ObjectSummary[] = groups
-      .filter(g => g.groupUid !== undefined)
+      .filter(g => g.groupUid !== undefined && (bigObjectUids === null || bigObjectUids.has(g.groupUid)))
       .map(g => {
         const gDt = g.vehicles.filter(r => r.source === 'dump_truck');
         const gTrips = gDt.reduce((s, r) => s + r.totalTrips, 0);
@@ -455,8 +467,13 @@ export function AnalyticsPage() {
       })
       .sort((a, b) => a.title.localeCompare(b.title, 'ru'));
 
-    return [allCard, ...objectCards];
-  }, [sortedRows, groups]);
+    const outsideVehicles = groupsData?.outside.length ?? 0;
+    const outsideCard: ObjectSummary | null = outsideVehicles > 0
+      ? { uid: OUTSIDE_GROUP_UID, title: 'Вне объектов', vehicles: outsideVehicles, work: '—', kip: 0 }
+      : null;
+
+    return [allCard, ...(outsideCard ? [outsideCard] : []), ...objectCards];
+  }, [sortedRows, groups, bigObjectsData, groupsData]);
 
   // ─── Handlers ───────────────────────────────────────
 
@@ -691,16 +708,23 @@ export function AnalyticsPage() {
       {/* KPI Strip — object focus boxes */}
       {objectSummaries.length > 1 && (
         <div className="sv-smu-strip" style={{ marginBottom: 8 }}>
-        {objectSummaries.map(c => (
-          <div key={c.uid ?? '__all'} className={`sv-smu-card ${focusedObjectUid === c.uid ? 'active' : ''}`} style={{ cursor: 'pointer' }}
-            onClick={() => setFocusedObjectUid(c.uid)}
-          >
-            <div className="sv-smu-card-title">{c.title}</div>
-            <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
-            <div className="sv-smu-card-row"><span>Работа</span><span className="sv-smu-card-val">{c.work}</span></div>
-            <div className="sv-smu-card-row"><span>Ср.КИП</span><span className={`sv-smu-card-val ${c.kip > 0 ? kipColor(c.kip) : ''}`}>{c.kip > 0 ? `${c.kip}%` : '—'}</span></div>
-          </div>
-        ))}
+        {objectSummaries.map(c => {
+          const isOutside = c.uid === OUTSIDE_GROUP_UID;
+          const isClickable = !isOutside;
+          return (
+            <div
+              key={c.uid ?? '__all'}
+              className={`sv-smu-card ${focusedObjectUid === c.uid ? 'active' : ''}`}
+              style={{ cursor: isClickable ? 'pointer' : 'default' }}
+              onClick={isClickable ? () => setFocusedObjectUid(c.uid) : undefined}
+            >
+              <div className="sv-smu-card-title">{c.title}</div>
+              <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
+              <div className="sv-smu-card-row"><span>Работа</span><span className="sv-smu-card-val">{c.work}</span></div>
+              <div className="sv-smu-card-row"><span>Ср.КИП</span><span className={`sv-smu-card-val ${c.kip > 0 ? kipColor(c.kip) : ''}`}>{c.kip > 0 ? `${c.kip}%` : '—'}</span></div>
+            </div>
+          );
+        })}
       </div>
       )}
 
