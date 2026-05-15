@@ -20,6 +20,7 @@ import {
 } from './api';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
 import { usePositions } from './hooks/usePositions';
+import { useTrack } from './hooks/useTrack';
 import { useGroups, useBigObjects } from './hooks/useGroups';
 import { AnalyticsMapView } from './AnalyticsMapView';
 import { AnalyticsCardsView } from './AnalyticsCardsView';
@@ -197,6 +198,9 @@ export function AnalyticsPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
   const [focusedObjectUid, setFocusedObjectUid] = useState<string | null>(null);
+
+  // Session 9: selected vehicle for track rendering
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
   // KIP segments state
   const [kipSegProgress, setKipSegProgress] = useState<KipSegmentProgress | null>(null);
@@ -766,6 +770,8 @@ export function AnalyticsPage() {
           dateFrom={dateFrom}
           dateTo={dateTo}
           overlayTopLeft={datePicker}
+          selectedVehicleId={selectedVehicleId}
+          onSelectVehicle={setSelectedVehicleId}
         />
       )}
 
@@ -801,6 +807,10 @@ export function AnalyticsPage() {
           dstRecords={dstDetails}
           selectedChip={selectedChip}
           onChipClick={(key) => setSelectedChip(selectedChip === key ? null : key)}
+          onSelectVehicle={(reg) => {
+            setSelectedVehicleId(reg);
+            setViewMode('map');
+          }}
         />
       ))}
 
@@ -907,7 +917,16 @@ export function AnalyticsPage() {
                                     <div className="sv-tree-cell" style={{ paddingLeft: 40 }}>
                                       <div className={`sv-tree-expand ${isOpen ? 'open' : ''}`}>▶</div>
                                       <div className="sv-vehicle-name-cell">
-                                        <span className="sv-reg-num">{v.regNumber}</span>
+                                        <span
+                                          className="sv-reg-num"
+                                          title="Показать трек на карте"
+                                          style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textDecorationColor: 'currentColor', textUnderlineOffset: 2 }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedVehicleId(v.regNumber);
+                                            setViewMode('map');
+                                          }}
+                                        >{v.regNumber}</span>
                                         <span className="sv-veh-model">{v.nameMO}</span>
                                         {sourceTag}
                                       </div>
@@ -1015,7 +1034,11 @@ function MapViewWithPositions(props: React.ComponentProps<typeof AnalyticsMapVie
   const isRecent = toDate >= startOfToday;
   const at = isRecent ? new Date() : toDate;
   const { data } = usePositions(at, isRecent);
-  return <AnalyticsMapView {...props} positions={data?.positions} />;
+
+  const fromDate = props.dateFrom ? new Date(props.dateFrom) : new Date();
+  const { data: trackData } = useTrack(props.selectedVehicleId ?? null, fromDate, toDate);
+
+  return <AnalyticsMapView {...props} positions={data?.positions} track={trackData ?? null} />;
 }
 
 // ─── DST Shift Detail ─────────────────────────────────

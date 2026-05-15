@@ -1,5 +1,23 @@
 # Analytics Backend — History
 
+## v0.7.0 — Сессия 9 (2026-05-15)
+
+**Рендер трека ТС на карте (frontend-only — backend `/tracks` контракт не менялся):**
+
+- **`useTrack` hook** (TanStack Query, isRecent-aware staleTime 30s/5min) в `frontend/src/features/analytics/hooks/useTrack.ts`
+- **`TrackLayer` компонент** в `frontend/src/features/analytics/components/TrackLayer.tsx`:
+  - Градиент по скорости — split на `<Polyline>` per-segment, цвет blue→green→red interpolate (0→30→60 км/ч)
+  - Стрелки направления — каждые ~150м, SVG DivIcon с `transform:rotate(heading)`. Не рисуются на dwell-точках
+  - Dwell-маркеры (P-icon) — цвет по длительности (≤30мин серый, ≤2ч жёлтый, >2ч красный), CSS fade-in stagger
+  - Tooltip на сегменте трека (hover sticky): скорость + время
+  - Hover на dwell → tooltip; click → freeze (`<Tooltip permanent>`); повторный click → unfreeze; click пустого места карты → unfreeze + deselect
+  - `fitBounds` на трек при смене `vehicleId` (не на refetch)
+- **State management**: `selectedVehicleId` в `AnalyticsPage` (lifted state) — пробрасывается в `AnalyticsMapView`
+- **Cross-view trigger**: click на госномер в таблице или на карточку → `setSelectedVehicleId` + автопереключение на map view
+- **Highlight выбранного pin'а**: `createAnalyticsPin(row, isSelected)` + CSS `.apin.selected` (drop-shadow + border 2px)
+- **Без новых npm-зависимостей** (AGENTS forbid без approval): manual gradient через split-polyline, manual arrows через DivIcon
+- **Dwell-маркеры без кластеризации**: типично 5-20 точек на трек, отдельная `MarkerClusterGroup` избыточна
+
 ## v0.6.0 — Сессия 8 (2026-05-15)
 
 **Группы «Вне объектов» и фильтрация больших объектов:**

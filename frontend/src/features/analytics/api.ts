@@ -13,6 +13,7 @@ import type {
   PositionsResponse,
   GroupsResponse,
   BigObjectsResponse,
+  TrackResponse,
 } from './types';
 
 // ─── Geo-admin API ──────────────────────────────────────
@@ -267,4 +268,17 @@ export async function fetchUnifiedData(
   const dstRows = kipVehicles.map(kipWeeklyToVehicleRow);
 
   return { dtRows, dstRows };
+}
+
+// ─── Track API (Session 9) ─────────────────────────────
+
+export async function fetchTrack(vehicleId: string, from: Date, to: Date): Promise<TrackResponse> {
+  const q = new URLSearchParams({
+    vehicle: vehicleId,
+    from: from.toISOString(),
+    to: to.toISOString(),
+  });
+  const r = await fetch(`/api/analytics/tracks?${q}`);
+  if (!r.ok) throw new Error(`Track API error: ${r.status}`);
+  return r.json() as Promise<TrackResponse>;
 }

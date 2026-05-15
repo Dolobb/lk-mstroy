@@ -42,6 +42,7 @@ interface AnalyticsCardsViewProps {
   dstRecords: Map<string, UnifiedRecord[]>;
   selectedChip: string | null;
   onChipClick: (key: string) => void;
+  onSelectVehicle?: (regNumber: string) => void;
 }
 
 export function AnalyticsCardsView({
@@ -55,6 +56,7 @@ export function AnalyticsCardsView({
   dstRecords,
   selectedChip,
   onChipClick,
+  onSelectVehicle,
 }: AnalyticsCardsViewProps) {
   const days = Math.ceil((new Date(dateTo).getTime() - new Date(dateFrom).getTime()) / 86400000) + 1;
   const objCount = objectSummaries.length - 1; // minus "Все"
@@ -94,13 +96,18 @@ export function AnalyticsCardsView({
               {g.vehicles.map(v => {
                 const records = v.source === 'dump_truck' ? v.records : (dstRecords.get(v.regNumber) ?? []);
                 return (
-                  <VehicleCard
+                  <div
                     key={v.regNumber}
-                    row={v}
-                    records={records}
-                    selectedChip={selectedChip}
-                    onChipClick={onChipClick}
-                  />
+                    onClick={onSelectVehicle ? () => onSelectVehicle(v.regNumber) : undefined}
+                    style={{ cursor: onSelectVehicle ? 'pointer' : 'default' }}
+                  >
+                    <VehicleCard
+                      row={v}
+                      records={records}
+                      selectedChip={selectedChip}
+                      onChipClick={onChipClick}
+                    />
+                  </div>
                 );
               })}
             </div>

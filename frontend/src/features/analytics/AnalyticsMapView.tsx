@@ -7,10 +7,11 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MiniBar } from '@/components/MiniBar';
 import { fetchGeoObjects, fetchZonesByObject } from './api';
-import type { GeoObject, ZoneFeature, UnifiedVehicleRow, PositionPoint } from './types';
+import type { GeoObject, ZoneFeature, UnifiedVehicleRow, PositionPoint, TrackResponse } from './types';
 import { vehicleCategory, SUBGROUP_COLORS, SUBGROUP_LABELS, SUBGROUP_ORDER } from './categories';
 import { createAnalyticsPin } from './analyticsPin';
 import './analyticsPin.css';
+import { TrackLayer } from './components/TrackLayer';
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -231,9 +232,12 @@ interface AnalyticsMapViewProps {
   dateTo?: string;
   overlayTopLeft?: React.ReactNode;
   positions?: PositionPoint[];
+  selectedVehicleId?: string | null;
+  track?: TrackResponse | null;
+  onSelectVehicle?: (regNumber: string | null) => void;
 }
 
-export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions }: AnalyticsMapViewProps) {
+export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions, selectedVehicleId, track, onSelectVehicle }: AnalyticsMapViewProps) {
   const [geoObjects, setGeoObjects] = useState<GeoObject[]>([]);
   const [boundaries, setBoundaries] = useState<Map<string, ZoneFeature>>(new Map());
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -479,37 +483,49 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           })}
 
           <MarkerClusterGroup chunkedLoading spiderfyDistanceMultiplier={2} showCoverageOnHover={false}>
-            {allPositionPins.map(p => (
-              <Marker
-                key={p.row.regNumber}
-                position={[p.lat, p.lng] as LatLngTuple}
-                icon={createAnalyticsPin(p.row)}
-              >
-                <Tooltip sticky={false} direction="top" offset={[0, -52]}>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
-                  <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
-                  <div style={{ fontSize: 11 }}>
-                    КИП {Math.round(p.row.avgKipPct)}%
-                  </div>
-                </Tooltip>
-              </Marker>
-            ))}
-            {selectedUid && zoneSyntheticPins.map(p => (
-              <Marker
-                key={`synth-${p.row.regNumber}`}
-                position={[p.lat, p.lng] as LatLngTuple}
-                icon={createAnalyticsPin(p.row)}
-              >
-                <Tooltip sticky={false} direction="top" offset={[0, -52]}>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
-                  <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
-                  <div style={{ fontSize: 11 }}>
-                    КИП {Math.round(p.row.avgKipPct)}%
-                  </div>
-                </Tooltip>
-              </Marker>
-            ))}
+            {allPositionPins.map(p => {
+              const isSel = p.row.regNumber === selectedVehicleId;
+              return (
+                <Marker
+                  key={p.row.regNumber}
+                  position={[p.lat, p.lng] as LatLngTuple}
+                  icon={createAnalyticsPin(p.row, isSel)}
+                  eventHandlers={{ click: () => onSelectVehicle?.(isSel ? null : p.row.regNumber) }}
+                >
+                  <Tooltip sticky={false} direction="top" offset={[0, -52]}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
+                    <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
+                    <div style={{ fontSize: 11 }}>
+                      КИП {Math.round(p.row.avgKipPct)}%
+                    </div>
+                  </Tooltip>
+                </Marker>
+              );
+            })}
+            {selectedUid && zoneSyntheticPins.map(p => {
+              const isSel = p.row.regNumber === selectedVehicleId;
+              return (
+                <Marker
+                  key={`synth-${p.row.regNumber}`}
+                  position={[p.lat, p.lng] as LatLngTuple}
+                  icon={createAnalyticsPin(p.row, isSel)}
+                  eventHandlers={{ click: () => onSelectVehicle?.(isSel ? null : p.row.regNumber) }}
+                >
+                  <Tooltip sticky={false} direction="top" offset={[0, -52]}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
+                    <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
+                    <div style={{ fontSize: 11 }}>
+                      КИП {Math.round(p.row.avgKipPct)}%
+                    </div>
+                  </Tooltip>
+                </Marker>
+              );
+            })}
           </MarkerClusterGroup>
+
+          {track && (
+            <TrackLayer track={track} onDeselect={() => onSelectVehicle?.(null)} />
+          )}
         </MapContainer>
 
         {!boundaryList.length && geoObjects.length > 0 && (

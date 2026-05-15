@@ -119,3 +119,22 @@
 .apin.kip-blue  .apin-stem { background:linear-gradient(180deg,rgba(59,130,246,0.4),transparent); }
 .apin.kip-red   .apin-stem { background:linear-gradient(180deg,rgba(239,68,68,0.4),transparent); }
 .apin.kip-na    .apin-stem { background:linear-gradient(180deg,rgba(148,163,184,0.4),transparent); }
+
+/* ── Track animations (Session 9) ── */
+.track-segment {
+  animation: trackFadeIn 400ms ease-out forwards;
+}
+
+.track-segment {
+  animation: trackFadeIn 400ms ease-out backwards;
+}
+
+@keyframes trackFadeIn {
+  from { stroke-opacity: 0; }
+  to   { stroke-opacity: 1; }
+}
+
+@keyframes dwellFadeIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}

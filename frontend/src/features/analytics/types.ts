@@ -216,3 +216,21 @@ export interface BigObject {
 export interface BigObjectsResponse {
   objects: BigObject[];
 }
+
+// ─── Track (Session 9) ──────────────────────────────────
+
+export interface TrackPoint {
+  ts: string; // ISO
+  lat: number;
+  lng: number;
+  speed: number | null;
+  heading: number | null;
+  engineOn: boolean;
+  motionStatus: string;
+  dwellSec: number | null;
+}
+
+export interface TrackResponse {
+  vehicleId: string;
+  points: TrackPoint[];
+}
