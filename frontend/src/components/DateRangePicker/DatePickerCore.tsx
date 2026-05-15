@@ -4,7 +4,7 @@ import { DayPicker, type DateRange } from 'react-day-picker';
 import 'react-day-picker/src/style.css';
 import { ru } from 'react-day-picker/locale';
 import { format, parse, isValid } from 'date-fns';
-import '../DateRangePicker.css';
+import './DateRangePicker.css';
 
 export interface DatePreset {
   label: string;

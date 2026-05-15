@@ -54,22 +54,22 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({ classNam
   }, [lastFetchAt]);
 
   const formatAge = (sec: number): string => {
-    if (sec < 60) return `${sec}s ago`;
-    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
-    return `${Math.floor(sec / 3600)}h ago`;
+    if (sec < 60) return `${sec} сек назад`;
+    if (sec < 3600) return `${Math.floor(sec / 60)} мин назад`;
+    return `${Math.floor(sec / 3600)} ч назад`;
   };
 
   if (isOffline) {
     return (
       <div
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 ${className}`}
-        title={lastFetchAt ? `Last data from ${new Date(lastFetchAt).toLocaleString()}` : 'No connection'}
+        title={lastFetchAt ? `Последние данные: ${new Date(lastFetchAt).toLocaleString('ru-RU')}` : 'Нет связи с сервером'}
       >
         <WifiOff className="size-3" />
         <span>
           {lastFetchAt
-            ? `Last data: ${new Date(lastFetchAt).toLocaleTimeString()}`
-            : 'No connection'}
+            ? `Нет связи · последние данные ${new Date(lastFetchAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+            : 'Нет связи'}
         </span>
       </div>
     );
@@ -80,10 +80,10 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({ classNam
   return (
     <div
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 ${className}`}
-      title={`Last updated: ${new Date(lastFetchAt).toLocaleString()}`}
+      title={`Обновлено: ${new Date(lastFetchAt).toLocaleString('ru-RU')}`}
     >
       <Wifi className="size-3" />
-      <span>Updated {formatAge(ageSeconds)}</span>
+      <span>Обновлено {formatAge(ageSeconds)}</span>
       <Clock className="size-3 opacity-60" />
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { Table2, LayoutGrid, Map as MapIcon } from 'lucide-react';
 import { DateTimeRangePicker } from '@/components/DateTimeRangePicker';
+import { DataFreshnessBadge } from '@/components/DataFreshnessBadge';
 import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
 import { ShiftGanttBar } from '@/components/ShiftGanttBar';
@@ -139,10 +140,17 @@ function subtypeBreakdown(cat: string, vehicles: UnifiedVehicleRow[]): string {
 
 // ─── Defaults ───────────────────────────────────────────
 
+function toYekatIso(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00+05:00`;
+}
+function isoToYmd(iso: string): string {
+  return iso.split('T')[0] ?? iso;
+}
 const _today = new Date();
 const _yesterday = new Date(_today.getTime() - 86400000);
-const DEFAULT_DATE_FROM = new Date(_today.getFullYear(), _today.getMonth(), 1).toISOString().slice(0, 10);
-const DEFAULT_DATE_TO = _yesterday.toISOString().slice(0, 10);
+const DEFAULT_DATE_FROM = toYekatIso(new Date(_today.getFullYear(), _today.getMonth(), 1));
+const DEFAULT_DATE_TO = toYekatIso(new Date(_yesterday.getFullYear(), _yesterday.getMonth(), _yesterday.getDate(), 23, 45));
 
 // ─── Component ──────────────────────────────────────────
 
@@ -150,8 +158,8 @@ export function AnalyticsPage() {
   const { resolvedTheme } = useTheme();
   const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
   const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
-  const fromDate = new Date(dateFrom + 'T00:00:00+05:00');
-  const toDate = new Date(dateTo + 'T23:45:00+05:00');
+  const fromDate = new Date(dateFrom);
+  const toDate = new Date(dateTo);
   const [shift, setShift] = useState<'all' | 'shift1' | 'shift2'>('all');
   const [vehicleFilters, setVehicleFilters] = useState<Set<string>>(new Set(['all']));
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,7 +210,7 @@ export function AnalyticsPage() {
     setExpanded(new Set());
     setSelectedChip(null);
 
-    fetchUnifiedData(dateFrom, dateTo)
+    fetchUnifiedData(isoToYmd(dateFrom), isoToYmd(dateTo))
       .then(({ dtRows: dt, dstRows: dst }) => {
         if (cancelled) return;
         setDtRows(dt);
@@ -241,7 +249,7 @@ export function AnalyticsPage() {
 
     setLoadingDetails(prev => new Set(prev).add(row.regNumber));
     try {
-      const details = await fetchKipVehicleDetails(row.kipVehicleId, dateFrom, dateTo);
+      const details = await fetchKipVehicleDetails(row.kipVehicleId, isoToYmd(dateFrom), isoToYmd(dateTo));
       const records = details.map(d =>
         kipDetailToUnified(d, row.nameMO, row.vehicleType, row.organization ?? '', row.departmentUnit ?? '', row.regNumber)
       );
@@ -611,12 +619,14 @@ export function AnalyticsPage() {
       <div className="sv-an-filterbar">
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--sv-text-1)' }}>Аналитика</h2>
 
+        <DataFreshnessBadge />
+
         <DateTimeRangePicker
           from={fromDate}
           to={toDate}
           onChange={(f, t) => {
-            setDateFrom(f.toISOString().slice(0, 10));
-            setDateTo(t.toISOString().slice(0, 10));
+            setDateFrom(toYekatIso(f));
+            setDateTo(toYekatIso(t));
           }}
         />
 
@@ -748,12 +758,13 @@ export function AnalyticsPage() {
           dateFrom={dateFrom}
           dateTo={dateTo}
           onPeriodShift={(days) => {
-            const [fy, fm, fd] = dateFrom.split('-').map(Number);
-            const [ty, tm, td] = dateTo.split('-').map(Number);
-            const f = new Date(Date.UTC(fy!, fm! - 1, fd! + days));
-            const t = new Date(Date.UTC(ty!, tm! - 1, td! + days));
-            setDateFrom(f.toISOString().slice(0, 10));
-            setDateTo(t.toISOString().slice(0, 10));
+            const f = new Date(dateFrom);
+            f.setDate(f.getDate() + days);
+            const t = new Date(dateTo);
+            t.setDate(t.getDate() + days);
+
+            setDateFrom(toYekatIso(f));
+            setDateTo(toYekatIso(t));
           }}
           dstRecords={dstDetails}
           selectedChip={selectedChip}

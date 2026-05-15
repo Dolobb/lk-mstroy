@@ -58,8 +58,10 @@ function computeBounds(positions: LatLngTuple[]): LatLngBoundsLiteral | null {
 }
 
 function fmtDateRangeShort(from: string, to: string): string {
-  const fp = from.split('-');
-  const tp = to.split('-');
+  const fd = from.split('T')[0];
+  const td = to.split('T')[0];
+  const fp = fd.split('-');
+  const tp = td.split('-');
   if (fp[0] !== tp[0]) return `${fp[2]}.${fp[1]}.${fp[0]} — ${tp[2]}.${tp[1]}.${tp[0]}`;
   return `${fp[2]}.${fp[1]} — ${tp[2]}.${tp[1]}.${tp[0]}`;
 }
