@@ -1816,6 +1816,24 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleBackfillObjects = async () => {
+    if (!confirm('Пересчитать visited_objects для всех сессий в выбранном диапазоне?')) return;
+    try {
+      const res = await fetch(
+        `/api/analytics/admin/backfill-objects?from=${coverageFrom}&to=${coverageTo}`,
+        { method: 'POST' }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        alert(`Запущен пересчёт объектов: ${body.from} – ${body.to} (jobId: ${body.jobId})`);
+      } else {
+        alert(`Ошибка: ${body.error || res.status}`);
+      }
+    } catch (e) {
+      alert(`Ошибка: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   const handleKipSegCancel = async () => {
     setCancelling(c => ({ ...c, kipSegments: true }));
     await fetch('/api/admin/kip-segments/cancel', { method: 'POST' });
@@ -1827,6 +1845,8 @@ export const AdminPage: React.FC = () => {
   const dtPartialSet = new Set(coverage?.dtPartial ?? []);
   const rawSet = new Set(coverage?.rawDates ?? []);
   const rawPartialSet = new Set(coverage?.rawPartial ?? []);
+  const analyticsSet = new Set(coverage?.analytics ?? []);
+  const analyticsPartialSet = new Set(coverage?.analyticsPartial ?? []);
   const fetchDoneSet = new Set(fetchStatus.done);
 
   const isKipFetching = fetchStatus.active && fetchStatus.service === 'kip';
@@ -2006,6 +2026,14 @@ export const AdminPage: React.FC = () => {
             >
               Перевыгрузить raw (КИП)
             </button>
+            <button
+              onClick={handleBackfillObjects}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium bg-violet-500/15 text-violet-600 hover:bg-violet-500/25"
+              style={{ fontSize: '11px' }}
+              title="Пересчитать visited_objects для корректной группировки «Вне объектов»"
+            >
+              Пересчитать объекты
+            </button>
             {fetchStatus.active && (
               <button
                 onClick={handleCancel}
@@ -2108,7 +2136,7 @@ export const AdminPage: React.FC = () => {
               <span className="text-muted-foreground">Нет данных</span>
             </div>
             <span className="text-muted-foreground ml-auto">
-              {allDays.length} дн. | КИП: {kipSet.size} | Raw: {rawSet.size}{rawPartialSet.size > 0 ? `+${rawPartialSet.size}⚠️` : ''} | Самосвалы: {dtSet.size}{dtPartialSet.size > 0 ? `+${dtPartialSet.size}⚠️` : ''}
+              {allDays.length} дн. | КИП: {kipSet.size} | Raw: {rawSet.size}{rawPartialSet.size > 0 ? `+${rawPartialSet.size}⚠` : ''} | Самосвалы: {dtSet.size}{dtPartialSet.size > 0 ? `+${dtPartialSet.size}⚠` : ''} | Аналитика: {analyticsSet.size}{analyticsPartialSet.size > 0 ? `+${analyticsPartialSet.size}⚠` : ''}
             </span>
           </div>
 
@@ -2136,6 +2164,14 @@ export const AdminPage: React.FC = () => {
                 done={isDTFetching ? fetchDoneSet : new Set()}
                 current={isDTFetching ? fetchStatus.current : null}
                 partial={dtPartialSet}
+                allDays={allDays}
+              />
+              <CoverageRow
+                label="Аналитика"
+                dates={analyticsSet}
+                done={new Set()}
+                current={null}
+                partial={analyticsPartialSet}
                 allDays={allDays}
               />
             </div>

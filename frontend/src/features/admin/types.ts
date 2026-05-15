@@ -9,21 +9,23 @@ export interface ServiceStatus {
 
 export interface DataCoverage {
   kip: string[];          // YYYY-MM-DD dates with data
-  dumpTrucks: string[];   // YYYY-MM-DD dates с полным покрытием самосвалов
-  dtPartial?: string[];   // даты самосвалов с частичным покрытием (<50% медианы)
-  rawDates: string[];     // даты с ≥90% покрытием в monitoring_raw
-  rawPartial?: string[];  // даты с >0% но <90% покрытием
-  errors?: { kip: string | null; dumpTrucks: string | null };
+  dumpTrucks: string[];   // YYYY-MM-DD dates with full dump-truck coverage
+  dtPartial?: string[];   // dump-truck dates with partial coverage
+  analytics?: string[];   // analytics track_sessions dates
+  analyticsPartial?: string[];  // analytics dates with partial coverage
+  rawDates: string[];     // dates with >=90% coverage in monitoring_raw
+  rawPartial?: string[];  // dates with >0 but <90% coverage
+  errors?: { kip: string | null; dumpTrucks: string | null; analytics?: string | null };
   config?: { kip: string; main: string };
 }
 
 export interface FetchStatus {
   active: boolean;
   service: 'kip' | 'dump-trucks' | null;
-  current: string | null;     // дата в процессе загрузки
-  startedAt: number | null;   // unix ms когда текущая дата начала загружаться
-  queue: string[];            // даты в очереди
-  done: string[];             // успешно загруженные за текущую сессию
+  current: string | null;
+  startedAt: number | null;
+  queue: string[];
+  done: string[];
   errors: string[];
 }
 
@@ -88,7 +90,7 @@ export interface DbQueryResult {
   error?: string;
 }
 
-// ─── Pipeline Health ──────────────────────────────────────────────────────────
+// Pipeline Health
 
 export interface PipelineHealthCard {
   pipeline_name: string;
@@ -116,7 +118,7 @@ export interface PipelineRun {
   errors: unknown[];
 }
 
-// ─── Coverage Dashboard ──────────────────────────────────────────────────────
+// Coverage Dashboard
 
 export interface CoverageDashboardResponse {
   baseline: { kipExpected: number; dtExpected: number };
@@ -139,7 +141,7 @@ export interface DayCard {
   lastRunAt: string | null;
 }
 
-// ─── Detailed Coverage ────────────────────────────────────────────────────────
+// Detailed Coverage
 
 export interface DtShiftCoverage {
   report_date: string;

@@ -166,6 +166,12 @@ Monorepo with 7 services. Admin (`:3005`) is a process manager that starts the 5
 | Единый фронтенд | `frontend/docs/FRONTEND.md` | `frontend/docs/PIPELINE.md` | `frontend/docs/HISTORY.md` | `frontend/docs/DEVGUIDE.md` |
 | AI Отчёты | `ai-reports/docs/FRONTEND.md` | `ai-reports/docs/PIPELINE.md` | `ai-reports/docs/HISTORY.md` | `ai-reports/docs/DEVGUIDE.md` |
 
+## OpenCode Edit Gotcha — Кириллица и комментарии
+
+**edit tool НЕ работает с кириллицей в `oldString`** — не находит совпадений даже при побайтовом совпадении. Вероятная причина: разная нормализация Unicode между Read-выводом и параметром edit tool.
+
+**Правило:** при редактировании файлов с кириллическими комментариями/строками — использовать **Write** (перезапись всего файла), а не Edit. В чистых `.ts`/`.tsx`/`.sql` файлах без кириллицы Edit работает нормально.
+
 ## Manual Pipeline Triggers
 
 ```bash

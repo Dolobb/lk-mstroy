@@ -80,6 +80,10 @@ async function getCoveredDates(
            SELECT 1 FROM analytics.track_points tp
            WHERE tp.session_id = ts.id
            LIMIT 1
+         )
+         AND NOT (
+           ts.date = CURRENT_DATE
+           AND ts.fetched_at < now() - INTERVAL '5 minutes'
          )`,
       [vehicleId, from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)],
     );
@@ -213,22 +217,22 @@ async function cacheLiveTrack(
       sessionId = res.rows[0].id;
     }
 
-    await insertPoints(pool, sessionId, points);
+    await insertPoints(pool, sessionId, vehicleId, points);
   } catch (err) {
     logger.error(`Failed to cache track for ${vehicleId}`, err);
   }
 }
 
-async function insertPoints(pool: Pool, sessionId: string, points: TrackPoint[]): Promise<void> {
+async function insertPoints(pool: Pool, sessionId: string, vehicleId: string, points: TrackPoint[]): Promise<void> {
   if (points.length === 0) return;
 
   const values: string[] = [];
   const params: unknown[] = [sessionId];
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
-    const base = i * 8 + 2;
+    const base = i * 9 + 2;
     values.push(
-      `($1, $${base}, $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`,
+      `($1, $${base}, $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`,
     );
     params.push(
       new Date(p.ts * 1000).toISOString(),
@@ -239,12 +243,13 @@ async function insertPoints(pool: Pool, sessionId: string, points: TrackPoint[])
       p.engineOn,
       p.motionStatus,
       p.dwellSec ?? null,
+      vehicleId,
     );
   }
 
   await pool.query(
     `INSERT INTO analytics.track_points
-       (session_id, ts, lat, lng, speed, heading, engine_on, motion_status, dwell_sec)
+       (session_id, ts, lat, lng, speed, heading, engine_on, motion_status, dwell_sec, vehicle_id)
      VALUES ${values.join(', ')}
      ON CONFLICT (session_id, ts) DO NOTHING`,
     params,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { Table2, LayoutGrid, Map as MapIcon } from 'lucide-react';
-import { DateRangePicker } from '@/components/DateRangePicker';
+import { DateTimeRangePicker } from '@/components/DateTimeRangePicker';
 import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
 import { ShiftGanttBar } from '@/components/ShiftGanttBar';
@@ -150,6 +150,8 @@ export function AnalyticsPage() {
   const { resolvedTheme } = useTheme();
   const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
   const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
+  const fromDate = new Date(dateFrom + 'T00:00:00+05:00');
+  const toDate = new Date(dateTo + 'T23:45:00+05:00');
   const [shift, setShift] = useState<'all' | 'shift1' | 'shift2'>('all');
   const [vehicleFilters, setVehicleFilters] = useState<Set<string>>(new Set(['all']));
   const [searchQuery, setSearchQuery] = useState('');
@@ -609,12 +611,13 @@ export function AnalyticsPage() {
       <div className="sv-an-filterbar">
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--sv-text-1)' }}>Аналитика</h2>
 
-        <DateRangePicker
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onRangeChange={(f, t) => { setDateFrom(f); setDateTo(t); }}
-          shift={shift}
-          onShiftChange={setShift}
+        <DateTimeRangePicker
+          from={fromDate}
+          to={toDate}
+          onChange={(f, t) => {
+            setDateFrom(f.toISOString().slice(0, 10));
+            setDateTo(t.toISOString().slice(0, 10));
+          }}
         />
 
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

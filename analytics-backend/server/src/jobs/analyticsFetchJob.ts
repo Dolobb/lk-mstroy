@@ -6,6 +6,7 @@ import { extractDwells } from '../services/dwellExtractor';
 import { parseTrackPoints } from '../utils/trackParser';
 import { logger } from '../utils/logger';
 import type { TrackPoint } from '../services/dwellExtractor';
+import { computeVisitedObjectsForPoints } from '../services/visitedObjects';
 import { Pool } from 'pg';
 
 const DEFAULT_SHIFT = 'full';
@@ -60,7 +61,19 @@ export async function runAnalyticsFetch(
       const withDwells = extractDwells(simplified);
 
       const sessionId = await createSession(pool, vehicle.vehicle_id, dateStr);
-      const inserted = await insertTrackPoints(pool, sessionId, withDwells);
+      const inserted = await insertTrackPoints(pool, sessionId, vehicle.vehicle_id, withDwells);
+
+      try {
+        const visited = await computeVisitedObjectsForPoints(pool, withDwells);
+        if (visited.length > 0) {
+          await pool.query(
+            `UPDATE analytics.track_sessions SET visited_objects = $1 WHERE id = $2`,
+            [visited, sessionId],
+          );
+        }
+      } catch (err) {
+        logger.warn(`visited_objects failed for ${vehicle.vehicle_id}: ${err instanceof Error ? err.message : String(err)}`);
+      }
 
       vResult.sessionId = sessionId;
       vResult.points = inserted;
@@ -141,6 +154,7 @@ async function createSession(
 async function insertTrackPoints(
   pool: Pool,
   sessionId: string,
+  vehicleId: string,
   points: TrackPoint[],
 ): Promise<number> {
   if (points.length === 0) return 0;
@@ -153,7 +167,7 @@ async function insertTrackPoints(
 
   for (const p of points) {
     values.push(
-      `($1, $${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, $${paramIdx + 3}, $${paramIdx + 4}, $${paramIdx + 5}, $${paramIdx + 6}, $${paramIdx + 7})`,
+      `($1, $${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, $${paramIdx + 3}, $${paramIdx + 4}, $${paramIdx + 5}, $${paramIdx + 6}, $${paramIdx + 7}, $${paramIdx + 8})`,
     );
     params.push(
       new Date(p.ts * 1000).toISOString(),
@@ -164,13 +178,14 @@ async function insertTrackPoints(
       p.engineOn,
       p.motionStatus,
       p.dwellSec ?? null,
+      vehicleId,
     );
-    paramIdx += 8;
+    paramIdx += 9;
   }
 
   const query = `
     INSERT INTO analytics.track_points
-      (session_id, ts, lat, lng, speed, heading, engine_on, motion_status, dwell_sec)
+      (session_id, ts, lat, lng, speed, heading, engine_on, motion_status, dwell_sec, vehicle_id)
     VALUES ${values.join(', ')}
     ON CONFLICT (session_id, ts) DO NOTHING
   `;
