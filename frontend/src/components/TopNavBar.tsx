@@ -36,6 +36,7 @@ const TopNavBar: React.FC = () => {
               }`}
               style={{
                 fontSize: '11px',
+                letterSpacing: '0.3px',
                 boxShadow: isActive ? '0 0 20px rgba(249, 115, 22, 0.15)' : 'none',
                 transition: 'box-shadow 200ms ease',
                 textDecoration: 'none',

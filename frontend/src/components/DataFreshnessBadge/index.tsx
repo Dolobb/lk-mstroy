@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Wifi, WifiOff, Clock } from 'lucide-react';
+import { RefreshCw, WifiOff } from 'lucide-react';
 
 interface DataFreshnessBadgeProps {
   className?: string;
@@ -54,9 +54,12 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({ classNam
   }, [lastFetchAt]);
 
   const formatAge = (sec: number): string => {
-    if (sec < 60) return `${sec} сек назад`;
-    if (sec < 3600) return `${Math.floor(sec / 60)} мин назад`;
-    return `${Math.floor(sec / 3600)} ч назад`;
+    if (sec < 3600) {
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+    return `${Math.floor(sec / 3600)}ч ${Math.floor((sec % 3600) / 60).toString().padStart(2, '0')}м`;
   };
 
   if (isOffline) {
@@ -66,11 +69,7 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({ classNam
         title={lastFetchAt ? `Последние данные: ${new Date(lastFetchAt).toLocaleString('ru-RU')}` : 'Нет связи с сервером'}
       >
         <WifiOff className="size-3" />
-        <span>
-          {lastFetchAt
-            ? `Нет связи · последние данные ${new Date(lastFetchAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
-            : 'Нет связи'}
-        </span>
+        <span>Нет связи</span>
       </div>
     );
   }
@@ -82,9 +81,8 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({ classNam
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 ${className}`}
       title={`Обновлено: ${new Date(lastFetchAt).toLocaleString('ru-RU')}`}
     >
-      <Wifi className="size-3" />
-      <span>Обновлено {formatAge(ageSeconds)}</span>
-      <Clock className="size-3 opacity-60" />
+      <RefreshCw className="size-3" />
+      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatAge(ageSeconds)}</span>
     </div>
   );
 };

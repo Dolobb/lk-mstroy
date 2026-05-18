@@ -65,8 +65,25 @@ const App: React.FC = () => {
   // }, [location.pathname]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-b from-background via-[var(--background-gradient-mid)] to-[var(--background-gradient-end)]">
-      <div className="px-3 pt-3 shrink-0">
+    <div
+      className="flex flex-col h-screen overflow-hidden"
+      style={{ background: 'var(--bg-gradient)', position: 'relative' }}
+    >
+      {/* Ambient halos — global, visible on all pages */}
+      <div style={{
+        position: 'absolute', top: '-20%', right: '-10%',
+        width: 600, height: 600, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(249,115,22,0.04) 0%, transparent 70%)',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '-15%', left: '-5%',
+        width: 500, height: 500, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(59,130,246,0.03) 0%, transparent 70%)',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
+
+      <div className="px-3 pt-3 shrink-0" style={{ position: 'relative', zIndex: 1 }}>
         <TopNavBar />
       </div>
 

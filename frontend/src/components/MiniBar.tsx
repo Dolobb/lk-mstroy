@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from 'next-themes';
 
 interface BarData {
   value: number;
@@ -16,13 +17,15 @@ function barColor(v: number): string {
 }
 
 export function MiniBar({ primary, secondary, width = 80 }: MiniBarProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== 'light';
   const p = Math.max(0, Math.min(100, primary.value));
   const s = Math.max(0, Math.min(100, secondary.value));
 
-  const trackStyle = (color: string): React.CSSProperties => ({
+  const trackStyle = (): React.CSSProperties => ({
     flex: 1, height: 5, borderRadius: 3,
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
     overflow: 'hidden',
   });
 
@@ -39,7 +42,7 @@ export function MiniBar({ primary, secondary, width = 80 }: MiniBarProps) {
     >
       {/* Primary bar (KPI) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <div style={trackStyle(barColor(p))}>
+        <div style={trackStyle()}>
           <div style={fillStyle(p, barColor(p))} />
         </div>
         <span style={{ fontSize: 10, fontWeight: 700, color: barColor(p), minWidth: 24, textAlign: 'right', lineHeight: 1 }}>
@@ -48,7 +51,7 @@ export function MiniBar({ primary, secondary, width = 80 }: MiniBarProps) {
       </div>
       {/* Secondary bar (Movement) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <div style={trackStyle(barColor(s))}>
+        <div style={trackStyle()}>
           <div style={fillStyle(s, barColor(s))} />
         </div>
         <span style={{ fontSize: 10, fontWeight: 600, color: barColor(s), minWidth: 24, textAlign: 'right', lineHeight: 1, opacity: 0.75 }}>

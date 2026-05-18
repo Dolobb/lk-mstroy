@@ -3470,8 +3470,6 @@ export function DumpTrucksPage() {
 
   return (
     <div className="sv-root flex-1 min-h-0" data-theme={theme}>
-      <div className="sv-amb sv-amb-o" />
-      <div className="sv-amb sv-amb-b" />
 
       {/* Sub-header */}
       <div className="sv-sub-header">

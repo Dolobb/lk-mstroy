@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
-import { Table2, LayoutGrid, Map as MapIcon } from 'lucide-react';
+import { Table2, LayoutGrid, Map as MapIcon, ChevronRight } from 'lucide-react';
 import { DateTimeRangePicker } from '@/components/DateTimeRangePicker';
 import { DataFreshnessBadge } from '@/components/DataFreshnessBadge';
 import { MiniBar } from '@/components/MiniBar';
@@ -24,7 +24,9 @@ import { useTrack } from './hooks/useTrack';
 import { useGroups, useBigObjects } from './hooks/useGroups';
 import { AnalyticsMapView } from './AnalyticsMapView';
 import { AnalyticsCardsView } from './AnalyticsCardsView';
+import { AnalyticsSidebar } from './AnalyticsSidebar';
 import { SUBGROUP_LABELS, SUBGROUP_COLORS, SUBGROUP_ORDER, vehicleCategory } from './categories';
+import { VehicleIcon } from '@/components/VehicleIcon';
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -75,6 +77,38 @@ const TYPE_FILTERS: { key: string; label: string }[] = [
   { key: 'exc_crawler', label: 'Экск. гусен.' },
   { key: 'exc_wheeled', label: 'Экск. колесный' },
   { key: 'exc_loader', label: 'Экск.-погрузчик' },
+];
+
+interface FilterGroup {
+  key: string;
+  label: string;
+  color: string;
+  iconKind: string;
+  subKeys: string[];
+  subLabels: Record<string, string>;
+}
+
+const FILTER_GROUPS: FilterGroup[] = [
+  {
+    key: 'samosvaly', label: 'Самосв.', color: '#F97316', iconKind: 'samosvaly',
+    subKeys: ['dt_delivery', 'dt_onsite'],
+    subLabels: { dt_delivery: 'Доставка', dt_onsite: 'По месту' },
+  },
+  {
+    key: 'krany', label: 'Краны', color: '#22C55E', iconKind: 'krany',
+    subKeys: ['crane_auto', 'crane_crawler', 'crane_pneumo'],
+    subLabels: { crane_auto: 'Автомобильные', crane_crawler: 'Гусеничные', crane_pneumo: 'Пневмоколёсные' },
+  },
+  {
+    key: 'ekskav', label: 'Экскав.', color: '#A78BFA', iconKind: 'ekskav',
+    subKeys: ['exc_crawler', 'exc_wheeled', 'exc_loader'],
+    subLabels: { exc_crawler: 'Гусеничный', exc_wheeled: 'Колесный', exc_loader: 'Экск.-погрузчик' },
+  },
+  {
+    key: 'dst', label: 'ДСТ', color: '#60A5FA', iconKind: 'kip',
+    subKeys: ['bulldozer', 'roller', 'loader'],
+    subLabels: { bulldozer: 'Бульдозер', roller: 'Каток', loader: 'Погрузчик' },
+  },
 ];
 
 function matchesTypeFilter(row: UnifiedVehicleRow, filters: Set<string>): boolean {
@@ -167,6 +201,7 @@ export function AnalyticsPage() {
   const toDate = new Date(dateTo);
   const [shift, setShift] = useState<'all' | 'shift1' | 'shift2'>('all');
   const [vehicleFilters, setVehicleFilters] = useState<Set<string>>(new Set(['all']));
+  const [expandedFilterGroups, setExpandedFilterGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
 
   const toggleFilter = (key: string) => {
@@ -175,6 +210,30 @@ export function AnalyticsPage() {
       const next = new Set(prev);
       next.delete('all');
       if (next.has(key)) next.delete(key); else next.add(key);
+      return next.size === 0 ? new Set(['all']) : next;
+    });
+  };
+
+  const isGroupActive = (group: FilterGroup) => group.subKeys.some(k => vehicleFilters.has(k));
+
+  const toggleExpandFilter = (key: string) => {
+    setExpandedFilterGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleFilterGroup = (group: FilterGroup) => {
+    setVehicleFilters(prev => {
+      const allActive = group.subKeys.every(k => prev.has(k));
+      const next = new Set(prev);
+      next.delete('all');
+      if (allActive) {
+        group.subKeys.forEach(k => next.delete(k));
+      } else {
+        group.subKeys.forEach(k => next.add(k));
+      }
       return next.size === 0 ? new Set(['all']) : next;
     });
   };
@@ -644,28 +703,54 @@ export function AnalyticsPage() {
 
   return (
     <div className="sv-root" data-theme={resolvedTheme} style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 16px', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
-      {/* Ambient halos */}
-      <div className="sv-amb sv-amb-o" />
-      <div className="sv-amb sv-amb-b" />
-
       {/* Header */}
       <div className="sv-an-filterbar">
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--sv-text-1)' }}>Аналитика</h2>
-
         <DataFreshnessBadge />
 
-        {viewMode !== 'map' && datePicker}
+        {datePicker}
 
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {TYPE_FILTERS.map(f => (
-            <button
-              key={f.key}
-              className={`sv-view-tab ${vehicleFilters.has(f.key) ? 'active' : ''}`}
-              onClick={() => toggleFilter(f.key)}
-              style={{ fontSize: 11, padding: '4px 10px' }}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {/* Все */}
+          <button
+            className={`sv-filter-sq all ${vehicleFilters.has('all') ? 'active' : ''}`}
+            onClick={() => toggleFilter('all')}
+          >
+            <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1 }}>ВСЕ</span>
+          </button>
+
+          {FILTER_GROUPS.map(group => (
+            <div
+              key={group.key}
+              className={`sv-filter-group ${expandedFilterGroups.has(group.key) ? 'expanded' : ''}`}
             >
-              {f.label}
-            </button>
+              <button
+                className={`sv-filter-sq ${isGroupActive(group) ? 'active' : ''}`}
+                style={{ '--group-color': group.color } as React.CSSProperties}
+                onClick={() => toggleFilterGroup(group)}
+              >
+                <VehicleIcon kind={group.iconKind} size={16} />
+                <span className="sv-filter-sq-label">{group.label}</span>
+              </button>
+              <button
+                className="sv-filter-arrow"
+                onClick={() => toggleExpandFilter(group.key)}
+                title="Раскрыть подгруппы"
+              >
+                <ChevronRight size={9} strokeWidth={2.5} />
+              </button>
+              <div className="sv-filter-drop">
+                {group.subKeys.map(k => (
+                  <button
+                    key={k}
+                    className={`sv-filter-sub ${vehicleFilters.has(k) ? 'active' : ''}`}
+                    style={{ '--group-color': group.color } as React.CSSProperties}
+                    onClick={() => toggleFilter(k)}
+                  >
+                    {group.subLabels[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
@@ -709,114 +794,82 @@ export function AnalyticsPage() {
         </div>
       </div>
 
-      {/* KPI Strip — object focus boxes */}
-      {objectSummaries.length > 1 && (
-        <div className="sv-smu-strip" style={{ marginBottom: 8 }}>
-        {objectSummaries.map(c => {
-          const isOutside = c.uid === OUTSIDE_GROUP_UID;
-          const isClickable = !isOutside;
-          return (
-            <div
-              key={c.uid ?? '__all'}
-              className={`sv-smu-card ${focusedObjectUid === c.uid ? 'active' : ''}`}
-              style={{ cursor: isClickable ? 'pointer' : 'default' }}
-              onClick={isClickable ? () => setFocusedObjectUid(c.uid) : undefined}
-            >
-              <div className="sv-smu-card-title">{c.title}</div>
-              <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
-              <div className="sv-smu-card-row"><span>Работа</span><span className="sv-smu-card-val">{c.work}</span></div>
-              <div className="sv-smu-card-row"><span>Ср.КИП</span><span className={`sv-smu-card-val ${c.kip > 0 ? kipColor(c.kip) : ''}`}>{c.kip > 0 ? `${c.kip}%` : '—'}</span></div>
+      {/* Main grid: content + sidebar */}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 280px', gap: 10, minHeight: 0, overflow: 'hidden' }}>
+
+        {/* Left: views */}
+        <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+          {/* Error */}
+          {error && (
+            <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, marginBottom: 8, color: '#EF4444', fontSize: 12 }}>
+              {error}
             </div>
-          );
-        })}
-      </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, marginBottom: 8, color: '#EF4444', fontSize: 12 }}>
-          {error}
-        </div>
-      )}
-
-      {/* KIP Segment progress strip */}
-      {kipSegProgress && (kipSegProgress.active.length > 0 || kipSegProgress.queue.length > 0) && (
-        <div style={{
-          padding: '6px 12px', marginBottom: 8, borderRadius: 8, fontSize: 11,
-          background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
-          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-        }}>
-          <svg className="sv-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2" style={{ flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
-          </svg>
-          {kipSegProgress.active.map(j => (
-            <span key={`${j.vehicleId}-${j.date}-${j.shift}`} style={{ color: 'var(--sv-text-2)' }}>
-              <span style={{ fontWeight: 600, color: 'var(--sv-text-1)' }}>{j.vehicleId}</span>
-              {' '}{j.segmentsDone}/24
-            </span>
-          ))}
-          {kipSegProgress.queue.length > 0 && (
-            <span style={{ color: 'var(--sv-text-3)' }}>
-              +{kipSegProgress.queue.length} в очереди
-            </span>
           )}
-        </div>
-      )}
 
-      {/* Map view */}
-      {viewMode === 'map' && (
-        <MapViewWithPositions
-          groups={filteredGroups}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          overlayTopLeft={datePicker}
-          selectedVehicleId={selectedVehicleId}
-          onSelectVehicle={setSelectedVehicleId}
-        />
-      )}
+          {/* KIP Segment progress strip */}
+          {kipSegProgress && (kipSegProgress.active.length > 0 || kipSegProgress.queue.length > 0) && (
+            <div style={{
+              padding: '6px 12px', marginBottom: 8, borderRadius: 8, fontSize: 11,
+              background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            }}>
+              <svg className="sv-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+              </svg>
+              {kipSegProgress.active.map(j => (
+                <span key={`${j.vehicleId}-${j.date}-${j.shift}`} style={{ color: 'var(--sv-text-2)' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--sv-text-1)' }}>{j.vehicleId}</span>
+                  {' '}{j.segmentsDone}/24
+                </span>
+              ))}
+              {kipSegProgress.queue.length > 0 && (
+                <span style={{ color: 'var(--sv-text-3)' }}>
+                  +{kipSegProgress.queue.length} в очереди
+                </span>
+              )}
+            </div>
+          )}
 
-      {/* Cards view */}
-      {viewMode === 'cards' && (loading ? (
-          <div className="sv-empty">
-            <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
-            </svg>
-            <span className="sv-empty-text">Загрузка...</span>
-          </div>
-        ) : error ? (
-          <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#EF4444', fontSize: 12, margin: 'auto' }}>
-            {error}
-          </div>
-        ) : (
-        <AnalyticsCardsView
-          filteredGroups={filteredGroups}
-          objectSummaries={objectSummaries}
-          focusedObjectUid={focusedObjectUid}
-          onFocusObject={setFocusedObjectUid}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onPeriodShift={(days) => {
-            const f = new Date(dateFrom);
-            f.setDate(f.getDate() + days);
-            const t = new Date(dateTo);
-            t.setDate(t.getDate() + days);
+          {/* Map view */}
+          {viewMode === 'map' && (
+            <MapViewWithPositions
+              groups={filteredGroups}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              selectedVehicleId={selectedVehicleId}
+              onSelectVehicle={setSelectedVehicleId}
+            />
+          )}
 
-            setDateFrom(toYekatIso(f));
-            setDateTo(toYekatIso(t));
-          }}
-          dstRecords={dstDetails}
-          selectedChip={selectedChip}
-          onChipClick={(key) => setSelectedChip(selectedChip === key ? null : key)}
-          onSelectVehicle={(reg) => {
-            setSelectedVehicleId(reg);
-            setViewMode('map');
-          }}
-        />
-      ))}
+          {/* Cards view */}
+          {viewMode === 'cards' && (loading ? (
+              <div className="sv-empty">
+                <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+                </svg>
+                <span className="sv-empty-text">Загрузка...</span>
+              </div>
+            ) : error ? (
+              <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#EF4444', fontSize: 12, margin: 'auto' }}>
+                {error}
+              </div>
+            ) : (
+              <AnalyticsCardsView
+                filteredGroups={filteredGroups}
+                dstRecords={dstDetails}
+                selectedChip={selectedChip}
+                onChipClick={(key) => setSelectedChip(selectedChip === key ? null : key)}
+                onSelectVehicle={(reg) => {
+                  setSelectedVehicleId(reg);
+                  setViewMode('map');
+                }}
+              />
+          ))}
 
-      {/* Table view */}
-      {viewMode === 'table' && (
-      <div className="sv-an-table-wrap" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          {/* Table view */}
+          {viewMode === 'table' && (
+          <div className="sv-an-table-wrap" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {loading ? (
           <div className="sv-empty">
             <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
@@ -1020,7 +1073,26 @@ export function AnalyticsPage() {
           </table>
         )}
       </div>
-      )}
+          )}
+        </div>
+
+        {/* Right: sidebar */}
+        <AnalyticsSidebar
+          objectSummaries={objectSummaries}
+          focusedObjectUid={focusedObjectUid}
+          onFocusObject={setFocusedObjectUid}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onPeriodShift={(days) => {
+            const f = new Date(dateFrom);
+            f.setDate(f.getDate() + days);
+            const t = new Date(dateTo);
+            t.setDate(t.getDate() + days);
+            setDateFrom(toYekatIso(f));
+            setDateTo(toYekatIso(t));
+          }}
+        />
+      </div>
     </div>
   );
 }

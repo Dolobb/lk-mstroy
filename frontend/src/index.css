@@ -7,6 +7,7 @@
   --background: #f0f4f8;
   --background-gradient-mid: #E2E8F0;
   --background-gradient-end: #F8FAFC;
+  --bg-gradient: linear-gradient(145deg, #F0F4F8 0%, #E2E8F0 30%, #EEF2F7 60%, #F8FAFC 100%);
   --foreground: #0f172a;
   --card: rgba(255, 255, 255, 0.75);
   --card-foreground: #0f172a;
@@ -49,6 +50,7 @@
   --background: #040812;
   --background-gradient-mid: #0B1120;
   --background-gradient-end: #111B2E;
+  --bg-gradient: linear-gradient(145deg, #040812 0%, #0B1120 30%, #111B2E 60%, #0D1526 100%);
   --foreground: #F1F5F9;
   --card: rgba(15, 23, 42, 0.65);
   --card-foreground: #F1F5F9;
@@ -152,7 +154,7 @@
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
