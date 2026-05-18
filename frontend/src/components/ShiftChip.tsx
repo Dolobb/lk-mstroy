@@ -7,7 +7,7 @@ export interface ShiftChipProps {
   kip: number;
   movement: number;
   workType: string;    // 'delivery' | 'onsite'
-  engineHours?: number; // hours for onsite display
+  engineHours?: number;
   isSelected: boolean;
   onClick: () => void;
 }
@@ -16,38 +16,67 @@ function barColor(v: number): string {
   return v >= 75 ? '#22c55e' : v >= 50 ? '#60A5FA' : '#EF4444';
 }
 
+function kipColorClass(v: number): string {
+  return v >= 75 ? 'kg' : v >= 50 ? 'kb' : 'kr';
+}
+
 export function ShiftChip({ date, shift, trips, kip, movement, workType, engineHours, isSelected, onClick }: ShiftChipProps) {
   const isOnsite = workType === 'onsite';
-  const shiftLabel = shift === 0 ? `${trips > 1 ? '2' : '1'}см` : `C${shift}`;
-  const workLabel = isOnsite
-    ? `${engineHours != null ? engineHours : 0}ч`
-    : `${trips}р`;
+  const isZero = isOnsite ? (!engineHours || engineHours === 0) : trips === 0;
+  const shiftLabel = shift === 0 ? '2см' : `C${shift}`;
+
+  const kipPct = Math.max(0, Math.min(100, kip));
+  const movPct = Math.max(0, Math.min(100, movement));
+  // For onsite: show proportion of 12h shift with engine on
+  const onsitePct = isOnsite && engineHours != null ? Math.min(100, (engineHours / 12) * 100) : 0;
 
   const titleLines = [
     `${date} Смена ${shift === 0 ? '1+2' : shift}`,
     `КИП: ${Math.round(kip)}%`,
-    `Движение: ${Math.round(movement)}%`,
-    isOnsite ? `Двигатель: ${engineHours ?? 0}ч` : `Рейсов: ${trips}`,
+    isOnsite
+      ? `Двигатель: ${engineHours ?? 0}ч`
+      : `Движение: ${Math.round(movement)}% · Рейсов: ${trips}`,
   ];
-
-  const color = barColor(kip);
-  const pct = Math.max(0, Math.min(100, kip));
 
   return (
     <button
       type="button"
-      className={`sv-chip${isSelected ? ' selected' : ''}${isOnsite ? ' onsite' : ''}`}
+      className={`sv-chip${isSelected ? ' selected' : ''}${isOnsite ? ' onsite' : ''}${isZero ? ' zero' : ''}`}
       title={titleLines.join('\n')}
       onClick={onClick}
     >
-      <span>{date}</span>
-      <span style={{ opacity: 0.5 }}>·</span>
-      <span>{shiftLabel}</span>
-      <span style={{ opacity: 0.5 }}>·</span>
-      <span>{workLabel}</span>
-      <div className="sv-chip-bar">
-        <div className="sv-chip-bar-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
+      {/* Left: date + shift */}
+      <span className="sv-chip-date">
+        {date}
+        <small>{shiftLabel}</small>
+      </span>
+
+      {/* Center: vis tracks */}
+      <span className="sv-chip-vis">
+        <span className="sv-chip-vis-lbl">
+          <span>КИП</span>
+          {kip > 0
+            ? <span className={kipColorClass(Math.round(kip))}>{Math.round(kip)}</span>
+            : <span>—</span>
+          }
+        </span>
+        <span className="sv-chip-track">
+          <i style={{ width: `${kipPct}%`, background: barColor(kip) }} />
+        </span>
+        <span className="sv-chip-track">
+          <i style={{
+            width: `${isOnsite ? onsitePct : movPct}%`,
+            background: isOnsite ? '#A78BFA' : '#60A5FA',
+            opacity: 0.7,
+          }} />
+        </span>
+      </span>
+
+      {/* Right: count + unit */}
+      <span className="sv-chip-num">
+        {isZero ? 'Op' : isOnsite ? `${engineHours ?? 0}ч` : String(trips)}
+        <small>{isZero ? 'нет ПЛ' : isOnsite ? 'двиг.' : 'рейсов'}</small>
+      </span>
     </button>
   );
 }

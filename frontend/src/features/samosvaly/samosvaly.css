@@ -1331,36 +1331,69 @@ td.sv-obj-return {
 .sv-chip-strip { display: flex; flex-wrap: wrap; gap: 4px; }
 
 /* Individual chip */
+/* ─── ShiftChip v2 ──────────────────────────────────── */
 .sv-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 6px; cursor: pointer;
-  font-size: 10px; font-weight: 500; white-space: nowrap;
-  background: var(--sv-pill-bg);
-  border: 1px solid var(--sv-pill-border);
-  color: var(--sv-text-2);
-  transition: all .15s;
-  line-height: 1.6;
+  display: inline-grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 6px;
+  padding: 4px 8px 4px 6px;
+  background: var(--sv-card);
+  border: 1px solid var(--sv-card-border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+  font-variant-numeric: tabular-nums;
+  min-width: 0; text-align: left; font-family: inherit;
 }
-.sv-chip:hover { background: var(--sv-hover-bg); border-color: var(--sv-text-4); }
-.sv-chip.selected { border-color: #F97316; background: rgba(249,115,22,0.08); color: var(--sv-text-1); }
-
-/* Mini KPI bar inside chip */
-.sv-chip-bar {
-  width: 20px; height: 4px; border-radius: 2px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.06);
-  overflow: hidden;
+.sv-chip:hover { border-color: rgba(96,165,250,.35); background: var(--sv-hover-bg); }
+.sv-chip.selected {
+  border-color: rgba(249,115,22,.55);
+  background: linear-gradient(180deg, rgba(249,115,22,.10), rgba(249,115,22,.04));
+  box-shadow: 0 0 0 1px rgba(249,115,22,.25), 0 0 12px rgba(249,115,22,.18);
 }
-.sv-chip-bar-fill { height: 100%; border-radius: 2px; }
+.sv-chip.zero { opacity: .55; }
 
-/* Onsite chip variant */
-.sv-chip.onsite { border-style: dashed; }
-
-/* Light theme chip overrides */
-[data-theme="light"] .sv-chip-bar {
-  background: rgba(0,0,0,0.06);
-  border-color: rgba(0,0,0,0.04);
+/* Left: date + shift */
+.sv-chip-date {
+  font-size: 10px; font-weight: 700; color: var(--sv-text-1);
+  letter-spacing: .02em; display: flex; flex-direction: column; line-height: 1.1;
 }
+.sv-chip-date small {
+  font-size: 8px; font-weight: 600; color: var(--sv-text-3);
+  letter-spacing: .4px; text-transform: uppercase;
+}
+
+/* Center: bar tracks */
+.sv-chip-vis { display: flex; flex-direction: column; gap: 2px; min-width: 46px; }
+.sv-chip-vis-lbl {
+  font-size: 7px; color: var(--sv-text-4); font-weight: 700;
+  letter-spacing: .3px; text-transform: uppercase;
+  display: flex; justify-content: space-between;
+}
+.sv-chip-track {
+  display: block; height: 3px;
+  background: rgba(255,255,255,.06); border-radius: 2px; overflow: hidden;
+}
+[data-theme="light"] .sv-chip-track { background: rgba(0,0,0,.06); }
+.sv-chip-track i { display: block; height: 100%; border-radius: 2px; }
+
+/* Right: count + unit */
+.sv-chip-num {
+  font-size: 10px; font-weight: 800; color: var(--sv-text-1);
+  display: flex; flex-direction: column; align-items: flex-end;
+  line-height: 1.1; min-width: 24px;
+}
+.sv-chip-num small {
+  font-size: 7px; font-weight: 700; color: var(--sv-text-3);
+  letter-spacing: .4px; text-transform: uppercase;
+}
+.sv-chip.zero .sv-chip-num { color: var(--sv-text-4); }
+
+/* KIP color helpers inside chip */
+.sv-chip .kg { color: #22C55E; }
+.sv-chip .kb { color: #60A5FA; }
+.sv-chip .kr { color: #EF4444; }
 
 /* ── ShiftGanttBar (vertical bar chart) ──────── */
 .sv-shift-gantt {
@@ -1477,17 +1510,18 @@ td.sv-obj-return {
 }
 
 /* --- Cards View --- */
-.sv-veh-card { background: var(--sv-card); border: 1px solid var(--sv-card-border); border-radius: 10px; padding: 10px 12px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.sv-veh-card { background: var(--sv-card); border: 1px solid var(--sv-card-border); border-radius: 12px; padding: 12px 14px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .sv-veh-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-.sv-veh-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.sv-veh-plate { font-weight: 800; font-size: 13px; color: var(--sv-text-1); }
-.sv-veh-model { font-size: 10px; color: var(--sv-text-3); margin-top: 1px; }
-.sv-veh-org { font-size: 9px; color: var(--sv-text-4); margin-left: auto; text-transform: uppercase; letter-spacing: 0.03em; }
-.sv-veh-meta { display: flex; gap: 10px; margin: 4px 0; flex-wrap: wrap; }
+.sv-veh-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sv-veh-plate { font-weight: 800; font-size: 14px; color: var(--sv-text-1); }
+.sv-veh-model { font-size: 11px; color: var(--sv-text-3); margin-top: 1px; }
+.sv-veh-org { font-size: 9px; color: var(--sv-text-4); margin-left: auto; text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0; }
+.sv-veh-meta { display: flex; gap: 14px; margin: 8px 0; flex-wrap: wrap; }
 .sv-veh-meta-item { display: flex; flex-direction: column; gap: 1px; }
 .sv-veh-meta-lbl { font-size: 8px; font-weight: 700; color: var(--sv-text-4); text-transform: uppercase; letter-spacing: 0.04em; }
-.sv-veh-meta-val { font-size: 11px; font-weight: 700; color: var(--sv-text-1); font-variant-numeric: tabular-nums; }
-.sv-veh-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+.sv-veh-meta-val { font-size: 12px; font-weight: 700; color: var(--sv-text-1); font-variant-numeric: tabular-nums; }
+.sv-veh-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 6px; }
+.sv-veh-chip-detail { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--sv-divider); }
 
 /* --- Analytics polish (session 5) --- */
 .sv-an-filterbar {
@@ -1559,11 +1593,19 @@ table.sv-at thead {
 .sv-filter-group:hover .sv-filter-arrow { border-color: var(--group-color, #60A5FA); color: var(--sv-text-2); }
 /* Expanded */
 .sv-filter-group.expanded .sv-filter-arrow { color: var(--sv-text-1); }
-/* Когда квадрат активен — стрелочка тоже подхватывает цвет группы */
-.sv-filter-group:has(.sv-filter-sq.active) .sv-filter-arrow {
+/* Все подгруппы выбраны — стрелочка цветом группы */
+.sv-filter-group.all-active .sv-filter-arrow {
   background: color-mix(in srgb, var(--group-color, #60A5FA) 12%, transparent);
   border-color: color-mix(in srgb, var(--group-color, #60A5FA) 55%, transparent);
   border-left-color: color-mix(in srgb, var(--group-color, #60A5FA) 25%, transparent);
+  color: var(--group-color, #60A5FA);
+}
+/* Часть подгрупп выбрана — стрелочка синяя */
+.sv-filter-group.partial-active .sv-filter-arrow {
+  background: rgba(96,165,250,.10);
+  border-color: rgba(96,165,250,.40);
+  border-left-color: rgba(96,165,250,.20);
+  color: #60A5FA;
 }
 
 .sv-filter-sub {

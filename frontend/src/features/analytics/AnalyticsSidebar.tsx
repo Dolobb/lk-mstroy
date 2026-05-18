@@ -14,7 +14,7 @@ interface AnalyticsSidebarProps {
   onFocusObject: (uid: string | null) => void;
   dateFrom: string;
   dateTo: string;
-  onPeriodShift: (days: number) => void;
+  onPeriodShift: (direction: -1 | 1) => void;
 }
 
 function kipColor(v: number): string {
@@ -24,11 +24,12 @@ function kipColor(v: number): string {
 }
 
 function fmtDateRangeShort(from: string, to: string): string {
-  const fm = (s: string) => { const p = s.split('-'); return `${p[2]}.${p[1]}`; };
-  const fromParts = from.split('-');
-  const toParts = to.split('-');
-  if (fromParts[0] !== toParts[0]) return `${fm(from)}.${fromParts[0]} — ${fm(to)}.${toParts[0]}`;
-  return `${fm(from)} — ${fm(to)}.${toParts[0]}`;
+  const dateOnly = (s: string) => (s.split('T')[0] ?? s).substring(0, 10);
+  const fm = (s: string) => { const p = dateOnly(s).split('-'); return `${p[2]}.${p[1]}`; };
+  const fromY = dateOnly(from).split('-')[0];
+  const toY = dateOnly(to).split('-')[0];
+  if (fromY !== toY) return `${fm(from)}.${fromY} — ${fm(to)}.${toY}`;
+  return `${fm(from)} — ${fm(to)}.${toY}`;
 }
 
 export function AnalyticsSidebar({
@@ -64,7 +65,7 @@ export function AnalyticsSidebar({
       }}>
         <button
           className="sv-view-tab"
-          onClick={() => onPeriodShift(-7)}
+          onClick={() => onPeriodShift(-1)}
           style={{ width: 28, height: 28, fontSize: 14, padding: 0, justifyContent: 'center' }}
         >‹</button>
         <div style={{ textAlign: 'center' }}>
@@ -73,7 +74,7 @@ export function AnalyticsSidebar({
         </div>
         <button
           className="sv-view-tab"
-          onClick={() => onPeriodShift(7)}
+          onClick={() => onPeriodShift(1)}
           style={{ width: 28, height: 28, fontSize: 14, padding: 0, justifyContent: 'center' }}
         >›</button>
       </div>

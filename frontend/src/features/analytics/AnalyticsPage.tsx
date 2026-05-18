@@ -615,6 +615,55 @@ export function AnalyticsPage() {
     return dstDetails.get(row.regNumber) ?? [];
   }
 
+  // ─── Chip detail renderer for cards view ────────────
+
+  const renderCardsChipDetail = React.useCallback((chipKey: string): React.ReactNode => {
+    const parts = chipKey.split('_');
+    const shiftType = parts[parts.length - 1]!;
+    const date = parts[parts.length - 2]!;
+    const regNumber = parts[0]!;
+
+    const matchRow = sortedRows.find(r => r.regNumber === regNumber);
+    if (!matchRow) return null;
+
+    if (matchRow.source === 'dst' && loadingDetails.has(regNumber)) {
+      return (
+        <div style={{ padding: '8px 0', fontSize: 11, color: 'var(--sv-text-2)' }}>
+          <svg className="sv-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" style={{ verticalAlign: 'middle', marginRight: 6 }}>
+            <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+          </svg>
+          Загрузка деталей...
+        </div>
+      );
+    }
+
+    const records = getRecords(matchRow);
+    const chipRecs = records.filter(r => toDateStr(r.reportDate) === date && r.shiftType === shiftType);
+    if (!chipRecs.length) return null;
+    const rec = chipRecs[0]!;
+
+    if (rec.source === 'dump_truck' && rec.id != null) {
+      return (
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {chipRecs.map(cr => (
+            <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
+              {cr.workType === 'onsite'
+                ? <ShiftGanttBar shiftRecordId={cr.id!} timezone={cr.objectTimezone} />
+                : <ShiftSubTable
+                    shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
+                    shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
+                  />
+              }
+            </div>
+          ))}
+        </div>
+      );
+    } else if (rec.source === 'dst') {
+      return <DstGanttSection rec={rec} />;
+    }
+    return null;
+  }, [sortedRows, dstDetails, loadingDetails]);
+
   // ─── Render cell ────────────────────────────────────
 
   function renderCell(colId: string, row: UnifiedVehicleRow): React.ReactNode {
@@ -707,7 +756,35 @@ export function AnalyticsPage() {
       <div className="sv-an-filterbar">
         <DataFreshnessBadge />
 
-        {datePicker}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button
+            className="sv-view-tab"
+            onClick={() => {
+              const from = new Date(dateFrom);
+              const to = new Date(dateTo);
+              const durationMs = to.getTime() - from.getTime();
+              const newTo = new Date(from.getTime() - 60_000);
+              const newFrom = new Date(newTo.getTime() - durationMs);
+              setDateFrom(toYekatIso(newFrom));
+              setDateTo(toYekatIso(newTo));
+            }}
+            style={{ width: 24, height: 24, fontSize: 14, padding: 0, justifyContent: 'center', flexShrink: 0 }}
+          >‹</button>
+          {datePicker}
+          <button
+            className="sv-view-tab"
+            onClick={() => {
+              const from = new Date(dateFrom);
+              const to = new Date(dateTo);
+              const durationMs = to.getTime() - from.getTime();
+              const newFrom = new Date(to.getTime() + 60_000);
+              const newTo = new Date(newFrom.getTime() + durationMs);
+              setDateFrom(toYekatIso(newFrom));
+              setDateTo(toYekatIso(newTo));
+            }}
+            style={{ width: 24, height: 24, fontSize: 14, padding: 0, justifyContent: 'center', flexShrink: 0 }}
+          >›</button>
+        </div>
 
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {/* Все */}
@@ -718,10 +795,13 @@ export function AnalyticsPage() {
             <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1 }}>ВСЕ</span>
           </button>
 
-          {FILTER_GROUPS.map(group => (
+          {FILTER_GROUPS.map(group => {
+            const allActive = group.subKeys.every(k => vehicleFilters.has(k));
+            const partialActive = !allActive && group.subKeys.some(k => vehicleFilters.has(k));
+            return (
             <div
               key={group.key}
-              className={`sv-filter-group ${expandedFilterGroups.has(group.key) ? 'expanded' : ''}`}
+              className={`sv-filter-group${expandedFilterGroups.has(group.key) ? ' expanded' : ''}${allActive ? ' all-active' : partialActive ? ' partial-active' : ''}`}
             >
               <button
                 className={`sv-filter-sq ${isGroupActive(group) ? 'active' : ''}`}
@@ -751,7 +831,7 @@ export function AnalyticsPage() {
                 ))}
               </div>
             </div>
-          ))}
+          ); })}
         </div>
 
         <input
@@ -864,6 +944,7 @@ export function AnalyticsPage() {
                   setSelectedVehicleId(reg);
                   setViewMode('map');
                 }}
+                renderChipDetail={renderCardsChipDetail}
               />
           ))}
 
@@ -1083,13 +1164,21 @@ export function AnalyticsPage() {
           onFocusObject={setFocusedObjectUid}
           dateFrom={dateFrom}
           dateTo={dateTo}
-          onPeriodShift={(days) => {
-            const f = new Date(dateFrom);
-            f.setDate(f.getDate() + days);
-            const t = new Date(dateTo);
-            t.setDate(t.getDate() + days);
-            setDateFrom(toYekatIso(f));
-            setDateTo(toYekatIso(t));
+          onPeriodShift={(direction) => {
+            const from = new Date(dateFrom);
+            const to = new Date(dateTo);
+            const durationMs = to.getTime() - from.getTime();
+            const STEP = 60_000; // 1 min gap between adjacent periods
+            let newFrom: Date, newTo: Date;
+            if (direction === -1) {
+              newTo = new Date(from.getTime() - STEP);
+              newFrom = new Date(newTo.getTime() - durationMs);
+            } else {
+              newFrom = new Date(to.getTime() + STEP);
+              newTo = new Date(newFrom.getTime() + durationMs);
+            }
+            setDateFrom(toYekatIso(newFrom));
+            setDateTo(toYekatIso(newTo));
           }}
         />
       </div>

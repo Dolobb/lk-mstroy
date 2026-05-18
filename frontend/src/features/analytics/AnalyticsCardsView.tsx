@@ -20,6 +20,7 @@ interface AnalyticsCardsViewProps {
   selectedChip: string | null;
   onChipClick: (key: string) => void;
   onSelectVehicle?: (regNumber: string) => void;
+  renderChipDetail?: (chipKey: string) => React.ReactNode;
 }
 
 export function AnalyticsCardsView({
@@ -28,6 +29,7 @@ export function AnalyticsCardsView({
   selectedChip,
   onChipClick,
   onSelectVehicle,
+  renderChipDetail,
 }: AnalyticsCardsViewProps) {
   return (
     <div className="sv-cards-scroll" style={{ flex: 1, overflowY: 'auto', padding: '4px 0', minHeight: 0 }}>
@@ -58,20 +60,18 @@ export function AnalyticsCardsView({
             }}>{g.vehicles.length} ТС</span>
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid var(--sv-divider)', margin: '0 0 8px 0' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+          <div style={{ columns: 2, columnGap: 8 }}>
             {g.vehicles.map(v => {
               const records = v.source === 'dump_truck' ? v.records : (dstRecords.get(v.regNumber) ?? []);
               return (
-                <div
-                  key={v.regNumber}
-                  onClick={onSelectVehicle ? () => onSelectVehicle(v.regNumber) : undefined}
-                  style={{ cursor: onSelectVehicle ? 'pointer' : 'default' }}
-                >
+                <div key={v.regNumber} style={{ breakInside: 'avoid', marginBottom: 8 }}>
                   <VehicleCard
                     row={v}
                     records={records}
                     selectedChip={selectedChip}
                     onChipClick={onChipClick}
+                    onSelectVehicle={onSelectVehicle ? () => onSelectVehicle(v.regNumber) : undefined}
+                    renderChipDetail={renderChipDetail}
                   />
                 </div>
               );
