@@ -77,12 +77,12 @@ export async function getBigObjects(): Promise<BigObject[]> {
      WHERE EXISTS (
        SELECT 1 FROM geo.zones z
        JOIN geo.zone_tags zt ON zt.zone_id = z.id
-       WHERE z.object_id = o.id AND zt.tag = 'dt_zone'
+       WHERE z.object_id = o.id AND zt.tag = 'dt_boundary'
      )
      AND EXISTS (
        SELECT 1 FROM geo.zones z
        JOIN geo.zone_tags zt ON zt.zone_id = z.id
-       WHERE z.object_id = o.id AND zt.tag = 'dt_boundary'
+       WHERE z.object_id = o.id AND zt.tag IN ('dt_loading', 'dt_unloading', 'dt_onsite')
      )
      ORDER BY o.name`,
   );

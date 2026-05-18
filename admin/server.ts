@@ -190,6 +190,76 @@ function killListenerOnPort(port: number, serviceId?: string) {
   } catch { /* nothing on the port */ }
 }
 
+// ─── Устойчивое разрешение python / PATH ──────────────────────────────────────
+// На этой машине User PATH периодически "теряет" каталоги Python/PostgreSQL,
+// либо admin запускается из сессии со старым окружением. Тогда дочерний `python`
+// (tyagachi) не находится → процесс мгновенно падает code=1 → сервис не
+// поднимается и не перезапускается. Чтобы не зависеть от текущего PATH процесса,
+// находим каталоги Python*/PostgreSQL\*\bin сами и достраиваем PATH детям, а
+// для python резолвим абсолютный путь к python.exe.
+function discoverPathDirs(): string[] {
+  if (process.platform !== 'win32') return [];
+  const dirs: string[] = [];
+  const localApp =
+    process.env.LOCALAPPDATA ||
+    path.join(process.env.USERPROFILE || '', 'AppData', 'Local');
+  const pyRoot = path.join(localApp, 'Programs', 'Python');
+  try {
+    for (const d of fs.readdirSync(pyRoot)) {
+      const full = path.join(pyRoot, d);
+      if (fs.existsSync(path.join(full, 'python.exe'))) {
+        dirs.push(full);
+        const scripts = path.join(full, 'Scripts');
+        if (fs.existsSync(scripts)) dirs.push(scripts);
+      }
+    }
+  } catch { /* нет каталога Python — ничего не добавляем */ }
+  const pfRoots = [
+    process.env.ProgramFiles || 'C:\\Program Files',
+    process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)',
+  ];
+  for (const pf of pfRoots) {
+    const pgRoot = path.join(pf, 'PostgreSQL');
+    try {
+      for (const v of fs.readdirSync(pgRoot)) {
+        const bin = path.join(pgRoot, v, 'bin');
+        if (fs.existsSync(path.join(bin, 'psql.exe'))) dirs.push(bin);
+      }
+    } catch { /* нет PostgreSQL в этом Program Files */ }
+  }
+  return dirs;
+}
+
+const EXTRA_PATH_DIRS = discoverPathDirs();
+
+if (EXTRA_PATH_DIRS.length) {
+  log.info({
+    category: 'spawn',
+    msg: 'discovered runtime path dirs',
+    fields: { dirs: EXTRA_PATH_DIRS },
+  });
+}
+
+// PATH процесса admin + недостающие каталоги Python/PostgreSQL впереди.
+function buildChildPath(): string {
+  const cur = process.env.PATH || process.env.Path || '';
+  const have = new Set(
+    cur.split(path.delimiter).filter(Boolean).map(s => s.toLowerCase()),
+  );
+  const missing = EXTRA_PATH_DIRS.filter(d => !have.has(d.toLowerCase()));
+  return missing.length ? missing.join(path.delimiter) + path.delimiter + cur : cur;
+}
+
+// 'python' → абсолютный путь к найденному python.exe (если есть).
+function resolveCmd(cmd: string): string {
+  if (process.platform !== 'win32' || cmd !== 'python') return cmd;
+  for (const d of EXTRA_PATH_DIRS) {
+    const exe = path.join(d, 'python.exe');
+    if (fs.existsSync(exe)) return exe;
+  }
+  return cmd;
+}
+
 async function startService(cfg: ServiceConfig): Promise<void> {
   if (processes[cfg.id]) {
     try { processes[cfg.id]!.kill(); } catch {}
@@ -220,14 +290,32 @@ async function startService(cfg: ServiceConfig): Promise<void> {
   });
 
   const isWin = process.platform === 'win32';
-  const childEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: '*', ...(cfg.id === 'vehicle-status' ? {} : { CRON_DISABLED: 'true' }) };
+  const resolvedCmd = resolveCmd(cfg.cmd);
+  if (resolvedCmd !== cfg.cmd) {
+    log.info({
+      category: 'spawn',
+      service: cfg.id,
+      msg: `resolved '${cfg.cmd}' → ${resolvedCmd}`,
+      fields: { resolved: resolvedCmd },
+    });
+  }
+  const childEnv: NodeJS.ProcessEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: '*', ...(cfg.id === 'vehicle-status' ? {} : { CRON_DISABLED: 'true' }) };
+  // На Windows после spread process.env остаётся ключ 'Path'; убираем все
+  // варианты регистра и ставим единый, иначе stale-Path перекроет наш.
+  if (isWin) {
+    for (const k of Object.keys(childEnv)) if (/^path$/i.test(k)) delete childEnv[k];
+    childEnv.Path = buildChildPath();
+  } else {
+    childEnv.PATH = buildChildPath();
+  }
+  const quotedCmd = /\s/.test(resolvedCmd) ? `"${resolvedCmd}"` : resolvedCmd;
   const child = isWin
-    ? spawn(`${cfg.cmd} ${cfg.args.join(' ')}`, [], {
+    ? spawn(`${quotedCmd} ${cfg.args.join(' ')}`, [], {
         cwd: cfg.cwd,
         env: childEnv,
         shell: true,
       })
-    : spawn(cfg.cmd, cfg.args, {
+    : spawn(resolvedCmd, cfg.args, {
         cwd: cfg.cwd,
         env: childEnv,
         shell: false,
