@@ -60,10 +60,14 @@ function formatTime(ts: string): string {
 }
 
 function createArrowIcon(heading: number): L.DivIcon {
+  // Open chevron (no fill) — direction is readable, colored track stays
+  // visible through it. Dark halo under a white stroke keeps it legible on
+  // both the light basemap and the coloured track.
   return L.divIcon({
     className: '',
-    html: `<svg width="14" height="14" viewBox="0 0 14 14" style="transform:rotate(${heading}deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));">
-      <path d="M7 1 L13 13 L7 10 L1 13 Z" fill="rgba(255,255,255,0.85)" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>
+    html: `<svg width="14" height="14" viewBox="0 0 14 14" style="transform:rotate(${heading}deg);overflow:visible;">
+      <path d="M3 10 L7 4 L11 10" fill="none" stroke="#1f2937" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+      <path d="M3 10 L7 4 L11 10" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`,
     iconSize: [14, 14],
     iconAnchor: [7, 7],
@@ -134,16 +138,28 @@ export function TrackLayer({ track, onDeselect }: TrackLayerProps) {
     return result;
   }, [points]);
 
-  // 2. Direction arrows every ~150 m
+  // 2. Direction arrows — adaptive spacing.
+  // Aim for a roughly constant number of arrows across the whole route so a
+  // long track is not buried under hundreds of overlapping markers, but never
+  // place them closer than MIN_STEP_M so short tracks stay readable too.
   const arrows = useMemo(() => {
     const result: Array<{ lat: number; lng: number; heading: number; key: string }> = [];
+
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      total += haversine(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng);
+    }
+
+    const TARGET_ARROWS = 22;
+    const MIN_STEP_M = 350;
+    const step = Math.max(MIN_STEP_M, total / TARGET_ARROWS);
+
     let dist = 0;
-    const STEP_M = 150;
     for (let i = 1; i < points.length; i++) {
       const prev = points[i - 1];
       const curr = points[i];
       dist += haversine(prev.lat, prev.lng, curr.lat, curr.lng);
-      if (dist >= STEP_M && curr.heading != null && curr.motionStatus !== 'dwell') {
+      if (dist >= step && curr.heading != null && curr.motionStatus !== 'dwell') {
         result.push({ lat: curr.lat, lng: curr.lng, heading: curr.heading, key: `arrow-${i}` });
         dist = 0;
       }

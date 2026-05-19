@@ -39,6 +39,7 @@
 | `Process/PL-timing.md` | ПЛ оформляются заранее — невалидные гипотезы просадки |
 | `Process/Admin-UI-First.md` | Операционка — только через Admin UI, не через curl |
 | `Bugs & Solutions/*.md` | Решённые проблемы со ссылками на причины |
+| `Brainstorm/BRAINSTORM_INDEX.md` | При работе над `features/analytics/` или `features/samosvaly/` — сверить здесь: компонент → список идей + замечания из листочка. 40 идей улучшения, quick wins, game changers, статус реализации |
 | `_Index.md` / `_Overview.md` | Стартовые точки |
 
 ### Правило
