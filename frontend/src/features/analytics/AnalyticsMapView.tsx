@@ -470,28 +470,45 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             const isActive = selectedUid === bd.objectUid;
 
             return (
-              <Polygon
-                key={bd.objectUid}
-                positions={positions}
-                pathOptions={{
-                  color,
-                  weight: isActive ? 2.5 : 1.5,
-                  fillColor: color,
-                  fillOpacity: isActive ? 0.32 : 0.12,
-                  opacity: isActive ? 1 : 0.7,
-                }}
-                eventHandlers={{
-                  click: () => setSelectedUid(prev => prev === bd.objectUid ? null : bd.objectUid),
-                }}
-              >
-                <Tooltip sticky={false} permanent={false} direction="center">
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{bd.objectName}</div>
-                  <div style={{ fontSize: 11 }}>
-                    {bd.vehicles.length} ТС
-                    {kip > 0 && <span style={{ marginLeft: 6, color: kipColor(kip) }}>{Math.round(kip)}%</span>}
-                  </div>
-                </Tooltip>
-              </Polygon>
+              <React.Fragment key={bd.objectUid}>
+                {/* Glow layer: blurred, unfilled outline → soft gradient that
+                    is strongest at the border and fades to 0 away from it.
+                    pointer-events:none (CSS) so clicks pass to the border. */}
+                <Polygon
+                  positions={positions}
+                  pathOptions={{
+                    color,
+                    weight: isActive ? 7 : 4,
+                    fill: false,
+                    opacity: isActive ? 0.6 : 0.38,
+                    className: isActive ? 'zone-glow zone-glow-active' : 'zone-glow',
+                    interactive: false,
+                  }}
+                />
+                {/* Crisp border + near-invisible fill (kept only as a click
+                    hit-area; without any fill the interior is not clickable). */}
+                <Polygon
+                  positions={positions}
+                  pathOptions={{
+                    color,
+                    weight: isActive ? 2.5 : 1.5,
+                    fillColor: color,
+                    fillOpacity: isActive ? 0.08 : 0.04,
+                    opacity: isActive ? 1 : 0.75,
+                  }}
+                  eventHandlers={{
+                    click: () => setSelectedUid(prev => prev === bd.objectUid ? null : bd.objectUid),
+                  }}
+                >
+                  <Tooltip sticky={false} permanent={false} direction="center">
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{bd.objectName}</div>
+                    <div style={{ fontSize: 11 }}>
+                      {bd.vehicles.length} ТС
+                      {kip > 0 && <span style={{ marginLeft: 6, color: kipColor(kip) }}>{Math.round(kip)}%</span>}
+                    </div>
+                  </Tooltip>
+                </Polygon>
+              </React.Fragment>
             );
           })}
 

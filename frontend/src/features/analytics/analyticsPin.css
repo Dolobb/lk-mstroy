@@ -120,6 +120,17 @@
 .apin.kip-red   .apin-stem { background:linear-gradient(180deg,rgba(239,68,68,0.4),transparent); }
 .apin.kip-na    .apin-stem { background:linear-gradient(180deg,rgba(148,163,184,0.4),transparent); }
 
+/* ── Object zone: border + soft glow (no flat fill) ── */
+/* Blurred unfilled outline → gradient hugging the border, fading to 0.
+   pointer-events:none so the crisp border polygon below gets the clicks. */
+.zone-glow {
+  filter: blur(4px);
+  pointer-events: none;
+}
+.zone-glow-active {
+  filter: blur(7px);
+}
+
 /* ── Track animations (Session 9) ── */
 .track-segment {
   animation: trackFadeIn 400ms ease-out forwards;
