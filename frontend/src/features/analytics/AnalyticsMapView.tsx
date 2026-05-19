@@ -24,7 +24,8 @@ interface AnalyticsGroup {
 interface BoundaryData {
   objectUid: string;
   objectName: string;
-  boundary: ZoneFeature;
+  boundary: ZoneFeature;       // dt_boundary — outline / centroid / select hit-area
+  zones: ZoneFeature[];        // all zones of the object (incl. boundary)
   vehicles: UnifiedVehicleRow[];
 }
 
@@ -35,6 +36,33 @@ function kipColor(v: number): string {
   if (v >= 50) return '#60A5FA';
   return '#EF4444';
 }
+
+// ─── Zone-type palette (mirrors geo-admin/client/src/map.ts) ─────────
+// Keep in sync with TAG_COLORS / TAG_PRIORITY there.
+const ZONE_TAG_COLORS: Record<string, { color: string; fillOpacity: number }> = {
+  dt_boundary:  { color: '#888888', fillOpacity: 0.10 },
+  dt_loading:   { color: '#2e7d32', fillOpacity: 0.30 },
+  dt_unloading: { color: '#e65100', fillOpacity: 0.30 },
+  dt_onsite:    { color: '#1565c0', fillOpacity: 0.25 },
+  dst_zone:     { color: '#6a1b9a', fillOpacity: 0.20 },
+};
+const ZONE_TAG_PRIORITY = ['dt_boundary', 'dt_loading', 'dt_unloading', 'dt_onsite', 'dst_zone'];
+const ZONE_DEFAULT_STYLE = { color: '#555555', fillOpacity: 0.20 };
+
+function colorByZoneTags(tags: string[]): { color: string; fillOpacity: number } {
+  for (const tag of ZONE_TAG_PRIORITY) {
+    if (tags.includes(tag)) return ZONE_TAG_COLORS[tag]!;
+  }
+  return ZONE_DEFAULT_STYLE;
+}
+
+// Inner-zone legend (the boundary itself is shown via the КИП halo above).
+const ZONE_LEGEND: Array<{ tag: string; label: string }> = [
+  { tag: 'dt_loading',   label: 'Погрузка' },
+  { tag: 'dt_unloading', label: 'Выгрузка' },
+  { tag: 'dt_onsite',    label: 'Работа по месту' },
+  { tag: 'dst_zone',     label: 'Рабочая зона КИП' },
+];
 
 function avgKip(vehicles: UnifiedVehicleRow[]): number {
   const vals = vehicles.filter(v => v.avgKipPct > 0).map(v => v.avgKipPct);
@@ -239,7 +267,7 @@ interface AnalyticsMapViewProps {
 
 export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions, selectedVehicleId, track, onSelectVehicle }: AnalyticsMapViewProps) {
   const [geoObjects, setGeoObjects] = useState<GeoObject[]>([]);
-  const [boundaries, setBoundaries] = useState<Map<string, ZoneFeature>>(new Map());
+  const [objectZones, setObjectZones] = useState<Map<string, ZoneFeature[]>>(new Map());
   const [geoError, setGeoError] = useState<string | null>(null);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -273,29 +301,40 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
 
     Promise.allSettled(
       uids.map(uid =>
-        fetchZonesByObject(uid, 'dt_boundary').then(zones => ({ uid, zones }))
+        fetchZonesByObject(uid).then(zones => ({ uid, zones }))
       )
     ).then(results => {
-      const next = new Map<string, ZoneFeature>();
+      const next = new Map<string, ZoneFeature[]>();
       for (const r of results) {
         if (r.status === 'fulfilled' && r.value.zones.length) {
-          next.set(r.value.uid, r.value.zones[0]!);
+          next.set(r.value.uid, r.value.zones);
         }
       }
-      setBoundaries(next);
+      setObjectZones(next);
     });
   }, [geoObjects, groupUids]);
 
   const boundaryList: BoundaryData[] = useMemo(() => {
-    return groups
-      .filter(g => g.groupUid && boundaries.has(g.groupUid))
-      .map(g => ({
-        objectUid: g.groupUid!,
+    const out: BoundaryData[] = [];
+    for (const g of groups) {
+      if (!g.groupUid) continue;
+      const zones = objectZones.get(g.groupUid);
+      if (!zones) continue;
+      // Object only shown if it has a dt_boundary (same as before — the
+      // boundary is the outline + selection hit-area). Inner zones layer
+      // under it.
+      const boundary = zones.find(z => z.properties.tags?.includes('dt_boundary'));
+      if (!boundary) continue;
+      out.push({
+        objectUid: g.groupUid,
         objectName: g.groupName,
-        boundary: boundaries.get(g.groupUid!)!,
+        boundary,
+        zones,
         vehicles: g.vehicles,
-      }));
-  }, [groups, boundaries]);
+      });
+    }
+    return out;
+  }, [groups, objectZones]);
 
   // All-objects fitBounds
   const allBounds: LatLngBoundsLiteral | null = useMemo(() => {
@@ -471,6 +510,45 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
 
             return (
               <React.Fragment key={bd.objectUid}>
+                {/* Inner zones (loading / unloading / on-site / dst): same
+                    border + soft-glow treatment as the boundary, tinted by
+                    type (palette mirrors geo-admin). Non-interactive so the
+                    object-select click still lands on the boundary below. */}
+                {bd.zones.map(z => {
+                  if (z.properties.tags?.includes('dt_boundary')) return null;
+                  const zr = z.geometry.coordinates[0];
+                  if (!zr) return null;
+                  const zpos = geoJsonRingToLeaflet(zr);
+                  const zc = colorByZoneTags(z.properties.tags ?? []);
+                  return (
+                    <React.Fragment key={`${bd.objectUid}-z-${z.properties.uid}`}>
+                      {/* Blurred unfilled outline → gradient hugging the edge */}
+                      <Polygon
+                        positions={zpos}
+                        pathOptions={{
+                          color: zc.color,
+                          weight: 3.5,
+                          fill: false,
+                          opacity: 0.32,
+                          className: 'zone-glow',
+                          interactive: false,
+                        }}
+                      />
+                      {/* Crisp thin border + faint fill so the area reads */}
+                      <Polygon
+                        positions={zpos}
+                        pathOptions={{
+                          color: zc.color,
+                          weight: 1.25,
+                          fillColor: zc.color,
+                          fillOpacity: 0.05,
+                          opacity: 0.7,
+                          interactive: false,
+                        }}
+                      />
+                    </React.Fragment>
+                  );
+                })}
                 {/* Glow layer: blurred, unfilled outline → soft gradient that
                     is strongest at the border and fades to 0 away from it.
                     pointer-events:none (CSS) so clicks pass to the border. */}
@@ -607,6 +685,16 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                 background: item.color, flexShrink: 0,
               }} />
               <span style={{ fontWeight: 600 }}>{item.label}</span>
+            </div>
+          ))}
+          <div style={{ height: 1, background: 'var(--sv-card-border, rgba(255,255,255,0.10))', margin: '3px 0' }} />
+          {ZONE_LEGEND.map(z => (
+            <div key={z.tag} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                width: 10, height: 10, borderRadius: 2,
+                background: ZONE_TAG_COLORS[z.tag]!.color, flexShrink: 0,
+              }} />
+              <span style={{ fontWeight: 600 }}>{z.label}</span>
             </div>
           ))}
           <div style={{ fontSize: 8, color: 'var(--sv-text-4)', marginTop: 2, textAlign: 'center' }}>
