@@ -1,5 +1,10 @@
 import React from 'react';
 
+interface MicroBar {
+  kip: number;
+  mov: number;
+}
+
 export interface ShiftChipProps {
   date: string;        // "01.04"
   shift: 1 | 2 | 0;   // 0 = aggregated day (both shifts)
@@ -10,6 +15,7 @@ export interface ShiftChipProps {
   engineHours?: number;
   isSelected: boolean;
   onClick: () => void;
+  microBars?: MicroBar[];
 }
 
 function barColor(v: number): string {
@@ -20,7 +26,8 @@ function kipColorClass(v: number): string {
   return v >= 75 ? 'kg' : v >= 50 ? 'kb' : 'kr';
 }
 
-export function ShiftChip({ date, shift, trips, kip, movement, workType, engineHours, isSelected, onClick }: ShiftChipProps) {
+export function ShiftChip({ date, shift, trips, kip, movement, workType, engineHours, isSelected, onClick, microBars }: ShiftChipProps) {
+  const hasMicro = !!microBars && microBars.length > 0;
   const isOnsite = workType === 'onsite';
   const isZero = isOnsite ? (!engineHours || engineHours === 0) : trips === 0;
   const shiftLabel = shift === 0 ? '2см' : `C${shift}`;
@@ -71,6 +78,19 @@ export function ShiftChip({ date, shift, trips, kip, movement, workType, engineH
           }} />
         </span>
       </span>
+
+      {/* Micro-bars: hourly breakdown when available */}
+      {hasMicro && (
+        <span className="sv-chip-micro">
+          {microBars!.map((mb, i) => (
+            <span
+              key={i}
+              className="sv-chip-micro-bar"
+              style={{ height: `${Math.max(2, mb.kip)}%`, background: barColor(mb.kip) }}
+            />
+          ))}
+        </span>
+      )}
 
       {/* Right: count + unit */}
       <span className="sv-chip-num">

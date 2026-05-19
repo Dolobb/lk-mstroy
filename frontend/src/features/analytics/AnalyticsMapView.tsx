@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Tooltip, Marker, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
+import L from 'leaflet';
 import type { LatLngBoundsLiteral, LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -72,6 +73,13 @@ function avgKip(vehicles: UnifiedVehicleRow[]): number {
 
 function geoJsonRingToLeaflet(ring: number[][]): LatLngTuple[] {
   return ring.map(([lng, lat]) => [lat!, lng!] as LatLngTuple);
+}
+
+function computeCentroid(positions: LatLngTuple[]): LatLngTuple {
+  const n = positions.length;
+  const lat = positions.reduce((s, p) => s + p[0], 0) / n;
+  const lng = positions.reduce((s, p) => s + p[1], 0) / n;
+  return [lat, lng];
 }
 
 function computeBounds(positions: LatLngTuple[]): LatLngBoundsLiteral | null {
@@ -263,13 +271,14 @@ interface AnalyticsMapViewProps {
   selectedVehicleId?: string | null;
   track?: TrackResponse | null;
   onSelectVehicle?: (regNumber: string | null) => void;
+  focusedObjectUid?: string | null;
+  onFocusObject?: (uid: string | null) => void;
 }
 
-export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions, selectedVehicleId, track, onSelectVehicle }: AnalyticsMapViewProps) {
+export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions, selectedVehicleId, track, onSelectVehicle, focusedObjectUid, onFocusObject }: AnalyticsMapViewProps) {
   const [geoObjects, setGeoObjects] = useState<GeoObject[]>([]);
   const [objectZones, setObjectZones] = useState<Map<string, ZoneFeature[]>>(new Map());
   const [geoError, setGeoError] = useState<string | null>(null);
-  const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
@@ -346,8 +355,8 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     return computeBounds(allPositions);
   }, [boundaryList]);
 
-  const selectedData = selectedUid
-    ? boundaryList.find(bd => bd.objectUid === selectedUid) ?? null
+  const selectedData = focusedObjectUid
+    ? boundaryList.find(bd => bd.objectUid === focusedObjectUid) ?? null
     : null;
 
   // Bounds of the selected vehicle's track. When a vehicle is selected
@@ -459,7 +468,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
   const inspectorNode = selectedData ? (
     <Inspector
       data={selectedData}
-      onClose={() => setSelectedUid(null)}
+      onClose={() => onFocusObject?.(null)}
       dateFrom={dateFrom}
       dateTo={dateTo}
     />
@@ -506,7 +515,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             const positions = geoJsonRingToLeaflet(ring);
             const kip = avgKip(bd.vehicles);
             const color = kip > 0 ? kipColor(kip) : '#60A5FA';
-            const isActive = selectedUid === bd.objectUid;
+            const isActive = focusedObjectUid === bd.objectUid;
 
             return (
               <React.Fragment key={bd.objectUid}>
@@ -575,7 +584,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                     opacity: isActive ? 1 : 0.75,
                   }}
                   eventHandlers={{
-                    click: () => setSelectedUid(prev => prev === bd.objectUid ? null : bd.objectUid),
+                    click: () => onFocusObject?.(focusedObjectUid === bd.objectUid ? null : bd.objectUid),
                   }}
                 >
                   <Tooltip sticky={false} permanent={false} direction="center">
@@ -586,6 +595,17 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                     </div>
                   </Tooltip>
                 </Polygon>
+                <Marker
+                  key={`label-${bd.objectUid}`}
+                  position={computeCentroid(positions)}
+                  icon={L.divIcon({
+                    className: '',
+                    html: `<div class="sv-map-zone-label${isActive ? ' active' : ''}"><span class="sv-map-zone-name">${bd.objectName}</span>${kip > 0 ? `<span class="sv-map-zone-kip" style="color:${color}">${Math.round(kip)}%</span>` : ''}</div>`,
+                    iconSize: [0, 0],
+                    iconAnchor: [0, 0],
+                  })}
+                  eventHandlers={{ click: () => onFocusObject?.(focusedObjectUid === bd.objectUid ? null : bd.objectUid) }}
+                />
               </React.Fragment>
             );
           })}
@@ -610,7 +630,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                 </Marker>
               );
             })}
-            {selectedUid && zoneSyntheticPins.map(p => {
+            {focusedObjectUid && zoneSyntheticPins.map(p => {
               const isSel = p.row.regNumber === selectedVehicleId;
               return (
                 <Marker

@@ -919,6 +919,8 @@ export function AnalyticsPage() {
               dateTo={dateTo}
               selectedVehicleId={selectedVehicleId}
               onSelectVehicle={setSelectedVehicleId}
+              focusedObjectUid={focusedObjectUid}
+              onFocusObject={setFocusedObjectUid}
             />
           )}
 

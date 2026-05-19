@@ -1620,3 +1620,30 @@ table.sv-at thead {
   background: color-mix(in srgb, var(--group-color, #60A5FA) 10%, transparent);
   border-color: color-mix(in srgb, var(--group-color, #60A5FA) 35%, transparent);
 }
+
+/* ── KPI zone labels on map ── */
+.sv-map-zone-label {
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(10,14,26,0.85);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 8px; padding: 4px 8px;
+  pointer-events: auto; cursor: pointer;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  white-space: nowrap; user-select: none;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  transition: border-color .12s, background .12s;
+}
+.sv-map-zone-label.active {
+  border-color: rgba(255,255,255,0.35);
+  background: rgba(15,23,42,0.92);
+}
+.sv-map-zone-label:hover { border-color: rgba(255,255,255,0.28); }
+.sv-map-zone-name {
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.72);
+  max-width: 120px; overflow: hidden; text-overflow: ellipsis;
+}
+.sv-map-zone-kip {
+  font-size: 13px; font-weight: 800; line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
