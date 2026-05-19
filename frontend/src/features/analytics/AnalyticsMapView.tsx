@@ -69,7 +69,7 @@ function fmtDateRangeShort(from: string, to: string): string {
 
 // ─── FitBounds helper ────────────────────────────────────
 
-function FitBounds({ bounds }: { bounds: LatLngBoundsLiteral | null }) {
+function FitBounds({ bounds, maxZoom }: { bounds: LatLngBoundsLiteral | null; maxZoom?: number }) {
   const map = useMap();
   const lastKeyRef = React.useRef<string | null>(null);
   useEffect(() => {
@@ -77,8 +77,8 @@ function FitBounds({ bounds }: { bounds: LatLngBoundsLiteral | null }) {
     const key = `${bounds[0][0]},${bounds[0][1]},${bounds[1][0]},${bounds[1][1]}`;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
-    map.fitBounds(bounds, { padding: [40, 40] });
-  }, [map, bounds]);
+    map.fitBounds(bounds, { padding: [40, 40], ...(maxZoom != null ? { maxZoom } : {}) });
+  }, [map, bounds, maxZoom]);
   return null;
 }
 
@@ -311,13 +311,26 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     ? boundaryList.find(bd => bd.objectUid === selectedUid) ?? null
     : null;
 
-  // Zoom to selected zone when selected, fall back to all bounds
+  // Bounds of the selected vehicle's track. When a vehicle is selected
+  // (from the map, the table or the cards view) this is the single zoom
+  // authority — see activeBounds below.
+  const trackBounds: LatLngBoundsLiteral | null = useMemo(() => {
+    if (!selectedVehicleId || !track || !track.points.length) return null;
+    return computeBounds(track.points.map(p => [p.lat, p.lng] as LatLngTuple));
+  }, [selectedVehicleId, track]);
+
+  // Single fitBounds authority, priority:
+  //   selected vehicle's track → selected zone → all objects.
+  // Track wins so that switching to the map from the table/cards zooms to
+  // the vehicle deterministically (previously TrackLayer did its own
+  // fitBounds, racing this one on a fresh map mount).
   const activeBounds = useMemo(() => {
+    if (trackBounds) return trackBounds;
     if (!selectedData) return allBounds;
     const ring = selectedData.boundary.geometry.coordinates[0];
     if (!ring) return allBounds;
     return computeBounds(geoJsonRingToLeaflet(ring));
-  }, [selectedData, allBounds]);
+  }, [trackBounds, selectedData, allBounds]);
 
   // ── All vehicle pins (positions + fallback) ──
   const allPositionPins = useMemo(() => {
@@ -447,7 +460,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
-          {activeBounds && <FitBounds bounds={activeBounds} />}
+          {activeBounds && <FitBounds bounds={activeBounds} maxZoom={trackBounds ? 16 : undefined} />}
           {boundaryList.map(bd => {
             const ring = bd.boundary.geometry.coordinates[0];
             if (!ring) return null;

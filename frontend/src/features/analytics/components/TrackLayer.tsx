@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Polyline, Marker, Tooltip, useMapEvents, useMap } from 'react-leaflet';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Polyline, Marker, Tooltip, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import type { TrackPoint, TrackResponse } from '../types';
 
@@ -110,15 +110,10 @@ function MapClickHandler({ onEmptyClick }: { onEmptyClick: () => void }) {
 export function TrackLayer({ track, onDeselect }: TrackLayerProps) {
   const [pinnedDwellIdx, setPinnedDwellIdx] = useState<number | null>(null);
   const points = track.points;
-  const map = useMap();
 
-  // fitBounds when vehicle changes (not on every refetch)
-  useEffect(() => {
-    if (!points.length) return;
-    const bounds = L.latLngBounds(points.map(p => [p.lat, p.lng]));
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [track.vehicleId]);
+  // NOTE: zoom-to-track lives in AnalyticsMapView's single FitBounds
+  // authority (activeBounds → trackBounds). Doing fitBounds here too raced
+  // that one on a fresh map mount (table/cards → map) and lost the zoom.
 
   // 1. Gradient segments
   const segments = useMemo(() => {
