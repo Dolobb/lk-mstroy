@@ -153,6 +153,8 @@ reqFrom = dateStr − 2 месяца
 
 Вспомогательная функция `calcOnsiteSec(events, objectUid)`: суммирует `durationSec` для событий с тегом `dt_boundary` по нужному объекту.
 
+**Склейка фрагментов визита (`coalesceReentries`, 2026-05-19):** после сортировки соседние события **одной зоны** (по `zoneUid`) с зазором `exitedAt → enteredAt` ≤ `MAX_REENTRY_GAP_SEC` (10 мин) объединяются в одно событие `[первый enteredAt … последний exitedAt]`. GPS-трек дёргается на границе полигона — один заезд на погрузку бьётся на 2–3 события; без склейки tripBuilder цепляет каждый фрагмент к отдельной выгрузке → завышенный `trips_count`. Это коррекция артефакта GPS, **не** бизнес-порог транзита (тот — per-zone `min_duration_sec`).
+
 > Библиотека: `@turf/boolean-point-in-polygon` (Turf.js). Координаты: `[lon, lat]` (GeoJSON-порядок).
 
 ---
@@ -183,22 +185,22 @@ reqFrom = dateStr − 2 месяца
 
 **Алгоритм:**
 
-1. Фильтрация событий погрузки: `zoneTag === 'dt_loading'` И `durationSec >= 180` (3 мин)
-2. Фильтрация событий выгрузки: `zoneTag === 'dt_unloading'` И `durationSec >= 180` (3 мин)
+1. Фильтрация событий погрузки: `zoneTag === 'dt_loading'` (события уже склеены `coalesceReentries` в zoneAnalyzer)
+2. Фильтрация событий выгрузки: `zoneTag === 'dt_unloading'`
 3. Сортировка погрузок по `exitedAt` (выход из зоны погрузки = момент отправки)
 4. Для каждой погрузки ищется ближайшая неиспользованная выгрузка после неё:
    - `unloading.enteredAt > loading.exitedAt`
-   - Длительность рейса от `loading.enteredAt` до `unloading.exitedAt` <= 4 часа
+   - Время доставки `loading.exitedAt → unloading.enteredAt` <= `MAX_TRIP_DURATION_MIN`
    - Берётся первая подходящая (по порядку)
 5. Найденная выгрузка помечается как использованная (`usedUnloadings: Set<number>`)
 
-**Пороги (захардкожены в `tripBuilder.ts:21-23`):**
+**Порог (захардкожен в `tripBuilder.ts:24`):**
 
 | Константа | Значение | Смысл |
 |-----------|----------|-------|
-| `MIN_LOADING_DWELL_SEC` | 180 (3 мин) | Минимальное время в зоне погрузки |
-| `MIN_UNLOADING_DWELL_SEC` | 180 (3 мин) | Минимальное время в зоне выгрузки |
-| `MAX_TRIP_DURATION_MIN` | 240 (4 ч) | Максимальная длительность рейса |
+| `MAX_TRIP_DURATION_MIN` | 360 (6 ч) | Защита от аномального матчинга (явная аномалия) |
+
+> Фильтры `MIN_*_DWELL_SEC` удалены 2026-05-13: транзит отсекается per-zone в `geo.zones.min_duration_sec` (zoneAnalyzer), фрагментация визита — `coalesceReentries` (zoneAnalyzer, 2026-05-19). В tripBuilder порогов длительности dwell больше нет — не возвращать.
 
 Поля `Trip.distanceKm` и `Trip.volumeM3` всегда `null` — не реализованы.
 
