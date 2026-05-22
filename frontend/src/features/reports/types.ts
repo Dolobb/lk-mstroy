@@ -7,7 +7,7 @@ export interface ColumnDef {
   width?: number;
 }
 
-export type ReportType = 'kip' | 'dump-truck-trips';
+export type ReportType = 'kip' | 'dump-truck-trips' | 'dump-truck-onsite';
 
 export interface ReportMeta {
   reportTypes: { id: ReportType; label: string }[];

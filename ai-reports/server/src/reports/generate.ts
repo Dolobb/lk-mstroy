@@ -1,8 +1,10 @@
 import type { Request, Response } from 'express';
 import { queryKipData } from './queries/kip';
 import { queryDtTripsData } from './queries/dump-trucks';
+import { queryDtOnsiteData } from './queries/dump-trucks-onsite';
 import { buildKipXlsx } from '../xlsx/templates/kip-template';
 import { buildDtTripsXlsx } from '../xlsx/templates/dump-truck-trips-template';
+import { buildDtOnsiteXlsx } from '../xlsx/templates/dump-truck-onsite-template';
 
 interface GenerateBody {
   reportType: string;
@@ -55,6 +57,17 @@ export async function generateHandler(req: Request, res: Response) {
       }
 
       workbook = await buildDtTripsXlsx(data, body.columns);
+    } else if (body.reportType === 'dump-truck-onsite') {
+      const data = await queryDtOnsiteData(body.dateFrom, body.dateTo, {
+        objectUid: body.filters.objectUid,
+        vehicles: body.filters.vehicles,
+      });
+
+      if (data.length === 0) {
+        return res.status(404).json({ error: 'Нет данных по месту за выбранный период' });
+      }
+
+      workbook = await buildDtOnsiteXlsx(data, body.columns);
     } else {
       return res.status(400).json({ error: `Unknown report type: ${body.reportType}` });
     }
