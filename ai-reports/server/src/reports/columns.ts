@@ -61,10 +61,26 @@ export const DT_TRIPS_COLUMNS: ColumnDef[] = [
   { id: 'comment',                label: 'Комментарий',           group: 'Доп.',      defaultIncluded: false, width: 21 },
 ];
 
+// ─── Самосвалы — по месту (onsite) ──────────────────────────────────────────
+
+export const DT_ONSITE_COLUMNS: ColumnDef[] = [
+  { id: 'reg_number',     label: 'Гос. номер',     group: 'Основные', defaultIncluded: true, fixed: true, width: 22 },
+  { id: 'engine_hours',   label: 'Время двиг.',    group: 'Метрики',  defaultIncluded: true,  width: 11 },
+  { id: 'fuel_consumed',  label: 'Расход, л',      group: 'Топливо',  defaultIncluded: true,  width: 10 },
+  { id: 'kip_pct',        label: 'КИП, %',         group: 'Метрики',  defaultIncluded: true,  width: 8 },
+  { id: 'movement_pct',   label: 'Движение, %',    group: 'Метрики',  defaultIncluded: false, width: 10 },
+  { id: 'onsite_time',    label: 'На объекте',     group: 'Метрики',  defaultIncluded: false, width: 11 },
+  { id: 'distance_km',    label: 'Пробег, км',     group: 'Метрики',  defaultIncluded: false, width: 10 },
+  { id: 'shift_start',    label: 'Начало смены',   group: 'Основные', defaultIncluded: true,  width: 9 },
+  { id: 'shift_end',      label: 'Конец смены',    group: 'Основные', defaultIncluded: true,  width: 9 },
+  { id: 'activity_chart', label: 'Диаграмма активности', group: 'Диаграмма', defaultIncluded: true, fixed: true, width: 3 },
+];
+
 export function getColumnsForType(type: string): ColumnDef[] {
   switch (type) {
     case 'kip': return KIP_COLUMNS;
     case 'dump-truck-trips': return DT_TRIPS_COLUMNS;
+    case 'dump-truck-onsite': return DT_ONSITE_COLUMNS;
     default: return [];
   }
 }

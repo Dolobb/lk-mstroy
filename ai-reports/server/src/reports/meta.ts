@@ -2,10 +2,12 @@ import type { Request, Response } from 'express';
 import { getColumnsForType } from './columns';
 import { queryKipFilters } from './queries/kip';
 import { queryDtFilters } from './queries/dump-trucks';
+import { queryDtOnsiteFilters } from './queries/dump-trucks-onsite';
 
 const REPORT_TYPES = [
   { id: 'kip', label: 'Отчёт КИП' },
   { id: 'dump-truck-trips', label: 'Отчёт по рейсам самосвалов' },
+  { id: 'dump-truck-onsite', label: 'Самосвалы — по месту' },
 ];
 
 export async function metaHandler(req: Request, res: Response) {
@@ -24,6 +26,8 @@ export async function metaHandler(req: Request, res: Response) {
           filters = await queryKipFilters(dateFrom, dateTo);
         } else if (type === 'dump-truck-trips') {
           filters = await queryDtFilters(dateFrom, dateTo);
+        } else if (type === 'dump-truck-onsite') {
+          filters = await queryDtOnsiteFilters(dateFrom, dateTo);
         }
       } catch (err) {
         console.error('[meta] Filter query error:', err);
