@@ -273,9 +273,10 @@ interface AnalyticsMapViewProps {
   onSelectVehicle?: (regNumber: string | null) => void;
   focusedObjectUid?: string | null;
   onFocusObject?: (uid: string | null) => void;
+  showOutsideOnMap?: boolean;
 }
 
-export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions, selectedVehicleId, track, onSelectVehicle, focusedObjectUid, onFocusObject }: AnalyticsMapViewProps) {
+export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, positions, selectedVehicleId, track, onSelectVehicle, focusedObjectUid, onFocusObject, showOutsideOnMap }: AnalyticsMapViewProps) {
   const [geoObjects, setGeoObjects] = useState<GeoObject[]>([]);
   const [objectZones, setObjectZones] = useState<Map<string, ZoneFeature[]>>(new Map());
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -436,6 +437,17 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     return pins;
   }, [positions, groups]);
 
+  // ── Reg numbers for all vehicles that belong to at least one named object ──
+  const allInObjectRegs = useMemo(() => {
+    const s = new Set<string>();
+    for (const g of groups) {
+      if (g.groupUid) {
+        for (const v of g.vehicles) s.add(v.regNumber);
+      }
+    }
+    return s;
+  }, [groups]);
+
   // ── Synthetic pins for selected zone (vehicles without any coords) ──
   const zoneSyntheticPins = useMemo(() => {
     if (!selectedData) return [];
@@ -456,6 +468,23 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
       return { row: v, lat: cLat + Math.cos(angle) * r, lng: cLng + Math.sin(angle) * r };
     });
   }, [selectedData, allPositionPins]);
+
+  // ── Which pins to actually render ──
+  // Object selected → only that object's vehicles.
+  // Outside eye on, no object selected → vehicles not inside any named object.
+  // Otherwise → nothing (clean map with just zone outlines + badges).
+  const displayedPositionPins = useMemo(() => {
+    if (focusedObjectUid) {
+      const bd = boundaryList.find(b => b.objectUid === focusedObjectUid);
+      if (!bd) return [];
+      const inObject = new Set(bd.vehicles.map(v => v.regNumber));
+      return allPositionPins.filter(p => inObject.has(p.row.regNumber));
+    }
+    if (showOutsideOnMap) {
+      return allPositionPins.filter(p => !allInObjectRegs.has(p.row.regNumber));
+    }
+    return [];
+  }, [focusedObjectUid, boundaryList, showOutsideOnMap, allInObjectRegs, allPositionPins]);
 
   if (geoError) {
     return (
@@ -600,7 +629,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                   position={computeCentroid(positions)}
                   icon={L.divIcon({
                     className: '',
-                    html: `<div class="sv-map-zone-label${isActive ? ' active' : ''}"><span class="sv-map-zone-name">${bd.objectName}</span>${kip > 0 ? `<span class="sv-map-zone-kip" style="color:${color}">${Math.round(kip)}%</span>` : ''}</div>`,
+                    html: `<div class="sv-map-obj-badge${isActive ? ' active' : ''}" style="--kip-color:${color}"><div class="sv-map-obj-badge-name">${bd.objectName}</div><div class="sv-map-obj-badge-sub"><span class="sv-map-obj-badge-vehicles">${bd.vehicles.length} ТС</span>${kip > 0 ? `<span class="sv-map-obj-badge-kip">${Math.round(kip)}%</span>` : ''}</div></div>`,
                     iconSize: [0, 0],
                     iconAnchor: [0, 0],
                   })}
@@ -611,7 +640,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           })}
 
           <MarkerClusterGroup chunkedLoading spiderfyDistanceMultiplier={2} showCoverageOnHover={false}>
-            {allPositionPins.map(p => {
+            {displayedPositionPins.map(p => {
               const isSel = p.row.regNumber === selectedVehicleId;
               return (
                 <Marker

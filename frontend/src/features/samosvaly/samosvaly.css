@@ -1395,6 +1395,22 @@ td.sv-obj-return {
 .sv-chip .kb { color: #60A5FA; }
 .sv-chip .kr { color: #EF4444; }
 
+/* micro-bar chart mode (center vis replaced with 24-column chart) */
+.sv-chip-micro {
+  flex-direction: row !important;
+  align-items: flex-end;
+  height: 18px;
+  gap: 1px;
+  min-width: 54px;
+  max-width: 72px;
+}
+.sv-chip-micro .sv-chip-vis-lbl,
+.sv-chip-micro .sv-chip-track { display: none; }
+.sv-chip-microbar { flex: 1; min-width: 1.5px; border-radius: 1px; min-height: 1px; background: #A78BFA; }
+.sv-chip-microbar.mov { background: #60A5FA; }
+.sv-chip-microbar.empty { background: rgba(255,255,255,0.06); }
+[data-theme="light"] .sv-chip-microbar.empty { background: rgba(0,0,0,0.06); }
+
 /* ── ShiftGanttBar (vertical bar chart) ──────── */
 .sv-shift-gantt {
   --_gantt-axis: rgba(255,255,255,0.25);

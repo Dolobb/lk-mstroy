@@ -3,7 +3,9 @@ import { Map as MapIcon } from 'lucide-react';
 import type { UnifiedVehicleRow, UnifiedRecord } from './types';
 import { VehicleIcon } from '@/components/VehicleIcon';
 import { ShiftChip } from '@/components/ShiftChip';
+import type { MicroBar } from '@/components/ShiftChip';
 import { abbreviateOrg } from '@/features/samosvaly/orgAbbrev';
+import { fetchShiftSegments } from '@/features/samosvaly/api';
 import { vehicleCategory } from './categories';
 
 function fmDateShort(isoDate: string): string {
@@ -45,6 +47,42 @@ export function VehicleCard({ row, records, selectedChip, onChipClick, onSelectV
   const kip = Math.round(row.avgKipPct);
   const sec = Math.round(row.avgSecondaryPct);
 
+  // ─── Onsite segment micro-bars ───────────────────────
+  const [chipSegments, setChipSegments] = React.useState<Map<number, MicroBar[]>>(new Map());
+
+  React.useEffect(() => {
+    if (!records) return;
+    const onsiteRecs = records.filter(
+      r => r.workType === 'onsite' && r.source === 'dump_truck' && r.id != null
+    );
+    if (!onsiteRecs.length) return;
+
+    let cancelled = false;
+    setChipSegments(new Map());
+
+    Promise.allSettled(
+      onsiteRecs.map(rec =>
+        fetchShiftSegments(rec.id!).then(segs => ({ id: rec.id!, segs }))
+      )
+    ).then(results => {
+      if (cancelled) return;
+      const next = new Map<number, MicroBar[]>();
+      results.forEach(r => {
+        if (r.status === 'fulfilled') {
+          const { id, segs } = r.value;
+          next.set(id, segs.map(s => ({
+            kip: Math.min(100, (s.engineTimeSec / 1800) * 100),
+            mov: Math.min(100, (s.movingTimeSec / 1800) * 100),
+          })));
+        }
+      });
+      setChipSegments(next);
+    });
+
+    return () => { cancelled = true; };
+  }, [records]);
+
+  // ─── Build chips ─────────────────────────────────────
   const chips = React.useMemo(() => {
     if (!records || !records.length) return [];
     const sorted = [...records].sort((a, b) =>
@@ -59,6 +97,7 @@ export function VehicleCard({ row, records, selectedChip, onChipClick, onSelectV
       movement: r.secondaryPct,
       workType: r.workType ?? 'delivery',
       engineHours: Math.round(r.engineTimeSec / 3600),
+      shiftRecordId: r.workType === 'onsite' && r.source === 'dump_truck' ? (r.id ?? undefined) : undefined,
     }));
   }, [records, row.regNumber]);
 
@@ -132,13 +171,14 @@ export function VehicleCard({ row, records, selectedChip, onChipClick, onSelectV
       {chips.length > 0 && (
         <div className="sv-veh-chips">
           {chips.map(c => {
-            const { key: _k, ...chip } = c;
+            const { key: _k, shiftRecordId, ...chip } = c;
             return (
               <ShiftChip
                 key={c.key}
                 {...chip}
                 isSelected={selectedChip === c.key}
                 onClick={() => onChipClick?.(c.key)}
+                microBars={shiftRecordId != null ? chipSegments.get(shiftRecordId) : undefined}
               />
             );
           })}

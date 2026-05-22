@@ -120,6 +120,64 @@
 .apin.kip-red   .apin-stem { background:linear-gradient(180deg,rgba(239,68,68,0.4),transparent); }
 .apin.kip-na    .apin-stem { background:linear-gradient(180deg,rgba(148,163,184,0.4),transparent); }
 
+/* ── Object badge marker (clickable pill at centroid) ── */
+.sv-map-obj-badge {
+  transform: translate(-50%, -50%);
+  min-width: 96px;
+  background: rgba(10, 14, 26, 0.88);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 6px 10px;
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  user-select: none;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  transition: box-shadow .15s, background .15s, border-color .15s;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  white-space: nowrap;
+}
+.sv-map-obj-badge:hover {
+  background: rgba(15, 23, 42, 0.95);
+  border-color: var(--kip-color, rgba(255, 255, 255, 0.3));
+  box-shadow: 0 5px 22px rgba(0, 0, 0, 0.65);
+}
+.sv-map-obj-badge.active {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: var(--kip-color, rgba(255, 255, 255, 0.55));
+  border-width: 2px;
+  box-shadow: 0 5px 22px rgba(0, 0, 0, 0.65), 0 0 0 3px rgba(96, 165, 250, 0.18);
+}
+.sv-map-obj-badge-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+.sv-map-obj-badge-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.sv-map-obj-badge-vehicles {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.42);
+  font-variant-numeric: tabular-nums;
+}
+.sv-map-obj-badge-kip {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--kip-color, #60A5FA);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
 /* ── Object zone: border + soft glow (no flat fill) ── */
 /* Blurred unfilled outline → gradient hugging the border, fading to 0.
    pointer-events:none so the crisp border polygon below gets the clicks. */

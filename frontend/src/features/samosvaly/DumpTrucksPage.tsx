@@ -5,12 +5,13 @@ import { DateRangePicker } from '@/components/DateRangePicker';
 import './samosvaly.css';
 import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
+import type { MicroBar } from '@/components/ShiftChip';
 import { ShiftGanttBar } from '@/components/ShiftGanttBar';
 import { abbreviateOrg } from './orgAbbrev';
 import {
   fetchObjects, fetchOrders, fetchOrderGantt,
   fetchShiftRecords, fetchShiftDetail, fetchRepairs,
-  fetchOrderNorms, saveOrderNorms,
+  fetchOrderNorms, saveOrderNorms, fetchShiftSegments,
 } from './api';
 import type {
   DtObject, OrderSummary, OrderCard, GanttRecord, GanttResponse,
@@ -2193,6 +2194,31 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [collapsedObj, setCollapsedObj] = useState<Set<string>>(new Set());
   const [pinnedVehicles, setPinnedVehicles] = useState<Set<string>>(new Set());
+  const [chipSegments, setChipSegments] = useState<Map<number, MicroBar[]>>(new Map());
+
+  useEffect(() => {
+    const onsiteRecs = records.filter(r => r.workType === 'onsite');
+    if (!onsiteRecs.length) return;
+    let cancelled = false;
+    setChipSegments(new Map());
+    Promise.allSettled(
+      onsiteRecs.map(rec => fetchShiftSegments(rec.id).then(segs => ({ id: rec.id, segs })))
+    ).then(results => {
+      if (cancelled) return;
+      const next = new Map<number, MicroBar[]>();
+      results.forEach(r => {
+        if (r.status === 'fulfilled') {
+          const { id, segs } = r.value;
+          next.set(id, segs.map(s => ({
+            kip: Math.min(100, (s.engineTimeSec / 1800) * 100),
+            mov: Math.min(100, (s.movingTimeSec / 1800) * 100),
+          })));
+        }
+      });
+      setChipSegments(next);
+    });
+    return () => { cancelled = true; };
+  }, [records]);
 
   const togOrder = (key: string) => setExpanded(prev => {
     const s = new Set(prev); if (s.has(key)) s.delete(key); else s.add(key); return s;
@@ -2409,7 +2435,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
             <tbody>
               {/* Render a single vehicle row with its nested orders/days */}
               {(() => {
-                type ChipData = { key: string; date: string; shift: 0 | 1 | 2; trips: number; kip: number; movement: number; workType: string; engineHours?: number };
+                type ChipData = { key: string; date: string; shift: 0 | 1 | 2; trips: number; kip: number; movement: number; workType: string; engineHours?: number; shiftRecordId?: number };
 
                 function buildChips(recs: ShiftRecord[], regNumber: string, groupByShift: boolean): ChipData[] {
                   const sorted = [...recs].sort((a, b) =>
@@ -2455,6 +2481,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                         movement: r.movementPct,
                         workType: r.workType ?? 'delivery',
                         engineHours: Math.round(r.engineTimeSec / 3600),
+                        shiftRecordId: r.workType === 'onsite' ? r.id : undefined,
                       };
                     });
                   }
@@ -2526,6 +2553,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                                       <ShiftChip key={c.key} {...c}
                                         isSelected={selectedChip === c.key}
                                         onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
+                                        microBars={c.shiftRecordId != null ? chipSegments.get(c.shiftRecordId) : undefined}
                                       />
                                     ))}
                                   </div>
@@ -2538,6 +2566,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                                 <ShiftChip key={c.key} {...c}
                                   isSelected={selectedChip === c.key}
                                   onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
+                                  microBars={c.shiftRecordId != null ? chipSegments.get(c.shiftRecordId) : undefined}
                                 />
                               ))}
                             </div>

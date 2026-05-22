@@ -36,3 +36,13 @@ _debug_*.ts
 /изменения плана
 /готова админка
 /готова администратора
+
+# Презентация-кейс (не для репозитория)
+/presentation/
+
+# Claude Code machine-local settings
+.claude/settings.local.json
+
+# Файлы, случайно попавшие в корень
+/New Folder With Items/
+/index (2).html

@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface MicroBar {
+export interface MicroBar {
   kip: number;
   mov: number;
 }
@@ -27,8 +27,8 @@ function kipColorClass(v: number): string {
 }
 
 export function ShiftChip({ date, shift, trips, kip, movement, workType, engineHours, isSelected, onClick, microBars }: ShiftChipProps) {
-  const hasMicro = !!microBars && microBars.length > 0;
   const isOnsite = workType === 'onsite';
+  const hasMicro = isOnsite && microBars != null && microBars.length > 0;
   const isZero = isOnsite ? (!engineHours || engineHours === 0) : trips === 0;
   const shiftLabel = shift === 0 ? '2см' : `C${shift}`;
 
@@ -58,39 +58,43 @@ export function ShiftChip({ date, shift, trips, kip, movement, workType, engineH
         <small>{shiftLabel}</small>
       </span>
 
-      {/* Center: vis tracks */}
-      <span className="sv-chip-vis">
-        <span className="sv-chip-vis-lbl">
-          <span>КИП</span>
-          {kip > 0
-            ? <span className={kipColorClass(Math.round(kip))}>{Math.round(kip)}</span>
-            : <span>—</span>
-          }
-        </span>
-        <span className="sv-chip-track">
-          <i style={{ width: `${kipPct}%`, background: barColor(kip) }} />
-        </span>
-        <span className="sv-chip-track">
-          <i style={{
-            width: `${isOnsite ? onsitePct : movPct}%`,
-            background: isOnsite ? '#A78BFA' : '#60A5FA',
-            opacity: 0.7,
-          }} />
-        </span>
+      {/* Center: vis tracks / micro-bar chart */}
+      <span className={`sv-chip-vis${hasMicro ? ' sv-chip-micro' : ''}`}>
+        {hasMicro ? (
+          (microBars as MicroBar[]).map((bar, i) => {
+            const h = Math.max(0, Math.min(100, bar.kip));
+            const isEmpty = h < 5;
+            const isMov = !isEmpty && bar.mov > h * 0.55;
+            return (
+              <i
+                key={i}
+                className={`sv-chip-microbar${isEmpty ? ' empty' : isMov ? ' mov' : ''}`}
+                style={{ height: `${h}%` }}
+              />
+            );
+          })
+        ) : (
+          <>
+            <span className="sv-chip-vis-lbl">
+              <span>КИП</span>
+              {kip > 0
+                ? <span className={kipColorClass(Math.round(kip))}>{Math.round(kip)}</span>
+                : <span>—</span>
+              }
+            </span>
+            <span className="sv-chip-track">
+              <i style={{ width: `${kipPct}%`, background: barColor(kip) }} />
+            </span>
+            <span className="sv-chip-track">
+              <i style={{
+                width: `${isOnsite ? onsitePct : movPct}%`,
+                background: isOnsite ? '#A78BFA' : '#60A5FA',
+                opacity: 0.7,
+              }} />
+            </span>
+          </>
+        )}
       </span>
-
-      {/* Micro-bars: hourly breakdown when available */}
-      {hasMicro && (
-        <span className="sv-chip-micro">
-          {microBars!.map((mb, i) => (
-            <span
-              key={i}
-              className="sv-chip-micro-bar"
-              style={{ height: `${Math.max(2, mb.kip)}%`, background: barColor(mb.kip) }}
-            />
-          ))}
-        </span>
-      )}
 
       {/* Right: count + unit */}
       <span className="sv-chip-num">

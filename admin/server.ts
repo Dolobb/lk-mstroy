@@ -250,13 +250,24 @@ function buildChildPath(): string {
   return missing.length ? missing.join(path.delimiter) + path.delimiter + cur : cur;
 }
 
-// 'python' → абсолютный путь к найденному python.exe (если есть).
+// 'python' → абсолютный путь к интерпретатору (Windows: python.exe, macOS/Linux: python3).
 function resolveCmd(cmd: string): string {
-  if (process.platform !== 'win32' || cmd !== 'python') return cmd;
-  for (const d of EXTRA_PATH_DIRS) {
-    const exe = path.join(d, 'python.exe');
-    if (fs.existsSync(exe)) return exe;
+  if (cmd !== 'python') return cmd;
+  if (process.platform === 'win32') {
+    for (const d of EXTRA_PATH_DIRS) {
+      const exe = path.join(d, 'python.exe');
+      if (fs.existsSync(exe)) return exe;
+    }
+    return cmd;
   }
+  // macOS / Linux: 'python' часто не существует как бинарник — ищем python3.
+  for (const candidate of ['/usr/local/bin/python3', '/usr/bin/python3']) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  try {
+    const found = execSync('which python3', { encoding: 'utf8' }).trim();
+    if (found) return found;
+  } catch { /* python3 не найден в PATH */ }
   return cmd;
 }
 

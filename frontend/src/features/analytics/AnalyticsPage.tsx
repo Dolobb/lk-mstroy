@@ -5,6 +5,7 @@ import { DateTimeRangePicker } from '@/components/DateTimeRangePicker';
 import { DataFreshnessBadge } from '@/components/DataFreshnessBadge';
 import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
+import type { MicroBar } from '@/components/ShiftChip';
 import { ShiftGanttBar } from '@/components/ShiftGanttBar';
 import { abbreviateOrg } from '@/features/samosvaly/orgAbbrev';
 import { ShiftSubTable } from '@/features/samosvaly/DumpTrucksPage';
@@ -18,6 +19,7 @@ import {
   triggerKipSegmentFetch,
   fetchDstZones,
 } from './api';
+import { fetchShiftSegments } from '@/features/samosvaly/api';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
 import { usePositions } from './hooks/usePositions';
 import { useTrack } from './hooks/useTrack';
@@ -248,6 +250,7 @@ export function AnalyticsPage() {
   // Lazy-loaded DST details cache: regNumber → UnifiedRecord[]
   const [dstDetails, setDstDetails] = useState<Map<string, UnifiedRecord[]>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+  const [chipSegments, setChipSegments] = useState<Map<number, MicroBar[]>>(new Map());
 
   // Table state
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -257,6 +260,7 @@ export function AnalyticsPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
   const [focusedObjectUid, setFocusedObjectUid] = useState<string | null>(null);
+  const [showOutsideOnMap, setShowOutsideOnMap] = useState(false);
 
   // Session 9: selected vehicle for track rendering
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -351,6 +355,33 @@ export function AnalyticsPage() {
     const t = setInterval(poll, 5000);
     return () => { cancelled = true; clearInterval(t); };
   }, []);
+
+  // ─── Onsite micro-bars for table/cards chips ─────────
+  useEffect(() => {
+    const onsiteRecs = dtRows
+      .flatMap(v => v.records)
+      .filter(r => r.workType === 'onsite' && r.id != null);
+    if (!onsiteRecs.length) return;
+    let cancelled = false;
+    setChipSegments(new Map());
+    Promise.allSettled(
+      onsiteRecs.map(rec => fetchShiftSegments(rec.id!).then(segs => ({ id: rec.id!, segs })))
+    ).then(results => {
+      if (cancelled) return;
+      const next = new Map<number, MicroBar[]>();
+      results.forEach(r => {
+        if (r.status === 'fulfilled') {
+          const { id, segs } = r.value;
+          next.set(id, segs.map(s => ({
+            kip: Math.min(100, (s.engineTimeSec / 1800) * 100),
+            mov: Math.min(100, (s.movingTimeSec / 1800) * 100),
+          })));
+        }
+      });
+      setChipSegments(next);
+    });
+    return () => { cancelled = true; };
+  }, [dtRows]);
 
   // ─── Merged & filtered rows ─────────────────────────
 
@@ -582,7 +613,7 @@ export function AnalyticsPage() {
   type ChipData = {
     key: string; date: string; shift: 0 | 1 | 2;
     trips: number; kip: number; movement: number;
-    workType: string; engineHours?: number;
+    workType: string; engineHours?: number; shiftRecordId?: number;
   };
 
   function buildChips(recs: UnifiedRecord[], regNumber: string): ChipData[] {
@@ -598,6 +629,7 @@ export function AnalyticsPage() {
       movement: r.secondaryPct,
       workType: r.workType ?? 'delivery',
       engineHours: Math.round(r.engineTimeSec / 3600),
+      shiftRecordId: r.workType === 'onsite' && r.source === 'dump_truck' ? (r.id ?? undefined) : undefined,
     }));
   }
 
@@ -914,13 +946,14 @@ export function AnalyticsPage() {
           {/* Map view */}
           {viewMode === 'map' && (
             <MapViewWithPositions
-              groups={filteredGroups}
+              groups={groups}
               dateFrom={dateFrom}
               dateTo={dateTo}
               selectedVehicleId={selectedVehicleId}
               onSelectVehicle={setSelectedVehicleId}
               focusedObjectUid={focusedObjectUid}
               onFocusObject={setFocusedObjectUid}
+              showOutsideOnMap={showOutsideOnMap}
             />
           )}
 
@@ -1093,13 +1126,14 @@ export function AnalyticsPage() {
                                       ) : (
                                         <div className="sv-chip-strip">
                                           {buildChips(records, v.regNumber).map(c => {
-                                            const { key: _k, ...chip } = c;
+                                            const { key: _k, shiftRecordId, ...chip } = c;
                                             return (
                                               <ShiftChip
                                                 key={c.key}
                                                 {...chip}
                                                 isSelected={selectedChip === c.key}
                                                 onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
+                                                microBars={shiftRecordId != null ? chipSegments.get(shiftRecordId) : undefined}
                                               />
                                             );
                                           })}
@@ -1166,6 +1200,8 @@ export function AnalyticsPage() {
           onFocusObject={setFocusedObjectUid}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          showOutsideOnMap={showOutsideOnMap}
+          onToggleOutsideMap={() => setShowOutsideOnMap(v => !v)}
           onPeriodShift={(direction) => {
             const from = new Date(dateFrom);
             const to = new Date(dateTo);
