@@ -16,11 +16,16 @@ import { analyzeZones } from '../services/zoneAnalyzer';
 import { getAllDtZones } from '../repositories/filterRepo';
 import { replaceSegments, getRecordIdsWithSegments } from '../repositories/segmentRepo';
 import { logger } from '../utils/logger';
-import { getJobController, isCancelledError, CancelledError } from '../services/jobController';
+import { getJobController, isCancelledError, CancelledError, abortableSleep } from '../services/jobController';
 import type { ShiftSegment, GeoZone, ShiftType } from '../types/domain';
 
 const SEGMENT_COUNT = 24;
 const SEGMENT_DURATION_MIN = 30;
+const DEFAULT_RECORD_CONCURRENCY = 5;
+const DIRECT_FETCH_COOLDOWN_MS = 32_000;
+
+const lastDirectFetchByIdMO = new Map<number, number>();
+const directFetchLocks = new Map<number, Promise<void>>();
 
 export interface SegmentFetchResult {
   recordsProcessed: number;
@@ -86,9 +91,10 @@ export async function runSegmentFetch(options: {
     const existingIds = await getRecordIdsWithSegments(pool, records.map(r => r.id));
     const before = records.length;
     records = records.filter(r => !existingIds.has(r.id));
-    result.recordsSkipped = before - records.length;
-    if (result.recordsSkipped > 0) {
-      logger.info(`[SegmentFetch] Skipped ${result.recordsSkipped} records (already have segments)`);
+    const skippedExisting = before - records.length;
+    result.recordsSkipped += skippedExisting;
+    if (skippedExisting > 0) {
+      logger.info(`[SegmentFetch] Skipped ${skippedExisting} records (already have segments)`);
     }
   }
 
@@ -119,14 +125,23 @@ export async function runSegmentFetch(options: {
     tokenPool:   new TokenPool(config.tisApiTokens),
     rateLimiter: new PerVehicleRateLimiter(30_000),
   });
+  const segmentTokens = tisClient.tokens.getAll();
+  if (segmentTokens.length < SEGMENT_COUNT) {
+    logger.warn(`[SegmentFetch] Only ${segmentTokens.length} tokens configured for ${SEGMENT_COUNT} segments; records will need multiple 30s waves`);
+  }
 
   // 5. Process vehicles with concurrency
-  const maxConcurrency = Math.min(config.tisApiTokens.length, records.length);
+  const maxConcurrency = Math.min(config.fetchConcurrency ?? DEFAULT_RECORD_CONCURRENCY, records.length);
+  logger.info(`[SegmentFetch] Worker pool: concurrency=${maxConcurrency} (tokens=${segmentTokens.length}, records=${records.length})`);
 
-  await runWithConcurrency(records, async (record) => {
+  await runWithConcurrencyByKey(records, record => record.vehicle_id, async (record) => {
     if (jobController.isCancelled()) return;
     try {
-      const segments = await fetchSegmentsForRecord(tisClient, record, boundaryZones, signal);
+      const fetchStartedAt = Date.now();
+      const segments = await withVehicleDirectFetchSlot(record.vehicle_id, signal, () =>
+        fetchSegmentsForRecord(tisClient, record, boundaryZones, segmentTokens, signal)
+      );
+      const fetchElapsedSec = ((Date.now() - fetchStartedAt) / 1000).toFixed(1);
 
       // Save in transaction
       const dbClient = await pool.connect();
@@ -135,7 +150,7 @@ export async function runSegmentFetch(options: {
         await replaceSegments(dbClient, record.id, segments);
         await dbClient.query('COMMIT');
         result.recordsProcessed++;
-        logger.info(`[SegmentFetch] Record ${record.id} (idMO=${record.vehicle_id}): saved ${segments.length} segments`);
+        logger.info(`[SegmentFetch] Record ${record.id} (idMO=${record.vehicle_id}): saved ${segments.length} segments in ${fetchElapsedSec}s`);
       } catch (dbErr) {
         await dbClient.query('ROLLBACK');
         throw dbErr;
@@ -168,6 +183,7 @@ async function fetchSegmentsForRecord(
   tisClient: TisClient,
   record: ShiftRecordRow,
   boundaryZones: GeoZone[],
+  tokens: string[],
   signal?: AbortSignal,
 ): Promise<ShiftSegment[]> {
   const segments: ShiftSegment[] = [];
@@ -176,51 +192,102 @@ async function fetchSegmentsForRecord(
   // Filter boundary zones for this record's object
   const objectBoundaryZones = boundaryZones.filter(z => z.objectUid === record.object_uid);
 
-  for (let i = 0; i < SEGMENT_COUNT; i++) {
+  const windows = Array.from({ length: SEGMENT_COUNT }, (_, i) => ({
+    index: i,
+    start: new Date(shiftStartMs + i * SEGMENT_DURATION_MIN * 60 * 1000),
+    end: new Date(shiftStartMs + (i + 1) * SEGMENT_DURATION_MIN * 60 * 1000),
+  }));
+
+  const chunkSize = Math.max(1, tokens.length);
+  for (let offset = 0; offset < windows.length; offset += chunkSize) {
     if (signal?.aborted) throw new CancelledError();
-    const segStart = new Date(shiftStartMs + i * SEGMENT_DURATION_MIN * 60 * 1000);
-    const segEnd = new Date(shiftStartMs + (i + 1) * SEGMENT_DURATION_MIN * 60 * 1000);
+    const chunk = windows.slice(offset, offset + chunkSize);
+    const chunkSegments = await Promise.all(chunk.map(async (win, idx) => {
+      let engineTimeSec = 0;
+      let movingTimeSec = 0;
+      let distanceKm = 0;
+      let trackPointsCount = 0;
+      let inBoundary = false;
 
-    let engineTimeSec = 0;
-    let movingTimeSec = 0;
-    let distanceKm = 0;
-    let trackPointsCount = 0;
-    let inBoundary = false;
+      try {
+        const token = tokens[idx]!;
+        const monitoring = await tisClient.getMonitoringStatsDirect(
+          token,
+          record.vehicle_id,
+          win.start,
+          win.end,
+          signal,
+        );
 
-    try {
-      const monitoring = await tisClient.getMonitoringStats(record.vehicle_id, segStart, segEnd, signal);
+        if (monitoring) {
+          engineTimeSec = monitoring.engineTime ?? 0;
+          movingTimeSec = monitoring.movingTime ?? 0;
+          distanceKm = Number(monitoring.distance ?? 0);
+          const track = monitoring.track || [];
+          trackPointsCount = track.length;
 
-      if (monitoring) {
-        engineTimeSec = monitoring.engineTime ?? 0;
-        movingTimeSec = monitoring.movingTime ?? 0;
-        distanceKm = Number(monitoring.distance ?? 0);
-        const track = monitoring.track || [];
-        trackPointsCount = track.length;
-
-        // Check if any track points are in object boundary
-        if (track.length > 0 && objectBoundaryZones.length > 0) {
-          const zoneEvents = analyzeZones(track, objectBoundaryZones);
-          inBoundary = zoneEvents.length > 0;
+          // Check if any track points are in object boundary
+          if (track.length > 0 && objectBoundaryZones.length > 0) {
+            const zoneEvents = analyzeZones(track, objectBoundaryZones);
+            inBoundary = zoneEvents.length > 0;
+          }
         }
+      } catch (err) {
+        logger.warn(`[SegmentFetch] idMO=${record.vehicle_id} seg=${win.index}: TIS error: ${String(err)}`);
+        // Save segment with zeros
       }
-    } catch (err) {
-      logger.warn(`[SegmentFetch] idMO=${record.vehicle_id} seg=${i}: TIS error: ${String(err)}`);
-      // Save segment with zeros
-    }
 
-    segments.push({
-      segmentIndex: i,
-      segmentStart: segStart,
-      segmentEnd: segEnd,
-      engineTimeSec,
-      movingTimeSec,
-      inBoundary,
-      distanceKm,
-      trackPointsCount,
-    });
+      return {
+        segmentIndex: win.index,
+        segmentStart: win.start,
+        segmentEnd: win.end,
+        engineTimeSec,
+        movingTimeSec,
+        inBoundary,
+        distanceKm,
+        trackPointsCount,
+      };
+    }));
+
+    segments.push(...chunkSegments);
+
+    if (offset + chunkSize < windows.length) {
+      await abortableSleep(32_000, signal);
+    }
   }
 
-  return segments;
+  return segments.sort((a, b) => a.segmentIndex - b.segmentIndex);
+}
+
+async function withVehicleDirectFetchSlot<T>(
+  idMO: number,
+  signal: AbortSignal | undefined,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const previous = directFetchLocks.get(idMO) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>(resolve => { release = resolve; });
+  const tail = previous.catch(() => undefined).then(() => current);
+  directFetchLocks.set(idMO, tail);
+
+  await previous.catch(() => undefined);
+
+  try {
+    const lastFetch = lastDirectFetchByIdMO.get(idMO) ?? 0;
+    const remaining = DIRECT_FETCH_COOLDOWN_MS - (Date.now() - lastFetch);
+    if (remaining > 0) {
+      await abortableSleep(remaining, signal);
+    }
+
+    const result = await fn();
+    lastDirectFetchByIdMO.set(idMO, Date.now());
+    return result;
+  } finally {
+    release();
+    if (directFetchLocks.get(idMO) === tail) {
+      directFetchLocks.delete(idMO);
+    }
+  }
 }
 
 /**
@@ -243,4 +310,25 @@ async function runWithConcurrency<T>(
   }
 
   await Promise.all(executing);
+}
+
+async function runWithConcurrencyByKey<T, K>(
+  items: T[],
+  keyFn: (item: T) => K,
+  fn: (item: T) => Promise<void>,
+  maxConcurrency: number,
+): Promise<void> {
+  const groups = new Map<K, T[]>();
+  for (const item of items) {
+    const key = keyFn(item);
+    const group = groups.get(key);
+    if (group) group.push(item);
+    else groups.set(key, [item]);
+  }
+
+  await runWithConcurrency(Array.from(groups.values()), async (group) => {
+    for (const item of group) {
+      await fn(item);
+    }
+  }, maxConcurrency);
 }
