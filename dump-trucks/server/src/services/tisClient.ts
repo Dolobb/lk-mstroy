@@ -50,6 +50,10 @@ export class TisClient {
     return this.rateLimiter;
   }
 
+  get tokens(): TokenPool {
+    return this.tokenPool;
+  }
+
   resetStats(): void {
     this.stats = { requests: 0, retry429: 0, retryTimeout: 0, http404: 0, otherErrors: 0 };
   }
@@ -170,6 +174,71 @@ export class TisClient {
       },
       signal,
     );
+  }
+
+  async getMonitoringStatsDirect(
+    token: string,
+    idMO: number,
+    fromDate: Date,
+    toDate: Date,
+    signal?: AbortSignal,
+  ): Promise<TisMonitoringStats | null> {
+    const params = new URLSearchParams({
+      token,
+      format: 'json',
+      command: 'getMonitoringStats',
+      idMO: String(idMO),
+      fromDate: formatDateTimeParam(fromDate),
+      toDate: formatDateTimeParam(toDate),
+    });
+    const url = `${this.baseUrl}?${params}`;
+
+    for (let attempt = 0; attempt <= MAX_RETRY_TIMEOUT; attempt++) {
+      if (signal?.aborted) throw new CancelledError();
+      try {
+        this.stats.requests++;
+        const response = await axios.post<TisMonitoringStats>(url, null, { timeout: 30_000, signal });
+        return response.data;
+      } catch (err) {
+        if (isCancelledError(err)) throw new CancelledError();
+        const axiosErr = err as AxiosError;
+
+        if (axiosErr.response?.status === 404) {
+          this.stats.http404++;
+          return null;
+        }
+
+        if (axiosErr.response?.status === 429) {
+          this.stats.retry429++;
+          if (attempt < MAX_RETRY_TIMEOUT) {
+            const waitMs = 30_000;
+            logger.warn(`[Direct] 429 for idMO=${idMO}, token ${token.slice(0, 6)}..., retry ${attempt + 1}/${MAX_RETRY_TIMEOUT} in ${waitMs}ms`);
+            await abortableSleep(waitMs, signal);
+            continue;
+          }
+          logger.warn(`[Direct] 429 after retries for idMO=${idMO}, token ${token.slice(0, 6)}...`);
+          return null;
+        }
+
+        if (['ECONNABORTED', 'ETIMEDOUT', 'ECONNRESET', 'EPIPE'].includes(axiosErr.code ?? '')) {
+          this.stats.retryTimeout++;
+          if (attempt < MAX_RETRY_TIMEOUT) {
+            const waitMs = BACKOFF_TIMEOUT_BASE_MS * Math.pow(2, attempt);
+            logger.warn(`[Direct] Network retry idMO=${idMO}, code=${axiosErr.code}, retry ${attempt + 1}/${MAX_RETRY_TIMEOUT} in ${waitMs}ms`);
+            await abortableSleep(waitMs, signal);
+            continue;
+          }
+          logger.error(`[Direct] Network failure after ${MAX_RETRY_TIMEOUT} retries for idMO=${idMO}, code=${axiosErr.code}`);
+          return null;
+        }
+
+        this.stats.otherErrors++;
+        logger.error(`[Direct] Unexpected error for idMO=${idMO}: ${String(err)}`);
+        return null;
+      }
+    }
+
+    return null;
   }
 
 }

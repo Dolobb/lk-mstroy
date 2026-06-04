@@ -90,8 +90,9 @@ function getTisClient(): TisClient {
       rateLimiter: new PerVehicleRateLimiter(config.rateLimitPerVehicleMs),
     });
 
-    // maxConcurrent = 1: all 24 tokens are busy with one vehicle at a time
-    setMaxConcurrent(1);
+    // Segment jobs use all tokens per vehicle. Keep legacy one-at-a-time default,
+    // but allow controlled stress tests via FETCH_CONCURRENCY.
+    setMaxConcurrent(config.fetchConcurrency ?? 1);
 
     // Register cooldown checker for smart queue
     setCooldownChecker(canFetchNow);

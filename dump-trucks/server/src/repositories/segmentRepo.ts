@@ -92,9 +92,13 @@ export async function getRecordIdsWithSegments(
   if (ids.length === 0) return new Set();
 
   const result = await pool.query<{ shift_record_id: number }>(`
-    SELECT DISTINCT shift_record_id
-    FROM dump_trucks.shift_segments
-    WHERE shift_record_id = ANY($1)
+    SELECT ss.shift_record_id
+    FROM dump_trucks.shift_segments ss
+    JOIN dump_trucks.shift_records sr ON sr.id = ss.shift_record_id
+    WHERE ss.shift_record_id = ANY($1)
+    GROUP BY ss.shift_record_id, sr.updated_at
+    HAVING COUNT(*) = 24
+       AND MIN(ss.created_at) >= sr.updated_at
   `, [ids]);
 
   return new Set(result.rows.map(r => r.shift_record_id));

@@ -74,7 +74,7 @@ export const ReportsPage: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-hidden p-3 gap-3">
       {/* Block 1: Parameters */}
-      <div className="glass-card rounded-[18px] p-4 shrink-0">
+      <div className="glass-card rounded-[18px] p-4 shrink-0 relative z-20">
         <div className="flex items-center gap-2 mb-3">
           <FileSpreadsheet className="size-4 text-primary" />
           <span className="text-sm font-medium text-foreground">Конструктор отчётов</span>

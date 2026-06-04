@@ -18,4 +18,8 @@ export class TokenPool {
   get size(): number {
     return this.tokens.length;
   }
+
+  getAll(): string[] {
+    return [...this.tokens];
+  }
 }
