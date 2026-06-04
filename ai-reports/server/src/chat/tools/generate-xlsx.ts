@@ -304,7 +304,8 @@ export const generateXlsx = tool({
       }
 
       // --- Save ---
-      const fileId = `${title.replace(/[^a-zA-Zа-яА-Я0-9_-]/g, '_')}_${crypto.randomBytes(4).toString('hex')}`;
+      // ASCII-only fileId for URL safety; human-readable name in fileName
+      const fileId = `report_${crypto.randomBytes(8).toString('hex')}`;
       const filePath = path.join(config.outputDir, `${fileId}.xlsx`);
       await workbook.xlsx.writeFile(filePath);
 
@@ -313,7 +314,7 @@ export const generateXlsx = tool({
         success: true,
         fileId,
         downloadUrl: `/api/reports/files/${fileId}`,
-        fileName: `${fileId}.xlsx`,
+        fileName: `${title}.xlsx`,
       };
     } catch (err) {
       console.error('[generateXlsx] error:', err);

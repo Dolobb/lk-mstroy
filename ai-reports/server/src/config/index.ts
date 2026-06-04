@@ -7,6 +7,7 @@ export const config = {
   port: Number(process.env.PORT || 3006),
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  anthropicProxy: process.env.ANTHROPIC_PROXY || '',
 
   pg16: {
     host: process.env.PG16_HOST || 'localhost',

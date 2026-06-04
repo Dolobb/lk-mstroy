@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
+import { config } from '../config';
 
 /** Write body to a temp file and return the path. Caller must clean up. */
 function writeTempBody(body: string): string {
@@ -37,6 +38,11 @@ export const curlFetch: typeof globalThis.fetch = async (
     '-w', '\n__HTTP_STATUS__%{http_code}',  // append status code
     '-X', method,
   ];
+
+  if (config.anthropicProxy) {
+    args.push('--noproxy', '');
+    args.push('--proxy', config.anthropicProxy);
+  }
 
   for (const [key, value] of parseHeaders(init?.headers)) {
     args.push('-H', `${key}: ${value}`);
@@ -90,6 +96,14 @@ export const curlStreamFetch: typeof globalThis.fetch = async (
     '-N',           // no-buffer (for streaming)
     '-X', method,
   ];
+
+  // Admin strips HTTP_PROXY/HTTPS_PROXY and sets NO_PROXY='*' for all children
+  // to prevent local service traffic from going through Hiddify.
+  // We must pass --noproxy '' to override NO_PROXY='*', then --proxy explicitly.
+  if (config.anthropicProxy) {
+    args.push('--noproxy', '');   // overrides NO_PROXY='*' from admin env
+    args.push('--proxy', config.anthropicProxy);
+  }
 
   for (const [key, value] of parseHeaders(init?.headers)) {
     args.push('-H', `${key}: ${value}`);
