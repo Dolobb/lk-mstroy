@@ -11,8 +11,9 @@ export const queryVehicleRegistry = tool({
   inputSchema: z.object({
     search: z.string().optional().describe('Поиск по госномеру или названию ТС'),
     source: z.enum(['all', 'dump_trucks', 'kip']).optional().describe('Источник: all (оба), dump_trucks, kip'),
+    limit: z.number().int().min(1).max(500).optional().default(200).describe('Макс. записей (по умолчанию 200)'),
   }),
-  execute: async ({ search, source = 'all' }) => {
+  execute: async ({ search, source = 'all', limit = 200 }) => {
     console.log('[queryVehicleRegistry]', { search, source });
     const results: any[] = [];
 
@@ -40,8 +41,9 @@ export const queryVehicleRegistry = tool({
              'dump_trucks' AS source
            FROM dump_trucks.shift_records_active sr
            ${dtWhere}
-           ORDER BY sr.reg_number`,
-          dtParams,
+           ORDER BY sr.reg_number
+           LIMIT $${idx}`,
+          [...dtParams, Math.ceil(limit / 2)],
         );
         results.push(...rows);
       } catch (err) {
@@ -74,8 +76,9 @@ export const queryVehicleRegistry = tool({
              'kip' AS source
            FROM vehicle_records vr
            ${kipWhere}
-           ORDER BY vr.vehicle_id`,
-          kipParams,
+           ORDER BY vr.vehicle_id
+           LIMIT $${idx}`,
+          [...kipParams, Math.ceil(limit / 2)],
         );
         results.push(...rows);
       } catch (err) {

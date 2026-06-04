@@ -6,10 +6,10 @@ import { ChatInput } from './ChatInput';
 import { Bot, Sparkles, Zap, Database, Shield, TrendingUp } from 'lucide-react';
 
 const EXAMPLE_PROMPTS = [
-  { icon: Zap, text: 'Какие возможности откроет AI-конструктор?' },
-  { icon: Database, text: 'Какие данные уже собраны в системе?' },
-  { icon: TrendingUp, text: 'Как AI-помощник экономит время?' },
-  { icon: Shield, text: 'Как устроена система и безопасность?' },
+  { icon: TrendingUp, text: 'КИП техники за май 2025 по всем бульдозерам, разбивка по СМУ' },
+  { icon: Zap, text: 'Рейсы самосвалов по объектам за прошлую неделю, сводка с количеством' },
+  { icon: Database, text: 'Реестр всех ТС в системе с госномерами' },
+  { icon: Shield, text: 'Ремонты и ТО за последние 3 месяца, сгруппируй по типу' },
 ];
 
 export const AiReportsPage: React.FC = () => {
@@ -62,8 +62,8 @@ export const AiReportsPage: React.FC = () => {
                 Ассистент НПС
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Демо-версия AI-помощника. Расскажу о возможностях системы,
-                подключённых данных и планах по автоматизации отчётности.
+                AI-помощник для генерации отчётов. Опиши что нужно —
+                запрошу данные из баз и создам Excel-файл.
               </p>
             </div>
 
