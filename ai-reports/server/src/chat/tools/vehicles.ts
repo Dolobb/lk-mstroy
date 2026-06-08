@@ -16,6 +16,7 @@ export const queryVehicleRegistry = tool({
   execute: async ({ search, source = 'all', limit = 200 }) => {
     console.log('[queryVehicleRegistry]', { search, source });
     const results: any[] = [];
+    const perSourceLimit = source === 'all' ? Math.ceil(limit / 2) : limit;
 
     // Самосвалы из dump_trucks
     if (source === 'all' || source === 'dump_trucks') {
@@ -40,10 +41,10 @@ export const queryVehicleRegistry = tool({
              sr.vehicle_id AS id_mo,
              'dump_trucks' AS source
            FROM dump_trucks.shift_records_active sr
-           ${dtWhere}
+          ${dtWhere}
            ORDER BY sr.reg_number
            LIMIT $${idx}`,
-          [...dtParams, Math.ceil(limit / 2)],
+          [...dtParams, perSourceLimit],
         );
         results.push(...rows);
       } catch (err) {
@@ -75,10 +76,10 @@ export const queryVehicleRegistry = tool({
              vr.department_unit,
              'kip' AS source
            FROM vehicle_records vr
-           ${kipWhere}
+          ${kipWhere}
            ORDER BY vr.vehicle_id
            LIMIT $${idx}`,
-          [...kipParams, Math.ceil(limit / 2)],
+          [...kipParams, perSourceLimit],
         );
         results.push(...rows);
       } catch (err) {

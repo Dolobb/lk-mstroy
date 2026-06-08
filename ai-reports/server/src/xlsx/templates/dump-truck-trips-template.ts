@@ -353,7 +353,7 @@ export async function buildDtTripsXlsx(
 
   const maxOutline = data.some(g => g.objects.length > 1) ? 3 : 2;
   ws.properties.outlineLevelRow = maxOutline;
-  ws.properties.outlineProperties = { summaryBelow: false };
+  ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
 
   return wb;
 }

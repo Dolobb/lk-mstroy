@@ -193,13 +193,19 @@ export const generateXlsx = tool({
           ws.views = [{ state: 'frozen', ySplit: freezeAt - 1 }];
         } else {
           // --- Single-level headers ---
-          ws.columns = sheetDef.columns.map((col) => ({
-            header: col.header,
-            key: col.key,
-            width: col.width || Math.max(col.header.length + 4, 12),
-          }));
+          // Set column properties (key, width) WITHOUT writing to row 1
+          // so title row (if present) is not overwritten.
+          sheetDef.columns.forEach((col, i) => {
+            const wsCol = ws.getColumn(i + 1);
+            wsCol.key = col.key;
+            wsCol.width = col.width || Math.max(col.header.length + 4, 12);
+          });
 
+          // Write headers manually to the correct row (dataStartRow, not always row 1)
           const headerRow = ws.getRow(dataStartRow);
+          sheetDef.columns.forEach((col, i) => {
+            headerRow.getCell(i + 1).value = col.header;
+          });
           fillRow(headerRow, COLORS.headerStd, COLORS.textWhite, true, 10);
           headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
           headerRow.height = 28;
@@ -288,11 +294,12 @@ export const generateXlsx = tool({
           }
         }
 
-        // --- Auto-filter ---
+        // --- Auto-filter (header row = dataStartRow - 1 after increment) ---
         if (sheetDef.showAutoFilter !== false && sheetDef.rows.length > 0 && !sheetDef.columnGroups?.length) {
+          const headerRowNum = dataStartRow - 1;
           ws.autoFilter = {
-            from: { row: 1, column: 1 },
-            to: { row: 1, column: colCount },
+            from: { row: headerRowNum, column: 1 },
+            to: { row: headerRowNum, column: colCount },
           };
         }
 
