@@ -34,6 +34,7 @@ ai-reports/server/output/
 # office lock files
 .~$*
 .~*.xlsx
+/sample_*.xlsx
 
 # ad-hoc planning notes committed without extension
 /план тут
@@ -43,6 +44,7 @@ ai-reports/server/output/
 
 # Презентация-кейс (не для репозитория)
 /presentation/
+/референсы из тиса/
 
 # Claude Code machine-local settings
 .claude/settings.local.json
