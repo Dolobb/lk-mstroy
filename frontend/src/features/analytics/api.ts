@@ -102,6 +102,16 @@ export async function fetchKipSegmentProgress(): Promise<KipSegmentProgress> {
   return get<KipSegmentProgress>(`${KIP_BASE}/segments/progress`);
 }
 
+export async function triggerDtShiftSegmentFetch(
+  date: string,
+  shiftType: string,
+): Promise<{ status: string }> {
+  const q = new URLSearchParams({ date, shift: shiftType, force: 'true' });
+  const r = await fetch(`/api/dt/admin/fetch-segments?${q}`, { method: 'POST' });
+  if (!r.ok) throw new Error(`DT segment fetch error: ${r.status}`);
+  return r.json();
+}
+
 // ─── Positions API (Session 7) ─────────────────────────
 
 export async function fetchPositions(at: Date): Promise<PositionsResponse> {

@@ -2549,26 +2549,32 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                                     #{ord.reqNum} {cargoMap.get(Number(ord.reqNum)) ? `(${cargoMap.get(Number(ord.reqNum))})` : ''} · {ord.objName}
                                   </div>
                                   <div className="sv-chip-strip">
-                                    {chips.map(c => (
-                                      <ShiftChip key={c.key} {...c}
-                                        isSelected={selectedChip === c.key}
-                                        onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
-                                        microBars={c.shiftRecordId != null ? chipSegments.get(c.shiftRecordId) : undefined}
-                                      />
-                                    ))}
+                                    {chips.map(c => {
+                                      const { key, ...chipProps } = c;
+                                      return (
+                                        <ShiftChip key={key} {...chipProps}
+                                          isSelected={selectedChip === key}
+                                          onClick={() => setSelectedChip(selectedChip === key ? null : key)}
+                                          microBars={c.shiftRecordId != null ? chipSegments.get(c.shiftRecordId) : undefined}
+                                        />
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               );
                             })
                           ) : (
                             <div className="sv-chip-strip">
-                              {buildChips(allRecs, v.regNumber, settings.groupByShift).map(c => (
-                                <ShiftChip key={c.key} {...c}
-                                  isSelected={selectedChip === c.key}
-                                  onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
-                                  microBars={c.shiftRecordId != null ? chipSegments.get(c.shiftRecordId) : undefined}
-                                />
-                              ))}
+                              {buildChips(allRecs, v.regNumber, settings.groupByShift).map(c => {
+                                const { key, ...chipProps } = c;
+                                return (
+                                  <ShiftChip key={key} {...chipProps}
+                                    isSelected={selectedChip === key}
+                                    onClick={() => setSelectedChip(selectedChip === key ? null : key)}
+                                    microBars={c.shiftRecordId != null ? chipSegments.get(c.shiftRecordId) : undefined}
+                                  />
+                                );
+                              })}
                             </div>
                           )}
                         </td>

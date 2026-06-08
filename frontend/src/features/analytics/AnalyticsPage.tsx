@@ -17,6 +17,7 @@ import {
   fetchKipSegments,
   fetchKipSegmentProgress,
   triggerKipSegmentFetch,
+  triggerDtShiftSegmentFetch,
   fetchDstZones,
 } from './api';
 import { fetchShiftSegments } from '@/features/samosvaly/api';
@@ -680,7 +681,7 @@ export function AnalyticsPage() {
           {chipRecs.map(cr => (
             <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
               {cr.workType === 'onsite'
-                ? <ShiftGanttBar shiftRecordId={cr.id!} timezone={cr.objectTimezone} />
+                ? <DtOnsiteGanttSection rec={cr} />
                 : <ShiftSubTable
                     shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
                     shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
@@ -1157,7 +1158,7 @@ export function AnalyticsPage() {
                                             chipRecs.map(cr => (
                                               <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
                                                 {cr.workType === 'onsite'
-                                                  ? <ShiftGanttBar shiftRecordId={cr.id!} timezone={cr.objectTimezone} />
+                                                  ? <DtOnsiteGanttSection rec={cr} />
                                                   : <ShiftSubTable
                                                       shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
                                                       shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
@@ -1277,6 +1278,38 @@ function DstShiftDetail({ rec }: { rec: UnifiedRecord }) {
   );
 }
 
+function DtOnsiteShiftDetail({ rec }: { rec: UnifiedRecord }) {
+  return (
+    <div style={{
+      minWidth: 180,
+      padding: '8px 12px',
+      background: 'rgba(249,115,22,0.06)',
+      border: '1px solid rgba(249,115,22,0.15)',
+      borderRadius: 8,
+      fontSize: 11,
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+      gap: '4px 16px',
+    }}>
+      <div><span style={{ opacity: 0.6 }}>Двигатель:</span> {fmtHours(rec.engineTimeSec)}</div>
+      <div><span style={{ opacity: 0.6 }}>КИП:</span> <span className={kipColor(rec.kipPct)}>{Math.round(rec.kipPct)}%</span></div>
+      <div><span style={{ opacity: 0.6 }}>Движение:</span> {Math.round(rec.secondaryPct)}%</div>
+      {rec.movingTimeSec != null && rec.movingTimeSec > 0 && (
+        <div><span style={{ opacity: 0.6 }}>В движении:</span> {fmtHours(rec.movingTimeSec)}</div>
+      )}
+      {rec.onsiteMin != null && rec.onsiteMin > 0 && (
+        <div><span style={{ opacity: 0.6 }}>На объекте:</span> {Math.round(rec.onsiteMin)}м</div>
+      )}
+      {rec.distanceKm != null && rec.distanceKm > 0 && (
+        <div><span style={{ opacity: 0.6 }}>Пробег:</span> {rec.distanceKm.toFixed(1)} км</div>
+      )}
+      {rec.tripsCount != null && rec.tripsCount > 0 && (
+        <div><span style={{ opacity: 0.6 }}>Рейсы:</span> {rec.tripsCount}</div>
+      )}
+    </div>
+  );
+}
+
 // ─── DST Gantt Section ───────────────────────────────────
 
 function EmptyGanttDiagram({ onFetch, fetching }: { onFetch: () => void; fetching: boolean }) {
@@ -1331,6 +1364,69 @@ function EmptyGanttDiagram({ onFetch, fetching }: { onFetch: () => void; fetchin
   );
 }
 
+function DtOnsiteGanttSection({ rec }: { rec: UnifiedRecord }) {
+  const [fetching, setFetching] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const dateStr = rec.reportDate.split('T')[0] ?? rec.reportDate;
+
+  const handleTriggerFetch = useCallback(() => {
+    if (rec.id == null) return;
+
+    setFetching(true);
+    setError(null);
+    triggerDtShiftSegmentFetch(dateStr, rec.shiftType)
+      .then(() => {
+        const started = Date.now();
+        const poll = setInterval(() => {
+          fetchShiftSegments(rec.id!)
+            .then(segs => {
+              if (segs.length >= 24) {
+                clearInterval(poll);
+                setReloadKey(v => v + 1);
+                setFetching(false);
+              } else if (Date.now() - started > 180_000) {
+                clearInterval(poll);
+                setError('Сегменты не появились за 3 минуты');
+                setFetching(false);
+              }
+            })
+            .catch(err => {
+              clearInterval(poll);
+              setError(String(err));
+              setFetching(false);
+            });
+        }, 3000);
+      })
+      .catch(err => {
+        setError(String(err));
+        setFetching(false);
+      });
+  }, [rec.id, rec.shiftType, dateStr]);
+
+  return (
+    <div style={{ display: 'flex', gap: 12, flex: 1 }}>
+      <div style={{ flex: '0 0 auto' }}>
+        <DtOnsiteShiftDetail rec={rec} />
+      </div>
+      <div style={{ flex: '1 1 300px', minWidth: 0 }}>
+        <ShiftGanttBar
+          shiftRecordId={rec.id!}
+          timezone={rec.objectTimezone}
+          reloadKey={reloadKey}
+          onFetchMissing={handleTriggerFetch}
+          fetchingMissing={fetching}
+        />
+        {error && (
+          <div style={{ marginTop: 4, fontSize: 10, color: '#ef4444' }}>
+            Ошибка выгрузки: {error}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DstGanttSection({ rec }: { rec: UnifiedRecord }) {
   const kipShift = rec.shiftType === 'shift1' ? 'morning' : 'evening';
   const dateStr = rec.reportDate.split('T')[0] ?? rec.reportDate;
@@ -1358,7 +1454,7 @@ function DstGanttSection({ rec }: { rec: UnifiedRecord }) {
         // Poll until segments appear
         const poll = setInterval(() => {
           fetchKipSegments(rec.regNumber, dateStr, kipShift).then(segs => {
-            if (segs && segs.length > 0) {
+            if (segs && segs.length >= 24) {
               clearInterval(poll);
               setSegments(segs);
               setFetching(false);
@@ -1390,7 +1486,11 @@ function DstGanttSection({ rec }: { rec: UnifiedRecord }) {
             </button>
           </div>
         ) : segments && segments.length > 0 ? (
-          <ShiftGanttBar segments={segments} />
+          <ShiftGanttBar
+            segments={segments}
+            onFetchMissing={handleTriggerFetch}
+            fetchingMissing={fetching}
+          />
         ) : (
           <EmptyGanttDiagram onFetch={handleTriggerFetch} fetching={fetching} />
         )}

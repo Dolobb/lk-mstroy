@@ -17,6 +17,9 @@ interface ShiftGanttBarProps {
   /** DT mode: fetch segments by shift_record_id */
   shiftRecordId?: number;
   timezone?: string;
+  reloadKey?: number;
+  onFetchMissing?: () => void | Promise<void>;
+  fetchingMissing?: boolean;
   /** Direct mode: render pre-loaded segments (e.g. from KIP) */
   segments?: GanttSegment[];
 }
@@ -79,7 +82,14 @@ function computeOutsideIntervals(
   return intervals;
 }
 
-export function ShiftGanttBar({ shiftRecordId, timezone = 'Asia/Yekaterinburg', segments: directSegments }: ShiftGanttBarProps) {
+export function ShiftGanttBar({
+  shiftRecordId,
+  timezone = 'Asia/Yekaterinburg',
+  reloadKey = 0,
+  onFetchMissing,
+  fetchingMissing = false,
+  segments: directSegments,
+}: ShiftGanttBarProps) {
   const [fetchedSegments, setFetchedSegments] = useState<ShiftSegment[] | null>(null);
   const [zoneEvents, setZoneEvents] = useState<ZoneEvent[] | null>(null);
   const [error, setError] = useState(false);
@@ -107,17 +117,40 @@ export function ShiftGanttBar({ shiftRecordId, timezone = 'Asia/Yekaterinburg', 
       .catch(() => { if (!cancelled) setError(true); });
 
     return () => { cancelled = true; };
-  }, [shiftRecordId, isDirectMode]);
+  }, [shiftRecordId, isDirectMode, reloadKey]);
 
   const segments: GanttSegment[] | null = isDirectMode ? (directSegments ?? null) : fetchedSegments;
 
   if (error) return <div className="sv-shift-gantt-empty">Ошибка загрузки сегментов</div>;
   if (segments === null) return <div className="sv-shift-gantt-empty">Загрузка сегментов...</div>;
-  if (segments.length === 0) return <div className="sv-shift-gantt-empty">Сегменты не загружены</div>;
+  if (segments.length === 0) return (
+    <div className="sv-shift-gantt-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <span>Сегменты не загружены</span>
+      {onFetchMissing && (
+        <button
+          onClick={onFetchMissing}
+          disabled={fetchingMissing}
+          style={{
+            fontSize: 11,
+            cursor: fetchingMissing ? 'default' : 'pointer',
+            border: '1px solid currentColor',
+            borderRadius: 4,
+            background: 'rgba(139,92,246,0.1)',
+            color: 'inherit',
+            padding: '3px 10px',
+            opacity: fetchingMissing ? 0.6 : 1,
+          }}
+        >
+          {fetchingMissing ? 'Выгрузка...' : 'Выгрузить'}
+        </button>
+      )}
+    </div>
+  );
 
   const shiftStartMs = new Date(segments[0].segmentStart).getTime();
   const shiftEndMs = new Date(segments[segments.length - 1].segmentEnd).getTime();
   const totalSegs = segments.length;
+  const isIncomplete = totalSegs < 24;
 
   const outsideIntervals = (!isDirectMode && zoneEvents)
     ? computeOutsideIntervals(zoneEvents, shiftStartMs, shiftEndMs)
@@ -207,6 +240,29 @@ export function ShiftGanttBar({ shiftRecordId, timezone = 'Asia/Yekaterinburg', 
         <span><span style={{ color: '#60A5FA' }}>&#9632;</span> в движении</span>
         {outsideIntervals.length > 0 && (
           <span><span style={{ color: '#ef4444' }}>&#9632;</span> вне объекта</span>
+        )}
+        {isIncomplete && (
+          <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span>{totalSegs}/24 сегм.</span>
+            {onFetchMissing && (
+              <button
+                onClick={onFetchMissing}
+                disabled={fetchingMissing}
+                style={{
+                  fontSize: 10,
+                  cursor: fetchingMissing ? 'default' : 'pointer',
+                  border: '1px solid currentColor',
+                  borderRadius: 4,
+                  background: 'rgba(139,92,246,0.1)',
+                  color: 'inherit',
+                  padding: '1px 7px',
+                  opacity: fetchingMissing ? 0.6 : 1,
+                }}
+              >
+                {fetchingMissing ? 'Выгрузка...' : 'Выгрузить'}
+              </button>
+            )}
+          </span>
         )}
       </div>
     </div>
