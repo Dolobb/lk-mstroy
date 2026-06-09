@@ -22,8 +22,9 @@ _debug_*.js
 _debug_*.ts
 *.tsbuildinfo
 
-# AI Reports — сгенерированные файлы отчётов
+# AI Reports — сгенерированные файлы отчётов и данные пользователя
 ai-reports/server/output/
+ai-reports/server/data/
 
 # screenshots dropped into repo root during notes/reviews
 /Снимок экрана*.png

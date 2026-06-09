@@ -114,8 +114,8 @@ export async function triggerDtShiftSegmentFetch(
 
 // ─── Positions API (Session 7) ─────────────────────────
 
-export async function fetchPositions(at: Date): Promise<PositionsResponse> {
-  const q = new URLSearchParams({ at: at.toISOString() });
+export async function fetchPositions(from: Date, at: Date): Promise<PositionsResponse> {
+  const q = new URLSearchParams({ from: from.toISOString(), at: at.toISOString() });
   const r = await fetch(`/api/analytics/positions?${q}`);
   if (!r.ok) throw new Error(`Positions API error: ${r.status}`);
   return r.json() as Promise<PositionsResponse>;

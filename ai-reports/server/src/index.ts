@@ -5,6 +5,7 @@ import { config } from './config';
 import { chatHandler } from './chat/handler';
 import { metaHandler } from './reports/meta';
 import { generateHandler } from './reports/generate';
+import { listSessions, getSession, upsertSession, deleteSession } from './sessions/store';
 import { closePg16 } from './db/pg16';
 import { closePg17 } from './db/pg17';
 import { closeSqlite } from './db/sqlite';
@@ -27,6 +28,30 @@ app.post('/api/reports/generate', generateHandler);
 // ─── Chat endpoint (SSE streaming) ──────────────────────────────────────────
 
 app.post('/api/reports/chat', chatHandler);
+
+// ─── Sessions (server-side chat history) ────────────────────────────────────
+
+app.get('/api/reports/sessions', (_req, res) => {
+  res.json({ sessions: listSessions() });
+});
+
+app.get('/api/reports/sessions/:id', (req, res) => {
+  const session = getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Not found' });
+  res.json({ session });
+});
+
+app.put('/api/reports/sessions/:id', (req, res) => {
+  const { title, date, messages } = req.body;
+  if (!title || !messages) return res.status(400).json({ error: 'title and messages are required' });
+  upsertSession({ id: req.params.id, title, date: date || new Date().toISOString(), messages });
+  res.json({ ok: true });
+});
+
+app.delete('/api/reports/sessions/:id', (req, res) => {
+  deleteSession(req.params.id);
+  res.json({ ok: true });
+});
 
 // ─── File download ───────────────────────────────────────────────────────────
 

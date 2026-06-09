@@ -29,7 +29,7 @@ interface KipRecordRow {
   vehicle_id: string;
   latitude: string | null;
   longitude: string | null;
-  report_date: string;
+  report_date: string | Date;
 }
 
 interface DtLastPointRow {
@@ -43,11 +43,22 @@ interface DtLastPointRow {
   motion_status: string | null;
 }
 
-export async function getPositions(at: Date): Promise<PositionPoint[]> {
+const DEFAULT_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const YEKAT_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+function toYekatDateString(d: Date): string {
+  return new Date(d.getTime() + YEKAT_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+export async function getPositions(at: Date, from = new Date(at.getTime() - DEFAULT_LOOKBACK_MS)): Promise<PositionPoint[]> {
   const pool = getPool();
   const kipPool = getKipPool();
+  const fromIso = from.toISOString();
   const atIso = at.toISOString();
-  const atDate = atIso.slice(0, 10);
+  const fromDate = toYekatDateString(from);
+  const atDate = toYekatDateString(at);
+  const fromSec = Math.floor(from.getTime() / 1000);
+  const atSec = Math.floor(at.getTime() / 1000);
 
   const result = new Map<string, PositionPoint>();
 
@@ -57,9 +68,10 @@ export async function getPositions(at: Date): Promise<PositionPoint[]> {
       `SELECT DISTINCT ON (vehicle_id)
          vehicle_id, ts, lat, lng, speed, heading, engine_on, motion_status
        FROM analytics.track_points
-       WHERE ts <= $1
+       WHERE ts >= $1
+         AND ts <= $2
        ORDER BY vehicle_id, ts DESC`,
-      [atIso],
+      [fromIso, atIso],
     );
     for (const r of tpRes.rows) {
       result.set(r.vehicle_id, {
@@ -81,23 +93,36 @@ export async function getPositions(at: Date): Promise<PositionPoint[]> {
   // 2. Dump trucks: last point from dt_tracks JSONB (SQL-side, no full-array fetch)
   try {
     const dtRes = await pool.query<DtLastPointRow>(
-      `SELECT vehicle_id,
-         (track_simplified->-1->>'ts')::bigint as ts,
-         (track_simplified->-1->>'lat') as lat,
-         (track_simplified->-1->>'lng') as lng,
-         (track_simplified->-1->>'speed') as speed,
-         (track_simplified->-1->>'heading') as heading,
-         (track_simplified->-1->>'engineOn') as engine_on,
-         track_simplified->-1->>'motionStatus' as motion_status
-       FROM dump_trucks.dt_tracks
-       WHERE date <= $1::date
-         AND date >= $1::date - INTERVAL '7 days'
-         AND jsonb_array_length(track_simplified) > 0`,
-      [atDate],
+      `WITH points AS (
+         SELECT
+           dt.vehicle_id,
+           (p.point->>'ts')::bigint AS ts,
+           p.point->>'lat' AS lat,
+           p.point->>'lng' AS lng,
+           p.point->>'speed' AS speed,
+           p.point->>'heading' AS heading,
+           p.point->>'engineOn' AS engine_on,
+           p.point->>'motionStatus' AS motion_status,
+           p.ord
+         FROM dump_trucks.dt_tracks dt
+         CROSS JOIN LATERAL jsonb_array_elements(dt.track_simplified) WITH ORDINALITY AS p(point, ord)
+         WHERE dt.date >= $1::date - INTERVAL '1 day'
+           AND dt.date <= $2::date + INTERVAL '1 day'
+           AND jsonb_array_length(dt.track_simplified) > 0
+           AND p.point->>'ts' IS NOT NULL
+           AND (p.point->>'ts')::bigint >= $3::bigint
+           AND (p.point->>'ts')::bigint <= $4::bigint
+       )
+       SELECT DISTINCT ON (vehicle_id)
+         vehicle_id, ts, lat, lng, speed, heading, engine_on, motion_status
+       FROM points
+       ORDER BY vehicle_id, ts DESC, ord DESC`,
+      [fromIso, atIso, fromSec, atSec],
     );
     for (const r of dtRes.rows) {
       if (!r.ts || !r.lat || !r.lng) continue;
       const pt = new Date(Number(r.ts) * 1000);
+      if (pt < from) continue;
       if (pt > at) continue;
       if (result.has(r.vehicle_id)) continue;
       result.set(r.vehicle_id, {
@@ -129,17 +154,23 @@ export async function getPositions(at: Date): Promise<PositionPoint[]> {
        FROM vehicle_records
        WHERE latitude IS NOT NULL
          AND longitude IS NOT NULL
-         AND report_date <= $1::date
+         AND report_date >= $1::date
+         AND report_date <= $2::date
        ORDER BY vehicle_id, report_date DESC`,
-      [atDate],
+      [fromDate, atDate],
     );
     for (const r of kipRes.rows) {
       if (result.has(r.vehicle_id)) continue;
+      const reportDate = r.report_date instanceof Date
+        ? toYekatDateString(r.report_date)
+        : String(r.report_date).slice(0, 10);
+      const reportTs = new Date(`${reportDate}T23:59:59.000+05:00`);
+      const ts = reportTs.getTime() > at.getTime() ? at : reportTs;
       result.set(r.vehicle_id, {
         regNumber: r.vehicle_id,
         lat: Number(r.latitude!),
         lng: Number(r.longitude!),
-        ts: new Date(`${r.report_date}T23:59:59.000+05:00`).toISOString(),
+        ts: ts.toISOString(),
         motionStatus: 'unknown',
         speed: null,
         heading: null,
@@ -159,6 +190,7 @@ export function positionsRouter(): Router {
 
   router.get('/analytics/positions', async (req, res) => {
     const atParam = req.query.at as string | undefined;
+    const fromParam = req.query.from as string | undefined;
     if (!atParam) {
       res.status(400).json({ error: 'Query parameter "at" required in ISO format' });
       return;
@@ -168,10 +200,19 @@ export function positionsRouter(): Router {
       res.status(400).json({ error: 'Invalid "at" date format' });
       return;
     }
+    const from = fromParam ? new Date(fromParam) : new Date(at.getTime() - DEFAULT_LOOKBACK_MS);
+    if (isNaN(from.getTime())) {
+      res.status(400).json({ error: 'Invalid "from" date format' });
+      return;
+    }
+    if (from.getTime() > at.getTime()) {
+      res.status(400).json({ error: 'Query parameter "from" must be earlier than or equal to "at"' });
+      return;
+    }
 
     try {
-      const positions = await getPositions(at);
-      res.json({ at: at.toISOString(), positions });
+      const positions = await getPositions(at, from);
+      res.json({ from: from.toISOString(), at: at.toISOString(), positions });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error('Positions endpoint failed', err);

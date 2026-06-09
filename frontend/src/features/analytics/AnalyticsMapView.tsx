@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Polygon, Tooltip, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Marker, useMap, useMapEvents, ZoomControl, AttributionControl } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { LatLngBoundsLiteral, LatLngTuple } from 'leaflet';
@@ -94,6 +94,31 @@ function computeBounds(positions: LatLngTuple[]): LatLngBoundsLiteral | null {
   return [[minLat, minLng], [maxLat, maxLng]];
 }
 
+function computeBoundsTopLeft(positions: LatLngTuple[]): LatLngTuple {
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  for (const [lat, lng] of positions) {
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+  }
+  return [maxLat, minLng];
+}
+
+function isPointInRing(point: LatLngTuple, ring: LatLngTuple[]): boolean {
+  const [lat, lng] = point;
+  let inside = false;
+
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [latI, lngI] = ring[i]!;
+    const [latJ, lngJ] = ring[j]!;
+    const intersects = (latI > lat) !== (latJ > lat)
+      && lng < ((lngJ - lngI) * (lat - latI)) / (latJ - latI) + lngI;
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+}
+
 function fmtDateRangeShort(from: string, to: string): string {
   const fd = from.split('T')[0];
   const td = to.split('T')[0];
@@ -105,16 +130,74 @@ function fmtDateRangeShort(from: string, to: string): string {
 
 // ─── FitBounds helper ────────────────────────────────────
 
-function FitBounds({ bounds, maxZoom }: { bounds: LatLngBoundsLiteral | null; maxZoom?: number }) {
+function FitBounds({
+  bounds,
+  maxZoom,
+  onlyIfZoomingIn,
+}: {
+  bounds: LatLngBoundsLiteral | null;
+  maxZoom?: number;
+  onlyIfZoomingIn?: boolean;
+}) {
   const map = useMap();
   const lastKeyRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (!bounds) return;
     const key = `${bounds[0][0]},${bounds[0][1]},${bounds[1][0]},${bounds[1][1]}`;
     if (lastKeyRef.current === key) return;
+
+    if (onlyIfZoomingIn) {
+      const latLngBounds = L.latLngBounds(bounds);
+      const targetZoom = Math.min(
+        map.getBoundsZoom(latLngBounds, false, L.point(40, 40)),
+        maxZoom ?? Infinity,
+      );
+      if (map.getZoom() >= targetZoom) {
+        lastKeyRef.current = key;
+        map.panTo(latLngBounds.getCenter());
+        return;
+      }
+    }
+
     lastKeyRef.current = key;
     map.fitBounds(bounds, { padding: [40, 40], ...(maxZoom != null ? { maxZoom } : {}) });
-  }, [map, bounds, maxZoom]);
+  }, [map, bounds, maxZoom, onlyIfZoomingIn]);
+  return null;
+}
+
+function InitialFitBounds({ bounds }: { bounds: LatLngBoundsLiteral | null }) {
+  const map = useMap();
+  const didFitRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!bounds || didFitRef.current) return;
+    didFitRef.current = true;
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }, [map, bounds]);
+
+  return null;
+}
+
+function ZoneMapClickHandler({
+  selectedData,
+  onOutsideSelected,
+}: {
+  selectedData: BoundaryData | null;
+  onOutsideSelected: () => void;
+}) {
+  useMapEvents({
+    click: (e) => {
+      if (!selectedData) return;
+      const ring = selectedData.boundary.geometry.coordinates[0];
+      if (!ring) return;
+      const selectedRing = geoJsonRingToLeaflet(ring);
+      const clickedPoint: LatLngTuple = [e.latlng.lat, e.latlng.lng];
+      if (!isPointInRing(clickedPoint, selectedRing)) {
+        onOutsideSelected();
+      }
+    },
+  });
+
   return null;
 }
 
@@ -368,35 +451,35 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     return computeBounds(track.points.map(p => [p.lat, p.lng] as LatLngTuple));
   }, [selectedVehicleId, track]);
 
-  // Single fitBounds authority, priority:
-  //   selected vehicle's track → selected zone → all objects.
-  // Track wins so that switching to the map from the table/cards zooms to
-  // the vehicle deterministically (previously TrackLayer did its own
-  // fitBounds, racing this one on a fresh map mount).
+  // Single fitBounds authority for active drill-downs. The all-objects fit is
+  // intentionally one-shot on map load, so clearing a zone does not zoom out.
   const activeBounds = useMemo(() => {
     if (trackBounds) return trackBounds;
-    if (!selectedData) return allBounds;
+    if (!selectedData) return null;
     const ring = selectedData.boundary.geometry.coordinates[0];
-    if (!ring) return allBounds;
+    if (!ring) return null;
     return computeBounds(geoJsonRingToLeaflet(ring));
-  }, [trackBounds, selectedData, allBounds]);
+  }, [trackBounds, selectedData]);
 
   // ── All vehicle pins (positions + fallback) ──
-  const allPositionPins = useMemo(() => {
+  const vehicleRowMap = useMemo(() => {
     const rowMap = new Map<string, UnifiedVehicleRow>();
     for (const g of groups) {
       for (const v of g.vehicles) {
         if (!rowMap.has(v.regNumber)) rowMap.set(v.regNumber, v);
       }
     }
+    return rowMap;
+  }, [groups]);
 
+  const allPositionPins = useMemo(() => {
     const pins: Array<{ row: UnifiedVehicleRow; lat: number; lng: number }> = [];
     const seen = new Set<string>();
 
     // 1. Positions (track data) — highest priority
     if (positions) {
       for (const p of positions) {
-        const row = rowMap.get(p.regNumber);
+        const row = vehicleRowMap.get(p.regNumber);
         if (!row) {
           // Unknown vehicle — synthetic degraded row
           pins.push({
@@ -426,7 +509,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     }
 
     // 2. Fallback: row.latitude/longitude for vehicles not in positions
-    for (const [reg, row] of rowMap) {
+    for (const [reg, row] of vehicleRowMap) {
       if (seen.has(reg)) continue;
       if (row.latitude != null && row.longitude != null) {
         pins.push({ row, lat: row.latitude, lng: row.longitude });
@@ -435,7 +518,17 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     }
 
     return pins;
-  }, [positions, groups]);
+  }, [positions, vehicleRowMap]);
+
+  const selectedTrackPin = useMemo(() => {
+    if (!selectedVehicleId || !track || !track.points.length) return null;
+    if (track.vehicleId.toUpperCase() !== selectedVehicleId.toUpperCase()) return null;
+    const lastPoint = track.points[track.points.length - 1]!;
+    const row = vehicleRowMap.get(selectedVehicleId)
+      ?? allPositionPins.find(p => p.row.regNumber === selectedVehicleId)?.row;
+    if (!row) return null;
+    return { row, lat: lastPoint.lat, lng: lastPoint.lng };
+  }, [selectedVehicleId, track, vehicleRowMap, allPositionPins]);
 
   // ── Reg numbers for all vehicles that belong to at least one named object ──
   const allInObjectRegs = useMemo(() => {
@@ -460,6 +553,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     cLng /= ring.length;
 
     const seen = new Set(allPositionPins.map(p => p.row.regNumber));
+    if (selectedTrackPin) seen.add(selectedTrackPin.row.regNumber);
     const missing = selectedData.vehicles.filter(v => !seen.has(v.regNumber));
 
     return missing.map((v, i) => {
@@ -467,24 +561,33 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
       const r = 0.0005 + (i % 3) * 0.0003;
       return { row: v, lat: cLat + Math.cos(angle) * r, lng: cLng + Math.sin(angle) * r };
     });
-  }, [selectedData, allPositionPins]);
+  }, [selectedData, allPositionPins, selectedTrackPin]);
 
   // ── Which pins to actually render ──
   // Object selected → only that object's vehicles.
   // Outside eye on, no object selected → vehicles not inside any named object.
   // Otherwise → nothing (clean map with just zone outlines + badges).
   const displayedPositionPins = useMemo(() => {
+    const withSelectedTrackPin = (pins: Array<{ row: UnifiedVehicleRow; lat: number; lng: number }>) => {
+      if (!selectedTrackPin) return pins;
+      const idx = pins.findIndex(p => p.row.regNumber === selectedTrackPin.row.regNumber);
+      if (idx === -1) return [...pins, selectedTrackPin];
+      const next = pins.slice();
+      next[idx] = selectedTrackPin;
+      return next;
+    };
+
     if (focusedObjectUid) {
       const bd = boundaryList.find(b => b.objectUid === focusedObjectUid);
-      if (!bd) return [];
+      if (!bd) return withSelectedTrackPin([]);
       const inObject = new Set(bd.vehicles.map(v => v.regNumber));
-      return allPositionPins.filter(p => inObject.has(p.row.regNumber));
+      return withSelectedTrackPin(allPositionPins.filter(p => inObject.has(p.row.regNumber)));
     }
     if (showOutsideOnMap) {
-      return allPositionPins.filter(p => !allInObjectRegs.has(p.row.regNumber));
+      return withSelectedTrackPin(allPositionPins.filter(p => !allInObjectRegs.has(p.row.regNumber)));
     }
-    return [];
-  }, [focusedObjectUid, boundaryList, showOutsideOnMap, allInObjectRegs, allPositionPins]);
+    return withSelectedTrackPin([]);
+  }, [focusedObjectUid, boundaryList, showOutsideOnMap, allInObjectRegs, allPositionPins, selectedTrackPin]);
 
   if (geoError) {
     return (
@@ -530,14 +633,28 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           center={[62, 80]}
           zoom={4}
           style={{ height: '100%', width: '100%' }}
-          zoomControl={true}
+          zoomControl={false}
+          attributionControl={false}
           scrollWheelZoom={true}
         >
+          <ZoomControl position="bottomright" />
+          <AttributionControl position="bottomleft" prefix={false} />
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
-          {activeBounds && <FitBounds bounds={activeBounds} maxZoom={trackBounds ? 16 : undefined} />}
+          <InitialFitBounds bounds={allBounds} />
+          <ZoneMapClickHandler
+            selectedData={selectedData}
+            onOutsideSelected={() => onFocusObject?.(null)}
+          />
+          {activeBounds && (
+            <FitBounds
+              bounds={activeBounds}
+              maxZoom={trackBounds ? 16 : undefined}
+              onlyIfZoomingIn={!trackBounds}
+            />
+          )}
           {boundaryList.map(bd => {
             const ring = bd.boundary.geometry.coordinates[0];
             if (!ring) return null;
@@ -545,6 +662,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             const kip = avgKip(bd.vehicles);
             const color = kip > 0 ? kipColor(kip) : '#60A5FA';
             const isActive = focusedObjectUid === bd.objectUid;
+            const labelPosition = isActive ? computeBoundsTopLeft(positions) : computeCentroid(positions);
 
             return (
               <React.Fragment key={bd.objectUid}>
@@ -579,7 +697,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                           color: zc.color,
                           weight: 1.25,
                           fillColor: zc.color,
-                          fillOpacity: 0.05,
+                          fillOpacity: isActive ? 0 : 0.05,
                           opacity: 0.7,
                           interactive: false,
                         }}
@@ -608,32 +726,34 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                   pathOptions={{
                     color,
                     weight: isActive ? 2.5 : 1.5,
+                    fill: !isActive,
                     fillColor: color,
-                    fillOpacity: isActive ? 0.08 : 0.04,
+                    fillOpacity: isActive ? 0 : 0.04,
                     opacity: isActive ? 1 : 0.75,
+                    interactive: true,
                   }}
                   eventHandlers={{
-                    click: () => onFocusObject?.(focusedObjectUid === bd.objectUid ? null : bd.objectUid),
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      if (!isActive) onFocusObject?.(bd.objectUid);
+                    },
                   }}
-                >
-                  <Tooltip sticky={false} permanent={false} direction="center">
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{bd.objectName}</div>
-                    <div style={{ fontSize: 11 }}>
-                      {bd.vehicles.length} ТС
-                      {kip > 0 && <span style={{ marginLeft: 6, color: kipColor(kip) }}>{Math.round(kip)}%</span>}
-                    </div>
-                  </Tooltip>
-                </Polygon>
+                />
                 <Marker
                   key={`label-${bd.objectUid}`}
-                  position={computeCentroid(positions)}
+                  position={labelPosition}
                   icon={L.divIcon({
                     className: '',
                     html: `<div class="sv-map-obj-badge${isActive ? ' active' : ''}" style="--kip-color:${color}"><div class="sv-map-obj-badge-name">${bd.objectName}</div><div class="sv-map-obj-badge-sub"><span class="sv-map-obj-badge-vehicles">${bd.vehicles.length} ТС</span>${kip > 0 ? `<span class="sv-map-obj-badge-kip">${Math.round(kip)}%</span>` : ''}</div></div>`,
                     iconSize: [0, 0],
                     iconAnchor: [0, 0],
                   })}
-                  eventHandlers={{ click: () => onFocusObject?.(focusedObjectUid === bd.objectUid ? null : bd.objectUid) }}
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      if (!isActive) onFocusObject?.(bd.objectUid);
+                    },
+                  }}
                 />
               </React.Fragment>
             );
@@ -647,16 +767,13 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                   key={p.row.regNumber}
                   position={[p.lat, p.lng] as LatLngTuple}
                   icon={createAnalyticsPin(p.row, isSel)}
-                  eventHandlers={{ click: () => onSelectVehicle?.(isSel ? null : p.row.regNumber) }}
-                >
-                  <Tooltip sticky={false} direction="top" offset={[0, -52]}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
-                    <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
-                    <div style={{ fontSize: 11 }}>
-                      КИП {Math.round(p.row.avgKipPct)}%
-                    </div>
-                  </Tooltip>
-                </Marker>
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      onSelectVehicle?.(isSel ? null : p.row.regNumber);
+                    },
+                  }}
+                />
               );
             })}
             {focusedObjectUid && zoneSyntheticPins.map(p => {
@@ -666,16 +783,13 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                   key={`synth-${p.row.regNumber}`}
                   position={[p.lat, p.lng] as LatLngTuple}
                   icon={createAnalyticsPin(p.row, isSel)}
-                  eventHandlers={{ click: () => onSelectVehicle?.(isSel ? null : p.row.regNumber) }}
-                >
-                  <Tooltip sticky={false} direction="top" offset={[0, -52]}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
-                    <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
-                    <div style={{ fontSize: 11 }}>
-                      КИП {Math.round(p.row.avgKipPct)}%
-                    </div>
-                  </Tooltip>
-                </Marker>
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      onSelectVehicle?.(isSel ? null : p.row.regNumber);
+                    },
+                  }}
+                />
               );
             })}
           </MarkerClusterGroup>

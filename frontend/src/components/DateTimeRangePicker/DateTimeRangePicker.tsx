@@ -92,13 +92,13 @@ function buildPresets(now: Date): DatePreset[] {
     },
     {
       label: 'Вчера',
-      from: shiftDay(ts, -1),
+      from: setTime(shiftDay(ts, -1), 0, 0),
       to: setTime(shiftDay(ts, -1), 23, 45),
     },
     {
       label: 'Эта неделя',
-      from: startOfWeek(new Date(ts), WK),
-      to: endOfWeek(new Date(ts), WK),
+      from: setTime(startOfWeek(new Date(ts), WK), 0, 0),
+      to: setTime(endOfWeek(new Date(ts), WK), 23, 45),
     },
   ];
 }
@@ -173,7 +173,7 @@ export function DateTimeRangePicker({
   const [draftFromTime, setDraftFromTime] = useState(() => new Date(from));
   const [draftToTime, setDraftToTime] = useState(() => new Date(to));
 
-  const presets = useMemo(() => buildPresets(new Date()), []);
+  const presets = useMemo(() => buildPresets(new Date()), [open]);
 
   const prevFrom = React.useRef(from.getTime());
   const prevTo = React.useRef(to.getTime());

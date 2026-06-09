@@ -190,6 +190,7 @@ export interface PositionPoint {
 }
 
 export interface PositionsResponse {
+  from?: string;
   at: string;
   positions: PositionPoint[];
 }

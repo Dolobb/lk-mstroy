@@ -5,7 +5,6 @@ import { VehicleIcon } from '@/components/VehicleIcon';
 import { ShiftChip } from '@/components/ShiftChip';
 import type { MicroBar } from '@/components/ShiftChip';
 import { abbreviateOrg } from '@/features/samosvaly/orgAbbrev';
-import { fetchShiftSegments } from '@/features/samosvaly/api';
 import { vehicleCategory } from './categories';
 
 function fmDateShort(isoDate: string): string {
@@ -35,52 +34,19 @@ const CAT_COLORS: Record<string, string> = {
 interface VehicleCardProps {
   row: UnifiedVehicleRow;
   records?: UnifiedRecord[];
-  selectedChip?: string | null;
+  // Onsite micro-bars (shiftRecordId → MicroBar[]) — общий источник из AnalyticsPage,
+  // карточка их больше сама не грузит (дедупликация запросов сегментов).
+  chipSegments?: Map<number, MicroBar[]>;
+  activeChipKey?: string | null;
   onChipClick?: (key: string) => void;
-  onSelectVehicle?: () => void;
-  renderChipDetail?: (chipKey: string) => React.ReactNode;
+  onSelectVehicle?: (regNumber: string) => void;
 }
 
-export function VehicleCard({ row, records, selectedChip, onChipClick, onSelectVehicle, renderChipDetail }: VehicleCardProps) {
+function VehicleCardInner({ row, records, chipSegments, activeChipKey, onChipClick, onSelectVehicle }: VehicleCardProps) {
   const cat = vehicleCategory(row);
   const catColor = CAT_COLORS[cat] || '#60A5FA';
   const kip = Math.round(row.avgKipPct);
   const sec = Math.round(row.avgSecondaryPct);
-
-  // ─── Onsite segment micro-bars ───────────────────────
-  const [chipSegments, setChipSegments] = React.useState<Map<number, MicroBar[]>>(new Map());
-
-  React.useEffect(() => {
-    if (!records) return;
-    const onsiteRecs = records.filter(
-      r => r.workType === 'onsite' && r.source === 'dump_truck' && r.id != null
-    );
-    if (!onsiteRecs.length) return;
-
-    let cancelled = false;
-    setChipSegments(new Map());
-
-    Promise.allSettled(
-      onsiteRecs.map(rec =>
-        fetchShiftSegments(rec.id!).then(segs => ({ id: rec.id!, segs }))
-      )
-    ).then(results => {
-      if (cancelled) return;
-      const next = new Map<number, MicroBar[]>();
-      results.forEach(r => {
-        if (r.status === 'fulfilled') {
-          const { id, segs } = r.value;
-          next.set(id, segs.map(s => ({
-            kip: Math.min(100, (s.engineTimeSec / 1800) * 100),
-            mov: Math.min(100, (s.movingTimeSec / 1800) * 100),
-          })));
-        }
-      });
-      setChipSegments(next);
-    });
-
-    return () => { cancelled = true; };
-  }, [records]);
 
   // ─── Build chips ─────────────────────────────────────
   const chips = React.useMemo(() => {
@@ -106,7 +72,6 @@ export function VehicleCard({ row, records, selectedChip, onChipClick, onSelectV
     : row.totalFuelL > 0 ? `${Math.round(row.totalFuelL)} л` : '0 л';
 
   const gap = row.gapFilledCount ?? 0;
-  const activeChipKey = selectedChip && selectedChip.startsWith(row.regNumber + '_') ? selectedChip : null;
 
   return (
     <div className="sv-veh-card">
@@ -117,7 +82,7 @@ export function VehicleCard({ row, records, selectedChip, onChipClick, onSelectV
             <span className="sv-veh-plate">{row.regNumber}</span>
             {onSelectVehicle && (
               <button
-                onClick={e => { e.stopPropagation(); onSelectVehicle(); }}
+                onClick={e => { e.stopPropagation(); onSelectVehicle(row.regNumber); }}
                 title="Показать трек на карте"
                 style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -176,20 +141,19 @@ export function VehicleCard({ row, records, selectedChip, onChipClick, onSelectV
               <ShiftChip
                 key={c.key}
                 {...chip}
-                isSelected={selectedChip === c.key}
+                isSelected={activeChipKey === c.key}
                 onClick={() => onChipClick?.(c.key)}
-                microBars={shiftRecordId != null ? chipSegments.get(shiftRecordId) : undefined}
+                microBars={shiftRecordId != null ? chipSegments?.get(shiftRecordId) : undefined}
               />
             );
           })}
         </div>
       )}
 
-      {activeChipKey && renderChipDetail && (
-        <div className="sv-veh-chip-detail">
-          {renderChipDetail(activeChipKey)}
-        </div>
-      )}
     </div>
   );
 }
+
+// React.memo: карточка получает только свой activeChipKey, поэтому клик по чипу
+// меняет пропсы у старой/новой активной карточки, а не у всего списка.
+export const VehicleCard = React.memo(VehicleCardInner);
