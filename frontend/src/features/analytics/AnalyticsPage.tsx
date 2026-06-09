@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useDeferredValue } from 'react';
 import { useTheme } from 'next-themes';
 import { Table2, LayoutGrid, Map as MapIcon, ChevronRight } from 'lucide-react';
 import { DateTimeRangePicker } from '@/components/DateTimeRangePicker';
@@ -20,13 +20,15 @@ import {
   triggerDtShiftSegmentFetch,
   fetchDstZones,
 } from './api';
-import { fetchShiftSegments } from '@/features/samosvaly/api';
+import { fetchShiftSegments, fetchShiftSegmentsBatch } from '@/features/samosvaly/api';
+import type { ShiftSegment } from '@/features/samosvaly/types';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
 import { usePositions } from './hooks/usePositions';
 import { useTrack } from './hooks/useTrack';
 import { useGroups, useBigObjects } from './hooks/useGroups';
 import { AnalyticsMapView } from './AnalyticsMapView';
-import { AnalyticsCardsView } from './AnalyticsCardsView';
+import { AnalyticsCardsView, countGroupVehicles, limitGroupsForCards } from './AnalyticsCardsView';
+import { AnalyticsCardsViewV2 } from './AnalyticsCardsViewV2';
 import { AnalyticsSidebar } from './AnalyticsSidebar';
 import { SUBGROUP_LABELS, SUBGROUP_COLORS, SUBGROUP_ORDER, vehicleCategory } from './categories';
 import { VehicleIcon } from '@/components/VehicleIcon';
@@ -47,6 +49,15 @@ function fmtDateShort(isoDate: string): string {
 
 function toDateStr(isoDate: string): string {
   return (isoDate.split('T')[0] ?? isoDate).substring(0, 10);
+}
+
+const CARDS_BATCH_SIZE = 60;
+
+function segmentsToMicroBars(segments: ShiftSegment[]): MicroBar[] {
+  return segments.map(seg => ({
+    kip: Math.min(100, Math.max(0, (seg.engineTimeSec / 1800) * 100)),
+    mov: Math.min(100, Math.max(0, (seg.movingTimeSec / 1800) * 100)),
+  }));
 }
 
 function kipColor(v: number): string {
@@ -206,6 +217,9 @@ export function AnalyticsPage() {
   const [vehicleFilters, setVehicleFilters] = useState<Set<string>>(new Set(['all']));
   const [expandedFilterGroups, setExpandedFilterGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  // Деференная копия для фильтрации: ввод в поле остаётся отзывчивым, тяжёлая
+  // фильтрация большого списка не блокирует набор текста.
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const toggleFilter = (key: string) => {
     setVehicleFilters(prev => {
@@ -241,7 +255,7 @@ export function AnalyticsPage() {
     });
   };
 
-  const [viewMode, setViewMode] = useState<'table' | 'map' | 'cards'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'map' | 'cards' | 'cardsV2'>('table');
 
   const [dtRows, setDtRows] = useState<UnifiedVehicleRow[]>([]);
   const [dstRows, setDstRows] = useState<UnifiedVehicleRow[]>([]);
@@ -252,6 +266,7 @@ export function AnalyticsPage() {
   const [dstDetails, setDstDetails] = useState<Map<string, UnifiedRecord[]>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
   const [chipSegments, setChipSegments] = useState<Map<number, MicroBar[]>>(new Map());
+  const [visibleCardsLimit, setVisibleCardsLimit] = useState(CARDS_BATCH_SIZE);
 
   // Table state
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -357,32 +372,10 @@ export function AnalyticsPage() {
     return () => { cancelled = true; clearInterval(t); };
   }, []);
 
-  // ─── Onsite micro-bars for table/cards chips ─────────
   useEffect(() => {
-    const onsiteRecs = dtRows
-      .flatMap(v => v.records)
-      .filter(r => r.workType === 'onsite' && r.id != null);
-    if (!onsiteRecs.length) return;
-    let cancelled = false;
-    setChipSegments(new Map());
-    Promise.allSettled(
-      onsiteRecs.map(rec => fetchShiftSegments(rec.id!).then(segs => ({ id: rec.id!, segs })))
-    ).then(results => {
-      if (cancelled) return;
-      const next = new Map<number, MicroBar[]>();
-      results.forEach(r => {
-        if (r.status === 'fulfilled') {
-          const { id, segs } = r.value;
-          next.set(id, segs.map(s => ({
-            kip: Math.min(100, (s.engineTimeSec / 1800) * 100),
-            mov: Math.min(100, (s.movingTimeSec / 1800) * 100),
-          })));
-        }
-      });
-      setChipSegments(next);
-    });
-    return () => { cancelled = true; };
-  }, [dtRows]);
+    setVisibleCardsLimit(CARDS_BATCH_SIZE);
+    setSelectedChip(null);
+  }, [dateFrom, dateTo, shift, vehicleFilters, searchQuery, focusedObjectUid]);
 
   // ─── Merged & filtered rows ─────────────────────────
 
@@ -415,8 +408,8 @@ export function AnalyticsPage() {
     }
 
     // Search filter
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+    if (deferredSearchQuery) {
+      const q = deferredSearchQuery.toLowerCase();
       merged = merged.filter(r =>
         r.regNumber.toLowerCase().includes(q) ||
         r.nameMO.toLowerCase().includes(q) ||
@@ -425,7 +418,7 @@ export function AnalyticsPage() {
     }
 
     return merged;
-  }, [dtRows, dstRows, vehicleFilters, shift, searchQuery]);
+  }, [dtRows, dstRows, vehicleFilters, shift, deferredSearchQuery]);
 
   // ─── Sort ───────────────────────────────────────────
 
@@ -528,6 +521,130 @@ export function AnalyticsPage() {
     if (focusedObjectUid === OUTSIDE_GROUP_UID) return []; // drill-down not yet implemented
     return groups.filter(g => g.groupUid === focusedObjectUid);
   }, [groups, focusedObjectUid]);
+
+  const totalCardsVehicleCount = React.useMemo(() => countGroupVehicles(filteredGroups), [filteredGroups]);
+
+  const visibleCardGroups = React.useMemo(
+    () => limitGroupsForCards(filteredGroups, visibleCardsLimit),
+    [filteredGroups, visibleCardsLimit],
+  );
+
+  const visibleCardsVehicleCount = React.useMemo(() => countGroupVehicles(visibleCardGroups), [visibleCardGroups]);
+
+  const visibleCardsSegmentIds = React.useMemo(() => {
+    const ids = new Set<number>();
+    for (const group of visibleCardGroups) {
+      for (const vehicle of group.vehicles) {
+        if (vehicle.source !== 'dump_truck') continue;
+        for (const rec of vehicle.records) {
+          if (rec.source === 'dump_truck' && rec.workType === 'onsite' && rec.id != null) {
+            ids.add(rec.id);
+          }
+        }
+      }
+    }
+    return [...ids];
+  }, [visibleCardGroups]);
+
+  const expandedTableSegmentIds = React.useMemo(() => {
+    if (viewMode !== 'table') return [];
+    const ids = new Set<number>();
+
+    filteredGroups.forEach((group, gi) => {
+      const groupKey = `grp_${gi}`;
+      if (collapsedGroups.has(groupKey)) return;
+
+      SUBGROUP_ORDER.forEach(cat => {
+        const catVehicles = group.vehicles.filter(v => vehicleCategory(v) === cat);
+        if (!catVehicles.length) return;
+        const subKey = `${groupKey}_${cat}`;
+        if (collapsedSubgroups.has(subKey)) return;
+
+        catVehicles.forEach((vehicle, vi) => {
+          const vehicleKey = `${subKey}_v${vi}`;
+          if (!expanded.has(vehicleKey) || vehicle.source !== 'dump_truck') return;
+          vehicle.records.forEach(rec => {
+            if (rec.source === 'dump_truck' && rec.workType === 'onsite' && rec.id != null) {
+              ids.add(rec.id);
+            }
+          });
+        });
+      });
+    });
+
+    return [...ids];
+  }, [viewMode, filteredGroups, expanded, collapsedGroups, collapsedSubgroups]);
+
+  const segmentIdsForMicroBars = viewMode === 'cards' ? visibleCardsSegmentIds : expandedTableSegmentIds;
+  const segmentIdsForMicroBarsKey = segmentIdsForMicroBars.join(',');
+
+  const updateChipSegmentsForRecord = useCallback((id: number, segments: ShiftSegment[]) => {
+    setChipSegments(prev => {
+      const next = new Map(prev);
+      next.set(id, segmentsToMicroBars(segments));
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (viewMode !== 'cards' && viewMode !== 'table') return;
+
+    const ids = segmentIdsForMicroBars.filter(id => !chipSegments.has(id));
+    if (ids.length === 0) return;
+
+    let cancelled = false;
+    fetchShiftSegmentsBatch(ids)
+      .then(data => {
+        if (cancelled) return;
+        setChipSegments(prev => {
+          const next = new Map(prev);
+          Object.entries(data).forEach(([id, segments]) => {
+            next.set(Number(id), segmentsToMicroBars(segments));
+          });
+          return next;
+        });
+      })
+      .catch(err => console.warn('[analytics] shift-segments batch failed:', err));
+
+    return () => { cancelled = true; };
+  }, [viewMode, segmentIdsForMicroBarsKey, chipSegments]);
+
+  // ─── v2 (Карточки v2): batch-преподгрузка сырых сегментов ──────────
+  // Onsite-диаграммы рендерятся по дефолту во всех видимых карточках. Чтобы не
+  // повторять N+1 (каждый ShiftGanttBar грузит сегменты+детали сам), грузим сырые
+  // ShiftSegment[] для всех видимых onsite-id ОДНИМ batch-запросом и отдаём их
+  // ShiftGanttBar в direct-режиме (он пропускает собственный фетч).
+  const [v2Segments, setV2Segments] = useState<Map<number, ShiftSegment[]>>(() => new Map());
+
+  const updateV2SegmentsForRecord = useCallback((id: number, segments: ShiftSegment[]) => {
+    setV2Segments(prev => {
+      const next = new Map(prev);
+      next.set(id, segments);
+      return next;
+    });
+  }, []);
+
+  const visibleCardsSegmentIdsKey = visibleCardsSegmentIds.join(',');
+
+  useEffect(() => {
+    if (viewMode !== 'cardsV2') return;
+    const ids = visibleCardsSegmentIds.filter(id => !v2Segments.has(id));
+    if (ids.length === 0) return;
+
+    let cancelled = false;
+    fetchShiftSegmentsBatch(ids)
+      .then(data => {
+        if (cancelled) return;
+        setV2Segments(prev => {
+          const next = new Map(prev);
+          ids.forEach(id => next.set(id, data[id] ?? []));
+          return next;
+        });
+      })
+      .catch(err => console.warn('[analytics v2] shift-segments batch failed:', err));
+
+    return () => { cancelled = true; };
+  }, [viewMode, visibleCardsSegmentIdsKey, v2Segments]);
 
   // ─── KPI strip (object summaries) ───────────────────
 
@@ -681,7 +798,7 @@ export function AnalyticsPage() {
           {chipRecs.map(cr => (
             <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
               {cr.workType === 'onsite'
-                ? <DtOnsiteGanttSection rec={cr} />
+                ? <DtOnsiteGanttSection rec={cr} onSegmentsUpdated={updateChipSegmentsForRecord} />
                 : <ShiftSubTable
                     shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
                     shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
@@ -695,9 +812,58 @@ export function AnalyticsPage() {
       return <DstGanttSection rec={rec} />;
     }
     return null;
-  }, [sortedRows, dstDetails, loadingDetails]);
+  }, [sortedRows, dstDetails, loadingDetails, updateChipSegmentsForRecord]);
+
+  // v2: основной просмотр работы по выбранной смене (таблица рейсов / Gantt-диаграмма).
+  // Onsite-диаграммы используют batch-преподгруженные сегменты (v2Segments) →
+  // ShiftGanttBar в direct-режиме, без пер-карточного фетча. Пока батч в полёте —
+  // лёгкий плейсхолдер. Delivery (ShiftSubTable) грузит детали сам (batch-эндпоинта
+  // для рейсов нет).
+  const renderCardWorkV2 = React.useCallback((rec: UnifiedRecord): React.ReactNode => {
+    if (rec.source === 'dump_truck' && rec.id != null) {
+      if (rec.workType === 'onsite') {
+        const segs = v2Segments.get(rec.id);
+        if (segs === undefined) {
+          return <div className="sv-shift-gantt-empty">Загрузка диаграммы…</div>;
+        }
+        return <DtOnsiteGanttSection rec={rec} onSegmentsUpdated={updateV2SegmentsForRecord} segments={segs} chartOnly />;
+      }
+      return <ShiftSubTable
+        shiftRecord={{ id: rec.id, shiftType: rec.shiftType, reportDate: rec.reportDate }}
+        shiftAgg={{ engineTimeSec: rec.engineTimeSec, movingTimeSec: rec.movingTimeSec ?? 0, onsiteMin: rec.onsiteMin ?? 0, kipPct: rec.kipPct, movementPct: rec.secondaryPct }}
+      />;
+    }
+    if (rec.source === 'dst') return <DstGanttSection rec={rec} />;
+    return null;
+  }, [v2Segments, updateV2SegmentsForRecord]);
+
+  // ─── Stable callbacks for memoized VehicleCard ──────
+  // Функциональный updater делает их независимыми от selectedChip — иначе
+  // React.memo на VehicleCard не сработал бы (новая ссылка на каждый клик).
+
+  const handleChipClick = React.useCallback((key: string) => {
+    React.startTransition(() => {
+      setSelectedChip(prev => (prev === key ? null : key));
+    });
+  }, []);
+
+  const handleSelectVehicleToMap = React.useCallback((reg: string) => {
+    setSelectedVehicleId(reg);
+    setViewMode('map');
+  }, []);
 
   // ─── Render cell ────────────────────────────────────
+
+  useEffect(() => {
+    if (!selectedChip) return;
+    const parts = selectedChip.split('_');
+    const regNumber = parts[0];
+    if (!regNumber) return;
+    const row = sortedRows.find(r => r.regNumber === regNumber);
+    if (row?.source === 'dst') {
+      loadDstDetails(row);
+    }
+  }, [selectedChip, sortedRows, loadDstDetails]);
 
   function renderCell(colId: string, row: UnifiedVehicleRow): React.ReactNode {
     switch (colId) {
@@ -898,6 +1064,13 @@ export function AnalyticsPage() {
             <LayoutGrid size={12} />Карточки
           </button>
           <button
+            className={`sv-view-tab ${viewMode === 'cardsV2' ? 'active' : ''}`}
+            onClick={() => setViewMode('cardsV2')}
+            style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <LayoutGrid size={12} />Карточки v2
+          </button>
+          <button
             className={`sv-view-tab ${viewMode === 'map' ? 'active' : ''}`}
             onClick={() => setViewMode('map')}
             style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
@@ -972,15 +1145,42 @@ export function AnalyticsPage() {
               </div>
             ) : (
               <AnalyticsCardsView
-                filteredGroups={filteredGroups}
+                filteredGroups={visibleCardGroups}
                 dstRecords={dstDetails}
+                chipSegments={chipSegments}
                 selectedChip={selectedChip}
-                onChipClick={(key) => setSelectedChip(selectedChip === key ? null : key)}
-                onSelectVehicle={(reg) => {
-                  setSelectedVehicleId(reg);
-                  setViewMode('map');
-                }}
+                onChipClick={handleChipClick}
+                onCloseDetail={() => setSelectedChip(null)}
+                onSelectVehicle={handleSelectVehicleToMap}
                 renderChipDetail={renderCardsChipDetail}
+                visibleVehicleCount={visibleCardsVehicleCount}
+                totalVehicleCount={totalCardsVehicleCount}
+                onShowMore={() => setVisibleCardsLimit(v => Math.min(v + CARDS_BATCH_SIZE, totalCardsVehicleCount))}
+              />
+          ))}
+
+          {/* Cards v2 view (тест: навигация по дням) */}
+          {viewMode === 'cardsV2' && (loading ? (
+              <div className="sv-empty">
+                <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+                </svg>
+                <span className="sv-empty-text">Загрузка...</span>
+              </div>
+            ) : error ? (
+              <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#EF4444', fontSize: 12, margin: 'auto' }}>
+                {error}
+              </div>
+            ) : (
+              <AnalyticsCardsViewV2
+                filteredGroups={visibleCardGroups}
+                allGroups={filteredGroups}
+                dstRecords={dstDetails}
+                renderWork={renderCardWorkV2}
+                onSelectVehicle={handleSelectVehicleToMap}
+                visibleVehicleCount={visibleCardsVehicleCount}
+                totalVehicleCount={totalCardsVehicleCount}
+                onShowMore={() => setVisibleCardsLimit(v => Math.min(v + CARDS_BATCH_SIZE, totalCardsVehicleCount))}
               />
           ))}
 
@@ -1133,7 +1333,7 @@ export function AnalyticsPage() {
                                                 key={c.key}
                                                 {...chip}
                                                 isSelected={selectedChip === c.key}
-                                                onClick={() => setSelectedChip(selectedChip === c.key ? null : c.key)}
+                                                onClick={() => handleChipClick(c.key)}
                                                 microBars={shiftRecordId != null ? chipSegments.get(shiftRecordId) : undefined}
                                               />
                                             );
@@ -1158,7 +1358,7 @@ export function AnalyticsPage() {
                                             chipRecs.map(cr => (
                                               <div key={cr.id} style={{ flex: '1 1 300px', minWidth: 0 }}>
                                                 {cr.workType === 'onsite'
-                                                  ? <DtOnsiteGanttSection rec={cr} />
+                                                  ? <DtOnsiteGanttSection rec={cr} onSegmentsUpdated={updateChipSegmentsForRecord} />
                                                   : <ShiftSubTable
                                                       shiftRecord={{ id: cr.id!, shiftType: cr.shiftType, reportDate: cr.reportDate }}
                                                       shiftAgg={{ engineTimeSec: cr.engineTimeSec, movingTimeSec: cr.movingTimeSec ?? 0, onsiteMin: cr.onsiteMin ?? 0, kipPct: cr.kipPct, movementPct: cr.secondaryPct }}
@@ -1229,13 +1429,12 @@ export function AnalyticsPage() {
 
 function MapViewWithPositions(props: React.ComponentProps<typeof AnalyticsMapView>) {
   const toDate = props.dateTo ? new Date(props.dateTo) : new Date();
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const isRecent = toDate >= startOfToday;
-  const at = isRecent ? new Date() : toDate;
-  const { data } = usePositions(at, isRecent);
-
   const fromDate = props.dateFrom ? new Date(props.dateFrom) : new Date();
+  const now = new Date();
+  const positionAt = toDate.getTime() > now.getTime() ? now : toDate;
+  const shouldPollPositions = toDate.getTime() >= now.getTime();
+  const { data } = usePositions(fromDate, positionAt, shouldPollPositions);
+
   const { data: trackData } = useTrack(props.selectedVehicleId ?? null, fromDate, toDate);
 
   return <AnalyticsMapView {...props} positions={data?.positions} track={trackData ?? null} />;
@@ -1364,7 +1563,17 @@ function EmptyGanttDiagram({ onFetch, fetching }: { onFetch: () => void; fetchin
   );
 }
 
-function DtOnsiteGanttSection({ rec }: { rec: UnifiedRecord }) {
+function DtOnsiteGanttSection({
+  rec,
+  onSegmentsUpdated,
+  chartOnly,
+  segments,
+}: {
+  rec: UnifiedRecord;
+  onSegmentsUpdated?: (id: number, segments: ShiftSegment[]) => void;
+  chartOnly?: boolean;
+  segments?: ShiftSegment[];
+}) {
   const [fetching, setFetching] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -1379,10 +1588,11 @@ function DtOnsiteGanttSection({ rec }: { rec: UnifiedRecord }) {
       .then(() => {
         const started = Date.now();
         const poll = setInterval(() => {
-          fetchShiftSegments(rec.id!)
+          fetchShiftSegments(rec.id!, { force: true })
             .then(segs => {
               if (segs.length >= 24) {
                 clearInterval(poll);
+                onSegmentsUpdated?.(rec.id!, segs);
                 setReloadKey(v => v + 1);
                 setFetching(false);
               } else if (Date.now() - started > 180_000) {
@@ -1402,13 +1612,43 @@ function DtOnsiteGanttSection({ rec }: { rec: UnifiedRecord }) {
         setError(String(err));
         setFetching(false);
       });
-  }, [rec.id, rec.shiftType, dateStr]);
+  }, [rec.id, rec.shiftType, dateStr, onSegmentsUpdated]);
+
+  // v2 direct-режим: сегменты преподгружены батчем → рисуем без собственного фетча.
+  // Пустой массив → ShiftGanttBar покажет «Выгрузить» (onFetchMissing), клик догрузит
+  // именно эту карточку и обновит v2Segments через onSegmentsUpdated.
+  if (segments !== undefined) {
+    return (
+      <div style={{ display: 'flex', gap: 12, flex: 1 }}>
+        {!chartOnly && (
+          <div style={{ flex: '0 0 auto' }}>
+            <DtOnsiteShiftDetail rec={rec} />
+          </div>
+        )}
+        <div style={{ flex: '1 1 300px', minWidth: 0 }}>
+          <ShiftGanttBar
+            segments={segments}
+            timezone={rec.objectTimezone}
+            onFetchMissing={handleTriggerFetch}
+            fetchingMissing={fetching}
+          />
+          {error && (
+            <div style={{ marginTop: 4, fontSize: 10, color: '#ef4444' }}>
+              Ошибка выгрузки: {error}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', gap: 12, flex: 1 }}>
-      <div style={{ flex: '0 0 auto' }}>
-        <DtOnsiteShiftDetail rec={rec} />
-      </div>
+      {!chartOnly && (
+        <div style={{ flex: '0 0 auto' }}>
+          <DtOnsiteShiftDetail rec={rec} />
+        </div>
+      )}
       <div style={{ flex: '1 1 300px', minWidth: 0 }}>
         <ShiftGanttBar
           shiftRecordId={rec.id!}
