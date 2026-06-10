@@ -1,0 +1,27 @@
+<!doctype html>
+<!-- @dsCard group="Colors" name="КИП traffic light" subtitle="≥75 / 50–74 / <50 — бизнес-правило" viewport="700x180" --><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:18px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .kip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+  .kip .box{border-radius:10px;padding:12px;border:1px solid var(--card-border);background:var(--card-inner);display:flex;flex-direction:column;gap:6px}
+  .kip .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  .kip .l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--fg-3)}
+  .kip .bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08)}
+  .kip .bar i{display:block;height:100%;border-radius:3px}
+  .row{display:flex;gap:8px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;font-size:10px;font-weight:600;border:1px solid var(--card-border);border-radius:6px;background:var(--card)}
+  .chip i{display:inline-block;width:6px;height:6px;border-radius:50%}
+</style></head><body data-theme="dark">
+<div class="kip">
+  <div class="box" style="border-color:rgba(34,197,94,.4)"><div class="l">≥ 75% — норма</div><div class="v" style="color:#22C55E">87%</div><div class="bar"><i style="width:87%;background:#22C55E"></i></div></div>
+  <div class="box" style="border-color:rgba(96,165,250,.4)"><div class="l">50–74% — внимание</div><div class="v" style="color:#60A5FA">63%</div><div class="bar"><i style="width:63%;background:#60A5FA"></i></div></div>
+  <div class="box" style="border-color:rgba(239,68,68,.4)"><div class="l">&lt; 50% — критично</div><div class="v" style="color:#EF4444">42%</div><div class="bar"><i style="width:42%;background:#EF4444"></i></div></div>
+</div>
+<div class="row">
+  <span class="chip"><i style="background:#22C55E"></i>≥75</span>
+  <span class="chip"><i style="background:#60A5FA"></i>50–74</span>
+  <span class="chip"><i style="background:#EF4444"></i>&lt;50</span>
+  <span style="font-size:10px;color:var(--fg-3);margin-left:auto">бизнес-правило · применяется к КИП и КИП-движение</span>
+</div>
+</body></html>

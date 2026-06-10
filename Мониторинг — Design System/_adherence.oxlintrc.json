@@ -1,0 +1,212 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "ui_kits/monitoring/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {},
+    "tokens": [
+      "--background",
+      "--background-end",
+      "--background-mid",
+      "--bg-gradient",
+      "--blur-card",
+      "--blur-glass",
+      "--blur-mild",
+      "--brand-accent",
+      "--brand-amber",
+      "--brand-danger",
+      "--brand-primary",
+      "--brand-secondary",
+      "--brand-secondary-l",
+      "--brand-violet",
+      "--brand-violet-d",
+      "--card",
+      "--card-border",
+      "--card-inner",
+      "--card-inner-border",
+      "--chart-1",
+      "--chart-2",
+      "--chart-3",
+      "--chart-4",
+      "--chart-5",
+      "--divider",
+      "--fg-1",
+      "--fg-2",
+      "--fg-3",
+      "--fg-4",
+      "--font-mono",
+      "--font-sans",
+      "--fs-10",
+      "--fs-11",
+      "--fs-12",
+      "--fs-13",
+      "--fs-14",
+      "--fs-16",
+      "--fs-18",
+      "--fs-22",
+      "--fs-28",
+      "--fs-8",
+      "--fs-9",
+      "--fw-black",
+      "--fw-bold",
+      "--fw-medium",
+      "--fw-regular",
+      "--fw-semibold",
+      "--ghost-bg",
+      "--ghost-border",
+      "--hover-bg",
+      "--kip-bad",
+      "--kip-good",
+      "--kip-mid",
+      "--lv1-bg",
+      "--lv2-bg",
+      "--lv3-bg",
+      "--pill-a-text",
+      "--pill-bg",
+      "--pill-border",
+      "--popover",
+      "--r-full",
+      "--r-lg",
+      "--r-md",
+      "--r-pill",
+      "--r-sm",
+      "--r-xl",
+      "--sel-bg",
+      "--shadow-card",
+      "--shadow-cta-green",
+      "--shadow-cta-orange",
+      "--shadow-overlay",
+      "--shadow-pop",
+      "--tab-active-bg",
+      "--tracking-normal",
+      "--tracking-tight",
+      "--tracking-uppr",
+      "--tracking-uppr-l",
+      "--tree-line"
+    ],
+    "tokenKinds": {
+      "--brand-primary": "color",
+      "--brand-secondary": "color",
+      "--brand-secondary-l": "color",
+      "--brand-accent": "color",
+      "--brand-violet": "color",
+      "--brand-violet-d": "color",
+      "--brand-amber": "color",
+      "--brand-danger": "color",
+      "--kip-good": "color",
+      "--kip-mid": "color",
+      "--kip-bad": "color",
+      "--background": "color",
+      "--background-mid": "color",
+      "--background-end": "color",
+      "--bg-gradient": "color",
+      "--card": "color",
+      "--card-inner": "color",
+      "--card-border": "color",
+      "--card-inner-border": "color",
+      "--popover": "color",
+      "--fg-1": "color",
+      "--fg-2": "color",
+      "--fg-3": "color",
+      "--fg-4": "color",
+      "--divider": "color",
+      "--hover-bg": "color",
+      "--sel-bg": "color",
+      "--pill-bg": "color",
+      "--pill-border": "color",
+      "--pill-a-text": "font",
+      "--ghost-bg": "color",
+      "--ghost-border": "color",
+      "--tab-active-bg": "color",
+      "--tree-line": "color",
+      "--lv1-bg": "color",
+      "--lv2-bg": "color",
+      "--lv3-bg": "color",
+      "--chart-1": "color",
+      "--chart-2": "color",
+      "--chart-3": "color",
+      "--chart-4": "color",
+      "--chart-5": "color",
+      "--r-pill": "spacing",
+      "--r-sm": "spacing",
+      "--r-md": "spacing",
+      "--r-lg": "spacing",
+      "--r-xl": "spacing",
+      "--r-full": "spacing",
+      "--shadow-card": "shadow",
+      "--shadow-pop": "shadow",
+      "--shadow-overlay": "shadow",
+      "--shadow-cta-orange": "shadow",
+      "--shadow-cta-green": "shadow",
+      "--blur-card": "other",
+      "--blur-glass": "other",
+      "--blur-mild": "other",
+      "--font-sans": "font",
+      "--font-mono": "font",
+      "--fs-8": "spacing",
+      "--fs-9": "spacing",
+      "--fs-10": "spacing",
+      "--fs-11": "spacing",
+      "--fs-12": "spacing",
+      "--fs-13": "spacing",
+      "--fs-14": "spacing",
+      "--fs-16": "spacing",
+      "--fs-18": "spacing",
+      "--fs-22": "spacing",
+      "--fs-28": "spacing",
+      "--fw-regular": "other",
+      "--fw-medium": "other",
+      "--fw-semibold": "other",
+      "--fw-bold": "other",
+      "--fw-black": "other",
+      "--tracking-tight": "font",
+      "--tracking-normal": "font",
+      "--tracking-uppr": "font",
+      "--tracking-uppr-l": "font"
+    },
+    "fontFamilies": []
+  }
+}

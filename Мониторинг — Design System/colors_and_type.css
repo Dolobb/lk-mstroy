@@ -1,0 +1,206 @@
+/* ============================================================
+   Мониторинг — Design System
+   Colors + Type tokens (двух-темная палитра + семантика)
+   Скопировано/синтезировано из:
+     - src/index.css
+     - src/features/samosvaly/samosvaly.css
+   ============================================================ */
+
+:root {
+  /* ── Brand / semantic ───────────────────────────────────── */
+  --brand-primary:    #F97316;  /* САМОСВАЛЫ, активный таб, акцент */
+  --brand-secondary:  #3B82F6;  /* ссылки, info, КИП-техника */
+  --brand-secondary-l:#60A5FA;  /* tone-up для текста */
+  --brand-accent:     #22C55E;  /* успех, КИП ≥75%, кнопка-отчёт */
+  --brand-violet:     #A78BFA;  /* level-2 группы, "другой заказ" */
+  --brand-violet-d:   #8B5CF6;  /* donut center, KIP value */
+  --brand-amber:      #F59E0B;  /* warning, "на объекте без ПЛ" */
+  --brand-danger:     #EF4444;  /* destructive, КИП <50%, поломки */
+
+  /* ── КИП-светофор (бизнес-правило) ─────────────────────── */
+  --kip-good: #22C55E;  /* ≥ 75% */
+  --kip-mid:  #60A5FA;  /* 50–74% */
+  --kip-bad:  #EF4444;  /* < 50% */
+
+  /* ── Light theme (default) ─────────────────────────────── */
+  --background:       #F0F4F8;
+  --background-mid:   #E2E8F0;
+  --background-end:   #F8FAFC;
+  --bg-gradient: linear-gradient(145deg,#F0F4F8 0%,#E2E8F0 30%,#EEF2F7 60%,#F8FAFC 100%);
+
+  --card:             rgba(255,255,255,0.75);
+  --card-inner:       rgba(241,245,249,0.7);
+  --card-border:      rgba(0,0,0,0.06);
+  --card-inner-border:rgba(0,0,0,0.04);
+  --popover:          rgba(255,255,255,0.85);
+
+  --fg-1: #0F172A;  /* основной текст */
+  --fg-2: #475569;  /* secondary */
+  --fg-3: #64748B;  /* tertiary, метки */
+  --fg-4: #94A3B8;  /* мельчайшие подписи */
+
+  --divider: rgba(0,0,0,0.04);
+  --hover-bg: rgba(0,0,0,0.02);
+  --sel-bg:  rgba(59,130,246,0.08);
+  --pill-bg: rgba(0,0,0,0.03);
+  --pill-border: rgba(0,0,0,0.06);
+  --pill-a-text: #2563EB;
+  --ghost-bg: rgba(0,0,0,0.03);
+  --ghost-border: rgba(0,0,0,0.08);
+
+  /* Tab/нав активный */
+  --tab-active-bg: rgba(249,115,22,0.08);
+
+  /* Tree-line */
+  --tree-line: rgba(59,130,246,0.2);
+
+  /* Группы уровней */
+  --lv1-bg: rgba(59,130,246,0.03);
+  --lv2-bg: rgba(167,139,250,0.03);
+  --lv3-bg: rgba(34,197,94,0.03);
+
+  /* Chart */
+  --chart-1: var(--brand-primary);
+  --chart-2: var(--brand-secondary);
+  --chart-3: var(--brand-accent);
+  --chart-4: #EAB308;
+  --chart-5: var(--brand-danger);
+
+  /* ── Радиусы ───────────────────────────────────────────── */
+  --r-pill:   6px;
+  --r-sm:     8px;
+  --r-md:    10px;
+  --r-lg:    14px;
+  --r-xl:    16px;
+  --r-full: 9999px;
+
+  /* ── Тени ──────────────────────────────────────────────── */
+  --shadow-card:    0 4px 16px rgba(0,0,0,.12);
+  --shadow-pop:     0 8px 24px rgba(0,0,0,0.15);
+  --shadow-overlay:-8px 0 30px rgba(0,0,0,.20);
+  --shadow-cta-orange: 0 0 20px rgba(249,115,22,0.15);
+  --shadow-cta-green:  0 4px 14px rgba(34,197,94,.30);
+
+  /* ── Backdrop blur ─────────────────────────────────────── */
+  --blur-card:   blur(16px);
+  --blur-glass:  blur(20px);
+  --blur-mild:   blur(12px);
+
+  /* ── Type ───────────────────────────────────────────────
+     Базовый стек намеренно системный — нативные шрифты ОС.
+     Если нужен веб-шрифт — заменить на 'Inter', 'IBM Plex Sans'. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --fs-8:  8px;
+  --fs-9:  9px;
+  --fs-10:10px;
+  --fs-11:11px;
+  --fs-12:12px;
+  --fs-13:13px;
+  --fs-14:14px;
+  --fs-16:16px;
+  --fs-18:18px;
+  --fs-22:22px;
+  --fs-28:28px;
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+  --fw-bold:    700;
+  --fw-black:   800;
+
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-uppr:   0.04em;   /* для UPPERCASE-меток */
+  --tracking-uppr-l: 0.06em;
+}
+
+/* ============================================================
+   DARK THEME (основная)
+   ============================================================ */
+[data-theme="dark"], .dark {
+  --background:       #040812;
+  --background-mid:   #0B1120;
+  --background-end:   #111B2E;
+  --bg-gradient: linear-gradient(145deg,#040812 0%,#0B1120 30%,#111B2E 60%,#0D1526 100%);
+
+  --card:             rgba(15,23,42,0.65);
+  --card-inner:       rgba(30,41,59,0.5);
+  --card-border:      rgba(255,255,255,0.07);
+  --card-inner-border:rgba(255,255,255,0.05);
+  --popover:          rgba(15,23,42,0.85);
+
+  --fg-1: #F1F5F9;
+  --fg-2: #94A3B8;
+  --fg-3: #64748B;
+  --fg-4: #475569;
+
+  --divider: rgba(255,255,255,0.04);
+  --hover-bg: rgba(255,255,255,0.03);
+  --sel-bg:  rgba(59,130,246,0.10);
+  --pill-bg: rgba(255,255,255,0.03);
+  --pill-border: rgba(255,255,255,0.06);
+  --pill-a-text: #60A5FA;
+  --ghost-bg: rgba(255,255,255,0.04);
+  --ghost-border: rgba(255,255,255,0.08);
+
+  --tab-active-bg: rgba(249,115,22,0.12);
+  --tree-line: rgba(59,130,246,0.25);
+  --lv1-bg: rgba(59,130,246,0.04);
+  --lv2-bg: rgba(167,139,250,0.04);
+  --lv3-bg: rgba(34,197,94,0.04);
+
+  --shadow-card: 0 4px 16px rgba(0,0,0,.40);
+  --shadow-pop:  0 8px 24px rgba(0,0,0,0.60);
+}
+
+/* ============================================================
+   Semantic type roles
+   ============================================================ */
+
+.t-h1 { font-family: var(--font-sans); font-size: var(--fs-22); font-weight: var(--fw-black); color: var(--fg-1); letter-spacing: var(--tracking-tight); line-height: 1.15; }
+.t-h2 { font-family: var(--font-sans); font-size: var(--fs-18); font-weight: var(--fw-black); color: var(--fg-1); line-height: 1.2; }
+.t-h3 { font-family: var(--font-sans); font-size: var(--fs-14); font-weight: var(--fw-bold);  color: var(--fg-1); line-height: 1.25; }
+.t-h4 { font-family: var(--font-sans); font-size: var(--fs-13); font-weight: var(--fw-bold);  color: var(--fg-1); line-height: 1.3; }
+
+.t-body  { font-family: var(--font-sans); font-size: var(--fs-12); font-weight: var(--fw-medium);   color: var(--fg-2); line-height: 1.4; }
+.t-body-sm { font-family: var(--font-sans); font-size: var(--fs-11); font-weight: var(--fw-medium); color: var(--fg-2); line-height: 1.35; }
+.t-table { font-family: var(--font-sans); font-size: var(--fs-14); font-weight: var(--fw-medium);  color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.t-table-sm { font-size: var(--fs-12); font-variant-numeric: tabular-nums; color: var(--fg-2); }
+
+.t-eyebrow { /* МЕЛКИЕ UPPERCASE РУБРИКИ */
+  font-family: var(--font-sans);
+  font-size: var(--fs-9);
+  font-weight: var(--fw-bold);
+  color: var(--fg-4);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-uppr-l);
+}
+.t-label { /* ЛЕЙБЛ ПОЛЯ */
+  font-family: var(--font-sans);
+  font-size: var(--fs-8);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-4);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-uppr);
+}
+
+.t-metric-xl { font-family: var(--font-sans); font-size: var(--fs-28); font-weight: var(--fw-black); color: var(--fg-1); font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: var(--tracking-tight); }
+.t-metric-l  { font-family: var(--font-sans); font-size: var(--fs-22); font-weight: var(--fw-black); color: var(--fg-1); font-variant-numeric: tabular-nums; line-height: 1; }
+.t-metric    { font-family: var(--font-sans); font-size: var(--fs-16); font-weight: var(--fw-black); color: var(--fg-1); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.t-metric-sm { font-family: var(--font-sans); font-size: var(--fs-13); font-weight: var(--fw-black); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+
+.t-muted  { color: var(--fg-3); }
+.t-mutedx { color: var(--fg-4); }
+.t-mono   { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ── Стандартный body ─ применяется на demo-страницах ─────── */
+body.ds-body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  color: var(--fg-1);
+  background: var(--bg-gradient);
+  -webkit-font-smoothing: antialiased;
+}
