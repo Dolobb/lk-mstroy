@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Polygon, Marker, useMap, useMapEvents, ZoomControl, AttributionControl } from 'react-leaflet';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { MapContainer, TileLayer, Polygon, Marker, CircleMarker, Tooltip as LeafletTooltip, useMap, useMapEvents, ZoomControl, AttributionControl } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { LatLngBoundsLiteral, LatLngTuple } from 'leaflet';
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts';
+import { Pause, Play, RotateCcw, SkipBack, SkipForward, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MiniBar } from '@/components/MiniBar';
 import { fetchGeoObjects, fetchZonesByObject } from './api';
-import type { GeoObject, ZoneFeature, UnifiedVehicleRow, PositionPoint, TrackResponse } from './types';
+import type { GeoObject, ZoneFeature, UnifiedVehicleRow, PositionPoint, TrackPoint, TrackResponse } from './types';
 import { vehicleCategory, SUBGROUP_COLORS, SUBGROUP_LABELS, SUBGROUP_ORDER } from './categories';
 import { createAnalyticsPin } from './analyticsPin';
 import './analyticsPin.css';
@@ -203,6 +205,363 @@ function ZoneMapClickHandler({
 
 // ─── Inspector panel ─────────────────────────────────────
 
+type TrackTimelineDatum = {
+  idx: number;
+  speed: number;
+  time: string;
+  ts: string;
+};
+
+type TrackTimelineTooltipProps = {
+  active?: boolean;
+  payload?: Array<{ payload?: TrackTimelineDatum }>;
+};
+
+type ChartPointerState = {
+  activeTooltipIndex?: number | string | null;
+  activeLabel?: number | string | null;
+};
+
+const PLAYBACK_INTERVAL_MS = 650;
+const PLAYBACK_SPEEDS = [1, 2, 4] as const;
+type PlaybackSpeed = typeof PLAYBACK_SPEEDS[number];
+
+function formatTrackTime(ts: string): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts.slice(11, 16) || ts;
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+}
+
+function formatTrackSpeed(speed: number | null): string {
+  return `${Math.round(speed ?? 0)} км/ч`;
+}
+
+function getChartIndex(state: unknown, maxLength: number): number | null {
+  const s = state as ChartPointerState | null;
+  const raw = s?.activeTooltipIndex ?? s?.activeLabel;
+  if (raw == null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(maxLength - 1, Math.round(n)));
+}
+
+function stopOverlayEvent(e: React.SyntheticEvent) {
+  e.stopPropagation();
+}
+
+function TrackTimelineTooltip({ active, payload }: TrackTimelineTooltipProps) {
+  const datum = payload?.[0]?.payload;
+  if (!active || !datum) return null;
+  return (
+    <div style={{
+      padding: '6px 8px',
+      borderRadius: 8,
+      background: 'rgba(15,23,42,0.96)',
+      border: '1px solid rgba(255,255,255,0.14)',
+      color: '#fff',
+      boxShadow: '0 8px 22px rgba(0,0,0,0.28)',
+      fontSize: 11,
+      fontVariantNumeric: 'tabular-nums',
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: 2 }}>{datum.time}</div>
+      <div style={{ color: '#fecaca', fontWeight: 700 }}>{Math.round(datum.speed)} км/ч</div>
+    </div>
+  );
+}
+
+function TrackPlaybackMarker({ point }: { point: TrackPoint }) {
+  const map = useMap();
+  const lastPanAtRef = React.useRef(0);
+  const timeoutRef = React.useRef<number | null>(null);
+
+  useEffect(() => {
+    const pan = () => {
+      lastPanAtRef.current = Date.now();
+      map.panTo([point.lat, point.lng], { animate: true, duration: 0.25 });
+    };
+
+    const elapsed = Date.now() - lastPanAtRef.current;
+    if (elapsed >= 140) {
+      if (timeoutRef.current != null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      pan();
+      return;
+    }
+
+    if (timeoutRef.current != null) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = null;
+      pan();
+    }, 140 - elapsed);
+
+    return () => {
+      if (timeoutRef.current != null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [map, point]);
+
+  return (
+    <CircleMarker
+      center={[point.lat, point.lng] as LatLngTuple}
+      radius={7}
+      pathOptions={{
+        color: '#fff',
+        weight: 2,
+        fillColor: '#ef4444',
+        fillOpacity: 1,
+        opacity: 1,
+        className: 'track-playback-marker',
+      }}
+    >
+      <LeafletTooltip direction="top" offset={[0, -8]}>
+        <div style={{ fontSize: 11, fontWeight: 700 }}>{formatTrackTime(point.ts)}</div>
+        <div style={{ fontSize: 10 }}>{formatTrackSpeed(point.speed)}</div>
+      </LeafletTooltip>
+    </CircleMarker>
+  );
+}
+
+function TrackTimelinePanel({
+  track,
+  activeIndex,
+  onActiveIndexChange,
+}: {
+  track: TrackResponse;
+  activeIndex: number | null;
+  onActiveIndexChange: React.Dispatch<React.SetStateAction<number | null>>;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+  const points = track.points;
+
+  const chartData = useMemo<TrackTimelineDatum[]>(() => (
+    points.map((p, idx) => ({
+      idx,
+      speed: p.speed ?? 0,
+      time: formatTrackTime(p.ts),
+      ts: p.ts,
+    }))
+  ), [points]);
+
+  const maxSpeed = useMemo(() => {
+    const max = Math.max(10, ...chartData.map(d => d.speed));
+    return Math.ceil(max / 10) * 10;
+  }, [chartData]);
+
+  const activePoint = activeIndex == null ? null : points[activeIndex] ?? null;
+
+  const selectFromChart = useCallback((state: unknown) => {
+    const idx = getChartIndex(state, points.length);
+    if (idx == null) return;
+    onActiveIndexChange(idx);
+  }, [onActiveIndexChange, points.length]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const id = window.setInterval(() => {
+      onActiveIndexChange(prev => {
+        const current = prev == null ? 0 : prev;
+        return Math.min(points.length - 1, current + playbackSpeed);
+      });
+    }, PLAYBACK_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [isPlaying, onActiveIndexChange, playbackSpeed, points.length]);
+
+  useEffect(() => {
+    if (isPlaying && activeIndex != null && activeIndex >= points.length - 1) {
+      setIsPlaying(false);
+    }
+  }, [activeIndex, isPlaying, points.length]);
+
+  useEffect(() => {
+    if (!points.length) setIsPlaying(false);
+  }, [points.length]);
+
+  const stepActive = useCallback((delta: number) => {
+    onActiveIndexChange(prev => {
+      const current = prev == null ? (delta > 0 ? -1 : points.length) : prev;
+      return Math.max(0, Math.min(points.length - 1, current + delta));
+    });
+  }, [onActiveIndexChange, points.length]);
+
+  const controlButtonStyle: React.CSSProperties = {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(255,255,255,0.06)',
+    color: 'var(--sv-text-1)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+  };
+
+  const speedButtonStyle = (speed: PlaybackSpeed): React.CSSProperties => ({
+    height: 26,
+    minWidth: 34,
+    borderRadius: 7,
+    border: playbackSpeed === speed ? '1px solid rgba(239,68,68,0.7)' : '1px solid rgba(255,255,255,0.10)',
+    background: playbackSpeed === speed ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.05)',
+    color: playbackSpeed === speed ? '#fecaca' : 'var(--sv-text-2)',
+    fontSize: 11,
+    fontWeight: 800,
+    cursor: 'pointer',
+  });
+
+  return (
+    <div
+      onPointerDown={stopOverlayEvent}
+      onPointerMove={stopOverlayEvent}
+      onPointerUp={stopOverlayEvent}
+      onMouseDown={stopOverlayEvent}
+      onClick={stopOverlayEvent}
+      onDoubleClick={stopOverlayEvent}
+      onWheel={stopOverlayEvent}
+      style={{
+        position: 'absolute',
+        left: 18,
+        right: 62,
+        bottom: 14,
+        zIndex: 1000,
+        height: 218,
+        minWidth: 320,
+        padding: '12px 14px 10px',
+        borderRadius: 12,
+        background: 'rgba(15,23,42,0.90)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        backdropFilter: 'blur(18px)',
+        boxShadow: '0 18px 42px rgba(0,0,0,0.34)',
+        display: 'grid',
+        gridTemplateRows: 'auto 1fr',
+        gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <button
+          type="button"
+          title={isPlaying ? 'Пауза' : 'Воспроизвести'}
+          onClick={() => {
+            if (isPlaying) {
+              setIsPlaying(false);
+              return;
+            }
+            if (activeIndex == null || activeIndex >= points.length - 1) onActiveIndexChange(0);
+            setIsPlaying(true);
+          }}
+          style={{ ...controlButtonStyle, background: 'rgba(239,68,68,0.18)', borderColor: 'rgba(239,68,68,0.45)', color: '#fecaca' }}
+        >
+          {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+        </button>
+        <button type="button" title="Назад" onClick={() => stepActive(-1)} style={controlButtonStyle}>
+          <SkipBack size={14} />
+        </button>
+        <button type="button" title="Вперед" onClick={() => stepActive(1)} style={controlButtonStyle}>
+          <SkipForward size={14} />
+        </button>
+
+        <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
+        {PLAYBACK_SPEEDS.map(speed => (
+          <button
+            key={speed}
+            type="button"
+            title={`Скорость ${speed}x`}
+            onClick={() => setPlaybackSpeed(speed)}
+            style={speedButtonStyle(speed)}
+          >
+            {speed}x
+          </button>
+        ))}
+
+        <div style={{ flex: 1, minWidth: 0 }} />
+        <div style={{
+          minWidth: 148,
+          textAlign: 'right',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--sv-text-2)',
+          fontVariantNumeric: 'tabular-nums',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {activePoint ? `${formatTrackTime(activePoint.ts)} · ${formatTrackSpeed(activePoint.speed)}` : `${points.length} точек`}
+        </div>
+        <button type="button" title="В начало" onClick={() => onActiveIndexChange(0)} style={controlButtonStyle}>
+          <RotateCcw size={14} />
+        </button>
+        <button type="button" title="Скрыть точку" onClick={() => { setIsPlaying(false); onActiveIndexChange(null); }} style={controlButtonStyle}>
+          <X size={15} />
+        </button>
+      </div>
+
+      <div style={{ minHeight: 0, cursor: isDragging ? 'grabbing' : 'crosshair', userSelect: 'none' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={chartData}
+            margin={{ top: 8, right: 8, bottom: 0, left: -18 }}
+            onClick={selectFromChart}
+            onMouseDown={(state: unknown) => {
+              setIsDragging(true);
+              setIsPlaying(false);
+              selectFromChart(state);
+            }}
+            onMouseMove={(state: unknown) => {
+              if (isDragging) selectFromChart(state);
+            }}
+            onMouseUp={() => setIsDragging(false)}
+            onMouseLeave={() => setIsDragging(false)}
+          >
+            <defs>
+              <linearGradient id="track-speed-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.38} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+            <XAxis dataKey="idx" type="number" domain={[0, points.length - 1]} hide />
+            <YAxis
+              domain={[0, maxSpeed]}
+              tick={{ fill: 'rgba(255,255,255,0.46)', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={34}
+              tickFormatter={(v) => `${Math.round(Number(v))}`}
+            />
+            <ChartTooltip
+              cursor={{ stroke: 'rgba(248,113,113,0.65)', strokeWidth: 1 }}
+              content={(props: unknown) => <TrackTimelineTooltip {...(props as TrackTimelineTooltipProps)} />}
+            />
+            {activeIndex != null && (
+              <ReferenceLine x={activeIndex} stroke="#ef4444" strokeWidth={2} ifOverflow="extendDomain" />
+            )}
+            <Area
+              type="monotone"
+              dataKey="speed"
+              stroke="#f87171"
+              strokeWidth={2}
+              fill="url(#track-speed-fill)"
+              dot={false}
+              activeDot={{ r: 4, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 function Inspector({ data, onClose, dateFrom, dateTo }: {
   data: BoundaryData;
   onClose: () => void;
@@ -364,6 +723,11 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
   const [objectZones, setObjectZones] = useState<Map<string, ZoneFeature[]>>(new Map());
   const [geoError, setGeoError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [activeTrackPointIdx, setActiveTrackPointIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    setActiveTrackPointIdx(null);
+  }, [selectedVehicleId, track]);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -589,6 +953,11 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     return withSelectedTrackPin([]);
   }, [focusedObjectUid, boundaryList, showOutsideOnMap, allInObjectRegs, allPositionPins, selectedTrackPin]);
 
+  const hasTrackTimeline = Boolean(selectedVehicleId && track && track.points.length > 1);
+  const activeTrackPoint = hasTrackTimeline && activeTrackPointIdx != null
+    ? track!.points[activeTrackPointIdx] ?? null
+    : null;
+
   if (geoError) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -797,7 +1166,18 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           {track && (
             <TrackLayer track={track} onDeselect={() => onSelectVehicle?.(null)} />
           )}
+          {activeTrackPoint && (
+            <TrackPlaybackMarker point={activeTrackPoint} />
+          )}
         </MapContainer>
+
+        {hasTrackTimeline && track && (
+          <TrackTimelinePanel
+            track={track}
+            activeIndex={activeTrackPointIdx}
+            onActiveIndexChange={setActiveTrackPointIdx}
+          />
+        )}
 
         {!boundaryList.length && geoObjects.length > 0 && (
           <div style={{
@@ -828,7 +1208,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
         </button>
 
         <div style={{
-          position: 'absolute', bottom: 24, left: 12, zIndex: 1000,
+          position: 'absolute', bottom: hasTrackTimeline ? 244 : 24, left: 12, zIndex: 1000,
           padding: '6px 10px', borderRadius: 10,
           background: 'var(--sv-card, rgba(15,23,42,0.75))',
           backdropFilter: 'blur(16px)',
