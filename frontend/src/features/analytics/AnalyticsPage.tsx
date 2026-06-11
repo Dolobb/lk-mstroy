@@ -441,6 +441,8 @@ export function AnalyticsPage() {
   // Lazy-loaded DST details cache: regNumber → UnifiedRecord[]
   const [dstDetails, setDstDetails] = useState<Map<string, UnifiedRecord[]>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+  // In-flight для batch-предзагрузки обычных карточек (viewMode='cards').
+  const dstDetailsInFlight = React.useRef<Set<string>>(new Set());
   // v2: отдельный кэш ДСТ-деталей за окно v2Range (НЕ смешивать с dstDetails —
   // тот наполнен данными за диапазон пикера). regNumber → UnifiedRecord[].
   const [dstDetailsV2, setDstDetailsV2] = useState<Map<string, UnifiedRecord[]>>(() => new Map());
@@ -796,6 +798,66 @@ export function AnalyticsPage() {
 
     return () => { cancelled = true; };
   }, [viewMode, visibleCardsSegmentIdsV2Key, v2Segments]);
+
+  // ─── Карточки (cards): batch-предзагрузка деталей ДСТ для видимых карточек ──
+  // Аналогично v2, но за диапазон пикера (dateFrom/dateTo). Без этого ДСТ-чипы
+  // не появляются вообще — records=[] пока пользователь не кликнет на машину.
+  const visibleDstRowsCards = React.useMemo(() => {
+    const out: UnifiedVehicleRow[] = [];
+    const seen = new Set<string>();
+    for (const group of visibleCardGroups) {
+      for (const v of group.vehicles) {
+        if (v.source !== 'dst' || !v.kipVehicleId) continue;
+        if (seen.has(v.regNumber)) continue;
+        seen.add(v.regNumber);
+        out.push(v);
+      }
+    }
+    return out;
+  }, [visibleCardGroups]);
+  const visibleDstRowsCardsKey = visibleDstRowsCards.map(v => v.regNumber).join(',');
+
+  useEffect(() => {
+    if (viewMode !== 'cards') return;
+    const from = isoToYmd(dateFrom);
+    const to = isoToYmd(dateTo);
+    const pending = visibleDstRowsCards.filter(
+      v => !dstDetails.has(v.regNumber) && !dstDetailsInFlight.current.has(v.regNumber),
+    );
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    const inFlight = dstDetailsInFlight.current;
+    pending.forEach(v => inFlight.add(v.regNumber));
+
+    const CONCURRENCY = 6;
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      while (!cancelled) {
+        const idx = cursor++;
+        if (idx >= pending.length) return;
+        const row = pending[idx]!;
+        try {
+          const details = await fetchKipVehicleDetails(row.kipVehicleId!, from, to);
+          if (cancelled) return;
+          const records = details.map(d =>
+            kipDetailToUnified(d, row.nameMO, row.vehicleType, row.organization ?? '', row.departmentUnit ?? '', row.regNumber)
+          );
+          setDstDetails(prev => new Map(prev).set(row.regNumber, records));
+        } catch (err) {
+          console.warn('[analytics cards] fetchKipVehicleDetails failed:', row.regNumber, err);
+        } finally {
+          inFlight.delete(row.regNumber);
+        }
+      }
+    };
+    void Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
+
+    return () => {
+      cancelled = true;
+      pending.forEach(v => { if (!dstDetails.has(v.regNumber)) inFlight.delete(v.regNumber); });
+    };
+  }, [viewMode, visibleDstRowsCardsKey, visibleDstRowsCards, dstDetails, dateFrom, dateTo]);
 
   // ─── v2 (Карточки v2): предзагрузка деталей ДСТ-машин по дням/сменам ──────
   // ДСТ приходят из weekly с records:[] — детали грузятся per-vehicle через
