@@ -58,7 +58,9 @@ export async function getVehicleRecords(
 ): Promise<VehicleRecordRow[]> {
   const pool = getPool();
 
-  let query = `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled, engine_time_source FROM vehicle_records WHERE report_date = $1`;
+  // report_date <= CURRENT_DATE: ПЛ оформляются заранее → в БД есть записи на
+  // будущие даты (все с нулями). Не отдаём их в API.
+  let query = `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled, engine_time_source FROM vehicle_records WHERE report_date = $1 AND report_date <= CURRENT_DATE`;
   const params: unknown[] = [date];
 
   if (shift) {
@@ -169,6 +171,7 @@ export async function getWeeklyAggregated(params: {
         COUNT(*) FILTER (WHERE is_gap_filled = true)::int AS gap_filled_count
       FROM vehicle_records
       WHERE report_date BETWEEN $1 AND $2
+        AND report_date <= CURRENT_DATE
         AND ($3::varchar IS NULL OR shift_type = $3)
         AND ($4::bool = false OR department_unit = ANY($5::varchar[]))
         AND ($6::bool = false OR is_gap_filled = false)
@@ -229,6 +232,7 @@ export async function getVehicleDetails(
     `SELECT report_date::text AS report_date, shift_type, vehicle_id, vehicle_model, company_name, department_unit, total_stay_time, engine_on_time, idle_time, fuel_consumed_total, fuel_rate_fact, max_work_allowed, fuel_rate_norm, fuel_max_calc, fuel_variance, load_efficiency_pct, utilization_ratio, latitude, longitude, track_simplified, fuel_value_begin, fuel_value_end, is_gap_filled, engine_time_source
      FROM vehicle_records
      WHERE vehicle_id = $1 AND report_date BETWEEN $2 AND $3
+       AND report_date <= CURRENT_DATE
      ORDER BY report_date DESC, shift_type`,
     [vehicleId, from, to],
   );
@@ -317,6 +321,7 @@ export async function getGhostVehicles(
        AND vehicle_id NOT IN (
          SELECT DISTINCT vehicle_id FROM vehicle_records
          WHERE report_date BETWEEN $1 AND $2
+           AND report_date <= CURRENT_DATE
        )
      ORDER BY vehicle_id, report_date DESC, shift_type DESC`,
     [from, to],

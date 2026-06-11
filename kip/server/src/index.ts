@@ -421,6 +421,26 @@ app.post('/api/segments/fetch-all', async (req, res) => {
   }
 });
 
+// Admin: ручной триггер ежедневного джоба сегментов (обёртка над runSegmentDailyJob).
+// date опционально (по умолчанию — вчера по Asia/Yekaterinburg); dry=true — только посчитать.
+app.post('/api/admin/fetch-segments-daily', async (req, res) => {
+  const date = req.query.date as string | undefined;
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: 'Query parameter "date" must be YYYY-MM-DD' });
+    return;
+  }
+  const dryRun = req.query.dry === 'true';
+
+  try {
+    const { runSegmentDailyJob } = await import('./jobs/segmentDailyJob');
+    const result = await runSegmentDailyJob(date, dryRun);
+    res.json({ status: 'started', ...result });
+  } catch (err) {
+    logger.error('[Segments] Daily job trigger error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get segments for a vehicle/date/shift
 app.get('/api/segments', async (req, res) => {
   const vehicleId = req.query.vehicleId as string | undefined;
