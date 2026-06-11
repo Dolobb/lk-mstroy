@@ -25,7 +25,7 @@ import type { ShiftSegment } from '@/features/samosvaly/types';
 import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, DstZoneFeature } from './types';
 import { usePositions } from './hooks/usePositions';
 import { useTrack } from './hooks/useTrack';
-import { useGroups, useBigObjects } from './hooks/useGroups';
+import { useSidebarSummary } from './hooks/useGroups';
 import { AnalyticsMapView } from './AnalyticsMapView';
 import { AnalyticsCardsView, countGroupVehicles, limitGroupsForCards } from './AnalyticsCardsView';
 import { AnalyticsCardsViewV2 } from './AnalyticsCardsViewV2';
@@ -347,6 +347,31 @@ function v2FetchRange(): { from: string; to: string } {
   return { from: ymd(from), to: ymd(today) };
 }
 
+function dateInTimeZone(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function addDaysYmd(ymd: string, days: number): string {
+  const date = new Date(`${ymd}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function last7ClosedDays(): { from: string; to: string } {
+  const today = dateInTimeZone(new Date(), 'Asia/Yekaterinburg');
+  return {
+    from: addDaysYmd(today, -7),
+    to: addDaysYmd(today, -1),
+  };
+}
+
 // ─── Component ──────────────────────────────────────────
 
 export function AnalyticsPage() {
@@ -416,6 +441,11 @@ export function AnalyticsPage() {
   // Lazy-loaded DST details cache: regNumber → UnifiedRecord[]
   const [dstDetails, setDstDetails] = useState<Map<string, UnifiedRecord[]>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+  // v2: отдельный кэш ДСТ-деталей за окно v2Range (НЕ смешивать с dstDetails —
+  // тот наполнен данными за диапазон пикера). regNumber → UnifiedRecord[].
+  const [dstDetailsV2, setDstDetailsV2] = useState<Map<string, UnifiedRecord[]>>(() => new Map());
+  // In-flight ДСТ-машины v2 (regNumber) — чтобы не дублировать запросы при ре-рендерах.
+  const dstDetailsV2InFlight = React.useRef<Set<string>>(new Set());
   const [chipSegments, setChipSegments] = useState<Map<number, MicroBar[]>>(new Map());
   const [visibleCardsLimit, setVisibleCardsLimit] = useState(CARDS_BATCH_SIZE);
 
@@ -438,9 +468,12 @@ export function AnalyticsPage() {
   // Geo-admin: dst_zone polygons для геоматчинга ДСТ → объекты
   const [dstZones, setDstZones] = useState<DstZoneFeature[]>([]);
 
-  // Session 8: groups + big objects
-  const { data: groupsData } = useGroups(isoToYmd(dateFrom), isoToYmd(dateTo));
-  const { data: bigObjectsData } = useBigObjects();
+  const sidebarRange = React.useMemo(() => last7ClosedDays(), []);
+  const {
+    data: sidebarSummary,
+    isLoading: sidebarLoading,
+    error: sidebarError,
+  } = useSidebarSummary(sidebarRange.from, sidebarRange.to);
 
   // ─── Fetch data ─────────────────────────────────────
 
@@ -764,46 +797,68 @@ export function AnalyticsPage() {
     return () => { cancelled = true; };
   }, [viewMode, visibleCardsSegmentIdsV2Key, v2Segments]);
 
-  // ─── KPI strip (object summaries) ───────────────────
+  // ─── v2 (Карточки v2): предзагрузка деталей ДСТ-машин по дням/сменам ──────
+  // ДСТ приходят из weekly с records:[] — детали грузятся per-vehicle через
+  // fetchKipVehicleDetails за окно v2Range. Собираем видимые ДСТ (source='dst',
+  // есть kipVehicleId), у которых ещё нет деталей и которые не in-flight, и грузим
+  // батчами с ограничением конкурентности (bulk-эндпоинта нет). При «Показать ещё»
+  // (рост visibleCardsLimit) эффект перезапускается и дозагружает новые карточки.
+  const visibleDstRowsV2 = React.useMemo(() => {
+    const out: UnifiedVehicleRow[] = [];
+    const seen = new Set<string>();
+    for (const group of visibleCardGroupsV2) {
+      for (const v of group.vehicles) {
+        if (v.source !== 'dst' || !v.kipVehicleId) continue;
+        if (seen.has(v.regNumber)) continue;
+        seen.add(v.regNumber);
+        out.push(v);
+      }
+    }
+    return out;
+  }, [visibleCardGroupsV2]);
+  const visibleDstRowsV2Key = visibleDstRowsV2.map(v => v.regNumber).join(',');
 
-  type ObjectSummary = { uid: string | null; title: string; vehicles: number; work: string; kip: number };
+  useEffect(() => {
+    if (viewMode !== 'cardsV2') return;
+    const pending = visibleDstRowsV2.filter(
+      v => !dstDetailsV2.has(v.regNumber) && !dstDetailsV2InFlight.current.has(v.regNumber),
+    );
+    if (pending.length === 0) return;
 
-  const objectSummaries: ObjectSummary[] = React.useMemo(() => {
-    const dtVehicles = sortedRows.filter(r => r.source === 'dump_truck');
-    const totalTrips = dtVehicles.reduce((s, r) => s + r.totalTrips, 0);
-    const totalFuel = sortedRows.filter(r => r.source === 'dst').reduce((s, r) => s + r.totalFuelL, 0);
-    const kipVals = sortedRows.filter(r => r.avgKipPct > 0).map(r => r.avgKipPct);
-    const allKip = kipVals.length ? Math.round(kipVals.reduce((a, b) => a + b, 0) / kipVals.length) : 0;
-    const allWork = [totalTrips > 0 ? `${totalTrips} рейс.` : null, totalFuel > 0 ? `${Math.round(totalFuel)} л` : null]
-      .filter(Boolean).join(', ') || '—';
+    let cancelled = false;
+    const inFlight = dstDetailsV2InFlight.current;
+    pending.forEach(v => inFlight.add(v.regNumber));
 
-    const allCard: ObjectSummary = { uid: null, title: 'Все', vehicles: sortedRows.length, work: allWork, kip: allKip };
+    // Простой пул конкурентности: 6 одновременных воркеров тянут из общей очереди.
+    const CONCURRENCY = 6;
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      while (!cancelled) {
+        const idx = cursor++;
+        if (idx >= pending.length) return;
+        const row = pending[idx]!;
+        try {
+          const details = await fetchKipVehicleDetails(row.kipVehicleId!, v2Range.from, v2Range.to);
+          if (cancelled) return;
+          const records = details.map(d =>
+            kipDetailToUnified(d, row.nameMO, row.vehicleType, row.organization ?? '', row.departmentUnit ?? '', row.regNumber)
+          );
+          setDstDetailsV2(prev => new Map(prev).set(row.regNumber, records));
+        } catch (err) {
+          console.warn('[analytics v2] fetchKipVehicleDetails failed:', row.regNumber, err);
+        } finally {
+          inFlight.delete(row.regNumber);
+        }
+      }
+    };
+    void Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
 
-    const bigObjectUids = bigObjectsData !== undefined
-      ? new Set(bigObjectsData.objects.map(o => o.uid))
-      : null; // null = not loaded yet, don't filter
-
-    const objectCards: ObjectSummary[] = groups
-      .filter(g => g.groupUid !== undefined && (bigObjectUids === null || bigObjectUids.has(g.groupUid)))
-      .map(g => {
-        const gDt = g.vehicles.filter(r => r.source === 'dump_truck');
-        const gTrips = gDt.reduce((s, r) => s + r.totalTrips, 0);
-        const gFuel = g.vehicles.filter(r => r.source === 'dst').reduce((s, r) => s + r.totalFuelL, 0);
-        const gKips = g.vehicles.filter(r => r.avgKipPct > 0).map(r => r.avgKipPct);
-        const gKip = gKips.length ? Math.round(gKips.reduce((a, b) => a + b, 0) / gKips.length) : 0;
-        const gWork = [gTrips > 0 ? `${gTrips} рейс.` : null, gFuel > 0 ? `${Math.round(gFuel)} л` : null]
-          .filter(Boolean).join(', ') || '—';
-        return { uid: g.groupUid!, title: g.groupName, vehicles: g.vehicles.length, work: gWork, kip: gKip };
-      })
-      .sort((a, b) => a.title.localeCompare(b.title, 'ru'));
-
-    const outsideVehicles = groupsData?.outside.length ?? 0;
-    const outsideCard: ObjectSummary | null = outsideVehicles > 0
-      ? { uid: OUTSIDE_GROUP_UID, title: 'Вне объектов', vehicles: outsideVehicles, work: '—', kip: 0 }
-      : null;
-
-    return [allCard, ...(outsideCard ? [outsideCard] : []), ...objectCards];
-  }, [sortedRows, groups, bigObjectsData, groupsData]);
+    return () => {
+      cancelled = true;
+      // Снять in-flight у незавершённых, чтобы следующий заход смог их перетянуть.
+      pending.forEach(v => { if (!dstDetailsV2.has(v.regNumber)) inFlight.delete(v.regNumber); });
+    };
+  }, [viewMode, visibleDstRowsV2Key, visibleDstRowsV2, dstDetailsV2, v2Range]);
 
   // ─── Handlers ───────────────────────────────────────
 
@@ -1199,7 +1254,7 @@ export function AnalyticsPage() {
       </div>
 
       {/* Main grid: content + sidebar */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 280px', gap: 10, minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: 10, minHeight: 0, overflow: 'hidden' }}>
 
         {/* Left: views */}
         <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1293,7 +1348,7 @@ export function AnalyticsPage() {
               <AnalyticsCardsViewV2
                 filteredGroups={visibleCardGroupsV2}
                 allGroups={filteredGroupsV2}
-                dstRecords={dstDetails}
+                dstRecords={dstDetailsV2}
                 renderWork={renderCardWorkV2}
                 onSelectVehicle={handleSelectVehicleToMap}
                 visibleVehicleCount={visibleCardsV2Count}
@@ -1514,29 +1569,13 @@ export function AnalyticsPage() {
 
         {/* Right: sidebar */}
         <AnalyticsSidebar
-          objectSummaries={objectSummaries}
+          objects={sidebarSummary?.objects ?? []}
           focusedObjectUid={focusedObjectUid}
           onFocusObject={setFocusedObjectUid}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          showOutsideOnMap={showOutsideOnMap}
-          onToggleOutsideMap={() => setShowOutsideOnMap(v => !v)}
-          onPeriodShift={(direction) => {
-            const from = new Date(dateFrom);
-            const to = new Date(dateTo);
-            const durationMs = to.getTime() - from.getTime();
-            const STEP = 60_000; // 1 min gap between adjacent periods
-            let newFrom: Date, newTo: Date;
-            if (direction === -1) {
-              newTo = new Date(from.getTime() - STEP);
-              newFrom = new Date(newTo.getTime() - durationMs);
-            } else {
-              newFrom = new Date(to.getTime() + STEP);
-              newTo = new Date(newFrom.getTime() + durationMs);
-            }
-            setDateFrom(toYekatIso(newFrom));
-            setDateTo(toYekatIso(newTo));
-          }}
+          from={sidebarSummary?.from ?? sidebarRange.from}
+          to={sidebarSummary?.to ?? sidebarRange.to}
+          loading={sidebarLoading}
+          error={sidebarError}
         />
       </div>
     </div>
