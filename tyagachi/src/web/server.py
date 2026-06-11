@@ -9,16 +9,20 @@ Provides:
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 import json
 import threading
+import yaml
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from pathlib import Path
 
 from .models import Database, Report, ShiftCache
 from .shifts import ShiftMonitoringFetcher, split_period_into_shifts_str
@@ -40,8 +44,87 @@ HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 # Initialize database
 db = Database()
 
+
+# Глобальный объект планировщика
+scheduler = AsyncIOScheduler()
+
+CONFIG_PATH = "config.yaml"
+
+def load_config():
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+# Крон задача, вызывающая run_sync_pipeline
+async def cron_sync_job():
+    global sync_status
+    logger.info("Запуск автоматической синхронизации по расписанию...")
+
+    with sync_lock:
+        if sync_status.get("running"):
+            logger.warning("Синхронизация уже выполняется (возможно, запущена вручную). Пропуск cron-задачи.")
+            return
+        
+        sync_status = {
+            'running': True,
+            'progress': 'Starting via Cron...',
+            'error': None,
+            'completed_at': None,
+            'stats': None,
+            'mon_current': 0,
+            'mon_total': 0,
+        }
+    
+    config = load_config()
+
+    period_days = config.get("scheduler", {}).get("period_days", 3)
+
+    to_pl = datetime.now().strftime('%d.%m.%Y')
+    from_pl = (datetime.now() - timedelta(days=period_days)).strftime('%d.%m.%Y')
+
+    logger.info(f"Параметры cron-синхронизации: from_pl={from_pl}, to_pl={to_pl}")
+
+    try:
+        await asyncio.to_thread(run_sync_pipeline, from_pl, to_pl)
+
+        sync_status['running'] = False
+        sync_status['completed_at'] = datetime.now().isoformat()
+    
+    except Exception as e:
+        logger.error(f"Ошибка при выполнении cron-синхронизации: {e}")
+        sync_status['running'] = False
+        sync_status['error'] = str(e)
+
+
+# Декоратор для lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Старт приложения. Нстройка планировщика...")
+
+
+    scheduler.add_job(
+        cron_sync_job,
+        trigger="cron",
+        hour=2,
+        minute=0,
+        id="daily_sync_pipeline",
+        replace_existing=True
+    )
+
+    scheduler.start()
+    logger.info("Планировщик запущен.")
+
+    yield
+
+    logger.info("Остановка приложения...")
+
+    scheduler.shutdown()
+    logger.info("Планировщик остановлен")
+
+
 # FastAPI app
 app = FastAPI(
+    lifespan=lifespan,
     title="TransportAnalytics",
     description="Web interface for transport requests and route lists",
     version="1.0.0"
