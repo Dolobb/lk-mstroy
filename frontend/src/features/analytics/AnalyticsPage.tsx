@@ -205,6 +205,148 @@ const DEFAULT_DATE_TO = toYekatIso(new Date(_yesterday.getFullYear(), _yesterday
 
 const OUTSIDE_GROUP_UID = '__outside' as const;
 
+// ─── Группа ТС (объект / подразделение) ──────────────────
+type GroupEntry = { groupName: string; groupUid?: string; vehicles: UnifiedVehicleRow[] };
+
+// ─── Pipeline (чистые функции, переиспользуются picker-видами и v2) ──────
+// Вынесены из компонента, чтобы v2 (независимый 14-дневный датасет) гонял те же
+// шаги слияния/фильтрации/группировки, что и таблица/карточки на picker-данных.
+
+/** Слияние DT+DST строк + фильтры типа/смены/поиска (== старый allRows). */
+function mergeAndFilterRows(
+  dtRows: UnifiedVehicleRow[],
+  dstRows: UnifiedVehicleRow[],
+  vehicleFilters: Set<string>,
+  shift: 'all' | 'shift1' | 'shift2',
+  search: string,
+): UnifiedVehicleRow[] {
+  let merged = [...dtRows, ...dstRows];
+
+  // Type filter
+  merged = merged.filter(r => matchesTypeFilter(r, vehicleFilters));
+
+  // Shift filter: for DT rows, filter records; for DST rows, apply on lazy details
+  if (shift !== 'all') {
+    merged = merged.map(r => {
+      if (r.source === 'dump_truck') {
+        const filteredRecs = r.records.filter(rec => rec.shiftType === shift);
+        if (!filteredRecs.length) return null;
+        const kipVals = filteredRecs.filter(rec => rec.kipPct > 0).map(rec => rec.kipPct);
+        const secVals = filteredRecs.filter(rec => rec.secondaryPct > 0).map(rec => rec.secondaryPct);
+        return {
+          ...r,
+          records: filteredRecs,
+          shiftsCount: filteredRecs.length,
+          avgKipPct: kipVals.length ? kipVals.reduce((a, b) => a + b, 0) / kipVals.length : 0,
+          avgSecondaryPct: secVals.length ? secVals.reduce((a, b) => a + b, 0) / secVals.length : 0,
+          totalTrips: filteredRecs.reduce((s, rec) => s + (rec.tripsCount ?? 0), 0),
+          engineTotalSec: filteredRecs.reduce((s, rec) => s + rec.engineTimeSec, 0),
+        };
+      }
+      return r; // DST: shift filtering happens on lazy details
+    }).filter(Boolean) as UnifiedVehicleRow[];
+  }
+
+  // Search filter
+  if (search) {
+    const q = search.toLowerCase();
+    merged = merged.filter(r =>
+      r.regNumber.toLowerCase().includes(q) ||
+      r.nameMO.toLowerCase().includes(q) ||
+      (r.organization ?? '').toLowerCase().includes(q)
+    );
+  }
+
+  return merged;
+}
+
+/** regNumber → объект для ДСТ-машин внутри dst_zone полигонов (== старый dstGeoMatch). */
+function computeDstGeoMatch(
+  dstRows: UnifiedVehicleRow[],
+  dstZones: DstZoneFeature[],
+): Map<string, { objectUid: string; objectName: string }> {
+  const result = new Map<string, { objectUid: string; objectName: string }>();
+  if (!dstZones.length) return result;
+
+  dstRows.forEach(v => {
+    if (v.latitude == null || v.longitude == null) return;
+    for (const feat of dstZones) {
+      const ring = feat.geometry.coordinates[0];
+      if (!ring) continue;
+      if (pointInPolygon(v.latitude, v.longitude, ring)) {
+        result.set(v.regNumber, {
+          objectUid: feat.properties.object_uid,
+          objectName: feat.properties.object_name,
+        });
+        break; // первое совпадение достаточно
+      }
+    }
+  });
+  return result;
+}
+
+/** Группировка строк по объекту (DT) / подразделению + объекту (DST) (== старый groups). */
+function buildGroups(
+  rows: UnifiedVehicleRow[],
+  dstGeoMatch: Map<string, { objectUid: string; objectName: string }>,
+): GroupEntry[] {
+  const gMap = new Map<string, GroupEntry>();
+
+  const addToGroup = (key: string, groupName: string, v: UnifiedVehicleRow, groupUid?: string) => {
+    if (!gMap.has(key)) gMap.set(key, { groupName, groupUid, vehicles: [] });
+    gMap.get(key)!.vehicles.push(v);
+  };
+
+  rows.forEach(v => {
+    if (v.source === 'dump_truck') {
+      // Наиболее частый объект по objectName + objectUid
+      const nameCounts = new Map<string, number>();
+      const uidForName = new Map<string, string>();
+      v.records.forEach(r => {
+        const name = r.objectName ?? 'Без объекта';
+        nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+        if (r.objectUid) uidForName.set(name, r.objectUid);
+      });
+      const topName = [...nameCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
+      const topUid = uidForName.get(topName);
+      const key = topUid ?? topName;
+      addToGroup(key, topName, v, topUid);
+    } else {
+      // DST: основная группа по departmentUnit
+      const deptKey = v.departmentUnit || 'Без подразделения';
+      addToGroup(deptKey, deptKey, v);
+
+      // Дополнительно: если машина попала в dst_zone — дублируем в объектную группу
+      const geo = dstGeoMatch.get(v.regNumber);
+      if (geo) {
+        addToGroup(geo.objectUid, geo.objectName, v, geo.objectUid);
+      }
+    }
+  });
+
+  return [...gMap.entries()]
+    .sort(([, a], [, b]) => {
+      const aBez = a.groupName === 'Без объекта' || a.groupName === 'Без подразделения';
+      const bBez = b.groupName === 'Без объекта' || b.groupName === 'Без подразделения';
+      if (aBez && !bBez) return 1;
+      if (bBez && !aBez) return -1;
+      return b.vehicles.length - a.vehicles.length;
+    })
+    .map(([, entry]) => entry);
+}
+
+// Фиксированное окно для v2: последние 16 календарных дней (с запасом, чтобы
+// таймлайн «последние 14 дней от maxDate» был полностью покрыт данными даже если
+// 1-2 свежих дня пустые). Независимо от daterangepicker.
+const V2_WINDOW_DAYS = 16;
+function v2FetchRange(): { from: string; to: string } {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (V2_WINDOW_DAYS - 1));
+  return { from: ymd(from), to: ymd(today) };
+}
+
 // ─── Component ──────────────────────────────────────────
 
 export function AnalyticsPage() {
@@ -262,6 +404,15 @@ export function AnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ─── v2: независимый 14-дневный датасет (не зависит от daterangepicker) ──
+  // Меню выбора дня в v2 всегда покрывает последние 14 дней, поэтому грузим
+  // фиксированное окно отдельно от picker-данных таблицы/карточек/карты.
+  const v2Range = React.useMemo(() => v2FetchRange(), []);
+  const [dtRowsV2, setDtRowsV2] = useState<UnifiedVehicleRow[]>([]);
+  const [dstRowsV2, setDstRowsV2] = useState<UnifiedVehicleRow[]>([]);
+  const [v2Loading, setV2Loading] = useState(false);
+  const [v2Error, setV2Error] = useState<string | null>(null);
+
   // Lazy-loaded DST details cache: regNumber → UnifiedRecord[]
   const [dstDetails, setDstDetails] = useState<Map<string, UnifiedRecord[]>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
@@ -318,6 +469,28 @@ export function AnalyticsPage() {
 
     return () => { cancelled = true; };
   }, [dateFrom, dateTo]);
+
+  // ─── v2: грузим фиксированное 14-дневное окно при входе в режим cardsV2 ──
+  const v2Loaded = dtRowsV2.length > 0 || dstRowsV2.length > 0;
+  useEffect(() => {
+    if (viewMode !== 'cardsV2' || v2Loaded) return;
+    let cancelled = false;
+    setV2Loading(true);
+    setV2Error(null);
+    fetchUnifiedData(v2Range.from, v2Range.to)
+      .then(({ dtRows: dt, dstRows: dst }) => {
+        if (cancelled) return;
+        setDtRowsV2(dt);
+        setDstRowsV2(dst);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        console.error('[analytics v2] fetchUnifiedData error:', err);
+        setV2Error(String(err));
+      })
+      .finally(() => { if (!cancelled) setV2Loading(false); });
+    return () => { cancelled = true; };
+  }, [viewMode, v2Loaded, v2Range]);
 
   // Сброс фокуса при смене периода, фильтров или поиска
   useEffect(() => {
@@ -379,46 +552,10 @@ export function AnalyticsPage() {
 
   // ─── Merged & filtered rows ─────────────────────────
 
-  const allRows: UnifiedVehicleRow[] = React.useMemo(() => {
-    let merged = [...dtRows, ...dstRows];
-
-    // Type filter
-    merged = merged.filter(r => matchesTypeFilter(r, vehicleFilters));
-
-    // Shift filter: for DT rows, filter records; for DST rows, apply on lazy details
-    if (shift !== 'all') {
-      merged = merged.map(r => {
-        if (r.source === 'dump_truck') {
-          const filteredRecs = r.records.filter(rec => rec.shiftType === shift);
-          if (!filteredRecs.length) return null;
-          const kipVals = filteredRecs.filter(rec => rec.kipPct > 0).map(rec => rec.kipPct);
-          const secVals = filteredRecs.filter(rec => rec.secondaryPct > 0).map(rec => rec.secondaryPct);
-          return {
-            ...r,
-            records: filteredRecs,
-            shiftsCount: filteredRecs.length,
-            avgKipPct: kipVals.length ? kipVals.reduce((a, b) => a + b, 0) / kipVals.length : 0,
-            avgSecondaryPct: secVals.length ? secVals.reduce((a, b) => a + b, 0) / secVals.length : 0,
-            totalTrips: filteredRecs.reduce((s, rec) => s + (rec.tripsCount ?? 0), 0),
-            engineTotalSec: filteredRecs.reduce((s, rec) => s + rec.engineTimeSec, 0),
-          };
-        }
-        return r; // DST: shift filtering happens on lazy details
-      }).filter(Boolean) as UnifiedVehicleRow[];
-    }
-
-    // Search filter
-    if (deferredSearchQuery) {
-      const q = deferredSearchQuery.toLowerCase();
-      merged = merged.filter(r =>
-        r.regNumber.toLowerCase().includes(q) ||
-        r.nameMO.toLowerCase().includes(q) ||
-        (r.organization ?? '').toLowerCase().includes(q)
-      );
-    }
-
-    return merged;
-  }, [dtRows, dstRows, vehicleFilters, shift, deferredSearchQuery]);
+  const allRows: UnifiedVehicleRow[] = React.useMemo(
+    () => mergeAndFilterRows(dtRows, dstRows, vehicleFilters, shift, deferredSearchQuery),
+    [dtRows, dstRows, vehicleFilters, shift, deferredSearchQuery],
+  );
 
   // ─── Sort ───────────────────────────────────────────
 
@@ -442,77 +579,17 @@ export function AnalyticsPage() {
   // ─── Geo-match DST vehicles → objectUid ─────────────
 
   // regNumber → { objectUid, objectName } для ДСТ машин внутри dst_zone полигонов
-  const dstGeoMatch = React.useMemo(() => {
-    const result = new Map<string, { objectUid: string; objectName: string }>();
-    if (!dstZones.length) return result;
-
-    dstRows.forEach(v => {
-      if (v.latitude == null || v.longitude == null) return;
-      for (const feat of dstZones) {
-        const ring = feat.geometry.coordinates[0];
-        if (!ring) continue;
-        if (pointInPolygon(v.latitude, v.longitude, ring)) {
-          result.set(v.regNumber, {
-            objectUid: feat.properties.object_uid,
-            objectName: feat.properties.object_name,
-          });
-          break; // первое совпадение достаточно
-        }
-      }
-    });
-    return result;
-  }, [dstRows, dstZones]);
+  const dstGeoMatch = React.useMemo(
+    () => computeDstGeoMatch(dstRows, dstZones),
+    [dstRows, dstZones],
+  );
 
   // ─── Grouping by SMU/department ─────────────────────
 
-  type GroupEntry = { groupName: string; groupUid?: string; vehicles: UnifiedVehicleRow[] };
-
-  const groups: GroupEntry[] = React.useMemo(() => {
-    // key → { groupName, groupUid, vehicles }
-    const gMap = new Map<string, GroupEntry>();
-
-    const addToGroup = (key: string, groupName: string, v: UnifiedVehicleRow, groupUid?: string) => {
-      if (!gMap.has(key)) gMap.set(key, { groupName, groupUid, vehicles: [] });
-      gMap.get(key)!.vehicles.push(v);
-    };
-
-    sortedRows.forEach(v => {
-      if (v.source === 'dump_truck') {
-        // Наиболее частый объект по objectName + objectUid
-        const nameCounts = new Map<string, number>();
-        const uidForName = new Map<string, string>();
-        v.records.forEach(r => {
-          const name = r.objectName ?? 'Без объекта';
-          nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
-          if (r.objectUid) uidForName.set(name, r.objectUid);
-        });
-        const topName = [...nameCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Без объекта';
-        const topUid = uidForName.get(topName);
-        const key = topUid ?? topName;
-        addToGroup(key, topName, v, topUid);
-      } else {
-        // DST: основная группа по departmentUnit
-        const deptKey = v.departmentUnit || 'Без подразделения';
-        addToGroup(deptKey, deptKey, v);
-
-        // Дополнительно: если машина попала в dst_zone — дублируем в объектную группу
-        const geo = dstGeoMatch.get(v.regNumber);
-        if (geo) {
-          addToGroup(geo.objectUid, geo.objectName, v, geo.objectUid);
-        }
-      }
-    });
-
-    return [...gMap.entries()]
-      .sort(([, a], [, b]) => {
-        const aBez = a.groupName === 'Без объекта' || a.groupName === 'Без подразделения';
-        const bBez = b.groupName === 'Без объекта' || b.groupName === 'Без подразделения';
-        if (aBez && !bBez) return 1;
-        if (bBez && !aBez) return -1;
-        return b.vehicles.length - a.vehicles.length;
-      })
-      .map(([, entry]) => entry);
-  }, [sortedRows, dstGeoMatch]);
+  const groups: GroupEntry[] = React.useMemo(
+    () => buildGroups(sortedRows, dstGeoMatch),
+    [sortedRows, dstGeoMatch],
+  );
 
   // ─── Filtered groups (focus) ────────────────────────
 
@@ -531,6 +608,31 @@ export function AnalyticsPage() {
 
   const visibleCardsVehicleCount = React.useMemo(() => countGroupVehicles(visibleCardGroups), [visibleCardGroups]);
 
+  // ─── v2 derived pipeline (тот же конвейер, но на 14-дневном датасете) ──
+  const allRowsV2 = React.useMemo(
+    () => mergeAndFilterRows(dtRowsV2, dstRowsV2, vehicleFilters, shift, deferredSearchQuery),
+    [dtRowsV2, dstRowsV2, vehicleFilters, shift, deferredSearchQuery],
+  );
+  const dstGeoMatchV2 = React.useMemo(
+    () => computeDstGeoMatch(dstRowsV2, dstZones),
+    [dstRowsV2, dstZones],
+  );
+  const groupsV2 = React.useMemo(
+    () => buildGroups(allRowsV2, dstGeoMatchV2),
+    [allRowsV2, dstGeoMatchV2],
+  );
+  const filteredGroupsV2 = React.useMemo(() => {
+    if (focusedObjectUid === null) return groupsV2;
+    if (focusedObjectUid === OUTSIDE_GROUP_UID) return [];
+    return groupsV2.filter(g => g.groupUid === focusedObjectUid);
+  }, [groupsV2, focusedObjectUid]);
+  const totalCardsV2Count = React.useMemo(() => countGroupVehicles(filteredGroupsV2), [filteredGroupsV2]);
+  const visibleCardGroupsV2 = React.useMemo(
+    () => limitGroupsForCards(filteredGroupsV2, visibleCardsLimit),
+    [filteredGroupsV2, visibleCardsLimit],
+  );
+  const visibleCardsV2Count = React.useMemo(() => countGroupVehicles(visibleCardGroupsV2), [visibleCardGroupsV2]);
+
   const visibleCardsSegmentIds = React.useMemo(() => {
     const ids = new Set<number>();
     for (const group of visibleCardGroups) {
@@ -545,6 +647,22 @@ export function AnalyticsPage() {
     }
     return [...ids];
   }, [visibleCardGroups]);
+
+  // onsite-id видимых v2-карточек (на 14-дневном датасете) для batch-преподгрузки.
+  const visibleCardsSegmentIdsV2 = React.useMemo(() => {
+    const ids = new Set<number>();
+    for (const group of visibleCardGroupsV2) {
+      for (const vehicle of group.vehicles) {
+        if (vehicle.source !== 'dump_truck') continue;
+        for (const rec of vehicle.records) {
+          if (rec.source === 'dump_truck' && rec.workType === 'onsite' && rec.id != null) {
+            ids.add(rec.id);
+          }
+        }
+      }
+    }
+    return [...ids];
+  }, [visibleCardGroupsV2]);
 
   const expandedTableSegmentIds = React.useMemo(() => {
     if (viewMode !== 'table') return [];
@@ -624,11 +742,11 @@ export function AnalyticsPage() {
     });
   }, []);
 
-  const visibleCardsSegmentIdsKey = visibleCardsSegmentIds.join(',');
+  const visibleCardsSegmentIdsV2Key = visibleCardsSegmentIdsV2.join(',');
 
   useEffect(() => {
     if (viewMode !== 'cardsV2') return;
-    const ids = visibleCardsSegmentIds.filter(id => !v2Segments.has(id));
+    const ids = visibleCardsSegmentIdsV2.filter(id => !v2Segments.has(id));
     if (ids.length === 0) return;
 
     let cancelled = false;
@@ -644,7 +762,7 @@ export function AnalyticsPage() {
       .catch(err => console.warn('[analytics v2] shift-segments batch failed:', err));
 
     return () => { cancelled = true; };
-  }, [viewMode, visibleCardsSegmentIdsKey, v2Segments]);
+  }, [viewMode, visibleCardsSegmentIdsV2Key, v2Segments]);
 
   // ─── KPI strip (object summaries) ───────────────────
 
@@ -1160,27 +1278,27 @@ export function AnalyticsPage() {
           ))}
 
           {/* Cards v2 view (тест: навигация по дням) */}
-          {viewMode === 'cardsV2' && (loading ? (
+          {viewMode === 'cardsV2' && (v2Loading ? (
               <div className="sv-empty">
                 <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
                 </svg>
                 <span className="sv-empty-text">Загрузка...</span>
               </div>
-            ) : error ? (
+            ) : v2Error ? (
               <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#EF4444', fontSize: 12, margin: 'auto' }}>
-                {error}
+                {v2Error}
               </div>
             ) : (
               <AnalyticsCardsViewV2
-                filteredGroups={visibleCardGroups}
-                allGroups={filteredGroups}
+                filteredGroups={visibleCardGroupsV2}
+                allGroups={filteredGroupsV2}
                 dstRecords={dstDetails}
                 renderWork={renderCardWorkV2}
                 onSelectVehicle={handleSelectVehicleToMap}
-                visibleVehicleCount={visibleCardsVehicleCount}
-                totalVehicleCount={totalCardsVehicleCount}
-                onShowMore={() => setVisibleCardsLimit(v => Math.min(v + CARDS_BATCH_SIZE, totalCardsVehicleCount))}
+                visibleVehicleCount={visibleCardsV2Count}
+                totalVehicleCount={totalCardsV2Count}
+                onShowMore={() => setVisibleCardsLimit(v => Math.min(v + CARDS_BATCH_SIZE, totalCardsV2Count))}
               />
           ))}
 

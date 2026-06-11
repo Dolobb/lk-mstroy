@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Схема потока экранов — Выдача топлива</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+  html, body { height: 100%; }
+  body { background: var(--surface-1); }
+  .map-stage { position: fixed; inset: 0; overflow: hidden; }
+
+  /* header strip */
+  .map-header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: center; gap: var(--sp-5);
+    padding: var(--sp-5) var(--sp-8); background: var(--canvas); border-bottom: 1px solid var(--hairline);
+  }
+  .map-header .brand { display: flex; align-items: baseline; gap: 7px; font-weight: 800; letter-spacing: 0.04em; font-size: 14px; }
+  .map-header .brand .nps { color: var(--primary); }
+  .map-header .brand .sep { color: var(--ink-3); font-weight: 500; }
+  .map-header .mh-title { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); letter-spacing: var(--track-tight); }
+  .map-header .mh-sub { font-size: var(--t-caption); color: var(--ink-3); font-weight: var(--fw-medium); }
+  .map-header .spacer { flex: 1; }
+  .legend { display: flex; align-items: center; gap: var(--sp-5); }
+  .legend .lg { display: flex; align-items: center; gap: 8px; font-size: var(--t-caption); font-weight: var(--fw-semibold); color: var(--ink-2); }
+  .legend .sw { width: 26px; height: 0; border-top: 2.5px solid var(--primary); position: relative; }
+  .legend .sw.bi::before, .legend .sw.bi::after { content:''; position:absolute; top:-4px; width:6px; height:6px; border-top:2px solid var(--primary); border-right:2px solid var(--primary); }
+  .legend .sw.bi::after { right:0; transform: rotate(45deg); } .legend .sw.bi::before { left:0; transform: rotate(225deg); }
+  .legend .sw.fwd { border-color: var(--primary); }
+  .legend .sw.ret { border-top-style: dashed; border-color: var(--ink-3); }
+
+  /* the scaled map canvas */
+  .map { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 1788px; height: 856px; }
+  #wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  #labels, #nodes { position: absolute; inset: 0; }
+
+  .wire { }
+  .wire--fwd { stroke: var(--primary); stroke-width: 2.5; }
+  .wire--bi  { stroke: var(--primary); stroke-width: 2.5; opacity: .92; }
+  .wire--return { stroke: var(--ink-3); stroke-width: 2; stroke-dasharray: 7 6; }
+
+  .conn-label {
+    position: absolute; transform: translate(-50%, -50%);
+    background: var(--surface-1); padding: 3px 9px; border-radius: var(--r-pill);
+    font-size: 12.5px; font-weight: var(--fw-bold); color: var(--primary); white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+
+  .fnode {
+    position: absolute; box-sizing: border-box;
+    background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-lg);
+    padding: var(--sp-4) var(--sp-5); display: flex; flex-direction: column; gap: 6px;
+    border-top: 3px solid var(--hairline-strong);
+  }
+  .fn-top { display: flex; align-items: center; justify-content: space-between; }
+  .fn-num { width: 28px; height: 28px; border-radius: var(--r-md); background: var(--surface-2); color: var(--ink-2);
+    display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+  .fn-kind { font-size: 11px; font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: var(--track-uppr); color: var(--ink-3); }
+  .fn-title { font-size: var(--t-subheading); font-weight: var(--fw-bold); color: var(--ink-1); letter-spacing: var(--track-tight); }
+  .fn-sub { font-size: var(--t-caption); font-weight: var(--fw-medium); color: var(--ink-3); line-height: 1.3; }
+
+  .fnode--primary { border-top-color: var(--primary); }
+  .fnode--primary .fn-num { background: var(--primary); color: #fff; }
+  .fnode--hub { border: 1.5px solid var(--primary); border-top-width: 3px; background: var(--primary-soft); }
+  .fnode--hub .fn-num { background: var(--primary); color: #fff; }
+  .fnode--hub .fn-kind { color: var(--primary); }
+  .fnode--op { border-top-color: var(--primary); border-top-style: solid; }
+  .fnode--op .fn-num { background: var(--primary-soft); color: var(--primary); }
+  .fnode--terminal { border-top-color: var(--ink-1); background: var(--ink-1); }
+  .fnode--terminal .fn-num { background: rgba(255,255,255,0.16); color: #fff; }
+  .fnode--terminal .fn-title { color: #fff; }
+  .fnode--terminal .fn-sub { color: rgba(255,255,255,0.66); }
+  .fnode--terminal .fn-kind { color: rgba(255,255,255,0.5); }
+  .fnode--auth .fn-num { background: var(--ink-1); color: #fff; }
+  .fnode--auth { border-top-color: var(--ink-2); }
+
+  /* phase band captions */
+  .phase { position: absolute; font-size: 12px; font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: var(--track-uppr); color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="map-stage" id="mapStage">
+  <div class="map-header">
+    <div class="brand"><span class="nps">НПС</span><span class="sep">/</span><span>ВЫДАЧА ТОПЛИВА</span></div>
+    <div>
+      <div class="mh-title">Схема потока экранов</div>
+      <div class="mh-sub">Вход → смена → передача / получение / добавление ТС → закрытие</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="legend">
+      <span class="lg"><span class="sw fwd"></span>Переход</span>
+      <span class="lg"><span class="sw bi"></span>Туда-обратно</span>
+      <span class="lg"><span class="sw ret"></span>Возврат</span>
+    </div>
+  </div>
+
+  <div class="map" id="map">
+    <svg id="wires"></svg>
+    <div class="labels" id="labels"></div>
+    <div class="nodes" id="nodes"></div>
+
+    <!-- phase captions -->
+    <div class="phase" style="left:40px;  top:340px">Доступ</div>
+    <div class="phase" style="left:400px; top:264px">Главная зона</div>
+    <div class="phase" style="left:760px; top:264px">Открытие</div>
+    <div class="phase" style="left:1120px;top:256px">Смена</div>
+    <div class="phase" style="left:1500px;top:72px">Операции смены</div>
+  </div>
+</div>
+
+<script src="flow.js"></script>
+</body>
+</html>

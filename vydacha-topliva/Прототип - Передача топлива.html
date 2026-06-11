@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Передача топлива — Выдача топлива</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="proto.css">
+<style>
+  /* shared form header strip */
+  .form-head {
+    flex: none; height: 72px; display: flex; align-items: center; gap: var(--sp-4);
+    padding: 0 var(--sp-6); background: var(--canvas); border-bottom: 1px solid var(--hairline);
+  }
+  .form-head .fh-title { font-size: var(--t-title); font-weight: var(--fw-bold); letter-spacing: var(--track-tight); color: var(--ink-1); }
+  .form-head .fh-step { font-size: var(--t-caption); font-weight: var(--fw-semibold); color: var(--ink-3); margin-top: 2px; }
+  .form-head .spacer { flex: 1; }
+  .ctx-remain { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .ctx-remain .v { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+  /* ░ ШАГ 1 — выбор ТС ░ */
+  .pick-wrap { flex: 1; min-height: 0; display: flex; justify-content: center; }
+  .pick-col { width: 780px; display: flex; flex-direction: column; min-height: 0; padding: var(--sp-6) 0; }
+  .search-box { position: relative; flex: none; margin-bottom: var(--sp-4); }
+  .search-box svg { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
+  .search-box input {
+    width: 100%; height: 64px; padding: 0 20px 0 56px;
+    border-radius: var(--r-lg); border: 1px solid var(--hairline-strong); background: var(--canvas);
+    font-family: var(--font); font-size: var(--t-heading); font-weight: var(--fw-semibold);
+    color: var(--ink-1); font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+  }
+  .search-box input::placeholder { color: var(--ink-3); font-weight: var(--fw-medium); letter-spacing: 0; }
+  .search-box input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+  .pick-list { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+  .vehicle-option .vo-icon { width: 52px; height: 36px; flex: none; color: var(--ink-2); }
+  .vehicle-option .vo-icon svg { width: 100%; height: 100%; }
+  .vehicle-option .vo-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .vehicle-option .vo-chev { color: var(--ink-3); flex: none; }
+  .vehicle-option.is-internal .vo-icon { color: var(--primary); }
+  .pick-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-3); padding: var(--sp-12) var(--sp-6); text-align: center; }
+  .pick-empty .pe-num { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .add-vehicle-btn {
+    flex: none; margin-top: var(--sp-3);
+    display: flex; align-items: center; justify-content: center; gap: var(--sp-3);
+    min-height: 64px; border-radius: var(--r-lg);
+    border: 1.5px dashed var(--hairline-strong); background: var(--surface-1); color: var(--primary);
+    font-family: var(--font); font-size: var(--t-subheading); font-weight: var(--fw-bold); cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .add-vehicle-btn:hover { border-color: var(--primary); background: var(--primary-soft); }
+  .add-vehicle-btn.is-cta { background: var(--primary); border-style: solid; border-color: var(--primary); color: #fff; }
+  .add-vehicle-btn.is-cta:hover { background: var(--primary-hover); }
+
+  /* ░ ШАГ 2 — ввод литров ░ */
+  .amt-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 460px; gap: var(--sp-6); padding: var(--sp-6); }
+  .amt-left { display: flex; flex-direction: column; gap: var(--sp-4); min-height: 0; }
+  .sel-veh { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-5); }
+  .sel-veh .sv-icon { width: 60px; height: 40px; color: var(--primary); flex: none; }
+  .sel-veh .sv-icon svg { width: 100%; height: 100%; }
+  .sel-veh .sv-main { flex: 1; min-width: 0; }
+  .sel-veh .sv-main .sv-plate { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sel-veh .sv-main .sv-meta { font-size: var(--t-caption); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sel-veh .sv-change { font-size: var(--t-caption); font-weight: var(--fw-bold); color: var(--primary); cursor: pointer; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); }
+  .sel-veh .sv-change:hover { background: var(--primary-soft); }
+  .amt-display { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: var(--sp-2); padding: var(--sp-6); }
+  .amt-display .ad-num { font-size: 112px; font-weight: var(--fw-black); line-height: .9; letter-spacing: -0.04em; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .amt-display .ad-num.is-empty { color: var(--surface-4); }
+  .amt-display .ad-unit { font-size: 40px; font-weight: var(--fw-bold); color: var(--ink-3); }
+  .amt-after { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); font-size: var(--t-body); font-weight: var(--fw-semibold); color: var(--ink-2); }
+  .amt-after.is-over { color: var(--error); }
+  .amt-after .v { font-variant-numeric: tabular-nums; color: var(--ink-1); }
+  .amt-after.is-over .v { color: var(--error); }
+  .confirm-cta { width: 100%; }
+  .confirm-cta:disabled { background: var(--surface-3); color: var(--ink-3); }
+  .amt-right { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .quick-row { display: flex; gap: var(--sp-3); }
+  .quick-chip {
+    flex: 1; min-height: 48px; border-radius: var(--r-md);
+    border: 1px solid var(--hairline-strong); background: var(--canvas); color: var(--ink-1);
+    font-family: var(--font); font-size: var(--t-body-sm); font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums; cursor: pointer; transition: background .12s ease;
+  }
+  .quick-chip:hover { background: var(--surface-2); }
+  .keypad.kp-amt { flex: 1; }
+  .keypad.kp-amt .key { font-size: 34px; }
+
+  /* ░ ДОБАВЛЕНИЕ ТС ░ */
+  .add-wrap { flex: 1; min-height: 0; display: flex; justify-content: center; overflow-y: auto; }
+  .add-col { width: 820px; padding: var(--sp-8) 0; }
+  .add-card { padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-6); }
+  .fld { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .fld > label { font-size: var(--t-label); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: var(--track-uppr); color: var(--ink-3); display: flex; gap: 6px; align-items: center; }
+  .fld .req { color: var(--primary); }
+  .fld .opt { color: var(--ink-3); font-weight: var(--fw-medium); text-transform: none; letter-spacing: 0; }
+  .fld input.big-field {
+    width: 100%; height: 60px; padding: 0 18px;
+    border-radius: var(--r-md); border: 1px solid var(--hairline-strong); background: var(--canvas);
+    font-family: var(--font); font-size: var(--t-heading); font-weight: var(--fw-semibold); color: var(--ink-1);
+    letter-spacing: 0.01em;
+  }
+  .fld input.big-field::placeholder { color: var(--ink-3); font-weight: var(--fw-medium); }
+  .fld input.big-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
+  .type-chips { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+  .type-chip {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    min-height: 52px; padding: 0 var(--sp-5);
+    border-radius: var(--r-md); border: 1px solid var(--hairline-strong); background: var(--canvas);
+    font-family: var(--font); font-size: var(--t-body-sm); font-weight: var(--fw-semibold); color: var(--ink-1);
+    cursor: pointer; transition: all .12s ease;
+  }
+  .type-chip:hover { background: var(--surface-2); }
+  .type-chip.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .org-pop { position: relative; }
+  .org-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20;
+    background: var(--canvas); border: 1px solid var(--hairline-strong); border-radius: var(--r-md);
+    overflow: hidden; box-shadow: 0 8px 24px rgba(8,9,10,0.10); display: none;
+  }
+  .org-menu.is-open { display: block; }
+  .org-menu .om-item { padding: var(--sp-3) var(--sp-4); cursor: pointer; font-size: var(--t-body); color: var(--ink-1); }
+  .org-menu .om-item:hover { background: var(--surface-2); }
+  .org-menu .om-item .om-tag { font-size: var(--t-label); color: var(--ink-3); margin-left: 8px; text-transform: uppercase; letter-spacing: var(--track-uppr); }
+  .org-new-note {
+    display: none; align-items: center; gap: var(--sp-2); margin-top: var(--sp-1);
+    font-size: var(--t-caption); font-weight: var(--fw-semibold); color: var(--queued);
+  }
+  .org-new-note.show { display: flex; }
+
+  /* toast (instant return confirmation) */
+  .toast {
+    position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-5); border-radius: var(--r-lg);
+    background: var(--ink-1); color: #fff; font-size: var(--t-body-sm); font-weight: var(--fw-semibold);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast .t-ico { width: 22px; height: 22px; border-radius: 50%; background: var(--success); display: flex; align-items: center; justify-content: center; flex: none; }
+</style>
+</head>
+<body>
+<div class="proto-stage">
+  <div class="tablet" id="tablet">
+    <div class="screen">
+
+      <!-- ════════ ШАГ 1 · ВЫБОР ТС ════════ -->
+      <section class="view is-active" data-screen-label="Передача · выбор ТС" data-view="pick">
+        <div class="form-head">
+          <button class="nav-back" onclick="alert('Возврат в рабочий режим')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+          <div><div class="fh-title">Передача топлива</div><div class="fh-step">Шаг 1 из 2 · выберите технику</div></div>
+          <div class="spacer"></div>
+          <div class="ctx-remain"><span class="t-label">Остаток АТЗ</span><span class="v">8 420 л</span></div>
+        </div>
+
+        <div class="pick-wrap">
+          <div class="pick-col">
+            <div class="search-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="vehSearch" type="text" inputmode="text" placeholder="Госномер или часть номера" autocomplete="off">
+            </div>
+            <div class="pick-list" id="pickList"></div>
+            <button class="add-vehicle-btn" id="addBtn" onclick="goAdd()">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Добавить ТС
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ ШАГ 2 · ВВОД ЛИТРОВ ════════ -->
+      <section class="view" data-screen-label="Передача · литры" data-view="amount">
+        <div class="form-head">
+          <button class="nav-back" onclick="show('pick')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+          <div><div class="fh-title">Сколько литров?</div><div class="fh-step">Шаг 2 из 2 · введите объём выдачи</div></div>
+          <div class="spacer"></div>
+          <div class="ctx-remain"><span class="t-label">Остаток АТЗ</span><span class="v">8 420 л</span></div>
+        </div>
+
+        <div class="amt-body">
+          <div class="amt-left">
+            <div class="card sel-veh">
+              <div class="sv-icon" id="selIcon"></div>
+              <div class="sv-main">
+                <div class="sv-plate" id="selPlate">—</div>
+                <div class="sv-meta" id="selMeta">—</div>
+              </div>
+              <div class="sv-change" onclick="show('pick')">Сменить</div>
+            </div>
+
+            <div class="card amt-display">
+              <div style="display:flex;align-items:baseline;gap:14px">
+                <span class="ad-num is-empty" id="amtNum">0</span>
+                <span class="ad-unit">л</span>
+              </div>
+              <div class="amt-after" id="amtAfter">Остаток после выдачи: <span class="v">8 420 л</span></div>
+            </div>
+
+            <button class="btn-primary confirm-cta" id="confirmBtn" disabled onclick="confirmGive()">Введите объём</button>
+          </div>
+
+          <div class="amt-right">
+            <div class="quick-row">
+              <button class="quick-chip" onclick="quickAmt(100)">+100</button>
+              <button class="quick-chip" onclick="quickAmt(200)">+200</button>
+              <button class="quick-chip" onclick="quickAmt(500)">+500</button>
+            </div>
+            <div class="keypad kp-amt" id="amtKeypad">
+              <div class="key" data-k="1">1</div><div class="key" data-k="2">2</div><div class="key" data-k="3">3</div>
+              <div class="key" data-k="4">4</div><div class="key" data-k="5">5</div><div class="key" data-k="6">6</div>
+              <div class="key" data-k="7">7</div><div class="key" data-k="8">8</div><div class="key" data-k="9">9</div>
+              <div class="key key--ghost" data-k="clear">C</div>
+              <div class="key" data-k="0">0</div>
+              <div class="key key--ghost" data-k="del">⌫</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ ДОБАВЛЕНИЕ ТС ════════ -->
+      <section class="view" data-screen-label="Добавление ТС" data-view="add">
+        <div class="form-head">
+          <button class="nav-back" onclick="show('pick')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+          <div><div class="fh-title">Новое ТС</div><div class="fh-step">Появится в списке выдачи сразу после сохранения</div></div>
+        </div>
+
+        <div class="add-wrap">
+          <div class="add-col">
+            <div class="card add-card">
+              <div class="fld">
+                <label>Госномер <span class="req">обязательно</span></label>
+                <input class="big-field" id="newPlate" type="text" placeholder="Х 000 ХХ 000" autocomplete="off" style="font-variant-numeric:tabular-nums" oninput="validateAdd()">
+              </div>
+
+              <div class="grid-2">
+                <div class="fld org-pop">
+                  <label>Организация <span class="req">обязательно</span></label>
+                  <input class="big-field" id="newOrg" type="text" placeholder="Выберите или впишите новую" autocomplete="off" oninput="onOrgInput()" onfocus="openOrgMenu()">
+                  <div class="org-menu" id="orgMenu"></div>
+                  <div class="org-new-note" id="orgNote">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                    Новая организация — добавится как «Наёмник»
+                  </div>
+                </div>
+
+                <div class="fld">
+                  <label>Марка <span class="opt">необязательно</span></label>
+                  <input class="big-field" id="newBrand" type="text" placeholder="Напр. КАМАЗ 6520" autocomplete="off">
+                </div>
+              </div>
+
+              <div class="fld">
+                <label>Тип ТС <span class="req">обязательно</span></label>
+                <div class="type-chips" id="typeChips"></div>
+              </div>
+
+              <button class="btn-primary" id="saveBtn" disabled onclick="saveVehicle()" style="width:100%;margin-top:var(--sp-2)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Сохранить и выбрать
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- toast -->
+      <div class="toast" id="toast">
+        <span class="t-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span id="toastMsg">ТС добавлено и выбрано</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="icons.js"></script>
+<script src="forms.js"></script>
+</body>
+</html>
