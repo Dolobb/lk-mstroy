@@ -1,0 +1,114 @@
+<!doctype html>
+<!-- @dsCard group="Brand" name="Vehicle pictograms" subtitle="Solid silhouette style — chunky filled pictograms" viewport="360x220" --><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:14px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:center}
+  .it{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 8px;border-radius:10px;background:var(--card);border:1px solid var(--card-border)}
+  .it svg{width:64px;height:40px;display:block}
+  .it .n{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--fg-2)}
+  /* solid silhouette style — single fill per icon, no strokes */
+  .ic{fill:currentColor;stroke:none}
+  .c-samosval { color: var(--brand-primary); }
+  .c-excavator{ color: var(--brand-violet); }
+  .c-kip      { color: var(--brand-secondary-l); }
+  .c-crane    { color: var(--brand-accent); }
+</style></head><body data-theme="dark">
+<div class="grid">
+
+  <!-- ── САМОСВАЛ ─────────────────────────────────────────
+       Силуэт: cab спереди-справа, поднятый кузов сзади
+       с горкой породы, два колеса. -->
+  <div class="it">
+    <svg viewBox="0 0 64 40" class="c-samosval">
+      <g class="ic">
+        <!-- mound / порода в кузове -->
+        <path d="M8 12 C12 6 16 6 19 9 C22 5 27 6 30 11 L30 14 L8 14 Z"/>
+        <!-- dump bed / кузов (slightly tipped) -->
+        <path d="M5 14 L33 14 L33 25 L5 25 Z"/>
+        <!-- cab / кабина -->
+        <path d="M34 17 L46 17 L50 21 L50 25 L34 25 Z"/>
+        <!-- chassis / рама -->
+        <path d="M5 25 L52 25 L52 29 L5 29 Z"/>
+        <!-- wheels -->
+        <circle cx="15" cy="32" r="4.5"/>
+        <circle cx="42" cy="32" r="4.5"/>
+      </g>
+    </svg>
+    <div class="n">Самосвал</div>
+  </div>
+
+  <!-- ── ЭКСКАВАТОР ──────────────────────────────────────
+       Силуэт: гусеница-стадион, кабина-«домик»,
+       стрела-«рукоять» и ковш справа-вверху. -->
+  <div class="it">
+    <svg viewBox="0 0 64 40" class="c-excavator">
+      <g class="ic">
+        <!-- tracks (stadium) -->
+        <rect x="4" y="28" width="38" height="8" rx="4"/>
+        <!-- platform / поворотная платформа -->
+        <path d="M8 24 L38 24 L36 28 L10 28 Z"/>
+        <!-- cab / кабина -->
+        <path d="M12 14 L28 14 L32 18 L32 24 L12 24 Z"/>
+        <!-- boom / стрела (наклон вверх-вправо) -->
+        <path d="M28 19 L52 8 L56 12 L32 23 Z"/>
+        <!-- stick + bucket / рукоять и ковш -->
+        <path d="M50 9 L60 16 L57 22 L52 19 L48 13 Z"/>
+      </g>
+    </svg>
+    <div class="n">Экскаватор</div>
+  </div>
+
+  <!-- ── КИП-ТЕХНИКА ─────────────────────────────────────
+       Силуэт фронтального погрузчика: ковш-«челюсть»
+       спереди, кабина, два больших колеса. -->
+  <div class="it">
+    <svg viewBox="0 0 64 40" class="c-kip">
+      <g class="ic">
+        <!-- bucket / ковш-погрузчика -->
+        <path d="M4 16 L18 16 L18 28 L8 28 L4 24 Z"/>
+        <!-- lift arms / стрелы погрузчика -->
+        <path d="M14 18 L34 12 L36 16 L16 22 Z"/>
+        <!-- body / корпус -->
+        <path d="M22 14 L42 14 L46 18 L46 28 L22 28 Z"/>
+        <!-- cab roof / крыша кабины -->
+        <path d="M28 8 L40 8 L42 14 L26 14 Z"/>
+        <!-- chassis -->
+        <path d="M16 28 L48 28 L48 31 L16 31 Z"/>
+        <!-- big wheels -->
+        <circle cx="22" cy="32" r="5"/>
+        <circle cx="42" cy="32" r="5"/>
+      </g>
+    </svg>
+    <div class="n">КИП-техника</div>
+  </div>
+
+  <!-- ── КРАН ─────────────────────────────────────────────
+       Силуэт башенного крана: основание, мачта,
+       горизонтальная стрела с противовесом, крюк. -->
+  <div class="it">
+    <svg viewBox="0 0 64 40" class="c-crane">
+      <g class="ic">
+        <!-- base / основание -->
+        <path d="M22 32 L36 32 L40 36 L18 36 Z"/>
+        <!-- mast / мачта -->
+        <path d="M26 8 L32 8 L32 33 L26 33 Z"/>
+        <!-- top cab / поворотная кабина -->
+        <path d="M22 4 L36 4 L36 10 L22 10 Z"/>
+        <!-- jib / стрела (длинная вправо) -->
+        <path d="M30 6 L60 6 L60 10 L30 10 Z"/>
+        <!-- counter-jib / противовес слева -->
+        <path d="M12 7 L22 7 L22 11 L12 11 Z"/>
+        <path d="M10 6 L16 6 L16 12 L10 12 Z"/>
+        <!-- hoist line / трос -->
+        <path d="M50 10 L52 10 L52 22 L50 22 Z"/>
+        <!-- hook block / крюк -->
+        <path d="M46 20 L56 20 L56 24 L46 24 Z"/>
+        <path d="M50 24 L52 24 L52 28 L50 28 Z"/>
+      </g>
+    </svg>
+    <div class="n">Кран</div>
+  </div>
+
+</div>
+</body></html>

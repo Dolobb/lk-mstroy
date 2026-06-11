@@ -11,14 +11,18 @@ interface TrackLayerProps {
 // ─── Helpers ─────────────────────────────────────────────
 
 function interpolateColor(speed: number | null): string {
-  const s = speed ?? 0;
-  if (s <= 0) return '#3b82f6';
-  if (s >= 60) return '#ef4444';
+  if (speed == null) return '#94a3b8';
+  const s = Math.max(0, speed);
+  if (s <= 0.5) return '#94a3b8';
+  if (s >= 60) return '#16a34a';
 
   const stops = [
-    { speed: 0,  r: 59,  g: 130, b: 246 },
-    { speed: 30, r: 34,  g: 197, b: 94  },
-    { speed: 60, r: 239, g: 68,  b: 68  },
+    { speed: 0.5, r: 148, g: 163, b: 184 },
+    { speed: 2,   r: 239, g: 68,  b: 68  },
+    { speed: 12,  r: 249, g: 115, b: 22  },
+    { speed: 25,  r: 234, g: 179, b: 8   },
+    { speed: 40,  r: 34,  g: 197, b: 94  },
+    { speed: 60,  r: 22,  g: 163, b: 74  },
   ];
 
   let lower = stops[0], upper = stops[stops.length - 1];
@@ -198,7 +202,9 @@ export function TrackLayer({ track, onDeselect }: TrackLayerProps) {
           }}
         >
           <Tooltip sticky direction="top" offset={[0, -4]}>
-            <div style={{ fontSize: 11, fontWeight: 600 }}>{Math.round(seg.avgSpeed)} км/ч</div>
+            <div style={{ fontSize: 11, fontWeight: 600 }}>
+              {Math.round(seg.avgSpeed)} км/ч
+            </div>
             <div style={{ fontSize: 10, opacity: 0.7 }}>{formatTime(seg.ts)}</div>
           </Tooltip>
         </Polyline>

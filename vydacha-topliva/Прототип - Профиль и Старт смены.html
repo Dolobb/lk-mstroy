@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Профиль · Старт смены — Выдача топлива</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="proto.css">
+<style>
+  .form-head {
+    flex: none; height: 72px; display: flex; align-items: center; gap: var(--sp-4);
+    padding: 0 var(--sp-6); background: var(--canvas); border-bottom: 1px solid var(--hairline);
+  }
+  .form-head .fh-title { font-size: var(--t-title); font-weight: var(--fw-bold); letter-spacing: var(--track-tight); color: var(--ink-1); }
+  .form-head .fh-step { font-size: var(--t-caption); font-weight: var(--fw-semibold); color: var(--ink-3); margin-top: 2px; }
+  .form-head .spacer { flex: 1; }
+
+  /* ── ПРОФИЛЬ ──────────────────────────────────────────── */
+  .prof-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 380px 1fr; gap: var(--sp-5); padding: var(--sp-6); }
+  .prof-left { display: flex; flex-direction: column; gap: var(--sp-4); min-height: 0; }
+  .prof-card { padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-5); }
+  .prof-id { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); text-align: center; }
+  .prof-avatar { width: 96px; height: 96px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 38px; font-weight: var(--fw-bold); }
+  .prof-name { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); }
+  .prof-role { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: var(--r-full); background: var(--surface-2); color: var(--ink-2); font-size: var(--t-caption); font-weight: var(--fw-semibold); }
+  .prof-meta { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--hairline); padding-top: var(--sp-4); }
+  .prof-meta .pm-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) 0; border-bottom: 1px solid var(--hairline-faint); }
+  .prof-meta .pm-row:last-child { border-bottom: none; }
+  .prof-meta .pm-k { font-size: var(--t-body-sm); color: var(--ink-3); font-weight: var(--fw-medium); }
+  .prof-meta .pm-v { font-size: var(--t-body-sm); color: var(--ink-1); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+  .prof-totals { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+  .prof-tot { padding: var(--sp-4); border-radius: var(--r-lg); background: var(--surface-1); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 2px; }
+  .prof-tot .pt-v { font-size: var(--t-display-l); font-weight: var(--fw-black); letter-spacing: var(--track-tight); color: var(--ink-1); font-variant-numeric: tabular-nums; line-height: 1; }
+  .prof-tot .pt-v small { font-size: 18px; color: var(--ink-3); font-weight: var(--fw-bold); }
+
+  .prof-right { display: flex; flex-direction: column; min-height: 0; }
+  .hist-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 4px var(--sp-3); }
+  .hist-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-3); padding-right: 4px; }
+  /* richer shift-card for history */
+  .hist-card { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-4); align-items: center; padding: var(--sp-5); }
+  .hist-card .hc-atz { display: flex; align-items: center; gap: var(--sp-3); }
+  .hist-card .hc-icon { width: 52px; height: 36px; color: var(--ink-2); flex: none; }
+  .hist-card .hc-icon svg { width: 100%; height: 100%; }
+  .hist-card .hc-when { display: flex; flex-direction: column; gap: 2px; }
+  .hist-card .hc-stats { display: flex; gap: var(--sp-6); }
+  .hist-card .hc-stat { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+  .hist-card .hc-stat .v { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .hist-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-3); text-align: center; color: var(--ink-3); }
+  .hist-empty svg { width: 56px; height: 56px; opacity: .45; }
+
+  /* ── СТАРТ СМЕНЫ ──────────────────────────────────────── */
+  .start-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 460px; gap: var(--sp-6); padding: var(--sp-6); }
+  .start-left { display: flex; flex-direction: column; gap: var(--sp-3); min-height: 0; }
+  .start-left .sl-label { padding: 0 4px var(--sp-1); }
+  .atz-list { display: flex; flex-direction: column; gap: var(--sp-3); overflow-y: auto; min-height: 0; padding-right: 4px; }
+  .atz-opt {
+    display: flex; align-items: center; gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-5); border-radius: var(--r-lg);
+    border: 1.5px solid var(--hairline); background: var(--canvas); cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .atz-opt:hover { background: var(--surface-2); }
+  .atz-opt.is-sel { border-color: var(--primary); background: var(--primary-soft); }
+  .atz-opt .ao-radio { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--hairline-strong); flex: none; display: flex; align-items: center; justify-content: center; transition: border-color .15s ease; }
+  .atz-opt.is-sel .ao-radio { border-color: var(--primary); }
+  .atz-opt.is-sel .ao-radio::after { content: ""; width: 13px; height: 13px; border-radius: 50%; background: var(--primary); }
+  .atz-opt .ao-icon { width: 56px; height: 38px; color: var(--ink-2); flex: none; }
+  .atz-opt.is-sel .ao-icon { color: var(--primary); }
+  .atz-opt .ao-icon svg { width: 100%; height: 100%; }
+  .atz-opt .ao-main { flex: 1; min-width: 0; }
+  .atz-opt .ao-plate { font-size: var(--t-subheading); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .atz-opt .ao-desc { font-size: var(--t-caption); color: var(--ink-3); }
+  .atz-opt .ao-fuel { text-align: right; flex: none; }
+  .atz-opt .ao-fuel .v { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+  .start-right { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .start-detail { flex: 1; padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-5); }
+  .sd-plate { font-size: var(--t-title); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; letter-spacing: var(--track-tight); }
+  .sd-desc { font-size: var(--t-body-sm); color: var(--ink-3); margin-top: 2px; }
+  .sd-remain { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-5) 0; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+  .sd-remain .sd-num { font-size: 64px; font-weight: var(--fw-black); letter-spacing: -0.03em; line-height: .95; color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sd-remain .sd-unit { font-size: 24px; font-weight: var(--fw-bold); color: var(--ink-3); }
+  .fuel-bar { height: 14px; border-radius: var(--r-full); background: var(--surface-3); overflow: hidden; }
+  .fuel-bar > i { display: block; height: 100%; border-radius: var(--r-full); background: var(--primary); }
+  .sd-when { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .sd-when .sw-row { display: flex; align-items: center; justify-content: space-between; }
+  .sd-when .sw-k { font-size: var(--t-body-sm); color: var(--ink-3); font-weight: var(--fw-medium); }
+  .sd-when .sw-v { font-size: var(--t-body-sm); color: var(--ink-1); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+  .start-cta { width: 100%; }
+
+  /* ── review-only state switcher (floats below device) ── */
+  .state-switch {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; z-index: 100;
+    padding: 7px 10px 7px 16px; border-radius: var(--r-full);
+    background: rgba(28,29,32,0.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    font-family: var(--font);
+  }
+  .state-switch .ss-label { color: rgba(255,255,255,0.55); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .state-switch .ss-group { display: flex; gap: 4px; }
+  .state-switch .ss-btn {
+    border: none; background: transparent; color: rgba(255,255,255,0.7);
+    font-family: var(--font); font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: var(--r-full); cursor: pointer;
+  }
+  .state-switch .ss-btn.is-on { background: var(--primary); color: #fff; }
+  .state-switch .ss-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.16); }
+</style>
+</head>
+<body>
+<div class="proto-stage">
+  <div class="tablet" id="tablet">
+    <div class="screen">
+
+      <!-- ════════ ПРОФИЛЬ И ИСТОРИЯ ════════ -->
+      <section class="view is-active" data-screen-label="Профиль и история" data-view="profile">
+        <div class="form-head">
+          <button class="nav-back" onclick="alert('Возврат на главный экран')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+          <div><div class="fh-title">Профиль и история</div><div class="fh-step">Заправщик · НПС Спецтехника</div></div>
+        </div>
+
+        <div class="prof-body">
+          <div class="prof-left">
+            <div class="card prof-card">
+              <div class="prof-id">
+                <div class="prof-avatar">КА</div>
+                <div>
+                  <div class="prof-name">Карелин Алексей Викторович</div>
+                  <div class="prof-role" style="margin-top:8px"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:var(--success)"></span>Заправщик</div>
+                </div>
+              </div>
+              <div class="prof-totals">
+                <div class="prof-tot"><span class="t-label">Смен всего</span><span class="pt-v">142</span></div>
+                <div class="prof-tot"><span class="t-label">Выдано, тыс. л</span><span class="pt-v">486</span></div>
+              </div>
+              <div class="prof-meta">
+                <div class="pm-row"><span class="pm-k">Табельный №</span><span class="pm-v">4815</span></div>
+                <div class="pm-row"><span class="pm-k">Логин</span><span class="pm-v">a.karelin</span></div>
+                <div class="pm-row"><span class="pm-k">Организация</span><span class="pm-v">НПС Спецтехника</span></div>
+                <div class="pm-row"><span class="pm-k">Телефон</span><span class="pm-v">+7 914 ··· 31 08</span></div>
+              </div>
+            </div>
+            <button class="btn-secondary" style="width:100%" onclick="alert('Выход из аккаунта')">Выйти из аккаунта</button>
+          </div>
+
+          <div class="prof-right">
+            <div class="hist-head">
+              <span class="t-subheading">История смен</span>
+              <span class="t-caption" id="histCount">показаны последние 6</span>
+            </div>
+            <div class="hist-scroll" id="histScroll"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ СТАРТ СМЕНЫ ════════ -->
+      <section class="view" data-screen-label="Старт смены" data-view="start">
+        <div class="form-head">
+          <button class="nav-back" onclick="alert('Возврат на главный экран')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+          <div><div class="fh-title">Старт смены</div><div class="fh-step" id="startStep">Выберите свой АТЗ</div></div>
+        </div>
+
+        <div class="start-body">
+          <div class="start-left">
+            <span class="t-label sl-label" id="atzListLabel">Доступные АТЗ · 3</span>
+            <div class="atz-list" id="atzList"></div>
+          </div>
+
+          <div class="start-right">
+            <div class="card start-detail">
+              <div>
+                <div class="t-label" style="margin-bottom:8px">Выбранный АТЗ</div>
+                <div class="sd-plate" id="sdPlate">—</div>
+                <div class="sd-desc" id="sdDesc">—</div>
+              </div>
+              <div class="sd-remain">
+                <span class="t-label">Текущий остаток</span>
+                <div style="display:flex;align-items:baseline;gap:10px"><span class="sd-num" id="sdNum">—</span><span class="sd-unit">л</span></div>
+                <div class="fuel-bar"><i id="sdBar" style="width:0%"></i></div>
+                <span class="t-caption" id="sdCap">—</span>
+              </div>
+              <div class="sd-when">
+                <div class="sw-row"><span class="sw-k">Смена</span><span class="sw-v">С1 · дневная</span></div>
+                <div class="sw-row"><span class="sw-k">Дата</span><span class="sw-v">12.05.2026</span></div>
+                <div class="sw-row"><span class="sw-k">Время открытия</span><span class="sw-v" id="sdTime">11:46</span></div>
+              </div>
+            </div>
+            <button class="btn-primary start-cta" id="startCta" onclick="confirmStart()">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              <span id="startCtaLabel">Начать смену</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- review-only state switcher -->
+<div class="state-switch">
+  <span class="ss-label">Экран</span>
+  <div class="ss-group">
+    <button class="ss-btn is-on" data-screen="profile" onclick="goScreen('profile',this)">Профиль</button>
+    <button class="ss-btn" data-screen="start" onclick="goScreen('start',this)">Старт смены</button>
+  </div>
+  <div class="ss-sep"></div>
+  <span class="ss-label" id="stateLabel">История</span>
+  <div class="ss-group" id="stateGroup"></div>
+</div>
+
+<script src="icons.js"></script>
+<script src="profile.js"></script>
+</body>
+</html>

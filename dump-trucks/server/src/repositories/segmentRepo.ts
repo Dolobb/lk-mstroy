@@ -85,6 +85,57 @@ export async function querySegments(
 /**
  * Возвращает Set ID записей, у которых уже есть сегменты.
  */
+export async function querySegmentsBatch(
+  pool: Pool,
+  shiftRecordIds: number[],
+): Promise<Map<number, ShiftSegment[]>> {
+  const uniqueIds = [...new Set(shiftRecordIds)];
+  const byId = new Map<number, ShiftSegment[]>();
+  uniqueIds.forEach(id => byId.set(id, []));
+  if (uniqueIds.length === 0) return byId;
+
+  const result = await pool.query<{
+    shift_record_id: number;
+    segment_index: number;
+    segment_start: Date;
+    segment_end: Date;
+    engine_time_sec: number;
+    moving_time_sec: number;
+    in_boundary: boolean;
+    distance_km: string;
+    track_points_count: number;
+  }>(`
+    SELECT ss.shift_record_id,
+           ss.segment_index, ss.segment_start, ss.segment_end,
+           ss.engine_time_sec, ss.moving_time_sec,
+           ss.in_boundary, ss.distance_km, ss.track_points_count
+    FROM dump_trucks.shift_segments ss
+    WHERE ss.shift_record_id = ANY($1::bigint[])
+      AND EXISTS (
+        SELECT 1 FROM dump_trucks.shift_records_active sra
+        WHERE sra.id = ss.shift_record_id
+      )
+    ORDER BY ss.shift_record_id, ss.segment_index
+  `, [uniqueIds]);
+
+  for (const r of result.rows) {
+    const segments = byId.get(r.shift_record_id) ?? [];
+    segments.push({
+      segmentIndex:     r.segment_index,
+      segmentStart:     r.segment_start,
+      segmentEnd:       r.segment_end,
+      engineTimeSec:    r.engine_time_sec,
+      movingTimeSec:    r.moving_time_sec,
+      inBoundary:       r.in_boundary,
+      distanceKm:       Number(r.distance_km),
+      trackPointsCount: r.track_points_count,
+    });
+    byId.set(r.shift_record_id, segments);
+  }
+
+  return byId;
+}
+
 export async function getRecordIdsWithSegments(
   pool: Pool,
   ids: number[],

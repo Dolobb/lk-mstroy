@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Получение · Редактирование · Закрытие — Выдача топлива</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="proto.css">
+<style>
+  .form-head {
+    flex: none; height: 72px; display: flex; align-items: center; gap: var(--sp-4);
+    padding: 0 var(--sp-6); background: var(--canvas); border-bottom: 1px solid var(--hairline);
+  }
+  .form-head .fh-title { font-size: var(--t-title); font-weight: var(--fw-bold); letter-spacing: var(--track-tight); color: var(--ink-1); }
+  .form-head .fh-step { font-size: var(--t-caption); font-weight: var(--fw-semibold); color: var(--ink-3); margin-top: 2px; }
+  .form-head .spacer { flex: 1; }
+  .ctx-remain { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .ctx-remain .v { font-size: var(--t-heading); font-weight: var(--fw-bold); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+  /* ── working backdrop (reuse of spine work mode) ─────── */
+  .work-body { padding: var(--sp-6); display: grid; grid-template-columns: 360px 1fr; gap: var(--sp-5); height: 100%; }
+  .work-left { display: flex; flex-direction: column; gap: var(--sp-4); min-height: 0; }
+  .remain-card { padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-3); }
+  .remain-card .rc-num { font-size: 64px; font-weight: 800; letter-spacing: -0.03em; line-height: .95; color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .remain-card .rc-unit { font-size: 24px; font-weight: 700; color: var(--ink-3); }
+  .remain-mini { display: flex; gap: var(--sp-6); padding-top: var(--sp-4); border-top: 1px solid var(--hairline); }
+  .remain-mini .rm { display: flex; flex-direction: column; gap: 2px; }
+  .remain-mini .rm .v { font-size: 22px; font-weight: 700; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .actions-pair { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .work-left .end-shift { margin-top: auto; }
+  .work-right { display: flex; flex-direction: column; min-height: 0; }
+  .log-card { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; padding: 0; }
+  .log-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: var(--sp-5) var(--sp-5) var(--sp-3); }
+  .log-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--sp-5) var(--sp-4); }
+
+  /* ── ПОЛУЧЕНИЕ ───────────────────────────────────────── */
+  .recv-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 440px; gap: var(--sp-6); padding: var(--sp-6); }
+  .recv-left { display: flex; flex-direction: column; gap: var(--sp-4); min-height: 0; }
+  .recv-display { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); padding: var(--sp-6); }
+  .recv-display .rd-num { font-size: 96px; font-weight: var(--fw-black); line-height: .9; letter-spacing: -0.04em; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .recv-display .rd-num.is-empty { color: var(--surface-4); }
+  .recv-display .rd-unit { font-size: 36px; font-weight: var(--fw-bold); color: var(--ink-3); }
+  .recv-display .rd-after { margin-top: var(--sp-2); font-size: var(--t-body); font-weight: var(--fw-semibold); color: var(--ink-2); }
+  .recv-display .rd-after .v { color: var(--success); font-variant-numeric: tabular-nums; }
+  .recv-keypad { flex: none; }
+  .recv-keypad .keypad { grid-template-columns: repeat(3, 1fr); }
+  .recv-keypad .keypad .key { min-height: 60px; font-size: 28px; }
+
+  .recv-right { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .ttn-card { flex: 1; display: flex; flex-direction: column; padding: var(--sp-5); gap: var(--sp-4); }
+  .ttn-card .tc-title { display: flex; align-items: center; justify-content: space-between; }
+  .ttn-options { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2); }
+  .ttn-opt {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    min-height: 64px; padding: var(--sp-3); border-radius: var(--r-md);
+    border: 1px solid var(--hairline-strong); background: var(--canvas); color: var(--ink-2);
+    font-family: var(--font); font-size: var(--t-caption); font-weight: var(--fw-semibold); cursor: pointer;
+    transition: background .12s ease, border-color .12s ease;
+  }
+  .ttn-opt:hover { background: var(--surface-2); border-color: var(--primary); color: var(--primary); }
+  .ttn-drop { flex: 1; }
+  .ttn-preview { display: none; flex: 1; flex-direction: column; gap: var(--sp-3); }
+  .ttn-preview.show { display: flex; }
+  .ttn-drop.hide { display: none; }
+  .ttn-thumb {
+    position: relative; flex: 1; min-height: 150px; border-radius: var(--r-lg); overflow: hidden;
+    border: 1px solid var(--hairline); background: var(--surface-3);
+    background-image: repeating-linear-gradient(135deg, transparent 0 11px, rgba(8,9,10,0.045) 11px 22px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ttn-thumb .tt-label { font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace; font-size: 12px; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
+  .ttn-thumb .tt-remove {
+    position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: var(--r-md);
+    border: none; background: rgba(8,9,10,0.55); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .ttn-status { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--t-body-sm); font-weight: var(--fw-semibold); }
+  .ttn-status.ok { color: var(--success); }
+  .ttn-status.queued { color: var(--queued); }
+  .ttn-status .s-ico { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+  .ttn-status.ok .s-ico { background: var(--success-soft); }
+  .ttn-status.queued .s-ico { background: var(--queued-soft); }
+  .recv-confirm { width: 100%; }
+  .recv-confirm:disabled { background: var(--surface-3); color: var(--ink-3); }
+
+  /* ── BOTTOM SHEET (edit) ─────────────────────────────── */
+  .overlay { position: absolute; inset: 0; z-index: 40; display: none; }
+  .overlay.show { display: block; }
+  .sheet-wrap { position: absolute; left: 0; right: 0; bottom: 0; transform: translateY(100%); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .overlay.show .sheet-wrap { transform: translateY(0); }
+  .edit-sheet { padding: 0 var(--sp-8) var(--sp-8); }
+  .es-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-5); }
+  .es-head { display: flex; align-items: center; justify-content: space-between; }
+  .es-rec { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-4) 0; }
+  .es-rec .er-icon { width: 56px; height: 38px; color: var(--primary); flex: none; }
+  .es-rec .er-icon svg { width: 100%; height: 100%; }
+  .es-liters { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .stepper { display: flex; align-items: center; gap: var(--sp-4); }
+  .stepper .st-btn {
+    width: 72px; height: 72px; flex: none; border-radius: var(--r-lg);
+    border: 1px solid var(--hairline-strong); background: var(--canvas); color: var(--ink-1);
+    font-size: 36px; font-weight: var(--fw-semibold); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .12s ease;
+  }
+  .stepper .st-btn:hover { background: var(--surface-2); }
+  .stepper .st-val { flex: 1; text-align: center; }
+  .stepper .st-val .v { font-size: 56px; font-weight: var(--fw-black); letter-spacing: -0.03em; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .stepper .st-val .u { font-size: 24px; font-weight: var(--fw-bold); color: var(--ink-3); margin-left: 8px; }
+  .es-change {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
+    border: 1px solid var(--hairline-strong); background: var(--canvas); cursor: pointer;
+  }
+  .es-change > div { display: flex; flex-direction: column; gap: 4px; }
+  .es-change:hover { background: var(--surface-2); }
+  .es-actions { display: flex; gap: var(--sp-3); }
+  .btn-danger {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+    min-height: var(--tap-primary); padding: 0 var(--sp-6); border-radius: var(--r-lg);
+    border: 1px solid var(--error); background: var(--error-soft); color: var(--error);
+    font-family: var(--font); font-size: var(--t-body-sm); font-weight: var(--fw-bold); cursor: pointer;
+    transition: background .15s ease;
+  }
+  .btn-danger:hover { background: var(--error); color: #fff; }
+  .es-confirm-del { display: none; flex-direction: column; gap: var(--sp-4); padding: var(--sp-4) 0; }
+  .es-confirm-del.show { display: flex; }
+  .es-main.hide { display: none; }
+
+  /* ── CLOSE SHIFT (centered modal) ────────────────────── */
+  .modal-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: var(--sp-8); }
+  .close-card { width: 720px; background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-2xl); padding: var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-6); transform: scale(.94); opacity: 0; transition: transform .25s ease, opacity .25s ease; }
+  .overlay.show .close-card { transform: scale(1); opacity: 1; }
+  .close-head { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+  .sum-cell { padding: var(--sp-5); border-radius: var(--r-lg); background: var(--surface-1); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 4px; }
+  .sum-cell .sc-v { font-size: var(--t-display-l); font-weight: var(--fw-black); letter-spacing: var(--track-tight); color: var(--ink-1); font-variant-numeric: tabular-nums; line-height: 1; }
+  .sum-cell.accent { background: var(--primary-soft); border-color: transparent; }
+  .sum-cell.accent .sc-v { color: var(--primary); }
+  .sum-cell.success { background: var(--success-soft); border-color: transparent; }
+  .sum-cell.success .sc-v { color: var(--success); }
+  .sum-final { display: flex; align-items: baseline; justify-content: space-between; padding: var(--sp-5); border-radius: var(--r-lg); background: var(--ink-1); }
+  .sum-final .sf-label { color: rgba(255,255,255,0.72); font-size: var(--t-body); font-weight: var(--fw-semibold); }
+  .sum-final .sf-v { color: #fff; font-size: var(--t-display-l); font-weight: var(--fw-black); font-variant-numeric: tabular-nums; }
+  .close-actions { display: flex; gap: var(--sp-3); }
+
+  .toast {
+    position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5); border-radius: var(--r-lg);
+    background: var(--ink-1); color: #fff; font-size: var(--t-body-sm); font-weight: var(--fw-semibold);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; z-index: 60;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast .t-ico { width: 22px; height: 22px; border-radius: 50%; background: var(--success); display: flex; align-items: center; justify-content: center; flex: none; }
+</style>
+</head>
+<body>
+<div class="proto-stage">
+  <div class="tablet" id="tablet">
+    <div class="screen">
+
+      <!-- ════════ WORKING BACKDROP ════════ -->
+      <section class="view is-active" data-screen-label="Рабочий режим" data-view="work">
+        <div class="appbar">
+          <div class="brand"><span class="nps">НПС</span><span class="sep">/</span><span class="name">ВЫДАЧА ТОПЛИВА</span></div>
+          <span class="timer-chip"><span class="dot"></span><span>03:41</span></span>
+          <div class="spacer"></div>
+          <span class="sync-pill is-offline"><span class="dot"></span>Офлайн · 3 в очереди</span>
+          <button class="sync-refresh" title="Синхронизировать"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v5h-5"/></svg></button>
+          <div class="who"><span class="nm">Карелин А. В.</span><span class="rl">С1 · Х 214 ТТ 138</span></div>
+        </div>
+        <div class="screen-body" style="overflow:hidden">
+          <div class="work-body">
+            <div class="work-left">
+              <div class="card remain-card">
+                <span class="t-label">Остаток в АТЗ</span>
+                <div style="display:flex;align-items:baseline;gap:10px"><span class="rc-num" id="remainNum">7&#8201;150</span><span class="rc-unit">л</span></div>
+                <div class="remain-mini">
+                  <div class="rm"><span class="t-label">Выдано</span><span class="v">1 270 л</span></div>
+                  <div class="rm"><span class="t-label">Получено</span><span class="v" id="recvTotal">0 л</span></div>
+                  <div class="rm"><span class="t-label">Записей</span><span class="v" id="opCount">3</span></div>
+                </div>
+              </div>
+              <div class="actions-pair">
+                <button class="big-action big-action--primary" onclick="alert('Экран «Передача топлива» — отдельный артефакт')">
+                  <div class="ba-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V8a1 1 0 0 1 1-1h9v10M13 9h4l4 4v4M3 17h2m12 0h2"/><circle cx="7" cy="17" r="2"/><circle cx="18" cy="17" r="2"/></svg></div>
+                  <div><div class="ba-label">Передача топлива</div><div class="ba-sub">Выдать технике на объекте</div></div>
+                </button>
+                <button class="big-action big-action--secondary" onclick="openRecv()">
+                  <div class="ba-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></div>
+                  <div><div class="ba-label">Получение топлива</div><div class="ba-sub">Приём в цистерну по ТТН</div></div>
+                </button>
+              </div>
+              <button class="btn-secondary end-shift" style="width:100%" onclick="openClose()">Закрыть смену</button>
+            </div>
+
+            <div class="card log-card">
+              <div class="log-head"><span class="t-subheading">Журнал смены</span><span class="t-caption">Сегодня · 12.05.2026</span></div>
+              <div class="log-scroll" id="logScroll"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ ПОЛУЧЕНИЕ ТОПЛИВА ════════ -->
+      <section class="view" data-screen-label="Получение топлива" data-view="recv">
+        <div class="form-head">
+          <button class="nav-back" onclick="show('work')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+          <div><div class="fh-title">Получение топлива</div><div class="fh-step">Приём в цистерну · АТЗ Х 214 ТТ 138</div></div>
+          <div class="spacer"></div>
+          <div class="ctx-remain"><span class="t-label">Остаток АТЗ</span><span class="v">7 150 л</span></div>
+        </div>
+        <div class="recv-body">
+          <div class="recv-left">
+            <div class="card recv-display">
+              <div style="display:flex;align-items:baseline;gap:12px"><span class="rd-num is-empty" id="recvNum">0</span><span class="rd-unit">л</span></div>
+              <div class="rd-after" id="recvAfter">Остаток после приёма: <span class="v">7 150 л</span></div>
+            </div>
+            <div class="recv-keypad">
+              <div class="keypad" id="recvKeypad">
+                <div class="key" data-k="1">1</div><div class="key" data-k="2">2</div><div class="key" data-k="3">3</div>
+                <div class="key" data-k="4">4</div><div class="key" data-k="5">5</div><div class="key" data-k="6">6</div>
+                <div class="key" data-k="7">7</div><div class="key" data-k="8">8</div><div class="key" data-k="9">9</div>
+                <div class="key key--ghost" data-k="clear">C</div>
+                <div class="key" data-k="0">0</div>
+                <div class="key key--ghost" data-k="del">⌫</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="recv-right">
+            <div class="card ttn-card">
+              <div class="tc-title"><span class="t-subheading">Фото ТТН</span><span class="t-caption">товарно-транспортная накладная</span></div>
+              <!-- drop state -->
+              <div class="ttn-drop" id="ttnDrop">
+                <div class="photo-uploader" style="height:100%" onclick="attachPhoto()">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                  <div class="t-body-strong">Снять или прикрепить ТТН</div>
+                </div>
+                <div class="ttn-options" style="margin-top:var(--sp-3)">
+                  <button class="ttn-opt" onclick="attachPhoto()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.5"/></svg>Камера</button>
+                  <button class="ttn-opt" onclick="attachPhoto()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>Галерея</button>
+                  <button class="ttn-opt" onclick="attachPhoto()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>Файл</button>
+                </div>
+              </div>
+              <!-- preview state -->
+              <div class="ttn-preview" id="ttnPreview">
+                <div class="ttn-thumb">
+                  <span class="tt-label">ТТН · фото</span>
+                  <button class="tt-remove" onclick="removePhoto()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                </div>
+                <div class="ttn-status queued" id="ttnStatus">
+                  <span class="s-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></span>
+                  <span id="ttnStatusText">В очереди на загрузку (офлайн)</span>
+                </div>
+              </div>
+            </div>
+            <button class="btn-primary recv-confirm" id="recvConfirm" disabled onclick="confirmRecv()">Введите объём</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ════════ EDIT SHEET OVERLAY ════════ -->
+    <div class="overlay" id="editOverlay" data-screen-label="Редактирование записи">
+      <div class="scrim" onclick="closeEdit()"></div>
+      <div class="sheet-wrap">
+        <div class="edit-sheet">
+          <div class="sheet-grip"></div>
+          <div class="es-inner">
+            <div class="es-main" id="esMain">
+              <div class="es-head">
+                <span class="t-title">Редактирование выдачи</span>
+                <button class="nav-back" onclick="closeEdit()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+              </div>
+              <div class="es-rec">
+                <div class="er-icon" id="edIcon"></div>
+                <div><div class="t-heading" id="edPlate" style="font-variant-numeric:tabular-nums">—</div><div class="t-caption" id="edMeta">—</div></div>
+              </div>
+              <div class="es-liters">
+                <span class="t-label">Объём выдачи</span>
+                <div class="stepper">
+                  <button class="st-btn" onclick="stepEd(-10)">−</button>
+                  <div class="st-val"><span class="v" id="edLiters">0</span><span class="u">л</span></div>
+                  <button class="st-btn" onclick="stepEd(10)">+</button>
+                </div>
+              </div>
+              <div class="es-change" onclick="alert('Открыть выбор ТС (как в «Передаче»)')">
+                <div><div class="t-label" style="margin-bottom:2px">Транспортное средство</div><div class="t-body-strong" id="edChangePlate">—</div></div>
+                <span class="t-body-strong" style="color:var(--primary)">Сменить</span>
+              </div>
+              <div class="es-actions">
+                <button class="btn-danger" onclick="askDelete()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>Удалить</button>
+                <button class="btn-primary" style="flex:1" onclick="saveEdit()">Сохранить изменения</button>
+              </div>
+            </div>
+
+            <div class="es-confirm-del" id="esConfirmDel">
+              <div class="es-head">
+                <span class="t-title">Удалить запись?</span>
+              </div>
+              <div class="t-body">Запись «<span id="delPlate" class="t-body-strong" style="color:var(--ink-1)"></span>» будет удалена из журнала смены (мягко — её можно восстановить при синхронизации).</div>
+              <div class="es-actions">
+                <button class="btn-secondary" style="flex:1" onclick="cancelDelete()">Отмена</button>
+                <button class="btn-danger" style="flex:1" onclick="confirmDelete()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>Удалить запись</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ CLOSE SHIFT OVERLAY ════════ -->
+    <div class="overlay" id="closeOverlay" data-screen-label="Закрытие смены">
+      <div class="scrim" onclick="closeCloseModal()"></div>
+      <div class="modal-center">
+        <div class="close-card">
+          <div class="close-head">
+            <span class="t-title">Закрыть смену С1?</span>
+            <span class="t-body">12.05.2026 · 08:02 — 11:43 · АТЗ Х 214 ТТ 138. После закрытия записи отправятся при появлении связи.</span>
+          </div>
+          <div class="summary-grid">
+            <div class="sum-cell accent"><span class="t-label">Заправлено ТС</span><span class="sc-v">8</span></div>
+            <div class="sum-cell"><span class="t-label">Записей в журнале</span><span class="sc-v">9</span></div>
+            <div class="sum-cell accent"><span class="t-label">Выдано топлива</span><span class="sc-v">1 270<span style="font-size:24px;color:var(--ink-3)"> л</span></span></div>
+            <div class="sum-cell success"><span class="t-label">Получено топлива</span><span class="sc-v">0<span style="font-size:24px;color:var(--ink-3)"> л</span></span></div>
+          </div>
+          <div class="sum-final">
+            <span class="sf-label">Итоговый остаток АТЗ</span>
+            <span class="sf-v">7 150 л</span>
+          </div>
+          <div class="close-actions">
+            <button class="btn-secondary" style="flex:1" onclick="closeCloseModal()">Отмена</button>
+            <button class="btn-primary" style="flex:2" onclick="confirmClose()">Закрыть смену</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- toast -->
+    <div class="toast" id="toast"><span class="t-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span id="toastMsg"></span></div>
+
+  </div>
+</div>
+
+<script src="icons.js"></script>
+<script src="work2.js"></script>
+</body>
+</html>

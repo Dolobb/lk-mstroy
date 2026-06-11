@@ -1,0 +1,230 @@
+<!doctype html>
+<!-- @dsCard group="Components" name="Shift chips v2 (улучшенные)" subtitle="delivery + onsite (48 микро-баров) + состояния" viewport="700x460" --><html lang="ru"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:18px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);min-height:100%;box-sizing:border-box;font-size:12px}
+  .section{margin-bottom:14px}
+  .section + .section{border-top:1px solid var(--divider);padding-top:12px}
+  .label{font-size:9px;font-weight:700;color:var(--fg-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .label .tag{padding:1px 6px;border-radius:4px;background:var(--pill-bg);border:1px solid var(--pill-border);color:var(--fg-2);font-size:8px;letter-spacing:.4px}
+  .row{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+
+  /* ─── Improved chip ─────────────────────────────────────────── */
+  .vc {
+    display:inline-grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    column-gap:6px;
+    padding:4px 8px 4px 6px;
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:7px;
+    font-variant-numeric:tabular-nums;
+    cursor:pointer;
+    transition:border-color .12s, background .12s, transform .12s;
+    min-width:0;
+  }
+  .vc:hover{border-color:rgba(96,165,250,.35);background:var(--hover-bg)}
+  .vc.selected{
+    border-color:rgba(249,115,22,.55);
+    background:linear-gradient(180deg, rgba(249,115,22,.10), rgba(249,115,22,.04));
+    box-shadow:0 0 0 1px rgba(249,115,22,.25), 0 0 12px rgba(249,115,22,.18);
+  }
+  .vc.zero{opacity:.55}
+  .vc .date{font-size:10px;font-weight:700;color:var(--fg-1);letter-spacing:.02em;display:flex;flex-direction:column;line-height:1.05}
+  .vc .date small{font-size:8px;font-weight:600;color:var(--fg-3);letter-spacing:.4px;text-transform:uppercase}
+
+  /* Mini-vis cell — replaces single bar with two-track */
+  .vc .vis{display:flex;flex-direction:column;gap:2px;min-width:46px;max-width:64px}
+  .vc .vis .tr{display:block;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+  [data-theme="light"] .vc .vis .tr{background:rgba(0,0,0,.06)}
+  .vc .vis .tr i{display:block;height:100%;border-radius:2px}
+  .vc .vis .lbl{font-size:7px;color:var(--fg-4);font-weight:700;letter-spacing:.3px;text-transform:uppercase;display:flex;justify-content:space-between}
+
+  /* Onsite — uses a tiny stacked sparkline (48 micro-bars) */
+  .vc.onsite .vis{min-width:64px;max-width:84px;height:14px;display:flex;flex-direction:row;align-items:flex-end;gap:1px}
+  .vc.onsite .vis span{flex:1;background:#A78BFA;border-radius:.5px;min-width:1px}
+  .vc.onsite .vis span.m{background:#60A5FA}
+  .vc.onsite .vis span.x{background:#EF4444;opacity:.7}
+  .vc.onsite .vis span.o{background:rgba(255,255,255,.08)}
+  [data-theme="light"] .vc.onsite .vis span.o{background:rgba(0,0,0,.07)}
+
+  .vc .num{font-size:10px;font-weight:800;color:var(--fg-1);display:flex;flex-direction:column;align-items:flex-end;line-height:1.05;min-width:28px}
+  .vc .num small{font-size:7px;font-weight:700;color:var(--fg-3);letter-spacing:.4px;text-transform:uppercase}
+  .vc.zero .num{color:var(--fg-4)}
+
+  .vc .badge{display:inline-block;padding:0 4px;height:11px;line-height:11px;border-radius:3px;font-size:8px;font-weight:800;letter-spacing:.4px;color:#fff;background:#475569;margin-left:2px}
+  .vc .badge.s1{background:#0EA5E9}.vc .badge.s2{background:#A78BFA}.vc .badge.s0{background:#F97316}
+
+  .kg{color:#22C55E}.kb{color:#60A5FA}.kr{color:#EF4444}
+  .bg-kg{background:#22C55E}.bg-kb{background:#60A5FA}.bg-kr{background:#EF4444}
+
+  /* zone strip — small contextual annotation row above expanded mode */
+  .ann{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--fg-3);margin-top:6px}
+  .ann b{color:var(--fg-1);font-weight:700;font-variant-numeric:tabular-nums}
+  .ann .dot{width:6px;height:6px;border-radius:50%}
+
+  /* legend */
+  .leg{display:flex;gap:10px;flex-wrap:wrap;font-size:9px;color:var(--fg-3);margin-top:4px}
+  .leg .it{display:inline-flex;align-items:center;gap:4px}
+  .leg .sw{width:8px;height:8px;border-radius:2px}
+</style></head>
+<body data-theme="dark">
+
+<div class="section">
+  <div class="label">Доставка <span class="tag">delivery — рейсы</span></div>
+  <div class="row">
+    <!-- C1 delivery, КИП 84% / движение 62%, 11 рейсов -->
+    <button class="vc">
+      <span class="date">30.04 <small>C1</small></span>
+      <span class="vis">
+        <span class="lbl"><span>КИП</span><span class="kg">84</span></span>
+        <span class="tr"><i class="bg-kg" style="width:84%"></i></span>
+        <span class="tr"><i class="bg-kb" style="width:62%;opacity:.7"></i></span>
+      </span>
+      <span class="num">11<small>рейсов</small></span>
+    </button>
+
+    <button class="vc">
+      <span class="date">30.04 <small>C2</small></span>
+      <span class="vis">
+        <span class="lbl"><span>КИП</span><span class="kg">91</span></span>
+        <span class="tr"><i class="bg-kg" style="width:91%"></i></span>
+        <span class="tr"><i class="bg-kb" style="width:78%;opacity:.7"></i></span>
+      </span>
+      <span class="num">14<small>рейсов</small></span>
+    </button>
+
+    <button class="vc selected">
+      <span class="date">01.05 <small>C1</small></span>
+      <span class="vis">
+        <span class="lbl"><span>КИП</span><span class="kb">62</span></span>
+        <span class="tr"><i class="bg-kb" style="width:62%"></i></span>
+        <span class="tr"><i class="bg-kr" style="width:41%;opacity:.7"></i></span>
+      </span>
+      <span class="num">5<small>рейсов</small></span>
+    </button>
+
+    <button class="vc">
+      <span class="date">01.05 <small>C2</small></span>
+      <span class="vis">
+        <span class="lbl"><span>КИП</span><span class="kr">42</span></span>
+        <span class="tr"><i class="bg-kr" style="width:42%"></i></span>
+        <span class="tr"><i class="bg-kr" style="width:30%;opacity:.7"></i></span>
+      </span>
+      <span class="num">3<small>рейсов</small></span>
+    </button>
+
+    <button class="vc zero">
+      <span class="date">02.05 <small>C1</small></span>
+      <span class="vis">
+        <span class="lbl"><span>КИП</span><span>—</span></span>
+        <span class="tr"><i style="width:0"></i></span>
+        <span class="tr"><i style="width:0"></i></span>
+      </span>
+      <span class="num">Op<small>нет ПЛ</small></span>
+    </button>
+
+    <!-- aggregated 2см -->
+    <button class="vc">
+      <span class="date">02.05 <small>2см</small></span>
+      <span class="vis">
+        <span class="lbl"><span>КИП</span><span class="kg">88</span></span>
+        <span class="tr"><i class="bg-kg" style="width:88%"></i></span>
+        <span class="tr"><i class="bg-kb" style="width:71%;opacity:.7"></i></span>
+      </span>
+      <span class="num">22<small>рейсов</small></span>
+    </button>
+  </div>
+  <div class="leg">
+    <span class="it"><span class="sw bg-kg"></span>КИП ≥75</span>
+    <span class="it"><span class="sw bg-kb"></span>КИП 50–74 / Движение</span>
+    <span class="it"><span class="sw bg-kr"></span>КИП &lt;50</span>
+    <span class="it" style="margin-left:auto">Op — заявка не назначена</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">По месту <span class="tag">onsite — двигатель часы + 48 микро-баров</span></div>
+  <div class="row">
+    <!-- onsite uses 48 micro-bars (one per 30-min slot of the shift = 12h) -->
+    <button class="vc onsite">
+      <span class="date">30.04 <small>C1</small></span>
+      <span class="vis" aria-label="48 слотов по 30 мин">
+        <!-- 48 spans, mixed work/move/offsite/empty -->
+        <span></span><span></span><span class="m"></span><span></span><span></span><span class="m"></span><span></span><span></span>
+        <span></span><span class="m"></span><span></span><span></span><span></span><span></span><span></span><span class="o"></span>
+        <span class="o"></span><span class="o"></span><span></span><span></span><span></span><span class="m"></span><span></span><span></span>
+        <span></span><span></span><span></span><span class="x"></span><span class="x"></span><span></span><span></span><span></span>
+        <span></span><span></span><span class="m"></span><span></span><span></span><span></span><span></span><span class="o"></span>
+        <span class="o"></span><span></span><span></span><span></span><span class="m"></span><span></span><span></span><span></span>
+      </span>
+      <span class="num">8:02<small>двиг.</small></span>
+    </button>
+
+    <button class="vc onsite selected">
+      <span class="date">30.04 <small>C2</small></span>
+      <span class="vis">
+        <span></span><span></span><span></span><span class="m"></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span class="m"></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span class="m"></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span><span class="m"></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span class="m"></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </span>
+      <span class="num">11:14<small>двиг.</small></span>
+    </button>
+
+    <button class="vc onsite">
+      <span class="date">01.05 <small>C1</small></span>
+      <span class="vis">
+        <span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span></span><span></span><span class="m"></span><span></span>
+        <span></span><span></span><span></span><span></span><span class="x"></span><span class="x"></span><span></span><span></span>
+        <span></span><span></span><span class="m"></span><span></span><span></span><span></span><span></span><span></span>
+        <span class="o"></span><span class="o"></span><span></span><span></span><span></span><span></span><span></span><span class="m"></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span>
+      </span>
+      <span class="num">5:38<small>двиг.</small></span>
+    </button>
+
+    <button class="vc onsite zero">
+      <span class="date">01.05 <small>C2</small></span>
+      <span class="vis">
+        <span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span>
+        <span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span>
+        <span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span>
+        <span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span>
+        <span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span>
+        <span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span><span class="o"></span>
+      </span>
+      <span class="num">0:00<small>простой</small></span>
+    </button>
+  </div>
+  <div class="leg">
+    <span class="it"><span class="sw" style="background:#A78BFA"></span>КИП-работа</span>
+    <span class="it"><span class="sw" style="background:#60A5FA"></span>Движение</span>
+    <span class="it"><span class="sw" style="background:#EF4444"></span>Вне объекта</span>
+    <span class="it"><span class="sw" style="background:rgba(255,255,255,.10)"></span>Пусто</span>
+    <span class="it" style="margin-left:auto">1 бар = 30 мин · 48 за смену</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Состояния</div>
+  <div class="row">
+    <button class="vc"><span class="date">11.05 <small>C1</small></span><span class="vis"><span class="lbl"><span>КИП</span><span class="kg">93</span></span><span class="tr"><i class="bg-kg" style="width:93%"></i></span><span class="tr"><i class="bg-kg" style="width:88%;opacity:.7"></i></span></span><span class="num">9<small>рейсов</small></span></button>
+    <span style="font-size:9px;color:var(--fg-4);align-self:center">default</span>
+    <button class="vc selected"><span class="date">11.05 <small>C2</small></span><span class="vis"><span class="lbl"><span>КИП</span><span class="kg">93</span></span><span class="tr"><i class="bg-kg" style="width:93%"></i></span><span class="tr"><i class="bg-kg" style="width:88%;opacity:.7"></i></span></span><span class="num">9<small>рейсов</small></span></button>
+    <span style="font-size:9px;color:var(--fg-4);align-self:center">selected</span>
+    <button class="vc zero"><span class="date">12.05 <small>C1</small></span><span class="vis"><span class="lbl"><span>КИП</span><span>—</span></span><span class="tr"><i style="width:0"></i></span><span class="tr"><i style="width:0"></i></span></span><span class="num">Op<small>нет ПЛ</small></span></button>
+    <span style="font-size:9px;color:var(--fg-4);align-self:center">zero / нет ПЛ</span>
+  </div>
+  <div class="ann">
+    <span class="dot bg-kg"></span><span>Сегодняшняя смена</span>
+    <span style="margin-left:8px">·</span>
+    <b>P322TH196</b> · HINO 600 · МО-36 · клик раскрывает <b>ShiftSubTable</b> (доставка) или <b>ShiftGanttBar</b> (по месту)
+  </div>
+</div>
+
+</body></html>

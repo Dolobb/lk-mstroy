@@ -1,5 +1,13 @@
 # Analytics Backend — History
 
+## v0.7.1 — Positions period invariant (2026-06-09)
+
+- **GET /api/analytics/positions?from=&at=**: `from` добавлен как optional query-параметр; если не передан, используется backward-compatible lookback `at - 7 days`.
+- `analytics.track_points`: последняя позиция выбирается только внутри `[from, at]`.
+- `dump_trucks.dt_tracks`: JSONB-точки разворачиваются через `jsonb_array_elements ... WITH ORDINALITY`, фильтруются по `point.ts BETWEEN from AND at`, затем выбирается `DISTINCT ON (vehicle_id) ... ORDER BY ts DESC`.
+- KIP fallback ограничен `vehicle_records.report_date` внутри выбранного периода.
+- Frontend передаёт `dateFrom` в `usePositions(from, at, shouldPoll)`, а `at` считается как `min(now, dateTo)`.
+
 ## v0.7.0 — Сессия 9 (2026-05-15)
 
 **Рендер трека ТС на карте (frontend-only — backend `/tracks` контракт не менялся):**

@@ -106,7 +106,7 @@ export function ShiftGanttBar({
     setError(false);
 
     Promise.all([
-      fetchShiftSegments(shiftRecordId),
+      fetchShiftSegments(shiftRecordId, { force: reloadKey > 0 }),
       fetchShiftDetail(shiftRecordId),
     ])
       .then(([segs, detail]) => {

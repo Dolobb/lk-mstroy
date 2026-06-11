@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- @dsCard group="Components" name="Map zones (новое)" subtitle="Зоны объектов + кластерные пины" viewport="700x160" --><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:14px;font-family:var(--font-sans);background:var(--bg-gradient);color:var(--fg-1);height:100%;box-sizing:border-box}
+  .stage{position:relative;height:100%;border-radius:14px;overflow:hidden;background:rgba(15,23,42,.65);border:1px solid var(--card-border)}
+  svg{width:100%;height:100%}
+</style></head><body data-theme="dark">
+<div class="stage">
+<svg viewBox="0 0 700 120">
+  <defs>
+    <pattern id="hh" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(96,165,250,.10)" stroke-width="1.2"/>
+    </pattern>
+    <radialGradient id="zA" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="rgba(249,115,22,.20)"/><stop offset="100%" stop-color="rgba(249,115,22,.05)"/>
+    </radialGradient>
+  </defs>
+  <rect width="700" height="120" fill="rgba(15,23,42,.85)"/>
+  <rect width="700" height="120" fill="url(#hh)"/>
+  <!-- zone 1 -->
+  <path d="M40 50 L120 35 L170 60 L155 90 L80 95 L30 75 Z" fill="rgba(96,165,250,.10)" stroke="rgba(96,165,250,.45)" stroke-width="1.5"/>
+  <text x="100" y="65" fill="#F1F5F9" font-size="9" font-weight="700" text-anchor="middle" font-family="system-ui">Екатеринбург</text>
+  <text x="100" y="78" fill="#94A3B8" font-size="7" text-anchor="middle" font-family="system-ui">13 ТС · КИП 95%</text>
+  <!-- zone 2 (active) -->
+  <path d="M250 30 L400 25 L470 60 L450 100 L300 100 L240 70 Z" fill="url(#zA)" stroke="#F97316" stroke-width="2.5"/>
+  <text x="355" y="60" fill="#F1F5F9" font-size="10" font-weight="800" text-anchor="middle" font-family="system-ui">СМУ Белогорск</text>
+  <text x="355" y="74" fill="#94A3B8" font-size="7" text-anchor="middle" font-family="system-ui">18 ТС · КИП 42%</text>
+  <!-- pins -->
+  <circle cx="310" cy="48" r="7" fill="#F97316" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/><text x="310" y="51" fill="#fff" font-size="7" font-weight="800" text-anchor="middle" font-family="system-ui">С</text>
+  <circle cx="345" cy="86" r="7" fill="#A78BFA" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/><text x="345" y="89" fill="#fff" font-size="7" font-weight="800" text-anchor="middle" font-family="system-ui">Э</text>
+  <circle cx="395" cy="55" r="7" fill="#60A5FA" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/><text x="395" y="58" fill="#fff" font-size="7" font-weight="800" text-anchor="middle" font-family="system-ui">К</text>
+  <circle cx="380" cy="80" r="7" fill="#22C55E" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/><text x="380" y="83" fill="#fff" font-size="7" font-weight="800" text-anchor="middle" font-family="system-ui">Кр</text>
+  <!-- zone 3 -->
+  <path d="M540 40 L640 35 L660 75 L600 100 L520 80 Z" fill="rgba(96,165,250,.10)" stroke="rgba(96,165,250,.45)" stroke-width="1.5"/>
+  <text x="590" y="65" fill="#F1F5F9" font-size="9" font-weight="700" text-anchor="middle" font-family="system-ui">Бодайбо</text>
+  <text x="590" y="78" fill="#94A3B8" font-size="7" text-anchor="middle" font-family="system-ui">9 ТС · КИП 90%</text>
+  <!-- legend -->
+  <g transform="translate(14,100)">
+    <rect width="160" height="14" rx="6" fill="rgba(15,23,42,.65)" stroke="rgba(255,255,255,.07)"/>
+    <circle cx="12" cy="7" r="3" fill="#F97316"/><text x="20" y="10" fill="#94A3B8" font-size="7" font-family="system-ui">Самосв.</text>
+    <circle cx="60" cy="7" r="3" fill="#60A5FA"/><text x="68" y="10" fill="#94A3B8" font-size="7" font-family="system-ui">КИП</text>
+    <circle cx="100" cy="7" r="3" fill="#A78BFA"/><text x="108" y="10" fill="#94A3B8" font-size="7" font-family="system-ui">Эксков.</text>
+  </g>
+</svg>
+</div>
+</body></html>

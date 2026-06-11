@@ -190,6 +190,7 @@ export interface PositionPoint {
 }
 
 export interface PositionsResponse {
+  from?: string;
   at: string;
   positions: PositionPoint[];
 }
@@ -215,6 +216,41 @@ export interface BigObject {
 
 export interface BigObjectsResponse {
   objects: BigObject[];
+}
+
+// ─── Sidebar summary ───────────────────────────────────
+
+export type SidebarGroupKey = 'samosvaly' | 'ekskav' | 'krany' | 'kip';
+
+export interface SidebarTrendPoint {
+  date: string;
+  weekday: string;
+  kipPct: number | null;
+}
+
+export interface SidebarGroupSummary {
+  key: SidebarGroupKey;
+  label: string;
+  color: string;
+  vehicleCount: number;
+  kipPct: number | null;
+}
+
+export interface SidebarObjectCard {
+  uid: string;
+  name: string;
+  timezoneLabel: string;
+  vehicleCount: number;
+  kipPct: number;
+  trend: SidebarTrendPoint[];
+  groups: SidebarGroupSummary[];
+}
+
+export interface SidebarSummaryResponse {
+  from: string;
+  to: string;
+  generatedAt: string;
+  objects: SidebarObjectCard[];
 }
 
 // ─── Track (Session 9) ──────────────────────────────────

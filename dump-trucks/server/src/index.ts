@@ -8,7 +8,7 @@ import { runSegmentFetch } from './jobs/segmentFetchJob';
 import { recalculateShift } from './jobs/recalculateJob';
 import { queryShiftRecords } from './repositories/shiftRecordRepo';
 import { getDtObjects } from './repositories/filterRepo';
-import { querySegments } from './repositories/segmentRepo';
+import { querySegments, querySegmentsBatch } from './repositories/segmentRepo';
 import { logger } from './utils/logger';
 import type { ShiftType } from './types/domain';
 import { stringify } from './utils/csv';
@@ -715,6 +715,42 @@ app.get('/api/dt/shift-segments', async (req, res) => {
     res.json({ data: segments, total: segments.length });
   } catch (err) {
     logger.error('GET /api/dt/shift-segments error', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /api/dt/shift-segments/batch?ids=123,456
+app.get('/api/dt/shift-segments/batch', async (req, res) => {
+  try {
+    const rawIds = req.query['ids'];
+    const idsParam = Array.isArray(rawIds) ? rawIds.join(',') : rawIds;
+    if (typeof idsParam !== 'string' || idsParam.trim() === '') {
+      res.status(400).json({ error: 'ids param required' });
+      return;
+    }
+
+    const parts = idsParam.split(',').map(s => s.trim()).filter(Boolean);
+    const invalid = parts.some(s => !/^\d+$/.test(s) || Number(s) <= 0 || !Number.isSafeInteger(Number(s)));
+    if (parts.length === 0 || invalid) {
+      res.status(400).json({ error: 'ids must be positive integers separated by comma' });
+      return;
+    }
+
+    const ids = [...new Set(parts.map(Number))];
+    if (ids.length > 500) {
+      res.status(400).json({ error: 'max 500 ids per request' });
+      return;
+    }
+
+    const pool = getPool();
+    const segmentsById = await querySegmentsBatch(pool, ids);
+    const data: Record<string, unknown> = {};
+    segmentsById.forEach((segments, id) => {
+      data[String(id)] = segments;
+    });
+    res.json({ data, total: ids.length });
+  } catch (err) {
+    logger.error('GET /api/dt/shift-segments/batch error', err);
     res.status(500).json({ error: String(err) });
   }
 });

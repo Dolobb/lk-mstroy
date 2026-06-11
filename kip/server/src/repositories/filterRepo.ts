@@ -13,8 +13,10 @@ export async function getFilterOptions(
   const allBranches = getDistinctBranches();
 
   // Types — only from vehicles actually present in the period
+  // report_date <= CURRENT_DATE: исключаем заранее оформленные ПЛ на будущие даты.
   const typeResult = await pool.query(
-    `SELECT DISTINCT vehicle_id FROM vehicle_records WHERE report_date BETWEEN $1 AND $2`,
+    `SELECT DISTINCT vehicle_id FROM vehicle_records
+     WHERE report_date BETWEEN $1 AND $2 AND report_date <= CURRENT_DATE`,
     [from, to],
   );
   const typesInData = new Set<string>();
@@ -29,6 +31,7 @@ export async function getFilterOptions(
     `SELECT DISTINCT vehicle_id, department_unit
      FROM vehicle_records
      WHERE report_date BETWEEN $1 AND $2
+       AND report_date <= CURRENT_DATE
        AND department_unit IS NOT NULL
        AND department_unit != ''`,
     [from, to],

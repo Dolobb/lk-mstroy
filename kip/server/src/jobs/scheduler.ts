@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { runDailyFetch } from './dailyFetchJob';
+import { runSegmentDailyJob } from './segmentDailyJob';
 import { logger } from '../utils/logger';
 
 export function startScheduler(): void {
@@ -22,5 +23,20 @@ export function startScheduler(): void {
     timezone: 'Asia/Yekaterinburg',
   });
 
-  logger.info('Scheduler started: daily fetch at 08:30 Asia/Yekaterinburg');
+  // Run at 09:30 Yekaterinburg — после основного dailyFetch (08:30),
+  // когда vehicle_records за вчера уже выгружены. Ставит в очередь
+  // 30-минутные сегменты для всех реально работавших ТС (engine_on_time>0),
+  // у которых сегментов ещё нет.
+  cron.schedule('30 9 * * *', async () => {
+    logger.info('Scheduled segment daily job triggered');
+    try {
+      await runSegmentDailyJob();
+    } catch (err) {
+      logger.error('Scheduled segment daily job failed', err);
+    }
+  }, {
+    timezone: 'Asia/Yekaterinburg',
+  });
+
+  logger.info('Scheduler started: daily fetch at 08:30, segment daily at 09:30 Asia/Yekaterinburg');
 }

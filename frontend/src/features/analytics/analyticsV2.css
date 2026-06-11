@@ -1,0 +1,100 @@
+/* ─── Карточки Аналитики v2.0 («Навигация по дням») ─────────────────── */
+/* Изолированный неймспейс sv-v2-*. План: ANALYTICS_CARDS_V2_PLAN.md       */
+
+/* Таймлайн-навигатор день×смена (заменяет daterangepicker) */
+.sv-v2-timeline {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; margin: 0 0 12px;
+  background: var(--sv-card); border: 1px solid var(--sv-card-border);
+  border-radius: 12px; overflow-x: auto;
+}
+.sv-v2-tl-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.sv-v2-tl-shifts { display: flex; gap: 3px; }
+.sv-v2-tl-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  width: 26px; height: 56px; padding: 3px 0; border-radius: 6px; cursor: pointer;
+  border: 1px solid transparent; background: var(--sv-hover-bg);
+  transition: border-color .12s, background .12s;
+}
+.sv-v2-tl-cell:hover { border-color: rgba(96,165,250,.35); }
+.sv-v2-tl-cell.selected { border-color: var(--sv-accent); background: rgba(249,115,22,.12); }
+.sv-v2-tl-cell.empty { opacity: .4; cursor: default; }
+.sv-v2-tl-bar { width: 12px; border-radius: 2px; min-height: 2px; }
+.sv-v2-tl-cnt { font-size: 8px; color: var(--sv-text-3); margin-top: 2px; height: 10px; }
+.sv-v2-tl-shift-lbl { font-size: 7px; color: var(--sv-text-4); text-transform: uppercase; }
+.sv-v2-tl-day-lbl { font-size: 9px; font-weight: 700; color: var(--sv-text-3); letter-spacing: .03em; }
+
+/* Заголовок группы */
+.sv-v2-grp-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 0 4px;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--sv-text-2);
+}
+.sv-v2-grp-cnt {
+  font-size: 9px; padding: 2px 6px; border-radius: 6px;
+  background: rgba(96,165,250,.1); color: #60A5FA; font-weight: 600;
+}
+
+/* Карточка */
+.sv-v2-card {
+  position: relative; display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px 10px 16px;
+  background: var(--sv-card); border: 1px solid var(--sv-card-border);
+  border-radius: 12px; overflow: hidden;
+  transition: transform .12s, box-shadow .12s;
+}
+.sv-v2-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+.sv-v2-card.idle { opacity: .5; }
+.sv-v2-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+
+.sv-v2-head { display: flex; align-items: center; gap: 10px; }
+.sv-v2-gauge { flex-shrink: 0; position: relative; width: 46px; height: 46px; }
+.sv-v2-gauge-txt {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.sv-v2-plate { font-size: 14px; font-weight: 800; color: var(--sv-text-1); }
+.sv-v2-model { font-size: 11px; color: var(--sv-text-3); }
+.sv-v2-obj { font-size: 10px; color: var(--sv-text-2); display: flex; align-items: center; gap: 3px; }
+
+/* Интерактивный спарклайн КИП (оси 0/50/100 + даты + hover-попап) */
+.sv-v2-spark-wrap {
+  display: grid; grid-template-columns: 20px 1fr; grid-template-rows: 30px auto;
+  column-gap: 4px;
+}
+.sv-v2-spark-yaxis {
+  grid-row: 1; grid-column: 1; display: flex; flex-direction: column; justify-content: space-between;
+  font-size: 7px; color: var(--sv-text-4); text-align: right; line-height: 1;
+}
+.sv-v2-spark-chart { grid-row: 1; grid-column: 2; position: relative; }
+.sv-v2-spark-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sv-v2-spark-grid { stroke: var(--sv-divider); stroke-width: 1; }
+.sv-v2-spark-vline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--sv-card-border); pointer-events: none; }
+.sv-v2-spark-dot { position: absolute; width: 5px; height: 5px; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.sv-v2-spark-pop {
+  position: absolute; top: 0; transform: translate(-50%, -110%); white-space: nowrap;
+  font-size: 8px; padding: 2px 5px; border-radius: 4px;
+  background: var(--sv-card); border: 1px solid var(--sv-card-border);
+  color: var(--sv-text-1); pointer-events: none; z-index: 5; font-variant-numeric: tabular-nums;
+}
+.sv-v2-spark-xaxis {
+  grid-row: 2; grid-column: 2; display: flex; justify-content: space-between;
+  font-size: 7px; color: var(--sv-text-4); margin-top: 2px;
+}
+
+/* Метрики — иконка + значение (условные обозначения) */
+.sv-v2-metrics { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.sv-v2-metric {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 700; color: var(--sv-text-1); font-variant-numeric: tabular-nums;
+}
+.sv-v2-metric svg { color: var(--sv-text-3); flex-shrink: 0; }
+.sv-v2-idle-note { font-size: 10px; color: var(--sv-text-3); }
+
+/* Основной просмотр работы (таблица рейсов / диаграмма) — виден по дефолту.
+   Отыгрываем горизонтальное место (стрипа всего 4px) и ужимаем масштаб ~10%. */
+.sv-v2-work {
+  margin: 2px -8px 0 -10px;
+  overflow-x: auto;
+  zoom: 0.9;
+}

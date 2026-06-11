@@ -38,12 +38,14 @@ const LiveChatArea: React.FC<LiveChatAreaProps> = ({ sessionId, initialMessages,
 
   const isLoading = status === 'submitted' || status === 'streaming';
 
-  // Save to history on every messages change
+  // Save only after streaming completes (not on every token)
+  const hasSentMessage = useRef(false);
   useEffect(() => {
-    if (messages.length > 0) {
+    if (!isLoading && messages.length > 0 && hasSentMessage.current) {
       onMessagesChange(sessionId, messages);
     }
-  }, [messages, sessionId, onMessagesChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   // Auto-scroll
   useEffect(() => {
@@ -55,6 +57,7 @@ const LiveChatArea: React.FC<LiveChatAreaProps> = ({ sessionId, initialMessages,
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
+    hasSentMessage.current = true;
     const text = input;
     setInput('');
     await sendMessage({ text });
@@ -182,7 +185,7 @@ const HistoryView: React.FC<{ messages: UIMessage[]; title: string; onContinue: 
 // Main page
 // ──────────────────────────────────────────────
 export const AiReportsPage: React.FC = () => {
-  const { sessions, liveId, upsert, startNew, continueSession, deleteSession } = useChatHistory();
+  const { sessions, sessionsLoaded, liveId, upsert, startNew, continueSession, deleteSession } = useChatHistory();
   const [viewId, setViewId] = useState<string | null>(null);
 
   const handleNewChat = () => {
@@ -201,8 +204,8 @@ export const AiReportsPage: React.FC = () => {
     if (id === liveId) startNew();
   };
 
-  const historySession = viewId ? sessions.find(s => s.id === viewId) : null;
-  const liveSession = sessions.find(s => s.id === liveId);
+  const historySession = viewId ? sessions.find((s) => s.id === viewId) : null;
+  const liveSession = sessions.find((s) => s.id === liveId);
 
   return (
     <div className="flex h-full overflow-hidden p-3 gap-3">
@@ -216,7 +219,11 @@ export const AiReportsPage: React.FC = () => {
         onDelete={handleDeleteSession}
       />
 
-      {viewId && historySession ? (
+      {!sessionsLoaded ? (
+        <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+          Загрузка...
+        </div>
+      ) : viewId && historySession ? (
         <HistoryView
           messages={historySession.messages}
           title={historySession.title}

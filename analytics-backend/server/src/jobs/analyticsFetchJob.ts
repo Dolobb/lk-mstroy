@@ -162,12 +162,13 @@ async function insertTrackPoints(
   await pool.query('DELETE FROM analytics.track_points WHERE session_id = $1', [sessionId]);
 
   const values: string[] = [];
-  const params: unknown[] = [];
-  let paramIdx = 1;
+  const params: unknown[] = [sessionId];
 
-  for (const p of points) {
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const base = i * 9 + 2;
     values.push(
-      `($1, $${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, $${paramIdx + 3}, $${paramIdx + 4}, $${paramIdx + 5}, $${paramIdx + 6}, $${paramIdx + 7}, $${paramIdx + 8})`,
+      `($1::uuid, $${base}, $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`,
     );
     params.push(
       new Date(p.ts * 1000).toISOString(),
@@ -180,7 +181,6 @@ async function insertTrackPoints(
       p.dwellSec ?? null,
       vehicleId,
     );
-    paramIdx += 9;
   }
 
   const query = `
@@ -190,6 +190,6 @@ async function insertTrackPoints(
     ON CONFLICT (session_id, ts) DO NOTHING
   `;
 
-  const res = await pool.query(query, [sessionId, ...params]);
+  const res = await pool.query(query, params);
   return res.rowCount ?? 0;
 }

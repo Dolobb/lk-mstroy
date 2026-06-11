@@ -8,27 +8,11 @@ export interface ChatSession {
   messages: UIMessage[];
 }
 
-const STORAGE_KEY = 'ai-reports-chat-history';
 const LIVE_ID_KEY = 'ai-reports-live-id';
-const MAX_SESSIONS = 50;
+const API_BASE = '/api/reports/sessions';
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-function loadFromStorage(): ChatSession[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(sessions: ChatSession[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.slice(0, MAX_SESSIONS)));
-  } catch {}
 }
 
 function loadLiveId(): string {
@@ -40,45 +24,77 @@ function loadLiveId(): string {
 }
 
 function extractTitle(messages: UIMessage[]): string {
-  const userMsg = messages.find(m => m.role === 'user');
+  const userMsg = messages.find((m) => m.role === 'user');
   if (!userMsg) return 'Диалог';
-  // AI SDK v6: parts array
   const textPart = (userMsg.parts ?? []).find((p: any) => p.type === 'text') as any;
   const text = textPart?.text ?? (typeof (userMsg as any).content === 'string' ? (userMsg as any).content : '');
   return (text || 'Диалог').slice(0, 60);
 }
 
+// Strip large data arrays before saving — they're not needed for display
+// and are stripped server-side anyway when continuing sessions.
+function stripDataForStorage(messages: UIMessage[]): UIMessage[] {
+  return messages.map((msg: any) => {
+    if (!Array.isArray(msg?.parts)) return msg;
+    const parts = msg.parts.map((part: any) => {
+      if (part.type === 'tool-invocation' && part.result?.data) {
+        return { ...part, result: { success: part.result.success, count: part.result.count, error: part.result.error } };
+      }
+      if (part.type?.startsWith('tool-') && part.type !== 'tool-invocation' && part.output?.data) {
+        return { ...part, output: { success: part.output.success, count: part.output.count, error: part.output.error } };
+      }
+      return part;
+    });
+    return { ...msg, parts };
+  });
+}
+
 export function useChatHistory() {
-  const [sessions, setSessions] = useState<ChatSession[]>(loadFromStorage);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [liveId, setLiveId] = useState<string>(loadLiveId);
 
+  // Load sessions from server on mount
   useEffect(() => {
-    saveToStorage(sessions);
-  }, [sessions]);
+    fetch(API_BASE)
+      .then((r) => r.json())
+      .then((data) => setSessions(data.sessions || []))
+      .catch(() => {})
+      .finally(() => setSessionsLoaded(true));
+  }, []);
 
+  // Persist liveId locally (just an ID string — tiny)
   useEffect(() => {
     try { localStorage.setItem(LIVE_ID_KEY, liveId); } catch {}
   }, [liveId]);
 
-  const upsert = useCallback((sessionId: string, messages: UIMessage[]) => {
+  const upsert = useCallback(async (sessionId: string, messages: UIMessage[]) => {
     if (!messages.length) return;
     const title = extractTitle(messages);
+    const date = new Date().toISOString();
 
-    setSessions(prev => {
-      const idx = prev.findIndex(s => s.id === sessionId);
+    // Optimistic local update (keep full messages for display)
+    setSessions((prev) => {
+      const idx = prev.findIndex((s) => s.id === sessionId);
+      const session: ChatSession = { id: sessionId, title, date, messages };
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], messages };
+        copy[idx] = session;
         return copy;
       }
-      const newSession: ChatSession = {
-        id: sessionId,
-        title,
-        date: new Date().toISOString(),
-        messages,
-      };
-      return [newSession, ...prev];
+      return [session, ...prev].slice(0, 50);
     });
+
+    // Save to server (strip large data arrays)
+    try {
+      await fetch(`${API_BASE}/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, date, messages: stripDataForStorage(messages) }),
+      });
+    } catch (err) {
+      console.error('[useChatHistory] save failed:', err);
+    }
   }, []);
 
   const startNew = useCallback(() => {
@@ -89,9 +105,14 @@ export function useChatHistory() {
     setLiveId(id);
   }, []);
 
-  const deleteSession = useCallback((id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
+  const deleteSession = useCallback(async (id: string) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('[useChatHistory] delete failed:', err);
+    }
   }, []);
 
-  return { sessions, liveId, upsert, startNew, continueSession, deleteSession };
+  return { sessions, sessionsLoaded, liveId, upsert, startNew, continueSession, deleteSession };
 }

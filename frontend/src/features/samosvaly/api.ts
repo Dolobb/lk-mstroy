@@ -4,6 +4,9 @@ import type {
 } from './types';
 
 const BASE = '/api/dt';
+const SHIFT_SEGMENTS_BATCH_SIZE = 500;
+
+const shiftSegmentsCache = new Map<number, Promise<ShiftSegment[]>>();
 
 async function get<T>(url: string): Promise<T> {
   const r = await fetch(url);
@@ -59,9 +62,69 @@ export async function fetchOrderNorms(): Promise<{ request_number: number; trips
   return d.data;
 }
 
-export async function fetchShiftSegments(shiftRecordId: number): Promise<ShiftSegment[]> {
-  const d = await get<{ data: ShiftSegment[] }>(`${BASE}/shift-segments?shiftRecordId=${shiftRecordId}`);
-  return d.data;
+export async function fetchShiftSegments(
+  shiftRecordId: number,
+  options: { force?: boolean } = {},
+): Promise<ShiftSegment[]> {
+  if (!options.force) {
+    const cached = shiftSegmentsCache.get(shiftRecordId);
+    if (cached) return cached;
+  }
+
+  const promise = get<{ data: ShiftSegment[] }>(`${BASE}/shift-segments?shiftRecordId=${shiftRecordId}`)
+    .then(d => d.data)
+    .catch(err => {
+      shiftSegmentsCache.delete(shiftRecordId);
+      throw err;
+    });
+
+  shiftSegmentsCache.set(shiftRecordId, promise);
+  return promise;
+}
+
+export async function fetchShiftSegmentsBatch(
+  shiftRecordIds: number[],
+  options: { force?: boolean } = {},
+): Promise<Record<number, ShiftSegment[]>> {
+  const ids = [...new Set(shiftRecordIds.filter(id => Number.isSafeInteger(id) && id > 0))];
+  if (ids.length === 0) return {};
+
+  const result: Record<number, ShiftSegment[]> = {};
+  const cachedIds: number[] = [];
+  const fetchIds: number[] = [];
+
+  for (const id of ids) {
+    const cached = shiftSegmentsCache.get(id);
+    if (!options.force && cached) {
+      cachedIds.push(id);
+    } else {
+      fetchIds.push(id);
+    }
+  }
+
+  await Promise.all(cachedIds.map(async id => {
+    result[id] = await shiftSegmentsCache.get(id)!;
+  }));
+
+  if (fetchIds.length > 0) {
+    for (let i = 0; i < fetchIds.length; i += SHIFT_SEGMENTS_BATCH_SIZE) {
+      const chunk = fetchIds.slice(i, i + SHIFT_SEGMENTS_BATCH_SIZE);
+      const q = new URLSearchParams({ ids: chunk.join(',') });
+      const batchPromise = get<{ data: Record<string, ShiftSegment[]>; total: number }>(`${BASE}/shift-segments/batch?${q}`);
+      await Promise.all(chunk.map(async id => {
+        const promise = batchPromise
+          .then(batch => batch.data[String(id)] ?? [])
+          .catch(err => {
+            shiftSegmentsCache.delete(id);
+            throw err;
+          });
+        shiftSegmentsCache.set(id, promise);
+        result[id] = await promise;
+      }));
+    }
+  }
+
+  return result;
 }
 
 export async function saveOrderNorms(norms: { number: number; tripsPerShift: number }[]): Promise<void> {

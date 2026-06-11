@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Выдача топлива — Спина</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="proto.css">
+<style>
+  /* ░ ВХОД ░ */
+  .login { align-items: stretch; }
+  .login-split { display: grid; grid-template-columns: 1fr 1fr; height: 100%; }
+  .login-brand {
+    background: var(--primary);
+    color: #fff; padding: 64px 56px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .login-brand .lb-mark { display: flex; align-items: baseline; gap: 9px; font-weight: 800; font-size: 22px; letter-spacing: 0.04em; }
+  .login-brand .lb-mark .sep { opacity: .5; font-weight: 500; }
+  .login-brand h1 { margin: 0; font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; }
+  .login-brand .lb-sub { font-size: 17px; font-weight: 500; line-height: 1.5; color: rgba(255,255,255,0.82); max-width: 360px; margin-top: 16px; }
+  .login-brand .lb-foot { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: 0.02em; }
+  .login-brand .lb-atz {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 20px; border-radius: var(--r-lg);
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+  }
+  .login-brand .lb-atz .ico { width: 52px; height: 34px; color: #fff; flex: none; }
+  .login-brand .lb-atz .nm { font-size: 19px; font-weight: 700; }
+  .login-brand .lb-atz .mt { font-size: 13px; color: rgba(255,255,255,0.72); font-weight: 600; }
+
+  .login-form { padding: 56px 64px; display: flex; flex-direction: column; }
+  .login-form .lf-label { margin-bottom: 8px; }
+  .login-form h2 { margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink-1); }
+  .login-form .lf-name { font-size: 17px; color: var(--ink-2); font-weight: 500; margin-bottom: 28px; }
+
+  .pin-dots { display: flex; gap: 16px; margin-bottom: 28px; }
+  .pin-dots .pd {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--hairline-strong); background: transparent;
+    transition: background .15s ease, border-color .15s ease, transform .12s ease;
+  }
+  .pin-dots .pd.filled { background: var(--primary); border-color: var(--primary); transform: scale(1.05); }
+  .pin-dots .pd.err { border-color: var(--error); background: var(--error); animation: shake .35s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+  .pin-err-msg { color: var(--error); font-size: 14px; font-weight: 600; height: 18px; margin-bottom: 10px; }
+
+  .keypad.kp-login { max-width: 320px; }
+
+  /* ░ ГЛАВНАЯ ░ */
+  .home-body { padding: var(--sp-6); display: grid; grid-template-columns: 1.15fr 1fr; gap: var(--sp-5); align-items: start; }
+  .atz-hero { padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-5); }
+  .atz-hero .ah-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .atz-hero .ah-ico {
+    width: 92px; height: 60px; color: var(--primary); flex: none;
+  }
+  .atz-hero .ah-plate { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .atz-hero .ah-model { font-size: 15px; color: var(--ink-3); font-weight: 600; margin-top: 2px; }
+  .atz-gauge { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); }
+  .fuel-bar { height: 14px; border-radius: var(--r-full); background: var(--surface-3); overflow: hidden; flex: 1; }
+  .fuel-bar > i { display: block; height: 100%; border-radius: var(--r-full); background: var(--primary); }
+  .start-cta { width: 100%; }
+
+  .home-side { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .home-side .hs-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+  .shift-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+  /* ░ РАБОЧИЙ РЕЖИМ ░ */
+  .work-body { padding: var(--sp-6); display: grid; grid-template-columns: 360px 1fr; gap: var(--sp-5); height: 100%; }
+  .work-left { display: flex; flex-direction: column; gap: var(--sp-4); min-height: 0; }
+  .remain-card { padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-3); }
+  .remain-card .rc-val { display: flex; align-items: baseline; gap: 10px; }
+  .remain-card .rc-num { font-size: 64px; font-weight: 800; letter-spacing: -0.03em; line-height: .95; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .remain-card .rc-unit { font-size: 24px; font-weight: 700; color: var(--ink-3); }
+  .remain-mini { display: flex; gap: var(--sp-6); padding-top: var(--sp-4); border-top: 1px solid var(--hairline); }
+  .remain-mini .rm { display: flex; flex-direction: column; gap: 2px; }
+  .remain-mini .rm .v { font-size: 22px; font-weight: 700; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .actions-pair { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .work-left .end-shift { margin-top: auto; }
+
+  .work-right { display: flex; flex-direction: column; min-height: 0; }
+  .log-card { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; padding: 0; }
+  .log-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: var(--sp-5) var(--sp-5) var(--sp-3); }
+  .log-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--sp-5) var(--sp-4); }
+  .log-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 100%; color: var(--ink-3); text-align: center; }
+  .log-empty svg { width: 48px; height: 48px; opacity: .5; }
+</style>
+</head>
+<body>
+<div class="proto-stage">
+  <div class="tablet" id="tablet">
+    <div class="screen">
+
+      <!-- ════════ ВХОД ════════ -->
+      <section class="view is-active" data-screen-label="Вход" data-view="login">
+        <div class="login-split">
+          <div class="login-brand">
+            <div class="lb-mark"><span style="opacity:.95">НПС</span><span class="sep">/</span><span>ВЫДАЧА ТОПЛИВА</span></div>
+            <div>
+              <h1>Учёт выдачи<br>топлива</h1>
+              <div class="lb-sub">Передача топлива технике и приём в АТЗ. Работает офлайн — записи синхронизируются при связи.</div>
+            </div>
+            <div class="lb-atz">
+              <div class="ico" id="lb-atz-ico"></div>
+              <div>
+                <div class="nm">Х 214 ТТ 138</div>
+                <div class="mt">АТЗ · УРАЛ 4320 · 16 000 л</div>
+              </div>
+            </div>
+            <div class="lb-foot">МСК+5 · 12.05.2026</div>
+          </div>
+
+          <div class="login-form">
+            <div class="lf-label t-label">Вход в смену</div>
+            <h2>Введите PIN</h2>
+            <div class="lf-name">Карелин А. В. · заправщик</div>
+
+            <div class="pin-dots" id="pinDots">
+              <div class="pd"></div><div class="pd"></div><div class="pd"></div><div class="pd"></div>
+            </div>
+            <div class="pin-err-msg" id="pinErr"></div>
+
+            <div class="keypad kp-login" id="loginKeypad">
+              <div class="key" data-k="1">1</div><div class="key" data-k="2">2</div><div class="key" data-k="3">3</div>
+              <div class="key" data-k="4">4</div><div class="key" data-k="5">5</div><div class="key" data-k="6">6</div>
+              <div class="key" data-k="7">7</div><div class="key" data-k="8">8</div><div class="key" data-k="9">9</div>
+              <div class="key key--ghost" data-k="switch">Сменить</div>
+              <div class="key" data-k="0">0</div>
+              <div class="key key--ghost" data-k="del">⌫</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ ГЛАВНАЯ ════════ -->
+      <section class="view" data-screen-label="Главный" data-view="home">
+        <div class="appbar">
+          <div class="brand"><span class="nps">НПС</span><span class="sep">/</span><span class="name">ВЫДАЧА ТОПЛИВА</span></div>
+          <div class="spacer"></div>
+          <span class="sync-pill is-synced" id="homeSync"><span class="dot"></span>Синхронизировано</span>
+          <div class="who"><span class="nm">Карелин А. В.</span><span class="rl">Заправщик</span></div>
+          <div class="avatar">КА</div>
+        </div>
+
+        <div class="screen-body">
+          <div class="home-body">
+            <!-- АТЗ hero -->
+            <div class="card atz-hero">
+              <div class="ah-top">
+                <div>
+                  <div class="t-label" style="margin-bottom:8px">Закреплённый АТЗ</div>
+                  <div class="ah-plate">Х 214 ТТ 138</div>
+                  <div class="ah-model">УРАЛ 4320 · автотопливозаправщик</div>
+                </div>
+                <div class="ah-ico" id="home-atz-ico"></div>
+              </div>
+
+              <div class="col" style="gap:10px">
+                <div class="row" style="justify-content:space-between">
+                  <span class="t-label">Остаток в цистерне</span>
+                  <span class="t-caption" style="font-weight:700;color:var(--ink-2)">8 420 / 16 000 л</span>
+                </div>
+                <div class="atz-gauge">
+                  <div class="fuel-bar"><i style="width:53%"></i></div>
+                  <span class="t-body-strong" style="font-variant-numeric:tabular-nums">53%</span>
+                </div>
+              </div>
+
+              <button class="btn-primary start-cta" onclick="startShift()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                Начать смену
+              </button>
+              <div class="t-caption" style="text-align:center;margin-top:-6px">Смена С1 · откроется в 08:00 · МСК+5</div>
+            </div>
+
+            <!-- past shifts -->
+            <div class="home-side">
+              <div class="hs-head">
+                <span class="t-label">Прошлые смены</span>
+                <span class="t-caption" style="font-weight:600">за 7 дней</span>
+              </div>
+              <div class="shift-list" id="shiftList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ РАБОЧИЙ РЕЖИМ ════════ -->
+      <section class="view" data-screen-label="Рабочий режим" data-view="work">
+        <div class="appbar">
+          <div class="brand"><span class="nps">НПС</span><span class="sep">/</span><span class="name">ВЫДАЧА ТОПЛИВА</span></div>
+          <span class="timer-chip"><span class="dot"></span><span id="shiftTimer">00:00:00</span></span>
+          <div class="spacer"></div>
+          <span class="sync-pill is-offline" id="workSync"><span class="dot"></span>Офлайн · <span id="qCount">2</span> в очереди</span>
+          <button class="sync-refresh" onclick="manualSync()" title="Синхронизировать">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v5h-5"/></svg>
+          </button>
+          <div class="who"><span class="nm">Карелин А. В.</span><span class="rl">С1 · Х 214 ТТ 138</span></div>
+        </div>
+
+        <div class="screen-body" style="overflow:hidden">
+          <div class="work-body">
+            <!-- left: remain + actions -->
+            <div class="work-left">
+              <div class="card remain-card">
+                <span class="t-label">Остаток в АТЗ</span>
+                <div class="rc-val"><span class="rc-num" id="remainNum">8 420</span><span class="rc-unit">л</span></div>
+                <div class="remain-mini">
+                  <div class="rm"><span class="t-label">Выдано за смену</span><span class="v" id="givenTotal">0 л</span></div>
+                  <div class="rm"><span class="t-label">Заправок</span><span class="v" id="opCount">0</span></div>
+                </div>
+              </div>
+
+              <div class="actions-pair">
+                <button class="big-action big-action--primary" onclick="goGive()">
+                  <div class="ba-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V8a1 1 0 0 1 1-1h9v10M13 9h4l4 4v4M3 17h2m12 0h2"/><circle cx="7" cy="17" r="2"/><circle cx="18" cy="17" r="2"/></svg>
+                  </div>
+                  <div><div class="ba-label">Передача топлива</div><div class="ba-sub">Выдать технике на объекте</div></div>
+                </button>
+                <button class="big-action big-action--secondary" onclick="alert('Экран «Получение топлива» — следующая итерация')">
+                  <div class="ba-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+                  </div>
+                  <div><div class="ba-label">Получение топлива</div><div class="ba-sub">Приём в цистерну по ТТН</div></div>
+                </button>
+              </div>
+
+              <button class="btn-secondary end-shift" style="width:100%" onclick="endShift()">Закрыть смену</button>
+            </div>
+
+            <!-- right: log -->
+            <div class="card log-card">
+              <div class="log-head">
+                <span class="t-subheading">Журнал смены</span>
+                <span class="t-caption" id="logMeta">Сегодня · 12.05.2026</span>
+              </div>
+              <div class="log-scroll" id="logScroll">
+                <div class="log-empty" id="logEmpty">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+                  <div class="t-body" style="color:var(--ink-3)">Записей пока нет</div>
+                  <div class="t-caption">Нажмите «Передача топлива», чтобы выдать топливо технике</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script src="icons.js"></script>
+<script src="spine.js"></script>
+</body>
+</html>

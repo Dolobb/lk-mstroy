@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Polygon, Tooltip, Marker, useMap } from 'react-leaflet';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { MapContainer, TileLayer, Polygon, Marker, CircleMarker, Tooltip as LeafletTooltip, useMap, useMapEvents, ZoomControl, AttributionControl } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { LatLngBoundsLiteral, LatLngTuple } from 'leaflet';
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts';
+import { Pause, Play, RotateCcw, SkipBack, SkipForward, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MiniBar } from '@/components/MiniBar';
 import { fetchGeoObjects, fetchZonesByObject } from './api';
-import type { GeoObject, ZoneFeature, UnifiedVehicleRow, PositionPoint, TrackResponse } from './types';
+import type { GeoObject, ZoneFeature, UnifiedVehicleRow, PositionPoint, TrackPoint, TrackResponse } from './types';
 import { vehicleCategory, SUBGROUP_COLORS, SUBGROUP_LABELS, SUBGROUP_ORDER } from './categories';
 import { createAnalyticsPin } from './analyticsPin';
 import './analyticsPin.css';
@@ -94,6 +96,31 @@ function computeBounds(positions: LatLngTuple[]): LatLngBoundsLiteral | null {
   return [[minLat, minLng], [maxLat, maxLng]];
 }
 
+function computeBoundsTopLeft(positions: LatLngTuple[]): LatLngTuple {
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  for (const [lat, lng] of positions) {
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+  }
+  return [maxLat, minLng];
+}
+
+function isPointInRing(point: LatLngTuple, ring: LatLngTuple[]): boolean {
+  const [lat, lng] = point;
+  let inside = false;
+
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [latI, lngI] = ring[i]!;
+    const [latJ, lngJ] = ring[j]!;
+    const intersects = (latI > lat) !== (latJ > lat)
+      && lng < ((lngJ - lngI) * (lat - latI)) / (latJ - latI) + lngI;
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+}
+
 function fmtDateRangeShort(from: string, to: string): string {
   const fd = from.split('T')[0];
   const td = to.split('T')[0];
@@ -105,20 +132,435 @@ function fmtDateRangeShort(from: string, to: string): string {
 
 // ─── FitBounds helper ────────────────────────────────────
 
-function FitBounds({ bounds, maxZoom }: { bounds: LatLngBoundsLiteral | null; maxZoom?: number }) {
+function FitBounds({
+  bounds,
+  maxZoom,
+  onlyIfZoomingIn,
+}: {
+  bounds: LatLngBoundsLiteral | null;
+  maxZoom?: number;
+  onlyIfZoomingIn?: boolean;
+}) {
   const map = useMap();
   const lastKeyRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (!bounds) return;
     const key = `${bounds[0][0]},${bounds[0][1]},${bounds[1][0]},${bounds[1][1]}`;
     if (lastKeyRef.current === key) return;
+
+    if (onlyIfZoomingIn) {
+      const latLngBounds = L.latLngBounds(bounds);
+      const targetZoom = Math.min(
+        map.getBoundsZoom(latLngBounds, false, L.point(40, 40)),
+        maxZoom ?? Infinity,
+      );
+      if (map.getZoom() >= targetZoom) {
+        lastKeyRef.current = key;
+        map.panTo(latLngBounds.getCenter());
+        return;
+      }
+    }
+
     lastKeyRef.current = key;
     map.fitBounds(bounds, { padding: [40, 40], ...(maxZoom != null ? { maxZoom } : {}) });
-  }, [map, bounds, maxZoom]);
+  }, [map, bounds, maxZoom, onlyIfZoomingIn]);
+  return null;
+}
+
+function InitialFitBounds({ bounds }: { bounds: LatLngBoundsLiteral | null }) {
+  const map = useMap();
+  const didFitRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!bounds || didFitRef.current) return;
+    didFitRef.current = true;
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }, [map, bounds]);
+
+  return null;
+}
+
+function ZoneMapClickHandler({
+  selectedData,
+  onOutsideSelected,
+}: {
+  selectedData: BoundaryData | null;
+  onOutsideSelected: () => void;
+}) {
+  useMapEvents({
+    click: (e) => {
+      if (!selectedData) return;
+      const ring = selectedData.boundary.geometry.coordinates[0];
+      if (!ring) return;
+      const selectedRing = geoJsonRingToLeaflet(ring);
+      const clickedPoint: LatLngTuple = [e.latlng.lat, e.latlng.lng];
+      if (!isPointInRing(clickedPoint, selectedRing)) {
+        onOutsideSelected();
+      }
+    },
+  });
+
   return null;
 }
 
 // ─── Inspector panel ─────────────────────────────────────
+
+type TrackTimelineDatum = {
+  idx: number;
+  speed: number;
+  time: string;
+  ts: string;
+};
+
+type TrackTimelineTooltipProps = {
+  active?: boolean;
+  payload?: Array<{ payload?: TrackTimelineDatum }>;
+};
+
+type ChartPointerState = {
+  activeTooltipIndex?: number | string | null;
+  activeLabel?: number | string | null;
+};
+
+const PLAYBACK_INTERVAL_MS = 650;
+const PLAYBACK_SPEEDS = [1, 2, 4] as const;
+type PlaybackSpeed = typeof PLAYBACK_SPEEDS[number];
+
+function formatTrackTime(ts: string): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts.slice(11, 16) || ts;
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+}
+
+function formatTrackSpeed(speed: number | null): string {
+  return `${Math.round(speed ?? 0)} км/ч`;
+}
+
+function getChartIndex(state: unknown, maxLength: number): number | null {
+  const s = state as ChartPointerState | null;
+  const raw = s?.activeTooltipIndex ?? s?.activeLabel;
+  if (raw == null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(maxLength - 1, Math.round(n)));
+}
+
+function stopOverlayEvent(e: React.SyntheticEvent) {
+  e.stopPropagation();
+}
+
+function TrackTimelineTooltip({ active, payload }: TrackTimelineTooltipProps) {
+  const datum = payload?.[0]?.payload;
+  if (!active || !datum) return null;
+  return (
+    <div style={{
+      padding: '6px 8px',
+      borderRadius: 8,
+      background: 'rgba(15,23,42,0.96)',
+      border: '1px solid rgba(255,255,255,0.14)',
+      color: '#fff',
+      boxShadow: '0 8px 22px rgba(0,0,0,0.28)',
+      fontSize: 11,
+      fontVariantNumeric: 'tabular-nums',
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: 2 }}>{datum.time}</div>
+      <div style={{ color: '#fecaca', fontWeight: 700 }}>{Math.round(datum.speed)} км/ч</div>
+    </div>
+  );
+}
+
+function TrackPlaybackMarker({ point }: { point: TrackPoint }) {
+  const map = useMap();
+  const lastPanAtRef = React.useRef(0);
+  const timeoutRef = React.useRef<number | null>(null);
+
+  useEffect(() => {
+    const pan = () => {
+      lastPanAtRef.current = Date.now();
+      map.panTo([point.lat, point.lng], { animate: true, duration: 0.25 });
+    };
+
+    const elapsed = Date.now() - lastPanAtRef.current;
+    if (elapsed >= 140) {
+      if (timeoutRef.current != null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      pan();
+      return;
+    }
+
+    if (timeoutRef.current != null) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = null;
+      pan();
+    }, 140 - elapsed);
+
+    return () => {
+      if (timeoutRef.current != null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [map, point]);
+
+  return (
+    <CircleMarker
+      center={[point.lat, point.lng] as LatLngTuple}
+      radius={7}
+      pathOptions={{
+        color: '#fff',
+        weight: 2,
+        fillColor: '#ef4444',
+        fillOpacity: 1,
+        opacity: 1,
+        className: 'track-playback-marker',
+      }}
+    >
+      <LeafletTooltip direction="top" offset={[0, -8]}>
+        <div style={{ fontSize: 11, fontWeight: 700 }}>{formatTrackTime(point.ts)}</div>
+        <div style={{ fontSize: 10 }}>{formatTrackSpeed(point.speed)}</div>
+      </LeafletTooltip>
+    </CircleMarker>
+  );
+}
+
+function TrackTimelinePanel({
+  track,
+  activeIndex,
+  onActiveIndexChange,
+}: {
+  track: TrackResponse;
+  activeIndex: number | null;
+  onActiveIndexChange: React.Dispatch<React.SetStateAction<number | null>>;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+  const points = track.points;
+
+  const chartData = useMemo<TrackTimelineDatum[]>(() => (
+    points.map((p, idx) => ({
+      idx,
+      speed: p.speed ?? 0,
+      time: formatTrackTime(p.ts),
+      ts: p.ts,
+    }))
+  ), [points]);
+
+  const maxSpeed = useMemo(() => {
+    const max = Math.max(10, ...chartData.map(d => d.speed));
+    return Math.ceil(max / 10) * 10;
+  }, [chartData]);
+
+  const activePoint = activeIndex == null ? null : points[activeIndex] ?? null;
+
+  const selectFromChart = useCallback((state: unknown) => {
+    const idx = getChartIndex(state, points.length);
+    if (idx == null) return;
+    onActiveIndexChange(idx);
+  }, [onActiveIndexChange, points.length]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const id = window.setInterval(() => {
+      onActiveIndexChange(prev => {
+        const current = prev == null ? 0 : prev;
+        return Math.min(points.length - 1, current + playbackSpeed);
+      });
+    }, PLAYBACK_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [isPlaying, onActiveIndexChange, playbackSpeed, points.length]);
+
+  useEffect(() => {
+    if (isPlaying && activeIndex != null && activeIndex >= points.length - 1) {
+      setIsPlaying(false);
+    }
+  }, [activeIndex, isPlaying, points.length]);
+
+  useEffect(() => {
+    if (!points.length) setIsPlaying(false);
+  }, [points.length]);
+
+  const stepActive = useCallback((delta: number) => {
+    onActiveIndexChange(prev => {
+      const current = prev == null ? (delta > 0 ? -1 : points.length) : prev;
+      return Math.max(0, Math.min(points.length - 1, current + delta));
+    });
+  }, [onActiveIndexChange, points.length]);
+
+  const controlButtonStyle: React.CSSProperties = {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(255,255,255,0.06)',
+    color: 'var(--sv-text-1)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+  };
+
+  const speedButtonStyle = (speed: PlaybackSpeed): React.CSSProperties => ({
+    height: 26,
+    minWidth: 34,
+    borderRadius: 7,
+    border: playbackSpeed === speed ? '1px solid rgba(239,68,68,0.7)' : '1px solid rgba(255,255,255,0.10)',
+    background: playbackSpeed === speed ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.05)',
+    color: playbackSpeed === speed ? '#fecaca' : 'var(--sv-text-2)',
+    fontSize: 11,
+    fontWeight: 800,
+    cursor: 'pointer',
+  });
+
+  return (
+    <div
+      onPointerDown={stopOverlayEvent}
+      onPointerMove={stopOverlayEvent}
+      onPointerUp={stopOverlayEvent}
+      onMouseDown={stopOverlayEvent}
+      onClick={stopOverlayEvent}
+      onDoubleClick={stopOverlayEvent}
+      onWheel={stopOverlayEvent}
+      style={{
+        position: 'absolute',
+        left: 18,
+        right: 62,
+        bottom: 14,
+        zIndex: 1000,
+        height: 218,
+        minWidth: 320,
+        padding: '12px 14px 10px',
+        borderRadius: 12,
+        background: 'rgba(15,23,42,0.90)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        backdropFilter: 'blur(18px)',
+        boxShadow: '0 18px 42px rgba(0,0,0,0.34)',
+        display: 'grid',
+        gridTemplateRows: 'auto 1fr',
+        gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <button
+          type="button"
+          title={isPlaying ? 'Пауза' : 'Воспроизвести'}
+          onClick={() => {
+            if (isPlaying) {
+              setIsPlaying(false);
+              return;
+            }
+            if (activeIndex == null || activeIndex >= points.length - 1) onActiveIndexChange(0);
+            setIsPlaying(true);
+          }}
+          style={{ ...controlButtonStyle, background: 'rgba(239,68,68,0.18)', borderColor: 'rgba(239,68,68,0.45)', color: '#fecaca' }}
+        >
+          {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+        </button>
+        <button type="button" title="Назад" onClick={() => stepActive(-1)} style={controlButtonStyle}>
+          <SkipBack size={14} />
+        </button>
+        <button type="button" title="Вперед" onClick={() => stepActive(1)} style={controlButtonStyle}>
+          <SkipForward size={14} />
+        </button>
+
+        <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
+        {PLAYBACK_SPEEDS.map(speed => (
+          <button
+            key={speed}
+            type="button"
+            title={`Скорость ${speed}x`}
+            onClick={() => setPlaybackSpeed(speed)}
+            style={speedButtonStyle(speed)}
+          >
+            {speed}x
+          </button>
+        ))}
+
+        <div style={{ flex: 1, minWidth: 0 }} />
+        <div style={{
+          minWidth: 148,
+          textAlign: 'right',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--sv-text-2)',
+          fontVariantNumeric: 'tabular-nums',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {activePoint ? `${formatTrackTime(activePoint.ts)} · ${formatTrackSpeed(activePoint.speed)}` : `${points.length} точек`}
+        </div>
+        <button type="button" title="В начало" onClick={() => onActiveIndexChange(0)} style={controlButtonStyle}>
+          <RotateCcw size={14} />
+        </button>
+        <button type="button" title="Скрыть точку" onClick={() => { setIsPlaying(false); onActiveIndexChange(null); }} style={controlButtonStyle}>
+          <X size={15} />
+        </button>
+      </div>
+
+      <div style={{ minHeight: 0, cursor: isDragging ? 'grabbing' : 'crosshair', userSelect: 'none' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={chartData}
+            margin={{ top: 8, right: 8, bottom: 0, left: -18 }}
+            onClick={selectFromChart}
+            onMouseDown={(state: unknown) => {
+              setIsDragging(true);
+              setIsPlaying(false);
+              selectFromChart(state);
+            }}
+            onMouseMove={(state: unknown) => {
+              if (isDragging) selectFromChart(state);
+            }}
+            onMouseUp={() => setIsDragging(false)}
+            onMouseLeave={() => setIsDragging(false)}
+          >
+            <defs>
+              <linearGradient id="track-speed-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.38} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+            <XAxis dataKey="idx" type="number" domain={[0, points.length - 1]} hide />
+            <YAxis
+              domain={[0, maxSpeed]}
+              tick={{ fill: 'rgba(255,255,255,0.46)', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={34}
+              tickFormatter={(v) => `${Math.round(Number(v))}`}
+            />
+            <ChartTooltip
+              cursor={{ stroke: 'rgba(248,113,113,0.65)', strokeWidth: 1 }}
+              content={(props: unknown) => <TrackTimelineTooltip {...(props as TrackTimelineTooltipProps)} />}
+            />
+            {activeIndex != null && (
+              <ReferenceLine x={activeIndex} stroke="#ef4444" strokeWidth={2} ifOverflow="extendDomain" />
+            )}
+            <Area
+              type="monotone"
+              dataKey="speed"
+              stroke="#f87171"
+              strokeWidth={2}
+              fill="url(#track-speed-fill)"
+              dot={false}
+              activeDot={{ r: 4, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
 
 function Inspector({ data, onClose, dateFrom, dateTo }: {
   data: BoundaryData;
@@ -281,6 +723,11 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
   const [objectZones, setObjectZones] = useState<Map<string, ZoneFeature[]>>(new Map());
   const [geoError, setGeoError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [activeTrackPointIdx, setActiveTrackPointIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    setActiveTrackPointIdx(null);
+  }, [selectedVehicleId, track]);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -368,35 +815,35 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     return computeBounds(track.points.map(p => [p.lat, p.lng] as LatLngTuple));
   }, [selectedVehicleId, track]);
 
-  // Single fitBounds authority, priority:
-  //   selected vehicle's track → selected zone → all objects.
-  // Track wins so that switching to the map from the table/cards zooms to
-  // the vehicle deterministically (previously TrackLayer did its own
-  // fitBounds, racing this one on a fresh map mount).
+  // Single fitBounds authority for active drill-downs. The all-objects fit is
+  // intentionally one-shot on map load, so clearing a zone does not zoom out.
   const activeBounds = useMemo(() => {
     if (trackBounds) return trackBounds;
-    if (!selectedData) return allBounds;
+    if (!selectedData) return null;
     const ring = selectedData.boundary.geometry.coordinates[0];
-    if (!ring) return allBounds;
+    if (!ring) return null;
     return computeBounds(geoJsonRingToLeaflet(ring));
-  }, [trackBounds, selectedData, allBounds]);
+  }, [trackBounds, selectedData]);
 
   // ── All vehicle pins (positions + fallback) ──
-  const allPositionPins = useMemo(() => {
+  const vehicleRowMap = useMemo(() => {
     const rowMap = new Map<string, UnifiedVehicleRow>();
     for (const g of groups) {
       for (const v of g.vehicles) {
         if (!rowMap.has(v.regNumber)) rowMap.set(v.regNumber, v);
       }
     }
+    return rowMap;
+  }, [groups]);
 
+  const allPositionPins = useMemo(() => {
     const pins: Array<{ row: UnifiedVehicleRow; lat: number; lng: number }> = [];
     const seen = new Set<string>();
 
     // 1. Positions (track data) — highest priority
     if (positions) {
       for (const p of positions) {
-        const row = rowMap.get(p.regNumber);
+        const row = vehicleRowMap.get(p.regNumber);
         if (!row) {
           // Unknown vehicle — synthetic degraded row
           pins.push({
@@ -426,7 +873,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     }
 
     // 2. Fallback: row.latitude/longitude for vehicles not in positions
-    for (const [reg, row] of rowMap) {
+    for (const [reg, row] of vehicleRowMap) {
       if (seen.has(reg)) continue;
       if (row.latitude != null && row.longitude != null) {
         pins.push({ row, lat: row.latitude, lng: row.longitude });
@@ -435,7 +882,17 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     }
 
     return pins;
-  }, [positions, groups]);
+  }, [positions, vehicleRowMap]);
+
+  const selectedTrackPin = useMemo(() => {
+    if (!selectedVehicleId || !track || !track.points.length) return null;
+    if (track.vehicleId.toUpperCase() !== selectedVehicleId.toUpperCase()) return null;
+    const lastPoint = track.points[track.points.length - 1]!;
+    const row = vehicleRowMap.get(selectedVehicleId)
+      ?? allPositionPins.find(p => p.row.regNumber === selectedVehicleId)?.row;
+    if (!row) return null;
+    return { row, lat: lastPoint.lat, lng: lastPoint.lng };
+  }, [selectedVehicleId, track, vehicleRowMap, allPositionPins]);
 
   // ── Reg numbers for all vehicles that belong to at least one named object ──
   const allInObjectRegs = useMemo(() => {
@@ -460,6 +917,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     cLng /= ring.length;
 
     const seen = new Set(allPositionPins.map(p => p.row.regNumber));
+    if (selectedTrackPin) seen.add(selectedTrackPin.row.regNumber);
     const missing = selectedData.vehicles.filter(v => !seen.has(v.regNumber));
 
     return missing.map((v, i) => {
@@ -467,24 +925,38 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
       const r = 0.0005 + (i % 3) * 0.0003;
       return { row: v, lat: cLat + Math.cos(angle) * r, lng: cLng + Math.sin(angle) * r };
     });
-  }, [selectedData, allPositionPins]);
+  }, [selectedData, allPositionPins, selectedTrackPin]);
 
   // ── Which pins to actually render ──
   // Object selected → only that object's vehicles.
   // Outside eye on, no object selected → vehicles not inside any named object.
   // Otherwise → nothing (clean map with just zone outlines + badges).
   const displayedPositionPins = useMemo(() => {
+    const withSelectedTrackPin = (pins: Array<{ row: UnifiedVehicleRow; lat: number; lng: number }>) => {
+      if (!selectedTrackPin) return pins;
+      const idx = pins.findIndex(p => p.row.regNumber === selectedTrackPin.row.regNumber);
+      if (idx === -1) return [...pins, selectedTrackPin];
+      const next = pins.slice();
+      next[idx] = selectedTrackPin;
+      return next;
+    };
+
     if (focusedObjectUid) {
       const bd = boundaryList.find(b => b.objectUid === focusedObjectUid);
-      if (!bd) return [];
+      if (!bd) return withSelectedTrackPin([]);
       const inObject = new Set(bd.vehicles.map(v => v.regNumber));
-      return allPositionPins.filter(p => inObject.has(p.row.regNumber));
+      return withSelectedTrackPin(allPositionPins.filter(p => inObject.has(p.row.regNumber)));
     }
     if (showOutsideOnMap) {
-      return allPositionPins.filter(p => !allInObjectRegs.has(p.row.regNumber));
+      return withSelectedTrackPin(allPositionPins.filter(p => !allInObjectRegs.has(p.row.regNumber)));
     }
-    return [];
-  }, [focusedObjectUid, boundaryList, showOutsideOnMap, allInObjectRegs, allPositionPins]);
+    return withSelectedTrackPin([]);
+  }, [focusedObjectUid, boundaryList, showOutsideOnMap, allInObjectRegs, allPositionPins, selectedTrackPin]);
+
+  const hasTrackTimeline = Boolean(selectedVehicleId && track && track.points.length > 1);
+  const activeTrackPoint = hasTrackTimeline && activeTrackPointIdx != null
+    ? track!.points[activeTrackPointIdx] ?? null
+    : null;
 
   if (geoError) {
     return (
@@ -530,14 +1002,28 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           center={[62, 80]}
           zoom={4}
           style={{ height: '100%', width: '100%' }}
-          zoomControl={true}
+          zoomControl={false}
+          attributionControl={false}
           scrollWheelZoom={true}
         >
+          <ZoomControl position="bottomright" />
+          <AttributionControl position="bottomleft" prefix={false} />
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
-          {activeBounds && <FitBounds bounds={activeBounds} maxZoom={trackBounds ? 16 : undefined} />}
+          <InitialFitBounds bounds={allBounds} />
+          <ZoneMapClickHandler
+            selectedData={selectedData}
+            onOutsideSelected={() => onFocusObject?.(null)}
+          />
+          {activeBounds && (
+            <FitBounds
+              bounds={activeBounds}
+              maxZoom={trackBounds ? 16 : undefined}
+              onlyIfZoomingIn={!trackBounds}
+            />
+          )}
           {boundaryList.map(bd => {
             const ring = bd.boundary.geometry.coordinates[0];
             if (!ring) return null;
@@ -545,6 +1031,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             const kip = avgKip(bd.vehicles);
             const color = kip > 0 ? kipColor(kip) : '#60A5FA';
             const isActive = focusedObjectUid === bd.objectUid;
+            const labelPosition = isActive ? computeBoundsTopLeft(positions) : computeCentroid(positions);
 
             return (
               <React.Fragment key={bd.objectUid}>
@@ -579,7 +1066,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                           color: zc.color,
                           weight: 1.25,
                           fillColor: zc.color,
-                          fillOpacity: 0.05,
+                          fillOpacity: isActive ? 0 : 0.05,
                           opacity: 0.7,
                           interactive: false,
                         }}
@@ -608,32 +1095,34 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                   pathOptions={{
                     color,
                     weight: isActive ? 2.5 : 1.5,
+                    fill: !isActive,
                     fillColor: color,
-                    fillOpacity: isActive ? 0.08 : 0.04,
+                    fillOpacity: isActive ? 0 : 0.04,
                     opacity: isActive ? 1 : 0.75,
+                    interactive: true,
                   }}
                   eventHandlers={{
-                    click: () => onFocusObject?.(focusedObjectUid === bd.objectUid ? null : bd.objectUid),
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      if (!isActive) onFocusObject?.(bd.objectUid);
+                    },
                   }}
-                >
-                  <Tooltip sticky={false} permanent={false} direction="center">
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{bd.objectName}</div>
-                    <div style={{ fontSize: 11 }}>
-                      {bd.vehicles.length} ТС
-                      {kip > 0 && <span style={{ marginLeft: 6, color: kipColor(kip) }}>{Math.round(kip)}%</span>}
-                    </div>
-                  </Tooltip>
-                </Polygon>
+                />
                 <Marker
                   key={`label-${bd.objectUid}`}
-                  position={computeCentroid(positions)}
+                  position={labelPosition}
                   icon={L.divIcon({
                     className: '',
                     html: `<div class="sv-map-obj-badge${isActive ? ' active' : ''}" style="--kip-color:${color}"><div class="sv-map-obj-badge-name">${bd.objectName}</div><div class="sv-map-obj-badge-sub"><span class="sv-map-obj-badge-vehicles">${bd.vehicles.length} ТС</span>${kip > 0 ? `<span class="sv-map-obj-badge-kip">${Math.round(kip)}%</span>` : ''}</div></div>`,
                     iconSize: [0, 0],
                     iconAnchor: [0, 0],
                   })}
-                  eventHandlers={{ click: () => onFocusObject?.(focusedObjectUid === bd.objectUid ? null : bd.objectUid) }}
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      if (!isActive) onFocusObject?.(bd.objectUid);
+                    },
+                  }}
                 />
               </React.Fragment>
             );
@@ -647,16 +1136,13 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                   key={p.row.regNumber}
                   position={[p.lat, p.lng] as LatLngTuple}
                   icon={createAnalyticsPin(p.row, isSel)}
-                  eventHandlers={{ click: () => onSelectVehicle?.(isSel ? null : p.row.regNumber) }}
-                >
-                  <Tooltip sticky={false} direction="top" offset={[0, -52]}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
-                    <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
-                    <div style={{ fontSize: 11 }}>
-                      КИП {Math.round(p.row.avgKipPct)}%
-                    </div>
-                  </Tooltip>
-                </Marker>
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      onSelectVehicle?.(isSel ? null : p.row.regNumber);
+                    },
+                  }}
+                />
               );
             })}
             {focusedObjectUid && zoneSyntheticPins.map(p => {
@@ -666,16 +1152,13 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                   key={`synth-${p.row.regNumber}`}
                   position={[p.lat, p.lng] as LatLngTuple}
                   icon={createAnalyticsPin(p.row, isSel)}
-                  eventHandlers={{ click: () => onSelectVehicle?.(isSel ? null : p.row.regNumber) }}
-                >
-                  <Tooltip sticky={false} direction="top" offset={[0, -52]}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.row.regNumber}</div>
-                    <div style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>{p.row.nameMO}</div>
-                    <div style={{ fontSize: 11 }}>
-                      КИП {Math.round(p.row.avgKipPct)}%
-                    </div>
-                  </Tooltip>
-                </Marker>
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e.originalEvent);
+                      onSelectVehicle?.(isSel ? null : p.row.regNumber);
+                    },
+                  }}
+                />
               );
             })}
           </MarkerClusterGroup>
@@ -683,7 +1166,18 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           {track && (
             <TrackLayer track={track} onDeselect={() => onSelectVehicle?.(null)} />
           )}
+          {activeTrackPoint && (
+            <TrackPlaybackMarker point={activeTrackPoint} />
+          )}
         </MapContainer>
+
+        {hasTrackTimeline && track && (
+          <TrackTimelinePanel
+            track={track}
+            activeIndex={activeTrackPointIdx}
+            onActiveIndexChange={setActiveTrackPointIdx}
+          />
+        )}
 
         {!boundaryList.length && geoObjects.length > 0 && (
           <div style={{
@@ -714,7 +1208,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
         </button>
 
         <div style={{
-          position: 'absolute', bottom: 24, left: 12, zIndex: 1000,
+          position: 'absolute', bottom: hasTrackTimeline ? 244 : 24, left: 12, zIndex: 1000,
           padding: '6px 10px', borderRadius: 10,
           background: 'var(--sv-card, rgba(15,23,42,0.75))',
           backdropFilter: 'blur(16px)',

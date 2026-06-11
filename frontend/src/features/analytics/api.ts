@@ -13,6 +13,7 @@ import type {
   PositionsResponse,
   GroupsResponse,
   BigObjectsResponse,
+  SidebarSummaryResponse,
   TrackResponse,
 } from './types';
 
@@ -114,8 +115,8 @@ export async function triggerDtShiftSegmentFetch(
 
 // ─── Positions API (Session 7) ─────────────────────────
 
-export async function fetchPositions(at: Date): Promise<PositionsResponse> {
-  const q = new URLSearchParams({ at: at.toISOString() });
+export async function fetchPositions(from: Date, at: Date): Promise<PositionsResponse> {
+  const q = new URLSearchParams({ from: from.toISOString(), at: at.toISOString() });
   const r = await fetch(`/api/analytics/positions?${q}`);
   if (!r.ok) throw new Error(`Positions API error: ${r.status}`);
   return r.json() as Promise<PositionsResponse>;
@@ -134,6 +135,13 @@ export async function fetchBigObjects(): Promise<BigObjectsResponse> {
   const r = await fetch('/api/analytics/objects');
   if (!r.ok) throw new Error(`Objects API error: ${r.status}`);
   return r.json() as Promise<BigObjectsResponse>;
+}
+
+export async function fetchSidebarSummary(from: string, to: string): Promise<SidebarSummaryResponse> {
+  const q = new URLSearchParams({ from, to });
+  const r = await fetch(`/api/analytics/sidebar-summary?${q}`);
+  if (!r.ok) throw new Error(`Sidebar summary API error: ${r.status}`);
+  return r.json() as Promise<SidebarSummaryResponse>;
 }
 
 // ─── Converters ─────────────────────────────────────────
