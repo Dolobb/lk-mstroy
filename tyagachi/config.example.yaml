@@ -17,6 +17,13 @@ api:
   timeout: 10
   retry_count: 3
 
+# Для планировщика
+scheduler:
+  enabled: true
+  time: "07:00"
+  period_days: 3
+  scheduler.enabled: false
+
 # Пути к файлам
 paths:
   input:
