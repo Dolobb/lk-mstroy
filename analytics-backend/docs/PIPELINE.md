@@ -70,7 +70,20 @@ PRIMARY KEY (session_id, ts)
 |-------|------|---------|
 | GET | `/api/analytics/health` | Health-check (503 при деградации) |
 | GET | `/api/analytics/tracks` | Трек ТС за период (?vehicle&from&to) |
+| GET | `/api/analytics/groups` | Группы ТС по посещённым объектам (?from&to) |
+| GET | `/api/analytics/objects` | Список крупных объектов с `dt_boundary` и рабочими DT-зонами |
+| GET | `/api/analytics/sidebar-summary` | Read-model карточек сайдбара объектов за период (?from&to) |
 | POST | `/api/analytics/admin/fetch` | Ручной запуск pipeline (?date&force) |
+
+### Sidebar summary
+
+`GET /api/analytics/sidebar-summary?from=YYYY-MM-DD&to=YYYY-MM-DD` возвращает карточки только для крупных объектов: объект должен иметь `dt_boundary` и одну из рабочих DT-зон (`dt_loading`, `dt_unloading`, `dt_onsite`).
+
+Источники КИП:
+- самосвалы: `dump_trucks.shift_records_active.kip_pct` по `object_uid`;
+- ДСТ, краны, экскаваторы: `kip_vehicles.vehicle_records.utilization_ratio`, объект определяется через попадание `longitude/latitude` в `geo.zones` с тегом `dst_zone`.
+
+Пустые группы остаются в ответе с `vehicleCount = 0` и `kipPct = null`; общий `kipPct` объекта равен `0`, если за период нет записей с КИП больше нуля.
 
 ## Алгоритмы
 

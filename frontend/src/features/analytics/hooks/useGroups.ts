@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { fetchGroups, fetchBigObjects } from '../api';
+import { fetchGroups, fetchBigObjects, fetchSidebarSummary } from '../api';
 
 const STALE_MS = 60_000;
 
@@ -19,5 +19,15 @@ export function useBigObjects() {
     queryFn: () => fetchBigObjects(),
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useSidebarSummary(from: string, to: string) {
+  return useQuery({
+    queryKey: ['analytics', 'sidebar-summary', from, to],
+    queryFn: () => fetchSidebarSummary(from, to),
+    staleTime: STALE_MS,
+    placeholderData: keepPreviousData,
+    enabled: !!from && !!to,
   });
 }
