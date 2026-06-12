@@ -1,0 +1,326 @@
+[
+ {
+  "tis_org_id": 721754553,
+  "name": "ТФ \"Мостоотряд-36\" филиал АО \"Мостострой-11\"",
+  "kind": "internal",
+  "vehicle_count": 1040
+ },
+ {
+  "tis_org_id": 1600357909,
+  "name": "ООО БСМ-МОСТ",
+  "kind": "internal",
+  "vehicle_count": 186
+ },
+ {
+  "tis_org_id": -1570540425,
+  "name": "ДСУ Мостострой-11",
+  "kind": "internal",
+  "vehicle_count": 182
+ },
+ {
+  "tis_org_id": 721754589,
+  "name": "ТФ \"Мостоотряд-29\" филиал АО \"Мостострой-11\"",
+  "kind": "internal",
+  "vehicle_count": 167
+ },
+ {
+  "tis_org_id": 721754389,
+  "name": "ТФ \"Мостоотряд-87\" филиал АО \"Мостострой-11\"",
+  "kind": "internal",
+  "vehicle_count": 161
+ },
+ {
+  "tis_org_id": -831434595,
+  "name": "ТФ \"Мостоотряд-15\" филиал АО \"Мостострой-11\"",
+  "kind": "internal",
+  "vehicle_count": 125
+ },
+ {
+  "tis_org_id": 821572661,
+  "name": "ООО МашСиб",
+  "kind": "internal",
+  "vehicle_count": 42
+ },
+ {
+  "tis_org_id": 1027184252,
+  "name": "ООО ТК СТ",
+  "kind": "internal",
+  "vehicle_count": 34
+ },
+ {
+  "tis_org_id": 1825838752,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 13
+ },
+ {
+  "tis_org_id": 890817425,
+  "name": "Аренда ТФ \"Мостоотряд-36\"",
+  "kind": "internal",
+  "vehicle_count": 12
+ },
+ {
+  "tis_org_id": -1364842365,
+  "name": "СУ Мостострой-11",
+  "kind": "internal",
+  "vehicle_count": 12
+ },
+ {
+  "tis_org_id": -401719935,
+  "name": "ООО Технопарк",
+  "kind": "internal",
+  "vehicle_count": 11
+ },
+ {
+  "tis_org_id": 1510862257,
+  "name": "Тюменьдорпроект",
+  "kind": "internal",
+  "vehicle_count": 8
+ },
+ {
+  "tis_org_id": 5009518,
+  "name": "ИП Сарина",
+  "kind": "internal",
+  "vehicle_count": 7
+ },
+ {
+  "tis_org_id": 1027572116,
+  "name": "ООО \"Ярд Империал\"",
+  "kind": "internal",
+  "vehicle_count": 7
+ },
+ {
+  "tis_org_id": -1345026271,
+  "name": "ООО Технопарк",
+  "kind": "internal",
+  "vehicle_count": 5
+ },
+ {
+  "tis_org_id": 2014914182,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 5
+ },
+ {
+  "tis_org_id": 492124735,
+  "name": "ООО Донбасстройтехника",
+  "kind": "internal",
+  "vehicle_count": 4
+ },
+ {
+  "tis_org_id": -2120053773,
+  "name": "АО \"Мостострой 11\"",
+  "kind": "internal",
+  "vehicle_count": 4
+ },
+ {
+  "tis_org_id": -1979182997,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 4
+ },
+ {
+  "tis_org_id": 244974948,
+  "name": "ИП Николаенко",
+  "kind": "internal",
+  "vehicle_count": 4
+ },
+ {
+  "tis_org_id": 430623105,
+  "name": "ИП Куц",
+  "kind": "internal",
+  "vehicle_count": 3
+ },
+ {
+  "tis_org_id": 1979624711,
+  "name": "ООО \"МОСТСТРОЙРПРОЕКТ\"",
+  "kind": "internal",
+  "vehicle_count": 3
+ },
+ {
+  "tis_org_id": 1566631386,
+  "name": "ООО СпецАвтоТранс",
+  "kind": "internal",
+  "vehicle_count": 3
+ },
+ {
+  "tis_org_id": -1290436475,
+  "name": "Стройтехника",
+  "kind": "internal",
+  "vehicle_count": 3
+ },
+ {
+  "tis_org_id": 1461878268,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": 936802094,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": 763309862,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": 964027295,
+  "name": "ООО Югра-АВК",
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": -1236409386,
+  "name": "ООО \"Интер-электро\"",
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": -777275840,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": 264653564,
+  "name": "ИП Тороян",
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": -467128485,
+  "name": "ООО Интер-электро",
+  "kind": "internal",
+  "vehicle_count": 2
+ },
+ {
+  "tis_org_id": 1015954381,
+  "name": "ООО \"Бенчмарк-лоджистикс\"",
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -1196446865,
+  "name": "Аренда ООО \"ДСУ \"МС-11\"",
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 432064456,
+  "name": "ООО АвтоВысота",
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -1491647244,
+  "name": "Аренда ТФ \"Мостоотряд-15\"",
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -374900547,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -605241147,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -493098530,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 869651565,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 2078749700,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -975894412,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -996005945,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 616141828,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -1595193879,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 1383834643,
+  "name": "ООО \"Строймеханизация\"",
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 875735206,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 1636221973,
+  "name": "ИП Костюшко В.В",
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -1240832594,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -652232493,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 2002404873,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": -1882381188,
+  "name": "ООО А.С.К.",
+  "kind": "internal",
+  "vehicle_count": 1
+ },
+ {
+  "tis_org_id": 1043859847,
+  "name": null,
+  "kind": "internal",
+  "vehicle_count": 1
+ }
+]

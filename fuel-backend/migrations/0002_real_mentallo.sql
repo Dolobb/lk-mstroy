@@ -1,0 +1,1 @@
+ALTER TABLE "fuel_receipt_events" ADD COLUMN "edited_at" timestamp with time zone;
