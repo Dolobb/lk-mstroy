@@ -19,10 +19,12 @@ import yaml
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
+from io import BytesIO
+from src.output.excel_export import build_request_workbook, workbook_to_bytes
 
 from .models import Database, Report, ShiftCache
 from .shifts import ShiftMonitoringFetcher, split_period_into_shifts_str
@@ -1390,6 +1392,39 @@ async def get_request_report(request_number: int):
     Path(tmp_path).unlink()  # cleanup
 
     return HTMLResponse(content=html_content)
+
+
+@app.get("/api/request/{request_number}/export")
+async def export_request_excel(request_number: int):
+    """Выгружает заявку в .xlsx (два листа: «Заявка» и «Путевые листы»)."""
+
+    from src.web.models import TrackedRequest as TR
+
+    session = db.get_session()
+
+    try:
+        tr = session.query(TR).filter_by(request_number=request_number).first()
+        if not tr:
+            raise HTTPException(status_code=404, detail="Request not found")
+        if not tr.matched_data_json:
+            raise HTTPException(status_code=404, detail="No cached data for this request. Re-sync first.")
+        
+        matched_records = json.loads(tr.matched_data_json)
+    
+    finally:
+        session.close()
+    
+    wb = build_request_workbook(request_number, matched_records)
+    xlsx_bytes = workbook_to_bytes(wb)
+
+    filename = f"request_{request_number}.xlsx"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+
+    return StreamingResponse(
+        content=BytesIO(xlsx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
 
 
 @app.get("/api/request/{request_number}/data")
