@@ -111,3 +111,56 @@ export interface SyncResponse {
 
 /** Локальный жизненный цикл строки outbox */
 export type OutboxStatus = "pending" | "in_flight" | "confirmed" | "conflict" | "error";
+
+// ── Контракты ответов бэкенда ──────────────────────────────────────────────
+
+/** Ответ `POST /auth/login` (fuel-backend/src/routes/auth.ts). pinHash — bcrypt, для офлайн-кэша. */
+export interface LoginResponse {
+  token: string;
+  driver: { id: string; login: string; fullName: string; pinHash: string };
+}
+
+export interface BootstrapOrganization {
+  id: string;
+  name: string;
+  kind: string;
+  source: string;
+}
+export interface BootstrapVehicle {
+  id: string;
+  gosNumber: string;
+  mark: string | null;
+  vehicleType: string | null;
+  organizationId: string;
+  source: string;
+  isActive: boolean;
+}
+export interface BootstrapAtzItem {
+  id: string;
+  gosNumber: string;
+  title: string | null;
+  remainingLiters: number;
+  isActive: boolean;
+}
+export interface BootstrapShift {
+  id: string;
+  atzId: string;
+  atzGosNumber: string;
+  startedAtClient: string;
+  endedAtClient: string | null;
+  status: string;
+  openingRemainingLiters: number;
+  closingRemainingLiters: number | null;
+  dispenseCount: number;
+  dispenseLiters: number;
+  receiptLiters: number;
+}
+
+/** Ответ `GET /bootstrap?since=` (fuel-backend/src/routes/bootstrap.ts). */
+export interface BootstrapData {
+  serverTime: string;
+  organizations: BootstrapOrganization[];
+  vehicles: BootstrapVehicle[];
+  atz: BootstrapAtzItem[];
+  shifts: BootstrapShift[];
+}

@@ -3,36 +3,9 @@ import { eq } from "drizzle-orm";
 import { atz, organizations, shifts, syncMeta, vehicles } from "../db/schema";
 import { normalizeGosNumber } from "./normalize";
 import type { SqliteDb } from "./outbox";
-import type { AtzBalance } from "./types";
+import type { AtzBalance, BootstrapData } from "./types";
 
-/** Форма ответа `GET /bootstrap?since=` (точно по fuel-backend/src/routes/bootstrap.ts). */
-export interface BootstrapData {
-  serverTime: string;
-  organizations: { id: string; name: string; kind: string; source: string }[];
-  vehicles: {
-    id: string;
-    gosNumber: string;
-    mark: string | null;
-    vehicleType: string | null;
-    organizationId: string;
-    source: string;
-    isActive: boolean;
-  }[];
-  atz: { id: string; gosNumber: string; title: string | null; remainingLiters: number; isActive: boolean }[];
-  shifts: {
-    id: string;
-    atzId: string;
-    atzGosNumber: string;
-    startedAtClient: string;
-    endedAtClient: string | null;
-    status: string;
-    openingRemainingLiters: number;
-    closingRemainingLiters: number | null;
-    dispenseCount: number;
-    dispenseLiters: number;
-    receiptLiters: number;
-  }[];
-}
+export type { BootstrapData };
 
 const SINCE_KEY = "bootstrapSince";
 
