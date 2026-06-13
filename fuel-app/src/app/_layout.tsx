@@ -1,26 +1,38 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { Text, useColorScheme } from 'react-native';
+import "@/global.css";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-import { useDbMigrations } from '@/db/client';
+import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { ActivityIndicator, Text, View } from "react-native";
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+import { useDbMigrations } from "@/db/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useSessionStore } from "@/stores/session";
+
+export default function RootLayout() {
   const migrations = useDbMigrations();
+  const status = useSessionStore((s) => s.status);
+  const { restore } = useAuth();
+
+  // После применения миграций — восстановить сессию из secure-store.
+  useEffect(() => {
+    if (migrations.success) void restore();
+  }, [migrations.success, restore]);
 
   if (migrations.error) {
-    return <Text>Ошибка подготовки БД: {migrations.error.message}</Text>;
+    return (
+      <View className="flex-1 bg-surface-1 items-center justify-center p-6">
+        <Text className="text-body text-error">Ошибка БД: {migrations.error.message}</Text>
+      </View>
+    );
   }
 
-  if (!migrations.success) {
-    return <Text>Подготовка БД...</Text>;
+  if (!migrations.success || status === "loading") {
+    return (
+      <View className="flex-1 bg-surface-1 items-center justify-center">
+        <ActivityIndicator color="#5e6ad2" />
+      </View>
+    );
   }
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
-  );
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
