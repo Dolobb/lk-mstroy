@@ -59,6 +59,11 @@ Codex **не имеет доступа** к vault и к `fuel-backend/` — по
 > **NativeWind + tailwindcss ставятся и пинятся в 3.2a.** ⚠ **tailwindcss ОБЯЗАТЕЛЬНО 3.4.x** —
 > NativeWind v4 несовместим с tailwind v4. Критерий приёмки 3.2a — демо-экран рендерит токены **под New Architecture**.
 >
+> **Локальная БД (3.2b/c — Drizzle + expo-sqlite):** миграции `drizzle-kit generate`→`drizzle/`, применяются
+> хуком `useDbMigrations()` в `src/app/_layout`. metro: `sourceExts.push("sql")` **+ обязательно
+> `babel-plugin-inline-import@3.0.0` (dev)** c `{extensions:['.sql']}` в `babel.config.js` — иначе metro
+> парсит `.sql` как JS и бандл падает («Missing semicolon»). schema: `reference.ts` (кэш) + `outbox.ts` (ядро, Claude).
+>
 > **Новые зависимости — только через `npx expo install` и только после согласования.**
 > `npm install <pkg>` для RN-пакетов запрещён (ставит несовместимую с SDK версию). Build-tooling
 > (drizzle-kit и т.п.) — `npm i -D` допустимо (это не RN-рантайм).

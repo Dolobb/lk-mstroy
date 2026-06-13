@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1781333344280,
+      "tag": "0000_perfect_stardust",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781335408118,
+      "tag": "0001_steep_krista_starr",
+      "breakpoints": true
+    }
+  ]
+}
