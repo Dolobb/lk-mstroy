@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 
-import { atz, outbox, syncMeta, vehicles } from "../db/schema";
+import { atz, organizations, outbox, shifts, syncMeta, vehicles } from "../db/schema";
 import { normalizeGosNumber } from "../sync/normalize";
 import { db } from "../sync/services";
 
@@ -50,5 +50,28 @@ export function useShiftEvents(shiftId: string | null) {
       )
       .orderBy(desc(outbox.happenedAtClient)),
     [shiftId]
+  );
+}
+
+/** Прошлые смены водителя из bootstrap-кэша (профиль/история), новые сверху. */
+export function useShifts() {
+  return useLiveQuery(db.select().from(shifts).orderBy(desc(shifts.startedAtClient)).limit(100));
+}
+
+/** Все организации (id → имя/вид) — выбор при добавлении ТС, lookup и группировка в передаче. */
+export function useOrganizations() {
+  return useLiveQuery(db.select().from(organizations).orderBy(asc(organizations.name)));
+}
+
+/** ТС по набору id (lookup госномеров в таблице операций). Пустой набор → пусто. */
+export function useVehiclesByIds(ids: readonly string[]) {
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  const key = unique.slice().sort().join(",");
+  return useLiveQuery(
+    db
+      .select()
+      .from(vehicles)
+      .where(unique.length > 0 ? inArray(vehicles.id, unique) : eq(vehicles.id, "")),
+    [key]
   );
 }
