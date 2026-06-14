@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentShift } from "@/hooks/queries";
@@ -68,7 +68,7 @@ export default function MainScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => Alert.alert("Скоро", "Профиль и история появятся в следующем срезе")}
+            onPress={() => router.push("/profile")}
             className="min-h-tap-secondary bg-canvas border border-hairline-strong rounded-lg px-6 items-center justify-center active:bg-surface-3"
           >
             <Text className="text-ink-1 text-body-sm font-semibold">Профиль и история</Text>
