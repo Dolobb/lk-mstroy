@@ -186,7 +186,7 @@ export default function DispenseScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={() => Alert.alert("Скоро", "Добавление ТС — след. заход")}
+        onPress={() => router.push("/add-vehicle")}
         className="min-h-tap-secondary bg-canvas border border-hairline-strong rounded-lg px-6 items-center justify-center active:bg-surface-3"
       >
         <Text className="text-ink-1 text-body-sm font-semibold">+ добавить ТС</Text>
