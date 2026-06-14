@@ -33,7 +33,8 @@ export interface FuelApi extends SyncApi {
 export class ApiClient implements FuelApi {
   constructor(
     private readonly baseUrl: string,
-    private readonly getToken: () => string | null
+    // Может быть async: провайдер с фолбэком на secure-store (переживает Fast Refresh/перезапуск).
+    private readonly getToken: () => string | null | Promise<string | null>
   ) {}
 
   private async request<T>(path: string, init: RequestInit & { auth?: boolean } = {}): Promise<T> {
@@ -43,13 +44,14 @@ export class ApiClient implements FuelApi {
       ...(headers as Record<string, string> | undefined),
     };
     if (auth) {
-      const token = this.getToken();
+      const token = await this.getToken();
       if (token) finalHeaders.Authorization = `Bearer ${token}`;
+      else console.warn(`[api] ${path}: authed request without token`);
     }
 
     const res = await fetch(`${this.baseUrl}${path}`, { ...rest, headers: finalHeaders });
     if (!res.ok) {
-      throw new ApiError(res.status, await readError(res));
+      throw new ApiError(res.status, `${path}: ${await readError(res)}`);
     }
     return (await res.json()) as T;
   }
@@ -82,7 +84,7 @@ export class ApiClient implements FuelApi {
     form.append("photo", { uri: fileUri, name: `${receiptId}.jpg`, type: "image/jpeg" } as unknown as Blob);
 
     const headers: Record<string, string> = {};
-    const token = this.getToken();
+    const token = await this.getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const res = await fetch(`${this.baseUrl}/uploads/ttn`, { method: "POST", headers, body: form });

@@ -23,6 +23,8 @@ export function useSync() {
       setStatus({ state: pending > 0 ? "queued" : "synced", pending, lastError: null });
       return result;
     } catch (err) {
+      // Видимость причины при отладке (Metro/Console) — иначе ошибка тонет в сторе.
+      console.error("[sync] failed:", err);
       const pending = await outboxStore.pendingCount();
       setStatus({ state: "error", pending, lastError: err instanceof Error ? err.message : String(err) });
       return null;

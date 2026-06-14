@@ -1,7 +1,9 @@
 import { Redirect, useRouter } from "expo-router";
-import { Alert, Pressable, Text, View } from "react-native";
+import { useRef } from "react";
+import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 
 import { useAtz, useCurrentShift, useShiftEvents } from "@/hooks/queries";
+import { sumPendingDelta } from "@/hooks/useAtzRemaining";
 import { useSync } from "@/hooks/useSync";
 import { closeShift, type CurrentShift } from "@/sync/mutations";
 import { type SyncUiState, useSyncStatusStore } from "@/stores/sync-status";
@@ -107,21 +109,40 @@ export default function WorkScreen() {
   const router = useRouter();
   const syncState = useSyncStatusStore((s) => s.state);
   const pending = useSyncStatusStore((s) => s.pending);
+  const lastError = useSyncStatusStore((s) => s.lastError);
   const { sync } = useSync();
-  const currentShift = parseCurrentShift(useCurrentShift().data[0]?.value);
-  const atzRows = useAtz(currentShift?.atzId ?? null);
-  const events = useShiftEvents(currentShift?.shiftId ?? null);
+  const currentShiftQuery = useCurrentShift();
+  const currentShift = parseCurrentShift(currentShiftQuery.data[0]?.value);
+  // Запоминаем первую валидную смену: фоновый bootstrap (раз в 60с) штормит change-listener'ы,
+  // и live-query может транзиентно вернуть [] → не выкидываем с рабочего экрана. Смена локально
+  // удаляется только при закрытии (там навигация на "/" явная), так что ссылка безопасна.
+  const shiftRef = useRef<CurrentShift | null>(null);
+  if (currentShift) shiftRef.current = currentShift;
+  const shift = currentShift ?? shiftRef.current;
+  const atzRows = useAtz(shift?.atzId ?? null);
+  const events = useShiftEvents(shift?.shiftId ?? null);
 
-  if (!currentShift) return <Redirect href="/" />;
-  const shift = currentShift;
+  // useLiveQuery на маунте отдаёт [] (updatedAt undefined) до первого чтения кэша.
+  // Без этой проверки редирект срабатывает до загрузки → redirect-loop с /main.
+  if (currentShiftQuery.updatedAt === undefined && !shift) {
+    return (
+      <View className="flex-1 bg-surface-1 items-center justify-center">
+        <ActivityIndicator color="#5e6ad2" />
+      </View>
+    );
+  }
+  if (!shift) return <Redirect href="/" />;
+  const activeShift = shift;
 
   const atz = atzRows.data[0];
+  // Остаток = серверное «последнее известное» + локальные несинхронизированные дельты (Shift-Model).
+  const remaining = (atz?.remainingLiters ?? 0) + sumPendingDelta(events.data);
   const visibleEvents = events.data
     .map((row) => ({ row, payload: parseFuelEvent(row.payload) }))
     .filter((item): item is { row: (typeof events.data)[number]; payload: FuelEventPayload } => item.payload !== null && item.payload.isDeleted !== true);
 
   async function onCloseShift() {
-    await closeShift(shift.shiftId);
+    await closeShift(activeShift.shiftId);
     router.replace("/");
   }
 
@@ -143,12 +164,20 @@ export default function WorkScreen() {
         </View>
       </View>
 
+      {syncState === "error" && lastError ? (
+        <View className="bg-error-soft rounded-lg px-4 py-2">
+          <Text className="text-caption text-error" numberOfLines={3}>
+            Синк: {lastError}
+          </Text>
+        </View>
+      ) : null}
+
       <View className="bg-canvas rounded-xl border border-hairline-strong p-5 gap-3">
         <Text className="text-label font-bold text-ink-3 uppercase">АТЗ</Text>
         <Text className="text-heading font-bold text-ink-1">{atz?.gosNumber ?? "—"}</Text>
         {atz?.title ? <Text className="text-caption text-ink-3">{atz.title}</Text> : null}
         <View className="flex-row items-end gap-2">
-          <Text className="text-display-2xl font-extrabold text-ink-1">{formatLiters(atz?.remainingLiters ?? 0)}</Text>
+          <Text className="text-display-2xl font-extrabold text-ink-1">{formatLiters(remaining)}</Text>
           <Text className="text-heading text-ink-3 mb-2">Л</Text>
         </View>
       </View>

@@ -25,14 +25,14 @@ export function useCurrentShift() {
   return useLiveQuery(db.select().from(syncMeta).where(eq(syncMeta.key, "currentShift")));
 }
 
-/** Поиск ТС по госномеру (нормализованный prefix-LIKE по индексу). Пустой запрос → пусто. */
+/** Поиск ТС по госномеру (нормализованная подстрока — можно искать по любой части номера). Пустой запрос → пусто. */
 export function useVehicleSearch(query: string) {
   const norm = normalizeGosNumber(query);
   return useLiveQuery(
     db
       .select()
       .from(vehicles)
-      .where(and(eq(vehicles.isActive, true), norm.length > 0 ? like(vehicles.gosNumberNorm, `${norm}%`) : eq(vehicles.id, "")))
+      .where(and(eq(vehicles.isActive, true), norm.length > 0 ? like(vehicles.gosNumberNorm, `%${norm}%`) : eq(vehicles.id, "")))
       .orderBy(asc(vehicles.gosNumber))
       .limit(50),
     [norm]
