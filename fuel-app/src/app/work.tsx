@@ -1,11 +1,18 @@
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetTextInput,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import { Redirect, useRouter } from "expo-router";
-import { useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 
 import { useAtz, useCurrentShift, useShiftEvents } from "@/hooks/queries";
 import { sumPendingDelta } from "@/hooks/useAtzRemaining";
 import { useSync } from "@/hooks/useSync";
-import { closeShift, type CurrentShift } from "@/sync/mutations";
+import { closeShift, type CurrentShift, editEvent, softDeleteEvent } from "@/sync/mutations";
 import { type SyncUiState, useSyncStatusStore } from "@/stores/sync-status";
 
 type FuelEventPayload = {
@@ -107,12 +114,24 @@ function BigAction({
 
 export default function WorkScreen() {
   const router = useRouter();
+  const sheetRef = useRef<BottomSheetModal>(null);
   const syncState = useSyncStatusStore((s) => s.state);
   const pending = useSyncStatusStore((s) => s.pending);
   const lastError = useSyncStatusStore((s) => s.lastError);
   const { sync } = useSync();
   const currentShiftQuery = useCurrentShift();
   const currentShift = parseCurrentShift(currentShiftQuery.data[0]?.value);
+  const [editing, setEditing] = useState<{ id: string; type: "dispense_upsert" | "receipt_upsert"; liters: number } | null>(
+    null,
+  );
+  const [editLiters, setEditLiters] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+  const editLitersNumber = useMemo(() => Number(editLiters.replace(",", ".")), [editLiters]);
+  const validEditLiters = Number.isFinite(editLitersNumber) && editLitersNumber > 0;
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />,
+    [],
+  );
   // Запоминаем первую валидную смену: фоновый bootstrap (раз в 60с) штормит change-listener'ы,
   // и live-query может транзиентно вернуть [] → не выкидываем с рабочего экрана. Смена локально
   // удаляется только при закрытии (там навигация на "/" явная), так что ссылка безопасна.
@@ -140,6 +159,42 @@ export default function WorkScreen() {
   const visibleEvents = events.data
     .map((row) => ({ row, payload: parseFuelEvent(row.payload) }))
     .filter((item): item is { row: (typeof events.data)[number]; payload: FuelEventPayload } => item.payload !== null && item.payload.isDeleted !== true);
+
+  async function onSaveEdit() {
+    if (!editing || !validEditLiters) {
+      Alert.alert("Проверьте литры", "Введите количество больше 0");
+      return;
+    }
+    setEditBusy(true);
+    try {
+      await editEvent(editing.id, { liters: editLitersNumber });
+      sheetRef.current?.dismiss();
+      setEditing(null);
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  function onDeleteEdit() {
+    if (!editing) return;
+    Alert.alert("Удалить операцию?", "Операция будет помечена удалённой и уйдёт в синк.", [
+      { text: "Отмена", style: "cancel" },
+      {
+        text: "Удалить",
+        style: "destructive",
+        onPress: async () => {
+          setEditBusy(true);
+          try {
+            await softDeleteEvent(editing.id);
+            sheetRef.current?.dismiss();
+            setEditing(null);
+          } finally {
+            setEditBusy(false);
+          }
+        },
+      },
+    ]);
+  }
 
   async function onCloseShift() {
     await closeShift(activeShift.shiftId);
@@ -218,7 +273,11 @@ export default function WorkScreen() {
                   </Text>
                 </View>
                 <Pressable
-                  onPress={() => Alert.alert("Скоро", "Правка операции — след. заход")}
+                  onPress={() => {
+                    setEditing({ id: row.id, type: payload.type, liters: payload.liters });
+                    setEditLiters(String(payload.liters));
+                    sheetRef.current?.present();
+                  }}
                   className="min-w-tap-min min-h-tap-min items-center justify-center active:bg-surface-3"
                 >
                   <Text className="text-heading text-ink-3">✎</Text>
@@ -235,6 +294,66 @@ export default function WorkScreen() {
       >
         <Text className="text-ink-1 text-body-sm font-semibold">Закрыть смену</Text>
       </Pressable>
+
+      <BottomSheetModal
+        ref={sheetRef}
+        enableDynamicSizing
+        backdropComponent={renderBackdrop}
+        onDismiss={() => {
+          setEditing(null);
+          setEditLiters("");
+        }}
+      >
+        <BottomSheetView style={{ paddingHorizontal: 24, paddingBottom: 32, gap: 16 }}>
+          <View className="gap-1">
+            <Text className="text-title font-bold text-ink-1">
+              {editing?.type === "receipt_upsert" ? "Правка получения" : "Правка выдачи"}
+            </Text>
+            <Text className="text-caption text-ink-3">Изменение сохранится как правка этой операции.</Text>
+          </View>
+
+          <View className="gap-2">
+            <Text className="text-label font-bold text-ink-3 uppercase">Литры</Text>
+            <BottomSheetTextInput
+              className={`min-h-tap-primary px-4 rounded-md border bg-canvas text-display-2xl font-extrabold text-ink-1 ${
+                editLiters.length > 0 && !validEditLiters ? "border-error" : "border-hairline-strong"
+              }`}
+              placeholder="0"
+              placeholderTextColor="#8a8f98"
+              keyboardType="numeric"
+              value={editLiters}
+              onChangeText={setEditLiters}
+            />
+            <Text className={`text-body-sm ${editLiters.length > 0 && !validEditLiters ? "text-error" : "text-ink-3"}`}>
+              {editLiters.length > 0 && !validEditLiters ? "Введите количество больше 0" : " "}
+            </Text>
+          </View>
+
+          <Pressable
+            disabled={editBusy || !validEditLiters}
+            onPress={() => void onSaveEdit()}
+            className={`min-h-tap-primary rounded-lg px-8 items-center justify-center ${
+              editBusy || !validEditLiters ? "bg-surface-4" : "bg-primary active:bg-primary-pressed"
+            }`}
+          >
+            {editBusy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className={`text-subheading font-semibold ${validEditLiters ? "text-on-primary" : "text-ink-3"}`}>
+                Сохранить
+              </Text>
+            )}
+          </Pressable>
+
+          <Pressable
+            disabled={editBusy || !editing}
+            onPress={onDeleteEdit}
+            className="min-h-tap-secondary rounded-lg px-6 bg-error-soft items-center justify-center active:bg-surface-3"
+          >
+            <Text className="text-body-sm font-semibold text-error">Удалить операцию</Text>
+          </Pressable>
+        </BottomSheetView>
+      </BottomSheetModal>
     </View>
   );
 }
