@@ -9,7 +9,7 @@ import { Redirect, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 
-import { useAtz, useCurrentShift, useShiftEvents } from "@/hooks/queries";
+import { useAtz, useCurrentShift, useShiftEvents, useVehiclesByIds } from "@/hooks/queries";
 import { sumPendingDelta } from "@/hooks/useAtzRemaining";
 import { useSync } from "@/hooks/useSync";
 import { closeShift, type CurrentShift, editEvent, softDeleteEvent } from "@/sync/mutations";
@@ -140,6 +140,31 @@ export default function WorkScreen() {
   const shift = currentShift ?? shiftRef.current;
   const atzRows = useAtz(shift?.atzId ?? null);
   const events = useShiftEvents(shift?.shiftId ?? null);
+  // ВСЕ хуки — ДО ранних return'ов (Rules of Hooks): на маунте экран проходит
+  // loading→loaded, и хуки после return'а меняли бы их число между рендерами
+  // → «Rendered more hooks than during the previous render». Зависят только от events.
+  const visibleEvents = useMemo(
+    () =>
+      events.data
+        .map((row) => ({ row, payload: parseFuelEvent(row.payload) }))
+        .filter(
+          (item): item is { row: (typeof events.data)[number]; payload: FuelEventPayload } =>
+            item.payload !== null && item.payload.isDeleted !== true,
+        ),
+    [events.data],
+  );
+  const dispenseVehicleIds = useMemo(
+    () =>
+      visibleEvents
+        .filter(({ payload }) => payload.type === "dispense_upsert" && Boolean(payload.vehicleId))
+        .map(({ payload }) => payload.vehicleId as string),
+    [visibleEvents],
+  );
+  const dispenseVehicles = useVehiclesByIds(dispenseVehicleIds);
+  const vehicleGosById = useMemo(
+    () => new Map(dispenseVehicles.data.map((vehicle) => [vehicle.id, vehicle.gosNumber])),
+    [dispenseVehicles.data],
+  );
 
   // useLiveQuery на маунте отдаёт [] (updatedAt undefined) до первого чтения кэша.
   // Без этой проверки редирект срабатывает до загрузки → redirect-loop с /main.
@@ -156,9 +181,6 @@ export default function WorkScreen() {
   const atz = atzRows.data[0];
   // Остаток = серверное «последнее известное» + локальные несинхронизированные дельты (Shift-Model).
   const remaining = (atz?.remainingLiters ?? 0) + sumPendingDelta(events.data);
-  const visibleEvents = events.data
-    .map((row) => ({ row, payload: parseFuelEvent(row.payload) }))
-    .filter((item): item is { row: (typeof events.data)[number]; payload: FuelEventPayload } => item.payload !== null && item.payload.isDeleted !== true);
 
   async function onSaveEdit() {
     if (!editing || !validEditLiters) {
@@ -260,6 +282,9 @@ export default function WorkScreen() {
         ) : (
           visibleEvents.map(({ row, payload }) => {
             const receipt = payload.type === "receipt_upsert";
+            const operationLabel = receipt
+              ? "Получение"
+              : `Выдача · ${payload.vehicleId ? (vehicleGosById.get(payload.vehicleId) ?? "ТС …") : "ТС …"}`;
             return (
               <View key={row.id} className="min-h-[68px] rounded-lg bg-canvas border border-hairline flex-row overflow-hidden">
                 <View className={`w-[6px] ${receipt ? "bg-success" : "bg-primary"}`} />
@@ -269,7 +294,7 @@ export default function WorkScreen() {
                     {formatLiters(payload.liters)} Л
                   </Text>
                   <Text className="text-caption text-ink-3">
-                    {receipt ? "Получение" : "Выдача"} · {formatTime(row.happenedAtClient ?? payload.happenedAtClient)}
+                    {operationLabel} · {formatTime(row.happenedAtClient ?? payload.happenedAtClient)}
                   </Text>
                 </View>
                 <Pressable

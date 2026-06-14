@@ -2,11 +2,16 @@ import { Redirect, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
-import { useCurrentShift, useVehicleSearch } from "@/hooks/queries";
+import { useCurrentShift, useOrganizations, useVehicleSearch } from "@/hooks/queries";
 import { useAtzRemaining } from "@/hooks/useAtzRemaining";
 import { addDispense, type CurrentShift } from "@/sync/mutations";
 
 type VehicleRow = ReturnType<typeof useVehicleSearch>["data"][number];
+type VehicleSection = {
+  key: string;
+  title: string;
+  vehicles: VehicleRow[];
+};
 
 function formatLiters(value: number) {
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(value);
@@ -30,6 +35,26 @@ export default function DispenseScreen() {
   const [liters, setLiters] = useState("");
   const [busy, setBusy] = useState(false);
   const vehicles = useVehicleSearch(query);
+  const organizations = useOrganizations();
+  const organizationNameById = useMemo(
+    () => new Map(organizations.data.map((organization) => [organization.id, organization.name])),
+    [organizations.data],
+  );
+  const vehicleSections = useMemo(() => {
+    const sections = new Map<string, VehicleSection>();
+
+    for (const vehicle of vehicles.data) {
+      const organizationName = vehicle.organizationId ? organizationNameById.get(vehicle.organizationId) : undefined;
+      const sectionKey = organizationName && vehicle.organizationId ? vehicle.organizationId : "__without_organization__";
+      const title = organizationName ?? "Без организации";
+      const section = sections.get(sectionKey) ?? { key: sectionKey, title, vehicles: [] };
+
+      section.vehicles.push(vehicle);
+      sections.set(sectionKey, section);
+    }
+
+    return Array.from(sections.values()).sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  }, [organizationNameById, vehicles.data]);
   const litersNumber = useMemo(() => Number(liters.replace(",", ".")), [liters]);
   const validLiters = Number.isFinite(litersNumber) && litersNumber > 0;
 
@@ -163,24 +188,28 @@ export default function DispenseScreen() {
         onChangeText={setQuery}
       />
 
-      {/* TODO 3.4: добавить группировку по организациям и org-section-header. */}
       <ScrollView className="flex-1" keyboardShouldPersistTaps="handled" contentContainerClassName="gap-2">
         {query.trim().length === 0 ? (
           <Text className="text-body-sm text-ink-3 px-1">Начните вводить госномер</Text>
         ) : vehicles.data.length === 0 ? (
           <Text className="text-body-sm text-ink-3 px-1">Ничего не найдено</Text>
         ) : (
-          vehicles.data.map((vehicle) => (
-            <Pressable
-              key={vehicle.id}
-              onPress={() => setSelectedVehicle(vehicle)}
-              className="min-h-[64px] rounded-lg bg-canvas border border-hairline-strong px-4 py-3 justify-center active:bg-surface-3"
-            >
-              <Text className="text-subheading font-bold text-ink-1">{vehicle.gosNumber}</Text>
-              <Text className="text-caption text-ink-3">
-                {[vehicle.mark, vehicle.vehicleType].filter(Boolean).join(" · ") || "Без описания"}
-              </Text>
-            </Pressable>
+          vehicleSections.map((section) => (
+            <View key={section.key} className="gap-2">
+              <Text className="text-label font-bold text-ink-3 uppercase px-1">{section.title}</Text>
+              {section.vehicles.map((vehicle) => (
+                <Pressable
+                  key={vehicle.id}
+                  onPress={() => setSelectedVehicle(vehicle)}
+                  className="min-h-[64px] rounded-lg bg-canvas border border-hairline-strong px-4 py-3 justify-center active:bg-surface-3"
+                >
+                  <Text className="text-subheading font-bold text-ink-1">{vehicle.gosNumber}</Text>
+                  <Text className="text-caption text-ink-3">
+                    {[vehicle.mark, vehicle.vehicleType].filter(Boolean).join(" · ") || "Без описания"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           ))
         )}
       </ScrollView>
