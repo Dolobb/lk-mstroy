@@ -6,6 +6,7 @@ import { ActivityIndicator, Text, View } from "react-native";
 
 import { useDbMigrations } from "@/db/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAutoSync } from "@/hooks/useAutoSync";
 import { useSessionStore } from "@/stores/session";
 
 export default function RootLayout() {
@@ -17,6 +18,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (migrations.success) void restore();
   }, [migrations.success, restore]);
+
+  // Авто-синк при активной сессии: первичный bootstrap подтянет АТЗ/ТС в локальный кэш.
+  useAutoSync(status === "active");
 
   if (migrations.error) {
     return (
