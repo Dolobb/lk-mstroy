@@ -191,7 +191,7 @@ export default function WorkScreen() {
             title="Получение топлива"
             caption="Принять топливо в АТЗ"
             icon="↑"
-            onPress={() => Alert.alert("Скоро", "Экран получения — след. заход")}
+            onPress={() => router.push("/receipt")}
           />
         </View>
       </View>
