@@ -12,6 +12,9 @@
     },
     "tablet-apk": {
       "distribution": "internal",
+      "env": {
+        "NPM_CONFIG_OMIT": "optional"
+      },
       "android": {
         "buildType": "apk"
       }
