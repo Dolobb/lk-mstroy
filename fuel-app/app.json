@@ -42,6 +42,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "693b2ac4-f509-497f-bb24-f85e90aa0762"
+      }
+    },
+    "owner": "dolobb"
   }
 }
