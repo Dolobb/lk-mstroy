@@ -5,6 +5,7 @@ import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useDbMigrations } from "@/db/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,11 +42,13 @@ export default function RootLayout() {
     content = <Stack screenOptions={{ headerShown: false }} />;
   }
 
-  // GestureHandlerRootView + BottomSheetModalProvider — нужны для @gorhom/bottom-sheet
-  // (правка операции). Оборачиваем весь рендер, включая loading-состояния.
+  // SafeAreaProvider — инсеты системных панелей (Android рисует edge-to-edge: нижняя навигация
+  // наплывала на кнопки). GestureHandlerRootView + BottomSheetModalProvider — для @gorhom/bottom-sheet.
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>{content}</BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>{content}</BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

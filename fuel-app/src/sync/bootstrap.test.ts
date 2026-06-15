@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { atz, organizations, shifts, vehicles } from "../db/schema";
+import { atz, organizations, outbox, shifts, vehicles } from "../db/schema";
 import { applyAtzBalances, applyBootstrap, type BootstrapData, getBootstrapSince } from "./bootstrap";
 import { normalizeGosNumber } from "./normalize";
 import { createTestDb } from "./test-db";
@@ -89,5 +89,62 @@ describe("applyBootstrap / balances / normalize", () => {
 
   it("normalizeGosNumber: верхний регистр, без пробелов/дефисов", () => {
     expect(normalizeGosNumber("а 123 вс-77")).toBe("А123ВС77");
+  });
+
+  it("write-minimal: в покое (пустые дельты, смена совпала) курсор НЕ двигается", async () => {
+    await applyBootstrap(db, sample("t1"));
+    // Тот же снимок: пустые дельты + идентичная смена, но новый serverTime
+    await applyBootstrap(db, {
+      serverTime: "t2",
+      organizations: [],
+      vehicles: [],
+      atz: [],
+      shifts: sample("t1").shifts,
+    });
+    // ничего не записано → курсор остался t1 (нет лишней записи в sync_meta → нет ререндера экрана)
+    expect(await getBootstrapSince(db)).toBe("t1");
+    expect(await db.select().from(shifts)).toHaveLength(1);
+  });
+
+  it("reconcile: оптимистичная (несинхронизированная) локальная смена НЕ удаляется", async () => {
+    await db
+      .insert(outbox)
+      .values({ id: "s2", type: "shift_open", payload: "{}", status: "pending", shiftId: "s2", createdAt: "t", updatedAt: "t" });
+    await db.insert(shifts).values({
+      id: "s2",
+      atzId: "a1",
+      atzGosNumber: "Х001ХХ",
+      startedAtClient: "2026-06-14T08:00:00+03:00",
+      endedAtClient: null,
+      status: "open",
+      openingRemainingLiters: 500,
+      closingRemainingLiters: null,
+      dispenseCount: 0,
+      dispenseLiters: 0,
+      receiptLiters: 0,
+    });
+    await applyBootstrap(db, sample("t1", { shifts: [] })); // s2 нет в ответе сервера
+    expect((await db.select().from(shifts)).map((r) => r.id)).toContain("s2");
+  });
+
+  it("reconcile: подтверждённая смена, выпавшая из ответа сервера, удаляется", async () => {
+    await db
+      .insert(outbox)
+      .values({ id: "s3", type: "shift_open", payload: "{}", status: "confirmed", shiftId: "s3", createdAt: "t", updatedAt: "t" });
+    await db.insert(shifts).values({
+      id: "s3",
+      atzId: "a1",
+      atzGosNumber: "Х001ХХ",
+      startedAtClient: "2026-06-14T08:00:00+03:00",
+      endedAtClient: "2026-06-14T18:00:00+03:00",
+      status: "closed",
+      openingRemainingLiters: 500,
+      closingRemainingLiters: 400,
+      dispenseCount: 1,
+      dispenseLiters: 100,
+      receiptLiters: 0,
+    });
+    await applyBootstrap(db, sample("t1", { shifts: [] }));
+    expect((await db.select().from(shifts)).map((r) => r.id)).not.toContain("s3");
   });
 });

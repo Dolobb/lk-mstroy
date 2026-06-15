@@ -1,8 +1,9 @@
 import type { FuelApi, SyncApi } from "../api/client";
 import { applyAtzBalances, applyBootstrap, getBootstrapSince } from "./bootstrap";
-import type { OutboxStore, SqliteDb } from "./outbox";
+import type { OutboxRow, OutboxStore, SqliteDb } from "./outbox";
 import type { PhotoQueueStore } from "./photos";
 import type { AtzBalance, SyncEvent, SyncRequest } from "./types";
+import { validateSyncEvent } from "./validate";
 
 /** Собрать запрос `/sync` из строк outbox: `payload` уже = канонический строгий event. */
 export function buildSyncRequest(deviceId: string, rows: { payload: string }[]): SyncRequest {
@@ -24,11 +25,26 @@ export interface PushResult {
 export async function pushOutbox(store: OutboxStore, api: SyncApi, deviceId: string): Promise<PushResult> {
   const rows = await store.claimBatch();
   if (rows.length === 0) return { sent: 0, balances: [] };
+
+  // Карантин невалидного ПЕРЕД отправкой: сервер валидирует весь батч `.strict().parse()` — одно
+  // битое событие (напр. литры вне диапазона) роняет ВЕСЬ `/sync` (400) и клинит очередь навсегда.
+  // Отсеиваем такие в conflict(client_invalid), валидное — шлём.
+  const valid: OutboxRow[] = [];
+  for (const r of rows) {
+    const reason = validateSyncEvent(JSON.parse(r.payload) as SyncEvent);
+    if (reason) await store.markInvalid(r.id, reason);
+    else valid.push(r);
+  }
+  if (valid.length === 0) {
+    await store.releaseInFlight();
+    return { sent: 0, balances: [] };
+  }
+
   try {
-    const response = await api.sync(buildSyncRequest(deviceId, rows));
+    const response = await api.sync(buildSyncRequest(deviceId, valid));
     await store.applyResults(response.results);
     await store.releaseInFlight();
-    return { sent: rows.length, balances: response.atzBalances };
+    return { sent: valid.length, balances: response.atzBalances };
   } catch (err) {
     await store.releaseInFlight();
     throw err;

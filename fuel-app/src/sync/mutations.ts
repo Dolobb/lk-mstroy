@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import * as Crypto from "expo-crypto";
 
-import { organizations, syncMeta, vehicles } from "../db/schema";
+import { atz, organizations, outbox, shifts, syncMeta, vehicles } from "../db/schema";
 import { normalizeGosNumber } from "./normalize";
 import { compressTtnPhoto } from "./photo-upload";
 import { db, outboxStore, photoQueue } from "./services";
@@ -13,6 +13,7 @@ import type {
   ShiftOpenEvent,
   VehicleAddEvent,
 } from "./types";
+import { assertValidLiters } from "./validate";
 
 const CURRENT_SHIFT_KEY = "currentShift";
 
@@ -32,32 +33,37 @@ function uuid(): string {
 /** Открыть смену: shift_open в outbox + запомнить текущую смену (shiftId+atzId) локально. */
 export async function startShift(atzId: string, openingRemainingLiters?: number | null): Promise<string> {
   const id = uuid();
+  const startedAtClient = nowIso();
   const event: ShiftOpenEvent = {
     type: "shift_open",
     id,
     atzId,
-    startedAtClient: nowIso(),
+    startedAtClient,
     ...(openingRemainingLiters != null ? { openingRemainingLiters } : {}),
   };
   await outboxStore.enqueue(event);
   await setCurrentShift({ shiftId: id, atzId });
+  await upsertLocalShiftOpen(id, atzId, startedAtClient, openingRemainingLiters ?? null);
   return id;
 }
 
 /** Закрыть смену (id === UUID смены). */
 export async function closeShift(shiftId: string, closingRemainingLiters?: number | null): Promise<void> {
+  const endedAtClient = nowIso();
   const event: ShiftCloseEvent = {
     type: "shift_close",
     id: shiftId,
-    endedAtClient: nowIso(),
+    endedAtClient,
     ...(closingRemainingLiters != null ? { closingRemainingLiters } : {}),
   };
   await outboxStore.enqueue(event);
   await clearCurrentShift();
+  await updateLocalShiftClose(shiftId, endedAtClient, closingRemainingLiters ?? null);
 }
 
 /** Выдача топлива ТС. happenedAtClient фиксируется в момент ввода. */
 export async function addDispense(shiftId: string, vehicleId: string, liters: number): Promise<string> {
+  assertValidLiters(liters);
   const id = uuid();
   const event: DispenseUpsertEvent = {
     type: "dispense_upsert",
@@ -73,6 +79,7 @@ export async function addDispense(shiftId: string, vehicleId: string, liters: nu
 
 /** Получение топлива в АТЗ + (опц.) фото ТТН: сжать ≤500КБ и поставить в фото-очередь по id события. */
 export async function addReceipt(shiftId: string, liters: number, photoUri?: string): Promise<string> {
+  assertValidLiters(liters);
   const id = uuid();
   const event: ReceiptUpsertEvent = {
     type: "receipt_upsert",
@@ -91,6 +98,7 @@ export async function addReceipt(shiftId: string, liters: number, photoUri?: str
 
 /** Правка выдачи/получения: тот же id, новый payload + editedAt (LWW на сервере). */
 export async function editEvent(id: string, patch: { liters?: number; vehicleId?: string }): Promise<void> {
+  if (patch.liters !== undefined) assertValidLiters(patch.liters);
   const row = await outboxStore.byId(id);
   if (!row) return;
   const event = JSON.parse(row.payload) as DispenseUpsertEvent | ReceiptUpsertEvent;
@@ -148,6 +156,66 @@ export async function addOrganizationLocal(name: string): Promise<string> {
     .values({ id, name, kind: "hired", source: "driver" })
     .onConflictDoNothing();
   return id;
+}
+
+/**
+ * Оптимистичная локальная смена (офлайн-история): таблица `shifts` иначе заполняется ТОЛЬКО из
+ * bootstrap → офлайн-открытая/закрытая смена не видна в истории до синка. Пишем сразу при
+ * старте/закрытии; bootstrap-reconcile потом перезапишет серверной (авторитетной) версией по id,
+ * а несинхронизированные локальные смены сохранит. `status` — ровно 'open'|'closed' (контракт сервера).
+ */
+async function upsertLocalShiftOpen(
+  shiftId: string,
+  atzId: string,
+  startedAtClient: string,
+  openingRemainingLiters: number | null,
+): Promise<void> {
+  const atzRow = (await db.select().from(atz).where(eq(atz.id, atzId)).limit(1))[0];
+  await db
+    .insert(shifts)
+    .values({
+      id: shiftId,
+      atzId,
+      atzGosNumber: atzRow?.gosNumber ?? null,
+      startedAtClient,
+      endedAtClient: null,
+      status: "open",
+      openingRemainingLiters,
+      closingRemainingLiters: null,
+      dispenseCount: 0,
+      dispenseLiters: 0,
+      receiptLiters: 0,
+    })
+    .onConflictDoNothing();
+}
+
+/** Закрытие: статус 'closed' + агрегаты смены из локального outbox (чтобы офлайн-история была не пустой). */
+async function updateLocalShiftClose(
+  shiftId: string,
+  endedAtClient: string,
+  closingRemainingLiters: number | null,
+): Promise<void> {
+  const rows = await db
+    .select({ payload: outbox.payload })
+    .from(outbox)
+    .where(and(eq(outbox.shiftId, shiftId), inArray(outbox.type, ["dispense_upsert", "receipt_upsert"])));
+  let dispenseCount = 0;
+  let dispenseLiters = 0;
+  let receiptLiters = 0;
+  for (const r of rows) {
+    const p = JSON.parse(r.payload) as DispenseUpsertEvent | ReceiptUpsertEvent;
+    if (p.isDeleted) continue;
+    if (p.type === "dispense_upsert") {
+      dispenseCount += 1;
+      dispenseLiters += p.liters;
+    } else {
+      receiptLiters += p.liters;
+    }
+  }
+  await db
+    .update(shifts)
+    .set({ status: "closed", endedAtClient, closingRemainingLiters, dispenseCount, dispenseLiters, receiptLiters })
+    .where(eq(shifts.id, shiftId));
 }
 
 async function setCurrentShift(shift: CurrentShift): Promise<void> {

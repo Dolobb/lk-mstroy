@@ -97,4 +97,33 @@ describe("pushOutbox", () => {
     expect(row?.status).toBe("conflict");
     expect(row?.conflictCode).toBe("stale");
   });
+
+  it("карантин: невалидное событие не валит батч — уходит только валидное", async () => {
+    await store.enqueue(dispense("ok", 10));
+    await store.enqueue(dispense("poison", 6_000_000)); // > 99999.99 → сервер бы вернул 400 на весь батч
+    const api = fakeApi({
+      serverTime: "t",
+      results: [{ id: "ok", type: "dispense_upsert", status: "applied" }],
+      atzBalances: [],
+    });
+
+    const res = await pushOutbox(store, api, "dev-1");
+
+    expect(api.sync).toHaveBeenCalledOnce();
+    expect(api.sync.mock.calls[0][0].events).toEqual([dispense("ok", 10)]); // poison НЕ отправлен
+    expect(res.sent).toBe(1);
+    expect((await store.byId("ok"))?.status).toBe("confirmed");
+    const bad = await store.byId("poison");
+    expect(bad?.status).toBe("conflict");
+    expect(bad?.conflictCode).toBe("client_invalid");
+  });
+
+  it("карантин: все события невалидны — сетевого вызова нет", async () => {
+    await store.enqueue(dispense("poison", 6_000_000));
+    const api = fakeApi({ serverTime: "t", results: [], atzBalances: [] });
+    const res = await pushOutbox(store, api, "dev-1");
+    expect(api.sync).not.toHaveBeenCalled();
+    expect(res.sent).toBe(0);
+    expect((await store.byId("poison"))?.conflictCode).toBe("client_invalid");
+  });
 });

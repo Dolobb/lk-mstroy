@@ -139,6 +139,19 @@ export class OutboxStore {
       .where(eq(outbox.status, "in_flight"));
   }
 
+  /**
+   * Карантин локально-невалидного события (напр. литры вне диапазона контракта): status='conflict',
+   * code='client_invalid' — ТЕРМИНАЛЬНО (не в RETRYABLE), чтобы одно битое событие не валило весь
+   * `/sync`-батч на сервере (zod.strict → 400) и не клинило очередь. Правка события (re-enqueue в
+   * `pending`) карантин снимает.
+   */
+  async markInvalid(id: string, message: string, now: string = new Date().toISOString()): Promise<void> {
+    await this.db
+      .update(outbox)
+      .set({ status: "conflict", conflictCode: "client_invalid", lastError: message, updatedAt: now })
+      .where(eq(outbox.id, id));
+  }
+
   /** Перевести конфликт/ошибку обратно в pending (после разрешения зависимости или правки). */
   async retry(id: string, now: string = new Date().toISOString()): Promise<void> {
     await this.db
