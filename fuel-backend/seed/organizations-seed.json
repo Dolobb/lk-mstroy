@@ -48,12 +48,6 @@
   "vehicle_count": 34
  },
  {
-  "tis_org_id": 1825838752,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 13
- },
- {
   "tis_org_id": 890817425,
   "name": "Аренда ТФ \"Мостоотряд-36\"",
   "kind": "internal",
@@ -97,7 +91,7 @@
  },
  {
   "tis_org_id": 2014914182,
-  "name": null,
+  "name": "ООО \"АвтоЛогистика55\"",
   "kind": "internal",
   "vehicle_count": 5
  },
@@ -115,7 +109,7 @@
  },
  {
   "tis_org_id": -1979182997,
-  "name": null,
+  "name": "ИП Ермаков",
   "kind": "internal",
   "vehicle_count": 4
  },
@@ -151,19 +145,19 @@
  },
  {
   "tis_org_id": 1461878268,
-  "name": null,
+  "name": "ООО \"Руснедра Менеджмент\"",
   "kind": "internal",
   "vehicle_count": 2
  },
  {
   "tis_org_id": 936802094,
-  "name": null,
+  "name": "ООО \"Рента Кар\"",
   "kind": "internal",
   "vehicle_count": 2
  },
  {
   "tis_org_id": 763309862,
-  "name": null,
+  "name": "ИП Лавров А. С.",
   "kind": "internal",
   "vehicle_count": 2
  },
@@ -181,7 +175,7 @@
  },
  {
   "tis_org_id": -777275840,
-  "name": null,
+  "name": "ООО \"Европа Трал\"",
   "kind": "internal",
   "vehicle_count": 2
  },
@@ -223,55 +217,19 @@
  },
  {
   "tis_org_id": -374900547,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": -605241147,
-  "name": null,
+  "name": "ООО \"Терра Инфраструктура\"",
   "kind": "internal",
   "vehicle_count": 1
  },
  {
   "tis_org_id": -493098530,
-  "name": null,
+  "name": "ООО Свайные технологии",
   "kind": "internal",
   "vehicle_count": 1
  },
  {
   "tis_org_id": 869651565,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": 2078749700,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": -975894412,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": -996005945,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": 616141828,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": -1595193879,
-  "name": null,
+  "name": "ООО ТОПКРАН СЕРВИС",
   "kind": "internal",
   "vehicle_count": 1
  },
@@ -282,44 +240,14 @@
   "vehicle_count": 1
  },
  {
-  "tis_org_id": 875735206,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
   "tis_org_id": 1636221973,
   "name": "ИП Костюшко В.В",
   "kind": "internal",
   "vehicle_count": 1
  },
  {
-  "tis_org_id": -1240832594,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": -652232493,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": 2002404873,
-  "name": null,
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
   "tis_org_id": -1882381188,
   "name": "ООО А.С.К.",
-  "kind": "internal",
-  "vehicle_count": 1
- },
- {
-  "tis_org_id": 1043859847,
-  "name": null,
   "kind": "internal",
   "vehicle_count": 1
  }

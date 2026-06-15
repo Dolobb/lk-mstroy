@@ -120,14 +120,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6877,
-  "gos_number": "95791",
-  "mark": "Электростанция JCB-550QS",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
   "tis_id": 278,
   "gos_number": "O410ТН72",
   "mark": "Бортовой Ford Transit Double Cab",
@@ -472,27 +464,11 @@
   "source": "tis"
  },
  {
-  "tis_id": 6868,
-  "gos_number": "20004892",
-  "mark": "Электростанция JCB G326QS",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
   "tis_id": 5960,
   "gos_number": "21150",
   "mark": "Электростанция BZ-C181S",
   "vehicle_type": "",
   "tis_org_id": 1600357909,
-  "source": "tis"
- },
- {
-  "tis_id": 6878,
-  "gos_number": "20012505",
-  "mark": "Электростанция JVM POWER G1250W",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
   "source": "tis"
  },
  {
@@ -701,14 +677,6 @@
   "mark": "Вахтовый автобус 42261 на шасси КАМАЗ",
   "vehicle_type": "",
   "tis_org_id": 721754553,
-  "source": "tis"
- },
- {
-  "tis_id": 6870,
-  "gos_number": "93584",
-  "mark": "Электростанция JCB G500X",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
   "source": "tis"
  },
  {
@@ -14168,14 +14136,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6824,
-  "gos_number": "3536",
-  "mark": "Вибропогружатель muller MS-50H",
-  "vehicle_type": "",
-  "tis_org_id": -605241147,
-  "source": "tis"
- },
- {
   "tis_id": 6829,
   "gos_number": "0722АН38",
   "mark": "Каток грунтовый LIUGONG CLG6620E",
@@ -14213,14 +14173,6 @@
   "mark": "Манипулятор КамаЗ",
   "vehicle_type": "",
   "tis_org_id": 721754553,
-  "source": "tis"
- },
- {
-  "tis_id": 6831,
-  "gos_number": "8393АА55",
-  "mark": "Кран гусеничный LIEBHERR LR1280",
-  "vehicle_type": "",
-  "tis_org_id": 2078749700,
   "source": "tis"
  },
  {
@@ -14336,14 +14288,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6843,
-  "gos_number": "6787АВ55",
-  "mark": "Экскаватор-погрузчик JCB",
-  "vehicle_type": "",
-  "tis_org_id": -975894412,
-  "source": "tis"
- },
- {
   "tis_id": 6836,
   "gos_number": "Т724НМ138",
   "mark": "Самосвал Shacman",
@@ -14376,14 +14320,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6839,
-  "gos_number": "9890XA27",
-  "mark": "Экскаватор гусеничный TZCO TZ260C36",
-  "vehicle_type": "",
-  "tis_org_id": -996005945,
-  "source": "tis"
- },
- {
   "tis_id": 6840,
   "gos_number": "У323МЕ72",
   "mark": "Самосвал Volvo",
@@ -14400,27 +14336,11 @@
   "source": "tis"
  },
  {
-  "tis_id": 6844,
-  "gos_number": "6112АА",
-  "mark": "Бульдозер SHANTUI SD-16",
-  "vehicle_type": "",
-  "tis_org_id": 616141828,
-  "source": "tis"
- },
- {
   "tis_id": 6845,
   "gos_number": "1534НА50",
   "mark": "Экскаватор гусеничный JCB-205",
   "vehicle_type": "",
   "tis_org_id": -1345026271,
-  "source": "tis"
- },
- {
-  "tis_id": 6846,
-  "gos_number": "4965АО54",
-  "mark": "Буровая установка SUNWARD SWDM300",
-  "vehicle_type": "",
-  "tis_org_id": -1595193879,
   "source": "tis"
  },
  {
@@ -15184,14 +15104,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6858,
-  "gos_number": "С742КУ550",
-  "mark": "Автокран Камаз",
-  "vehicle_type": "",
-  "tis_org_id": 875735206,
-  "source": "tis"
- },
- {
   "tis_id": 3856,
   "gos_number": "6982ОА72",
   "mark": "Каток тандемный вибрационный HAMM HD+140VV",
@@ -15424,14 +15336,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6860,
-  "gos_number": "4841СС65",
-  "mark": "Экскаватор Komatsu PC300",
-  "vehicle_type": "",
-  "tis_org_id": -1240832594,
-  "source": "tis"
- },
- {
   "tis_id": 6634,
   "gos_number": "Р208СЕ62",
   "mark": "Автокран КС 45717К-3Р",
@@ -15528,14 +15432,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6861,
-  "gos_number": "4586АВ55",
-  "mark": "Кран гусеничный SANY SCC 1000С",
-  "vehicle_type": "",
-  "tis_org_id": -652232493,
-  "source": "tis"
- },
- {
   "tis_id": 3401,
   "gos_number": "2241ХО86",
   "mark": "Кран гусеничный Hitachi KH-180-3",
@@ -15581,14 +15477,6 @@
   "mark": "Кран гусеничный SCX 1500А-3",
   "vehicle_type": "",
   "tis_org_id": -777275840,
-  "source": "tis"
- },
- {
-  "tis_id": 6863,
-  "gos_number": "5218МН77",
-  "mark": "Кран гусеничный Zoomlion",
-  "vehicle_type": "",
-  "tis_org_id": 2002404873,
   "source": "tis"
  },
  {
@@ -15960,14 +15848,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6865,
-  "gos_number": "Х304ХВ197",
-  "mark": "Автокран XCMG QY25K5",
-  "vehicle_type": "",
-  "tis_org_id": 1043859847,
-  "source": "tis"
- },
- {
   "tis_id": 6672,
   "gos_number": "Х739РВ72",
   "mark": "Самосвал SHACMAN 739",
@@ -16008,35 +15888,11 @@
   "source": "tis"
  },
  {
-  "tis_id": 6866,
-  "gos_number": "20002937",
-  "mark": "Электростанция JCB Q440S",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
-  "tis_id": 6869,
-  "gos_number": "94133",
-  "mark": "Электростанция JCB G350S",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
   "tis_id": 6692,
   "gos_number": "У434КТ72",
   "mark": "Самосвал VOLVO FM TRUCK 6*6",
   "vehicle_type": "Самосвал 6х6",
   "tis_org_id": 1027184252,
-  "source": "tis"
- },
- {
-  "tis_id": 6867,
-  "gos_number": "95831",
-  "mark": "Электростанция JCB G350S",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
   "source": "tis"
  },
  {
@@ -16328,22 +16184,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6871,
-  "gos_number": "20002011",
-  "mark": "Электростанция JCB G495",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
-  "tis_id": 6872,
-  "gos_number": "96142",
-  "mark": "Электростанция JCB G350S",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
   "tis_id": 6725,
   "gos_number": "9863",
   "mark": "Вибропогружатель ICE 55NF",
@@ -16365,14 +16205,6 @@
   "mark": "SHANTUI SD16",
   "vehicle_type": "",
   "tis_org_id": 1600357909,
-  "source": "tis"
- },
- {
-  "tis_id": 6873,
-  "gos_number": "20004893",
-  "mark": "Электростанция JCB G326QS",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
   "source": "tis"
  },
  {
@@ -16568,14 +16400,6 @@
   "source": "tis"
  },
  {
-  "tis_id": 6874,
-  "gos_number": "20002217",
-  "mark": "Электростанция JCB G500S",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
   "tis_id": 6744,
   "gos_number": "М717НВ138",
   "mark": "Самосвал SITRACK C7H",
@@ -16637,22 +16461,6 @@
   "mark": "Самосвал HOWO",
   "vehicle_type": "",
   "tis_org_id": 890817425,
-  "source": "tis"
- },
- {
-  "tis_id": 6875,
-  "gos_number": "20002648",
-  "mark": "Электростанция JCB G 145QS",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
-  "source": "tis"
- },
- {
-  "tis_id": 6876,
-  "gos_number": "20004896",
-  "mark": "Электростанция JCB G 145QS",
-  "vehicle_type": "",
-  "tis_org_id": 1825838752,
   "source": "tis"
  }
 ]
