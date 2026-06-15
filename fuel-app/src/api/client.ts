@@ -1,3 +1,5 @@
+import { FileSystemUploadType, uploadAsync } from "expo-file-system/legacy";
+
 import type { BootstrapData, LoginResponse, SyncRequest, SyncResponse } from "../sync/types";
 
 /** Ошибка HTTP-слоя. `isAuth` (401) → нужен повторный логин (refresh-токена нет). */
@@ -74,22 +76,25 @@ export class ApiClient implements FuelApi {
   }
 
   /**
-   * Загрузка фото ТТН: multipart `photo` (файл) + `receiptId` (текст). Foreground (fetch+FormData),
-   * boundary RN выставляет сам — Content-Type руками НЕ ставим. Ретраи — на стороне PhotoQueueStore.
+   * Загрузка фото ТТН: multipart `photo` (файл) + `receiptId` (текст). Foreground.
+   * Через expo-file-system `uploadAsync` (а НЕ fetch+FormData): RN-fetch с файловым `{uri}` под
+   * New Architecture не стримит файл и падает «Network request failed» ДО HTTP-запроса (фото не
+   * доходило до сервера). uploadAsync читает файл нативно. Ретраи — на стороне PhotoQueueStore.
    */
   async uploadTtn(receiptId: string, fileUri: string): Promise<void> {
-    const form = new FormData();
-    form.append("receiptId", receiptId);
-    // RN-форма файла: { uri, name, type } (тип не из DOM — приводим к any)
-    form.append("photo", { uri: fileUri, name: `${receiptId}.jpg`, type: "image/jpeg" } as unknown as Blob);
-
     const headers: Record<string, string> = {};
     const token = await this.getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const res = await fetch(`${this.baseUrl}/uploads/ttn`, { method: "POST", headers, body: form });
-    if (!res.ok) {
-      throw new ApiError(res.status, await readError(res));
+    const res = await uploadAsync(`${this.baseUrl}/uploads/ttn`, fileUri, {
+      uploadType: FileSystemUploadType.MULTIPART,
+      fieldName: "photo",
+      mimeType: "image/jpeg",
+      parameters: { receiptId },
+      headers,
+    });
+    if (res.status < 200 || res.status >= 300) {
+      throw new ApiError(res.status, res.body || `upload failed (${res.status})`);
     }
   }
 }
