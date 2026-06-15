@@ -18,7 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 2
     },
     "web": {
       "output": "static",
@@ -47,7 +48,8 @@
       "router": {},
       "eas": {
         "projectId": "693b2ac4-f509-497f-bb24-f85e90aa0762"
-      }
+      },
+      "buildNumber": 2
     },
     "owner": "dolobb"
   }

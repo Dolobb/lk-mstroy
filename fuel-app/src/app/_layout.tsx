@@ -7,7 +7,9 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { useDbMigrations } from "@/db/client";
+import { useAppUpdate } from "@/hooks/useAppUpdate";
 import { useAuth } from "@/hooks/useAuth";
 import { useAutoSync } from "@/hooks/useAutoSync";
 import { useSessionStore } from "@/stores/session";
@@ -24,6 +26,8 @@ export default function RootLayout() {
 
   // Авто-синк при активной сессии: первичный bootstrap подтянет АТЗ/ТС в локальный кэш.
   useAutoSync(status === "active");
+
+  const update = useAppUpdate();
 
   let content: React.ReactNode;
   if (migrations.error) {
@@ -47,7 +51,14 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <BottomSheetModalProvider>{content}</BottomSheetModalProvider>
+        <BottomSheetModalProvider>
+          <View style={{ flex: 1 }}>
+            {update.available && update.apkUrl && (
+              <UpdateBanner apkUrl={update.apkUrl} onDismiss={update.dismiss} />
+            )}
+            {content}
+          </View>
+        </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
