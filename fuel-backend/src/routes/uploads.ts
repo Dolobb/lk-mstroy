@@ -22,7 +22,7 @@ type SupportedImage = {
   mime: "image/jpeg" | "image/png" | "image/webp";
 };
 
-function getUploadsDir(): string {
+export function getUploadsDir(): string {
   return path.resolve(process.env.UPLOADS_DIR ?? "./uploads");
 }
 

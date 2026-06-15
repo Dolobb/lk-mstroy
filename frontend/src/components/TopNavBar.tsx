@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Settings, Sun, Moon, Map, Wrench, Terminal, Sparkles, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { Home, Settings, Sun, Moon, Map, Wrench, Terminal, Sparkles, FileSpreadsheet, BarChart3, Fuel } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { DumpTruckIcon, SemiTruckIcon } from './dashboard/VehicleIcons';
 
@@ -9,6 +9,7 @@ const navItems: { id: string; path: string; label: string; icon: React.Component
   { id: 'kip',      path: '/kip',       label: 'КИП ТЕХНИКИ', icon: Settings },
   { id: 'tractors', path: '/tyagachi',  label: 'ТЯГАЧИ',      icon: SemiTruckIcon },
   { id: 'dump',     path: '/samosvaly', label: 'САМОСВАЛЫ',   icon: DumpTruckIcon },
+  { id: 'fuel',     path: '/fuel',      label: 'ТОПЛИВО',     icon: Fuel },
   { id: 'analytics', path: '/analytics', label: 'АНАЛИТИКА', icon: BarChart3 },
 ];
 

@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
@@ -13,6 +15,7 @@ import {
   vehicles
 } from "../db/schema.js";
 import { requireAdmin } from "../middleware/auth.js";
+import { getUploadsDir } from "./uploads.js";
 
 const adminShiftsQuerySchema = z.object({
   status: z.enum(["open", "closed"]).optional(),
@@ -144,6 +147,39 @@ adminRouter.get("/shifts/:id", async (req, res) => {
   });
 });
 
+adminRouter.get("/drivers", async (_req, res) => {
+  const lastShift = db
+    .select({
+      driverId: shifts.driverId,
+      lastShiftAt: sql<Date | null>`max(${shifts.startedAtClient})`.as("last_shift_at")
+    })
+    .from(shifts)
+    .groupBy(shifts.driverId)
+    .as("last_shift");
+
+  const rows = await db
+    .select({
+      id: drivers.id,
+      login: drivers.login,
+      fullName: drivers.fullName,
+      isActive: drivers.isActive,
+      lastShiftAt: lastShift.lastShiftAt
+    })
+    .from(drivers)
+    .leftJoin(lastShift, eq(drivers.id, lastShift.driverId))
+    .orderBy(asc(drivers.fullName));
+
+  res.json(
+    rows.map((row) => ({
+      id: row.id,
+      login: row.login,
+      fullName: row.fullName,
+      isActive: row.isActive,
+      lastShiftAt: row.lastShiftAt ? new Date(row.lastShiftAt).toISOString() : null
+    }))
+  );
+});
+
 adminRouter.get("/drivers/:id", async (req, res) => {
   const { id } = uuidParamsSchema.parse(req.params);
 
@@ -171,6 +207,73 @@ adminRouter.get("/drivers/:id", async (req, res) => {
     createdAt: driver.createdAt?.toISOString() ?? null,
     shifts: driverShifts
   });
+});
+
+adminRouter.get("/atz", async (_req, res) => {
+  const [atzRows, openShiftRows] = await Promise.all([
+    db
+      .select({
+        id: atz.id,
+        gosNumber: atz.gosNumber,
+        title: atz.title,
+        remainingLiters: atz.remainingLiters,
+        isActive: atz.isActive
+      })
+      .from(atz)
+      .orderBy(asc(atz.gosNumber)),
+    db
+      .select({
+        atzId: shifts.atzId,
+        id: shifts.id,
+        driverId: drivers.id,
+        driverFullName: drivers.fullName,
+        startedAtClient: shifts.startedAtClient
+      })
+      .from(shifts)
+      .innerJoin(drivers, eq(shifts.driverId, drivers.id))
+      .where(eq(shifts.status, "open"))
+      .orderBy(desc(shifts.startedAtClient))
+  ]);
+
+  const openShiftByAtzId = new Map<
+    string,
+    {
+      id: string;
+      driverId: string;
+      driverFullName: string;
+      startedAtClient: Date;
+    }
+  >();
+
+  for (const openShift of openShiftRows) {
+    if (!openShiftByAtzId.has(openShift.atzId)) {
+      openShiftByAtzId.set(openShift.atzId, openShift);
+    }
+  }
+
+  res.json(
+    atzRows.map((atzRow) => {
+      const openShift = openShiftByAtzId.get(atzRow.id);
+
+      return {
+        id: atzRow.id,
+        gosNumber: atzRow.gosNumber,
+        title: atzRow.title,
+        remainingLiters: Number(atzRow.remainingLiters ?? 0),
+        isActive: atzRow.isActive,
+        openShift: openShift
+          ? {
+              id: openShift.id,
+              driver: {
+                id: openShift.driverId,
+                fullName: openShift.driverFullName
+              },
+              startedAtClient: openShift.startedAtClient.toISOString()
+            }
+          : null
+      };
+    })
+  );
 });
 
 adminRouter.get("/atz/:id", async (req, res) => {
@@ -230,6 +333,47 @@ adminRouter.get("/atz/:id", async (req, res) => {
         }
       : null,
     shifts: atzShifts
+  });
+});
+
+adminRouter.get("/receipts/:id/photo", async (req, res, next) => {
+  const { id } = uuidParamsSchema.parse(req.params);
+
+  const [receipt] = await db
+    .select({
+      id: fuelReceiptEvents.id,
+      ttnPhotoStatus: fuelReceiptEvents.ttnPhotoStatus,
+      ttnPhotoPath: fuelReceiptEvents.ttnPhotoPath
+    })
+    .from(fuelReceiptEvents)
+    .where(eq(fuelReceiptEvents.id, id))
+    .limit(1);
+
+  if (!receipt || receipt.ttnPhotoStatus !== "uploaded" || !receipt.ttnPhotoPath) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const imageType = getPhotoImageType(receipt.ttnPhotoPath);
+  if (!imageType) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const photoPath = path.join(getUploadsDir(), `${id}.${imageType.ext}`);
+
+  try {
+    await fs.access(photoPath);
+  } catch {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  res.type(imageType.mime);
+  res.sendFile(photoPath, (error) => {
+    if (error) {
+      next(error);
+    }
   });
 });
 
@@ -315,6 +459,28 @@ async function getShiftSummaries(filter: ShiftSummaryFilter) {
     .limit(filter.limit);
 
   return rows.map(formatShiftSummary);
+}
+
+function getPhotoImageType(photoPath: string):
+  | { ext: "jpg"; mime: "image/jpeg" }
+  | { ext: "png"; mime: "image/png" }
+  | { ext: "webp"; mime: "image/webp" }
+  | null {
+  const ext = path.extname(photoPath).toLowerCase().slice(1);
+
+  if (ext === "jpg" || ext === "jpeg") {
+    return { ext: "jpg", mime: "image/jpeg" };
+  }
+
+  if (ext === "png") {
+    return { ext, mime: "image/png" };
+  }
+
+  if (ext === "webp") {
+    return { ext, mime: "image/webp" };
+  }
+
+  return null;
 }
 
 function formatShiftSummary(row: {
