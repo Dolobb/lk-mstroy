@@ -63,6 +63,23 @@ export function useOrganizations() {
   return useLiveQuery(db.select().from(organizations).orderBy(asc(organizations.name)));
 }
 
+/**
+ * Недавние выдачи (по всем сменам), новые сверху — для «быстрого выбора» машины в передаче,
+ * когда поиск пуст. Возвращает сырые outbox-строки выдач; вызывающий парсит payload,
+ * отбрасывает isDeleted и дедуплицирует по vehicleId, сохраняя порядок «недавности».
+ */
+export function useRecentDispenses(limit = 40) {
+  return useLiveQuery(
+    db
+      .select({ id: outbox.id, payload: outbox.payload, happenedAtClient: outbox.happenedAtClient })
+      .from(outbox)
+      .where(eq(outbox.type, "dispense_upsert"))
+      .orderBy(desc(outbox.happenedAtClient))
+      .limit(limit),
+    [limit],
+  );
+}
+
 /** ТС по набору id (lookup госномеров в таблице операций). Пустой набор → пусто. */
 export function useVehiclesByIds(ids: readonly string[]) {
   const unique = Array.from(new Set(ids.filter(Boolean)));

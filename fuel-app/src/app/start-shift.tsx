@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDriverAtz } from "@/hooks/queries";
 import { startShift } from "@/sync/mutations";
@@ -11,21 +12,26 @@ function formatLiters(value: number) {
 
 export default function StartShiftScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const atzRows = useDriverAtz();
   const [busyAtzId, setBusyAtzId] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   async function onStart(atzId: string) {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setBusyAtzId(atzId);
     try {
       await startShift(atzId);
       router.replace("/work");
     } finally {
+      submittingRef.current = false;
       setBusyAtzId(null);
     }
   }
 
   return (
-    <View className="flex-1 bg-surface-1 p-6 gap-6">
+    <View className="flex-1 bg-surface-1 p-6 gap-6" style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}>
       <View className="flex-row items-center gap-4">
         <Pressable
           onPress={() => router.back()}

@@ -8,12 +8,14 @@ import {
 import { Redirect, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAtz, useCurrentShift, useShiftEvents, useVehiclesByIds } from "@/hooks/queries";
 import { sumPendingDelta } from "@/hooks/useAtzRemaining";
 import { useSync } from "@/hooks/useSync";
-import { closeShift, type CurrentShift, editEvent, softDeleteEvent } from "@/sync/mutations";
+import { type CurrentShift, editEvent, softDeleteEvent } from "@/sync/mutations";
 import { type SyncUiState, useSyncStatusStore } from "@/stores/sync-status";
+import { LITERS_INPUT_STYLE } from "@/constants/inputs";
 
 type FuelEventPayload = {
   type: "dispense_upsert" | "receipt_upsert";
@@ -114,7 +116,10 @@ function BigAction({
 
 export default function WorkScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const sheetRef = useRef<BottomSheetModal>(null);
+  const editSubmittingRef = useRef(false);
+  const deleteSubmittingRef = useRef(false);
   const syncState = useSyncStatusStore((s) => s.state);
   const pending = useSyncStatusStore((s) => s.pending);
   const lastError = useSyncStatusStore((s) => s.lastError);
@@ -170,29 +175,30 @@ export default function WorkScreen() {
   // Без этой проверки редирект срабатывает до загрузки → redirect-loop с /main.
   if (currentShiftQuery.updatedAt === undefined && !shift) {
     return (
-      <View className="flex-1 bg-surface-1 items-center justify-center">
+      <View className="flex-1 bg-surface-1 items-center justify-center" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         <ActivityIndicator color="#5e6ad2" />
       </View>
     );
   }
   if (!shift) return <Redirect href="/" />;
-  const activeShift = shift;
-
   const atz = atzRows.data[0];
   // Остаток = серверное «последнее известное» + локальные несинхронизированные дельты (Shift-Model).
   const remaining = (atz?.remainingLiters ?? 0) + sumPendingDelta(events.data);
 
   async function onSaveEdit() {
-    if (!editing || !validEditLiters) {
-      Alert.alert("Проверьте литры", "Введите количество больше 0");
-      return;
-    }
-    setEditBusy(true);
+    if (editSubmittingRef.current) return;
+    editSubmittingRef.current = true;
     try {
+      if (!editing || !validEditLiters) {
+        Alert.alert("Проверьте литры", "Введите количество больше 0");
+        return;
+      }
+      setEditBusy(true);
       await editEvent(editing.id, { liters: editLitersNumber });
       sheetRef.current?.dismiss();
       setEditing(null);
     } finally {
+      editSubmittingRef.current = false;
       setEditBusy(false);
     }
   }
@@ -205,12 +211,15 @@ export default function WorkScreen() {
         text: "Удалить",
         style: "destructive",
         onPress: async () => {
-          setEditBusy(true);
+          if (deleteSubmittingRef.current) return;
+          deleteSubmittingRef.current = true;
           try {
+            setEditBusy(true);
             await softDeleteEvent(editing.id);
             sheetRef.current?.dismiss();
             setEditing(null);
           } finally {
+            deleteSubmittingRef.current = false;
             setEditBusy(false);
           }
         },
@@ -218,13 +227,8 @@ export default function WorkScreen() {
     ]);
   }
 
-  async function onCloseShift() {
-    await closeShift(activeShift.shiftId);
-    router.replace("/");
-  }
-
   return (
-    <View className="flex-1 bg-surface-1 p-6 gap-5">
+    <View className="flex-1 bg-surface-1 p-6 gap-5" style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}>
       <View className="flex-row items-start justify-between gap-4">
         <View className="gap-1 flex-1">
           <Text className="text-label font-bold text-success uppercase">В РАБОТЕ</Text>
@@ -314,7 +318,8 @@ export default function WorkScreen() {
       </View>
 
       <Pressable
-        onPress={() => void onCloseShift()}
+        // typedRoutes-тип для нового роута регенерится на следующем `expo start`; до этого — каст.
+        onPress={() => router.push("/close-shift" as Parameters<typeof router.push>[0])}
         className="min-h-tap-secondary bg-canvas border border-hairline-strong rounded-lg px-6 items-center justify-center active:bg-surface-3"
       >
         <Text className="text-ink-1 text-body-sm font-semibold">Закрыть смену</Text>
@@ -329,7 +334,7 @@ export default function WorkScreen() {
           setEditLiters("");
         }}
       >
-        <BottomSheetView style={{ paddingHorizontal: 24, paddingBottom: 32, gap: 16 }}>
+        <BottomSheetView style={{ paddingHorizontal: 24, paddingBottom: 32 + insets.bottom, gap: 16 }}>
           <View className="gap-1">
             <Text className="text-title font-bold text-ink-1">
               {editing?.type === "receipt_upsert" ? "Правка получения" : "Правка выдачи"}
@@ -343,6 +348,7 @@ export default function WorkScreen() {
               className={`min-h-tap-primary px-4 rounded-md border bg-canvas text-display-2xl font-extrabold text-ink-1 ${
                 editLiters.length > 0 && !validEditLiters ? "border-error" : "border-hairline-strong"
               }`}
+              style={LITERS_INPUT_STYLE}
               placeholder="0"
               placeholderTextColor="#8a8f98"
               keyboardType="numeric"

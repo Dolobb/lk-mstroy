@@ -1,12 +1,14 @@
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useOrganizations } from "@/hooks/queries";
 import { addOrganizationLocal, addVehicleLocal } from "@/sync/mutations";
 
 export default function AddVehicleScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const organizations = useOrganizations();
   const [gosNumber, setGosNumber] = useState("");
   const [mark, setMark] = useState("");
@@ -16,6 +18,8 @@ export default function AddVehicleScreen() {
   const [newOrgName, setNewOrgName] = useState("");
   const [vehicleBusy, setVehicleBusy] = useState(false);
   const [orgBusy, setOrgBusy] = useState(false);
+  const orgSubmittingRef = useRef(false);
+  const vehicleSubmittingRef = useRef(false);
 
   const filteredOrganizations = useMemo(() => {
     const needle = filter.trim().toLowerCase();
@@ -28,9 +32,11 @@ export default function AddVehicleScreen() {
   const canSubmit = trimmedGosNumber.length > 0 && selectedOrgId !== null && !busy;
 
   async function createOrganization() {
+    if (orgSubmittingRef.current) return;
     const name = newOrgName.trim();
     if (!name) return;
 
+    orgSubmittingRef.current = true;
     setOrgBusy(true);
     try {
       const id = await addOrganizationLocal(name);
@@ -40,13 +46,16 @@ export default function AddVehicleScreen() {
     } catch (error) {
       Alert.alert("Не удалось создать организацию", error instanceof Error ? error.message : "Попробуйте ещё раз");
     } finally {
+      orgSubmittingRef.current = false;
       setOrgBusy(false);
     }
   }
 
   async function submit() {
+    if (vehicleSubmittingRef.current) return;
     if (!canSubmit || !selectedOrgId) return;
 
+    vehicleSubmittingRef.current = true;
     setVehicleBusy(true);
     try {
       await addVehicleLocal({
@@ -59,12 +68,13 @@ export default function AddVehicleScreen() {
     } catch (error) {
       Alert.alert("Не удалось добавить ТС", error instanceof Error ? error.message : "Попробуйте ещё раз");
     } finally {
+      vehicleSubmittingRef.current = false;
       setVehicleBusy(false);
     }
   }
 
   return (
-    <View className="flex-1 bg-surface-1 p-6 gap-5">
+    <View className="flex-1 bg-surface-1 p-6 gap-5" style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}>
       <View className="flex-row items-center gap-4">
         <Pressable
           onPress={() => router.back()}
@@ -125,7 +135,12 @@ export default function AddVehicleScreen() {
           />
         ) : null}
 
-        <ScrollView className="flex-1" keyboardShouldPersistTaps="handled" contentContainerClassName="gap-2">
+        <ScrollView
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="gap-2"
+          contentContainerStyle={{ paddingBottom: insets.bottom }}
+        >
           {filteredOrganizations.length === 0 ? (
             <Text className="text-body-sm text-ink-3 px-1">Организации не найдены</Text>
           ) : (

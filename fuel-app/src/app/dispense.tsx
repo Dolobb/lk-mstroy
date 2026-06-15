@@ -1,16 +1,22 @@
 import { Redirect, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useCurrentShift, useOrganizations, useVehicleSearch } from "@/hooks/queries";
+import { useCurrentShift, useOrganizations, useRecentDispenses, useVehicleSearch, useVehiclesByIds } from "@/hooks/queries";
 import { useAtzRemaining } from "@/hooks/useAtzRemaining";
 import { addDispense, type CurrentShift } from "@/sync/mutations";
+import { LITERS_INPUT_STYLE } from "@/constants/inputs";
 
 type VehicleRow = ReturnType<typeof useVehicleSearch>["data"][number];
 type VehicleSection = {
   key: string;
   title: string;
   vehicles: VehicleRow[];
+};
+type RecentDispensePayload = {
+  vehicleId?: string;
+  isDeleted?: boolean;
 };
 
 function formatLiters(value: number) {
@@ -26,20 +32,53 @@ function parseCurrentShift(value: string | undefined): CurrentShift | null {
   }
 }
 
+function parseRecentDispense(payload: string): RecentDispensePayload | null {
+  try {
+    return JSON.parse(payload) as RecentDispensePayload;
+  } catch {
+    return null;
+  }
+}
+
 export default function DispenseScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const currentShiftQuery = useCurrentShift();
   const currentShift = parseCurrentShift(currentShiftQuery.data[0]?.value);
   const [query, setQuery] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleRow | null>(null);
   const [liters, setLiters] = useState("");
   const [busy, setBusy] = useState(false);
+  const submittingRef = useRef(false);
   const vehicles = useVehicleSearch(query);
+  const recentDispenses = useRecentDispenses();
   const organizations = useOrganizations();
   const organizationNameById = useMemo(
     () => new Map(organizations.data.map((organization) => [organization.id, organization.name])),
     [organizations.data],
   );
+  const recentVehicleIds = useMemo(() => {
+    const ids: string[] = [];
+    const seen = new Set<string>();
+
+    for (const row of recentDispenses.data) {
+      const payload = parseRecentDispense(row.payload);
+      if (!payload?.vehicleId || payload.isDeleted === true || seen.has(payload.vehicleId)) continue;
+      seen.add(payload.vehicleId);
+      ids.push(payload.vehicleId);
+      if (ids.length >= 8) break;
+    }
+
+    return ids;
+  }, [recentDispenses.data]);
+  const recentVehiclesQuery = useVehiclesByIds(recentVehicleIds);
+  const recentVehicles = useMemo(() => {
+    const byId = new Map(recentVehiclesQuery.data.map((vehicle) => [vehicle.id, vehicle]));
+    return recentVehicleIds.flatMap((id) => {
+      const vehicle = byId.get(id);
+      return vehicle ? [vehicle] : [];
+    });
+  }, [recentVehicleIds, recentVehiclesQuery.data]);
   const vehicleSections = useMemo(() => {
     const sections = new Map<string, VehicleSection>();
 
@@ -73,7 +112,7 @@ export default function DispenseScreen() {
   // useLiveQuery на маунте отдаёт [] (updatedAt undefined) до первого чтения кэша.
   if (currentShiftQuery.updatedAt === undefined && !shift) {
     return (
-      <View className="flex-1 bg-surface-1 items-center justify-center">
+      <View className="flex-1 bg-surface-1 items-center justify-center" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         <ActivityIndicator color="#5e6ad2" />
       </View>
     );
@@ -81,19 +120,22 @@ export default function DispenseScreen() {
   if (!shift) return <Redirect href="/" />;
 
   async function submit() {
-    if (!shift || !selectedVehicle || !validLiters) {
-      Alert.alert("Проверьте литры", "Введите количество больше 0");
-      return;
-    }
-    if (litersNumber > available) {
-      Alert.alert("Недостаточно топлива", `В баке доступно ${formatLiters(available)} Л`);
-      return;
-    }
-    setBusy(true);
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     try {
+      if (!shift || !selectedVehicle || !validLiters) {
+        Alert.alert("Проверьте литры", "Введите количество больше 0");
+        return;
+      }
+      if (litersNumber > available) {
+        Alert.alert("Недостаточно топлива", `В баке доступно ${formatLiters(available)} Л`);
+        return;
+      }
+      setBusy(true);
       await addDispense(shift.shiftId, selectedVehicle.id, litersNumber);
       router.back();
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   }
@@ -101,7 +143,7 @@ export default function DispenseScreen() {
   // Фаза «ввод литров» — отдельный экран после выбора ТС (панель не уезжает за край списка).
   if (selectedVehicle) {
     return (
-      <View className="flex-1 bg-surface-1 p-6 gap-6">
+      <View className="flex-1 bg-surface-1 p-6 gap-6" style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}>
         <View className="flex-row items-center gap-4">
           <Pressable
             onPress={() => {
@@ -134,6 +176,7 @@ export default function DispenseScreen() {
             className={`min-h-tap-primary px-4 rounded-md border bg-canvas text-display-2xl font-extrabold text-ink-1 ${
               exceedsTank ? "border-error" : "border-hairline-strong"
             }`}
+            style={LITERS_INPUT_STYLE}
             placeholder="0"
             placeholderTextColor="#8a8f98"
             keyboardType="numeric"
@@ -167,7 +210,7 @@ export default function DispenseScreen() {
 
   // Фаза «выбор ТС».
   return (
-    <View className="flex-1 bg-surface-1 p-6 gap-5">
+    <View className="flex-1 bg-surface-1 p-6 gap-5" style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}>
       <View className="flex-row items-center gap-4">
         <Pressable
           onPress={() => router.back()}
@@ -188,9 +231,32 @@ export default function DispenseScreen() {
         onChangeText={setQuery}
       />
 
-      <ScrollView className="flex-1" keyboardShouldPersistTaps="handled" contentContainerClassName="gap-2">
+      <ScrollView
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="gap-2"
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+      >
         {query.trim().length === 0 ? (
-          <Text className="text-body-sm text-ink-3 px-1">Начните вводить госномер</Text>
+          recentVehicles.length === 0 ? (
+            <Text className="text-body-sm text-ink-3 px-1">Начните вводить госномер</Text>
+          ) : (
+            <View className="gap-2">
+              <Text className="text-label font-bold text-ink-3 uppercase px-1">Недавние</Text>
+              {recentVehicles.map((vehicle) => (
+                <Pressable
+                  key={vehicle.id}
+                  onPress={() => setSelectedVehicle(vehicle)}
+                  className="min-h-[64px] rounded-lg bg-canvas border border-hairline-strong px-4 py-3 justify-center active:bg-surface-3"
+                >
+                  <Text className="text-subheading font-bold text-ink-1">{vehicle.gosNumber}</Text>
+                  <Text className="text-caption text-ink-3">
+                    {[vehicle.mark, vehicle.vehicleType].filter(Boolean).join(" · ") || "Без описания"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )
         ) : vehicles.data.length === 0 ? (
           <Text className="text-body-sm text-ink-3 px-1">Ничего не найдено</Text>
         ) : (

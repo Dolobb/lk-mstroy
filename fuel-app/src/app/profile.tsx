@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useShifts } from "@/hooks/queries";
 import { useSessionStore } from "@/stores/session";
@@ -59,11 +60,12 @@ function ShiftCard({ shift }: { shift: ShiftRow }) {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const driver = useSessionStore((s) => s.driver);
   const shifts = useShifts();
 
   return (
-    <View className="flex-1 bg-surface-1 p-6 gap-6">
+    <View className="flex-1 bg-surface-1 p-6 gap-6" style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}>
       <View className="flex-row items-center gap-4">
         <Pressable
           onPress={() => router.back()}
@@ -86,7 +88,7 @@ export default function ProfileScreen() {
             <Text className="text-body-sm text-ink-3">Смен пока нет</Text>
           </View>
         ) : (
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom }}>
             <View className="gap-3 pb-6">
               {shifts.data.map((shift) => (
                 <ShiftCard key={shift.id} shift={shift} />

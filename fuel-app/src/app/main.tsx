@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentShift } from "@/hooks/queries";
@@ -37,6 +38,7 @@ function SyncPill({ state, pending }: { state: SyncUiState; pending: number }) {
 
 export default function MainScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const driver = useSessionStore((s) => s.driver);
   const syncState = useSyncStatusStore((s) => s.state);
   const pending = useSyncStatusStore((s) => s.pending);
@@ -48,7 +50,7 @@ export default function MainScreen() {
   }, [currentShift.data, router]);
 
   return (
-    <View className="flex-1 bg-surface-1 p-6 gap-8 justify-between">
+    <View className="flex-1 bg-surface-1 p-6 gap-8 justify-between" style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}>
       <View className="gap-8">
         <View className="flex-row items-start justify-between gap-4">
           <View className="gap-1 flex-1">
