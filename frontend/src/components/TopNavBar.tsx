@@ -9,6 +9,7 @@ const navItems: { id: string; path: string; label: string; icon: React.Component
   { id: 'kip',      path: '/kip',       label: 'КИП ТЕХНИКИ', icon: Settings },
   { id: 'tractors', path: '/tyagachi',  label: 'ТЯГАЧИ',      icon: SemiTruckIcon },
   { id: 'dump',     path: '/samosvaly', label: 'САМОСВАЛЫ',   icon: DumpTruckIcon },
+  { id: 'fuel',     path: '/fuel',      label: 'ТОПЛИВО',     icon: Fuel },
   { id: 'analytics', path: '/analytics', label: 'АНАЛИТИКА', icon: BarChart3 },
 ];
 

@@ -1,0 +1,1 @@
+ALTER TABLE "fuel_dispense_events" ADD COLUMN "recipient_name" text DEFAULT '' NOT NULL;
