@@ -27,6 +27,23 @@ export function buildTrips(events: ZoneEvent[]): Trip[] {
   const loadingEvents   = events.filter(e => e.zoneTag === 'dt_loading');
   const unloadingEvents = events.filter(e => e.zoneTag === 'dt_unloading');
 
+  if (loadingEvents.length === 0 && unloadingEvents.length > 0) {
+    return [...unloadingEvents]
+      .sort((a, b) => a.enteredAt.getTime() - b.enteredAt.getTime())
+      .map((unloading, idx) => ({
+        tripNumber:        idx + 1,
+        loadedAt:          null,
+        unloadedAt:        unloading.exitedAt,
+        loadingZone:       null,
+        unloadingZone:     unloading.zoneName,
+        durationMin:       unloading.durationSec != null ? Math.round(unloading.durationSec / 60) : null,
+        distanceKm:        null,
+        volumeM3:          null,
+        travelToUnloadMin: null,
+        returnToLoadMin:   null,
+      }));
+  }
+
   const trips: Trip[] = [];
   const usedUnloadings = new Set<number>(); // индексы использованных выгрузок
 
