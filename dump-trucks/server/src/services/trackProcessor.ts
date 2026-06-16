@@ -212,8 +212,8 @@ export async function saveTrackForShift(
   if (points.length === 0) return;
   try {
     await pool.query(
-      `DELETE FROM dump_trucks.dt_tracks WHERE vehicle_id = $1 AND date = $2`,
-      [vehicleRegNumber, date],
+      `DELETE FROM dump_trucks.dt_tracks WHERE shift_record_id = $1`,
+      [shiftRecordId],
     );
     await pool.query(
       `INSERT INTO dump_trucks.dt_tracks (shift_record_id, vehicle_id, date, track_simplified)

@@ -206,8 +206,9 @@ function ZoneMapClickHandler({
 // ─── Inspector panel ─────────────────────────────────────
 
 type TrackTimelineDatum = {
-  idx: number;
-  speed: number;
+  x: number;
+  pointIdx: number | null;
+  speed: number | null;
   time: string;
   ts: string;
 };
@@ -220,10 +221,12 @@ type TrackTimelineTooltipProps = {
 type ChartPointerState = {
   activeTooltipIndex?: number | string | null;
   activeLabel?: number | string | null;
+  activePayload?: Array<{ payload?: TrackTimelineDatum }>;
 };
 
-const PLAYBACK_INTERVAL_MS = 650;
-const PLAYBACK_SPEEDS = [1, 2, 4] as const;
+const PLAYBACK_INTERVAL_MS = 250;
+const TRACK_GAP_BREAK_MS = 30 * 60_000;
+const PLAYBACK_SPEEDS = [10, 60, 180, 600, 1800] as const;
 type PlaybackSpeed = typeof PLAYBACK_SPEEDS[number];
 
 function formatTrackTime(ts: string): string {
@@ -241,13 +244,33 @@ function formatTrackSpeed(speed: number | null): string {
   return `${Math.round(speed ?? 0)} км/ч`;
 }
 
-function getChartIndex(state: unknown, maxLength: number): number | null {
+function getChartIndex(state: unknown, data: TrackTimelineDatum[]): number | null {
   const s = state as ChartPointerState | null;
-  const raw = s?.activeTooltipIndex ?? s?.activeLabel;
-  if (raw == null) return null;
-  const n = Number(raw);
+  const pointIdx = s?.activePayload?.find(p => p.payload?.pointIdx != null)?.payload?.pointIdx;
+  if (pointIdx != null) return pointIdx;
+
+  const rawLabel = s?.activeLabel;
+  const labelMs = rawLabel == null ? NaN : Number(rawLabel);
+  if (Number.isFinite(labelMs)) {
+    let bestIdx: number | null = null;
+    let bestDistance = Infinity;
+    for (const d of data) {
+      if (d.pointIdx == null) continue;
+      const distance = Math.abs(d.x - labelMs);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIdx = d.pointIdx;
+      }
+    }
+    return bestIdx;
+  }
+
+  const rawIndex = s?.activeTooltipIndex;
+  if (rawIndex == null) return null;
+  const n = Number(rawIndex);
   if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.min(maxLength - 1, Math.round(n)));
+  const datum = data[Math.max(0, Math.min(data.length - 1, Math.round(n)))];
+  return datum?.pointIdx ?? null;
 }
 
 function stopOverlayEvent(e: React.SyntheticEvent) {
@@ -256,7 +279,7 @@ function stopOverlayEvent(e: React.SyntheticEvent) {
 
 function TrackTimelineTooltip({ active, payload }: TrackTimelineTooltipProps) {
   const datum = payload?.[0]?.payload;
-  if (!active || !datum) return null;
+  if (!active || !datum || datum.pointIdx == null || datum.speed == null) return null;
   return (
     <div style={{
       padding: '6px 8px',
@@ -334,48 +357,116 @@ function TrackTimelinePanel({
   track,
   activeIndex,
   onActiveIndexChange,
+  from,
+  to,
 }: {
   track: TrackResponse;
   activeIndex: number | null;
   onActiveIndexChange: React.Dispatch<React.SetStateAction<number | null>>;
+  from?: string;
+  to?: string;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(10);
   const points = track.points;
 
-  const chartData = useMemo<TrackTimelineDatum[]>(() => (
-    points.map((p, idx) => ({
-      idx,
-      speed: p.speed ?? 0,
-      time: formatTrackTime(p.ts),
-      ts: p.ts,
-    }))
-  ), [points]);
+  const axisStart = useMemo(() => {
+    const parsed = from ? new Date(from).getTime() : NaN;
+    const firstPoint = points[0] ? new Date(points[0].ts).getTime() : Date.now();
+    return Number.isFinite(parsed) ? parsed : firstPoint;
+  }, [from, points]);
+
+  const axisEnd = useMemo(() => {
+    const parsed = to ? new Date(to).getTime() : NaN;
+    const lastPoint = points[points.length - 1] ? new Date(points[points.length - 1]!.ts).getTime() : axisStart;
+    return Number.isFinite(parsed) ? parsed : lastPoint;
+  }, [axisStart, points, to]);
+
+  const pointTimes = useMemo(
+    () => points.map(p => new Date(p.ts).getTime()),
+    [points],
+  );
+
+  const chartData = useMemo<TrackTimelineDatum[]>(() => {
+    const out: TrackTimelineDatum[] = [];
+
+    for (let idx = 0; idx < points.length; idx++) {
+      const p = points[idx]!;
+      const x = pointTimes[idx]!;
+      const prevX = pointTimes[idx - 1];
+
+      if (idx > 0 && prevX != null && x - prevX > TRACK_GAP_BREAK_MS) {
+        out.push({
+          x: prevX + 1,
+          pointIdx: null,
+          speed: null,
+          time: formatTrackTime(new Date(prevX + 1).toISOString()),
+          ts: new Date(prevX + 1).toISOString(),
+        });
+        out.push({
+          x: x - 1,
+          pointIdx: null,
+          speed: null,
+          time: formatTrackTime(new Date(x - 1).toISOString()),
+          ts: new Date(x - 1).toISOString(),
+        });
+      }
+
+      out.push({
+        x,
+        pointIdx: idx,
+        speed: p.speed ?? 0,
+        time: formatTrackTime(p.ts),
+        ts: p.ts,
+      });
+    }
+
+    return out;
+  }, [pointTimes, points]);
 
   const maxSpeed = useMemo(() => {
-    const max = Math.max(10, ...chartData.map(d => d.speed));
+    const max = Math.max(10, ...chartData.map(d => d.speed ?? 0));
     return Math.ceil(max / 10) * 10;
   }, [chartData]);
 
   const activePoint = activeIndex == null ? null : points[activeIndex] ?? null;
+  const activeX = activeIndex == null ? null : pointTimes[activeIndex] ?? null;
 
   const selectFromChart = useCallback((state: unknown) => {
-    const idx = getChartIndex(state, points.length);
+    const idx = getChartIndex(state, chartData);
     if (idx == null) return;
     onActiveIndexChange(idx);
-  }, [onActiveIndexChange, points.length]);
+  }, [chartData, onActiveIndexChange]);
+
+  const findPointAtOrAfter = useCallback((targetMs: number): number => {
+    let lo = 0;
+    let hi = pointTimes.length - 1;
+    let answer = pointTimes.length - 1;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (pointTimes[mid]! >= targetMs) {
+        answer = mid;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return answer;
+  }, [pointTimes]);
 
   useEffect(() => {
     if (!isPlaying) return;
     const id = window.setInterval(() => {
       onActiveIndexChange(prev => {
         const current = prev == null ? 0 : prev;
-        return Math.min(points.length - 1, current + playbackSpeed);
+        const currentMs = pointTimes[current] ?? pointTimes[0] ?? axisStart;
+        const nextMs = currentMs + playbackSpeed * PLAYBACK_INTERVAL_MS;
+        return findPointAtOrAfter(nextMs);
       });
     }, PLAYBACK_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [isPlaying, onActiveIndexChange, playbackSpeed, points.length]);
+  }, [axisStart, findPointAtOrAfter, isPlaying, onActiveIndexChange, playbackSpeed, pointTimes]);
 
   useEffect(() => {
     if (isPlaying && activeIndex != null && activeIndex >= points.length - 1) {
@@ -509,7 +600,7 @@ function TrackTimelinePanel({
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
-            margin={{ top: 8, right: 8, bottom: 0, left: -18 }}
+            margin={{ top: 8, right: 8, bottom: 18, left: -18 }}
             onClick={selectFromChart}
             onMouseDown={(state: unknown) => {
               setIsDragging(true);
@@ -529,7 +620,21 @@ function TrackTimelinePanel({
               </linearGradient>
             </defs>
             <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
-            <XAxis dataKey="idx" type="number" domain={[0, points.length - 1]} hide />
+            <XAxis
+              dataKey="x"
+              type="number"
+              domain={[axisStart, axisEnd]}
+              tick={{ fill: 'rgba(255,255,255,0.52)', fontSize: 10 }}
+              axisLine={{ stroke: 'rgba(255,255,255,0.16)' }}
+              tickLine={{ stroke: 'rgba(255,255,255,0.16)' }}
+              minTickGap={28}
+              tickFormatter={(v) => {
+                const d = new Date(Number(v));
+                return Number.isNaN(d.getTime())
+                  ? ''
+                  : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+              }}
+            />
             <YAxis
               domain={[0, maxSpeed]}
               tick={{ fill: 'rgba(255,255,255,0.46)', fontSize: 10 }}
@@ -542,8 +647,8 @@ function TrackTimelinePanel({
               cursor={{ stroke: 'rgba(248,113,113,0.65)', strokeWidth: 1 }}
               content={(props: unknown) => <TrackTimelineTooltip {...(props as TrackTimelineTooltipProps)} />}
             />
-            {activeIndex != null && (
-              <ReferenceLine x={activeIndex} stroke="#ef4444" strokeWidth={2} ifOverflow="extendDomain" />
+            {activeX != null && (
+              <ReferenceLine x={activeX} stroke="#ef4444" strokeWidth={2} ifOverflow="extendDomain" />
             )}
             <Area
               type="monotone"
@@ -552,6 +657,7 @@ function TrackTimelinePanel({
               strokeWidth={2}
               fill="url(#track-speed-fill)"
               dot={false}
+              connectNulls={false}
               activeDot={{ r: 4, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
               isAnimationActive={false}
             />
@@ -1176,6 +1282,8 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             track={track}
             activeIndex={activeTrackPointIdx}
             onActiveIndexChange={setActiveTrackPointIdx}
+            from={dateFrom}
+            to={dateTo}
           />
         )}
 
