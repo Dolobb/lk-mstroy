@@ -11,10 +11,18 @@ import {
   eventEdits,
   fuelDispenseEvents,
   fuelReceiptEvents,
+  organizations,
   shifts,
   vehicles
 } from "../db/schema.js";
 import { requireAdmin } from "../middleware/auth.js";
+import {
+  applyAtzDelta,
+  numericToCenti,
+  toCenti,
+  toNumeric,
+  writeEventEdit
+} from "../services/adminMutations.js";
 import { getUploadsDir } from "./uploads.js";
 
 const adminShiftsQuerySchema = z.object({
@@ -27,6 +35,54 @@ const adminShiftsQuerySchema = z.object({
 const uuidParamsSchema = z.object({
   id: z.uuid()
 });
+
+const adminVehiclesQuerySchema = z.object({
+  active: z.enum(["true", "all"]).default("true")
+});
+
+const createAtzBodySchema = z.object({
+  gosNumber: z.string().min(1),
+  title: z.string().optional(),
+  tisVehicleId: z.string().optional(),
+  remainingLiters: z.number().nonnegative().default(0),
+  isActive: z.boolean().default(true)
+});
+
+const updateAtzBodySchema = z
+  .object({
+    title: z.string().optional(),
+    tisVehicleId: z.string().optional(),
+    isActive: z.boolean().optional(),
+    remainingLiters: z.number().nonnegative().optional()
+  })
+  .refine(
+    (body) =>
+      body.title !== undefined ||
+      body.tisVehicleId !== undefined ||
+      body.isActive !== undefined ||
+      body.remainingLiters !== undefined,
+    { message: "Нужно указать хотя бы одно поле" }
+  );
+
+const closeShiftBodySchema = z.object({
+  // Переопределение закрывающего остатка; по умолчанию — авто-снимок текущего остатка АТЗ.
+  closingRemainingLiters: z.number().nonnegative().optional(),
+  endedAtClient: z.string().datetime({ offset: true }).optional()
+});
+
+const eventParamsSchema = z.object({
+  type: z.enum(["dispense", "receipt"]),
+  id: z.uuid()
+});
+
+const editEventBodySchema = z
+  .object({
+    liters: z.number().positive().optional(),
+    isDeleted: z.boolean().optional()
+  })
+  .refine((body) => body.liters !== undefined || body.isDeleted !== undefined, {
+    message: "Нужно указать liters или isDeleted"
+  });
 
 type ShiftSummaryFilter = {
   id?: string;
@@ -43,6 +99,27 @@ type ShiftSummaryRow = Awaited<ReturnType<typeof getShiftSummaries>>[number];
 export const adminRouter = Router();
 
 adminRouter.use(requireAdmin);
+
+adminRouter.get("/vehicles", async (req, res) => {
+  const input = adminVehiclesQuerySchema.parse(req.query);
+
+  const rows = await db
+    .select({
+      id: vehicles.id,
+      gosNumber: vehicles.gosNumber,
+      mark: vehicles.mark,
+      vehicleType: vehicles.vehicleType,
+      organizationName: organizations.name,
+      source: vehicles.source,
+      isActive: vehicles.isActive
+    })
+    .from(vehicles)
+    .innerJoin(organizations, eq(vehicles.organizationId, organizations.id))
+    .where(input.active === "true" ? eq(vehicles.isActive, true) : undefined)
+    .orderBy(asc(vehicles.gosNumber));
+
+  res.json(rows);
+});
 
 adminRouter.get("/shifts", async (req, res) => {
   const input = adminShiftsQuerySchema.parse(req.query);
@@ -74,6 +151,7 @@ adminRouter.get("/shifts/:id", async (req, res) => {
         vehicleGosNumber: vehicles.gosNumber,
         vehicleMark: vehicles.mark,
         liters: fuelDispenseEvents.liters,
+        recipientName: fuelDispenseEvents.recipientName,
         happenedAtClient: fuelDispenseEvents.happenedAtClient,
         receivedAtServer: fuelDispenseEvents.receivedAtServer,
         isDeleted: fuelDispenseEvents.isDeleted,
@@ -123,6 +201,7 @@ adminRouter.get("/shifts/:id", async (req, res) => {
         mark: row.vehicleMark
       },
       liters: Number(row.liters),
+      recipientName: row.recipientName,
       happenedAtClient: row.happenedAtClient.toISOString(),
       receivedAtServer: row.receivedAtServer?.toISOString() ?? null,
       isDeleted: row.isDeleted ?? false,
@@ -144,6 +223,174 @@ adminRouter.get("/shifts/:id", async (req, res) => {
       ...row,
       editedAt: row.editedAt?.toISOString() ?? null
     }))
+  });
+});
+
+// Ручное закрытие смены (в т.ч. зависшей открытой, блокирующей АТЗ по uniq_open_shift_per_atz).
+// closingRemainingLiters: по умолчанию авто-снимок текущего остатка АТЗ; можно переопределить.
+// Переопределение, отличное от текущего остатка, трактуется как калибровка — двигает остаток АТЗ дельтой.
+adminRouter.post("/shifts/:id/close", async (req, res) => {
+  const { id } = uuidParamsSchema.parse(req.params);
+  const body = closeShiftBodySchema.parse(req.body ?? {});
+
+  const outcome = await db.transaction(async (tx) => {
+    const [shift] = await tx
+      .select({
+        id: shifts.id,
+        atzId: shifts.atzId,
+        status: shifts.status,
+        endedAtClient: shifts.endedAtClient,
+        closingRemainingLiters: shifts.closingRemainingLiters
+      })
+      .from(shifts)
+      .where(eq(shifts.id, id))
+      .limit(1);
+
+    if (!shift) {
+      return { error: "not_found" as const };
+    }
+    if (shift.status === "closed") {
+      return { error: "already_closed" as const };
+    }
+
+    const [atzRow] = await tx
+      .select({ remainingLiters: atz.remainingLiters })
+      .from(atz)
+      .where(eq(atz.id, shift.atzId))
+      .limit(1);
+
+    const currentRemaining = Number(atzRow?.remainingLiters ?? 0);
+    const closing = body.closingRemainingLiters ?? currentRemaining;
+    const endedAtClient = body.endedAtClient ? new Date(body.endedAtClient) : new Date();
+
+    await tx
+      .update(shifts)
+      .set({
+        status: "closed",
+        endedAtClient,
+        endedAtServer: new Date(),
+        closingRemainingLiters: toNumeric(closing)
+      })
+      .where(eq(shifts.id, id));
+
+    // Override ≠ текущий остаток → ручная калибровка АТЗ по факту закрытия.
+    const deltaCenti = toCenti(closing) - toCenti(currentRemaining);
+    if (deltaCenti !== 0) {
+      await applyAtzDelta(tx, shift.atzId, deltaCenti);
+    }
+
+    await writeEventEdit(tx, {
+      eventId: id,
+      eventType: "shift",
+      before: {
+        status: shift.status,
+        endedAtClient: shift.endedAtClient?.toISOString() ?? null,
+        closingRemainingLiters: shift.closingRemainingLiters
+      },
+      after: {
+        status: "closed",
+        endedAtClient: endedAtClient.toISOString(),
+        closingRemainingLiters: toNumeric(closing)
+      }
+    });
+
+    return { error: null };
+  });
+
+  if (outcome.error === "not_found") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  if (outcome.error === "already_closed") {
+    res.status(409).json({ error: "Shift already closed", code: "already_closed" });
+    return;
+  }
+
+  const [shift] = await getShiftSummaries({ id, limit: 1 });
+  res.json(shift);
+});
+
+// Правка события заправки/получения: литры и/или мягкое удаление.
+// Двигает остаток АТЗ знаковой дельтой (dispense: −Δ, receipt: +Δ), пишет журнал, ставит edited_at (LWW).
+adminRouter.patch("/events/:type/:id", async (req, res) => {
+  const { type, id } = eventParamsSchema.parse(req.params);
+  const body = editEventBodySchema.parse(req.body ?? {});
+  const table = type === "dispense" ? fuelDispenseEvents : fuelReceiptEvents;
+
+  const outcome = await db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(table).where(eq(table.id, id)).limit(1);
+    if (!existing) {
+      return { error: "not_found" as const };
+    }
+
+    const [shift] = await tx
+      .select({ atzId: shifts.atzId })
+      .from(shifts)
+      .where(eq(shifts.id, existing.shiftId))
+      .limit(1);
+    if (!shift) {
+      return { error: "not_found" as const };
+    }
+
+    const isDeleted = body.isDeleted ?? existing.isDeleted ?? false;
+    const newLiters = body.liters ?? Number(existing.liters);
+    const editedAt = new Date();
+
+    const oldEffectiveCenti = existing.isDeleted ? 0 : numericToCenti(existing.liters);
+    const newEffectiveCenti = isDeleted ? 0 : toCenti(newLiters);
+
+    await writeEventEdit(tx, {
+      eventId: id,
+      eventType: type,
+      before: {
+        liters: existing.liters,
+        isDeleted: existing.isDeleted,
+        editedAt: existing.editedAt?.toISOString() ?? null
+      },
+      after: {
+        liters: toNumeric(newLiters),
+        isDeleted,
+        editedAt: editedAt.toISOString()
+      }
+    });
+
+    await tx
+      .update(table)
+      .set({ liters: toNumeric(newLiters), isDeleted, editedAt })
+      .where(eq(table.id, id));
+
+    const signedDeltaCenti =
+      type === "dispense"
+        ? -(newEffectiveCenti - oldEffectiveCenti)
+        : newEffectiveCenti - oldEffectiveCenti;
+    if (signedDeltaCenti !== 0) {
+      await applyAtzDelta(tx, shift.atzId, signedDeltaCenti);
+    }
+
+    return { error: null, atzId: shift.atzId, liters: newLiters, isDeleted, editedAt };
+  });
+
+  if (outcome.error === "not_found") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const [atzRow] = await db
+    .select({ id: atz.id, remainingLiters: atz.remainingLiters })
+    .from(atz)
+    .where(eq(atz.id, outcome.atzId))
+    .limit(1);
+
+  res.json({
+    id,
+    type,
+    liters: outcome.liters,
+    isDeleted: outcome.isDeleted,
+    editedAt: outcome.editedAt.toISOString(),
+    atz: {
+      id: outcome.atzId,
+      remainingLiters: Number(atzRow?.remainingLiters ?? 0)
+    }
   });
 });
 
@@ -276,6 +523,37 @@ adminRouter.get("/atz", async (_req, res) => {
   );
 });
 
+adminRouter.post("/atz", async (req, res) => {
+  const body = createAtzBodySchema.parse(req.body);
+
+  const [createdAtz] = await db
+    .insert(atz)
+    .values({
+      gosNumber: body.gosNumber,
+      title: body.title,
+      tisVehicleId: body.tisVehicleId,
+      remainingLiters: body.remainingLiters.toFixed(2),
+      isActive: body.isActive,
+      updatedAt: new Date()
+    })
+    .returning({
+      id: atz.id,
+      gosNumber: atz.gosNumber,
+      title: atz.title,
+      remainingLiters: atz.remainingLiters,
+      isActive: atz.isActive
+    });
+
+  res.status(201).json({
+    id: createdAtz.id,
+    gosNumber: createdAtz.gosNumber,
+    title: createdAtz.title,
+    remainingLiters: Number(createdAtz.remainingLiters ?? 0),
+    isActive: createdAtz.isActive,
+    openShift: null
+  });
+});
+
 adminRouter.get("/atz/:id", async (req, res) => {
   const { id } = uuidParamsSchema.parse(req.params);
 
@@ -333,6 +611,54 @@ adminRouter.get("/atz/:id", async (req, res) => {
         }
       : null,
     shifts: atzShifts
+  });
+});
+
+adminRouter.patch("/atz/:id", async (req, res) => {
+  const { id } = uuidParamsSchema.parse(req.params);
+  const body = updateAtzBodySchema.parse(req.body ?? {});
+
+  const set: Partial<typeof atz.$inferInsert> = {
+    updatedAt: new Date()
+  };
+
+  if (body.title !== undefined) {
+    set.title = body.title;
+  }
+  if (body.tisVehicleId !== undefined) {
+    set.tisVehicleId = body.tisVehicleId;
+  }
+  if (body.isActive !== undefined) {
+    set.isActive = body.isActive;
+  }
+  if (body.remainingLiters !== undefined) {
+    set.remainingLiters = body.remainingLiters.toFixed(2);
+  }
+
+  const [updatedAtz] = await db
+    .update(atz)
+    .set(set)
+    .where(eq(atz.id, id))
+    .returning({
+      id: atz.id,
+      gosNumber: atz.gosNumber,
+      title: atz.title,
+      remainingLiters: atz.remainingLiters,
+      isActive: atz.isActive
+    });
+
+  if (!updatedAtz) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  res.json({
+    id: updatedAtz.id,
+    gosNumber: updatedAtz.gosNumber,
+    title: updatedAtz.title,
+    remainingLiters: Number(updatedAtz.remainingLiters ?? 0),
+    isActive: updatedAtz.isActive,
+    openShift: null
   });
 });
 

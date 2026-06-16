@@ -111,6 +111,9 @@ export const fuelDispenseEvents = pgTable(
       .notNull()
       .references(() => vehicles.id),
     liters: numeric("liters", { precision: 10, scale: 2 }).notNull(),
+    // Фамилия И.О. получателя топлива (вводится на экране передачи). DEFAULT '' — бэкафилл
+    // существующих строк; для новых событий непустоту гарантирует sync.types.ts (min 1).
+    recipientName: text("recipient_name").notNull().default(""),
     happenedAtClient: timestamp("happened_at_client", { withTimezone: true }).notNull(),
     receivedAtServer: timestamp("received_at_server", { withTimezone: true }).defaultNow(),
     isDeleted: boolean("is_deleted").default(false),

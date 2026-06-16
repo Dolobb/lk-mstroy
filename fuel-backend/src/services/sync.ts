@@ -335,6 +335,7 @@ class DrizzleSyncService implements SyncService {
         shiftId: event.shiftId,
         vehicleId: event.vehicleId,
         liters: toNumeric(event.liters),
+        recipientName: event.recipientName,
         happenedAtClient: new Date(event.happenedAtClient),
         isDeleted,
         editedAt: event.editedAt ? new Date(event.editedAt) : null,
@@ -381,6 +382,7 @@ class DrizzleSyncService implements SyncService {
       before: {
         liters: existing.liters,
         vehicleId: existing.vehicleId,
+        recipientName: existing.recipientName,
         happenedAtClient: existing.happenedAtClient.toISOString(),
         isDeleted: existing.isDeleted,
         editedAt: existing.editedAt?.toISOString() ?? null
@@ -388,6 +390,7 @@ class DrizzleSyncService implements SyncService {
       after: {
         liters: toNumeric(event.liters),
         vehicleId: event.vehicleId,
+        recipientName: event.recipientName,
         happenedAtClient: event.happenedAtClient,
         isDeleted,
         editedAt: event.editedAt ?? null
@@ -399,6 +402,7 @@ class DrizzleSyncService implements SyncService {
       .set({
         liters: toNumeric(event.liters),
         vehicleId: event.vehicleId,
+        recipientName: event.recipientName,
         happenedAtClient: new Date(event.happenedAtClient),
         isDeleted,
         editedAt: event.editedAt ? new Date(event.editedAt) : null

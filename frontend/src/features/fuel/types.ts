@@ -14,6 +14,31 @@ export interface AtzStatus {
   } | null;
 }
 
+export interface CreateAtzInput {
+  gosNumber: string;
+  title?: string;
+  tisVehicleId?: string;
+  remainingLiters?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateAtzInput {
+  title?: string;
+  tisVehicleId?: string;
+  isActive?: boolean;
+  remainingLiters?: number;
+}
+
+export interface Vehicle {
+  id: string;
+  gosNumber: string;
+  mark: string | null;
+  vehicleType: string | null;
+  organizationName: string;
+  source: string;
+  isActive: boolean | null;
+}
+
 export interface Driver {
   id: string;
   login: string;
@@ -52,6 +77,11 @@ export interface ShiftSummary {
   editsCount: number;
 }
 
+export interface CloseShiftInput {
+  closingRemainingLiters?: number;
+  endedAtClient?: string;
+}
+
 export interface DispenseEvent {
   id: string;
   vehicle: {
@@ -60,6 +90,7 @@ export interface DispenseEvent {
     mark: string | null;
   };
   liters: number;
+  recipientName: string;
   happenedAtClient: string;
   receivedAtServer: string | null;
   isDeleted: boolean;
@@ -92,4 +123,16 @@ export interface ShiftDetail extends ShiftSummary {
   dispenses: DispenseEvent[];
   receipts: ReceiptEvent[];
   edits: EventEdit[];
+}
+
+export interface EditEventResult {
+  id: string;
+  type: 'dispense' | 'receipt';
+  liters: number;
+  isDeleted: boolean;
+  editedAt: string;
+  atz: {
+    id: string;
+    remainingLiters: number;
+  };
 }

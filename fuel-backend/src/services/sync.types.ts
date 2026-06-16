@@ -58,6 +58,7 @@ export const dispenseUpsertEventSchema = z
     shiftId: uuidSchema,
     vehicleId: uuidSchema,
     liters: litersSchema,
+    recipientName: z.string().trim().min(1).max(200),
     happenedAtClient: isoDateTimeSchema,
     isDeleted: z.boolean().optional(),
     editedAt: isoDateTimeSchema.nullable().optional()

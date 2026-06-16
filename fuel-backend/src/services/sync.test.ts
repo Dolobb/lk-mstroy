@@ -51,6 +51,7 @@ const happyBatch = batch([
   { type: "shift_open", id: shiftId, atzId, startedAtClient: T0 },
   {
     type: "dispense_upsert",
+    recipientName: "Иванов И.И.",
     id: dispenseId,
     shiftId,
     vehicleId: newVehicleId,
@@ -153,6 +154,7 @@ describe("sync core", () => {
       batch([
         {
           type: "dispense_upsert",
+          recipientName: "Иванов И.И.",
           id: dispenseId,
           shiftId,
           vehicleId: newVehicleId,
@@ -174,6 +176,7 @@ describe("sync core", () => {
       batch([
         {
           type: "dispense_upsert",
+          recipientName: "Иванов И.И.",
           id: dispenseId,
           shiftId,
           vehicleId: newVehicleId,
@@ -199,6 +202,7 @@ describe("sync core", () => {
       batch([
         {
           type: "dispense_upsert",
+          recipientName: "Иванов И.И.",
           id: dispenseId,
           shiftId,
           vehicleId: newVehicleId,
@@ -248,6 +252,7 @@ describe("sync core", () => {
       batch([
         {
           type: "dispense_upsert",
+          recipientName: "Иванов И.И.",
           id: randomUUID(),
           shiftId, // смена driverId
           vehicleId: baseVehicleId,
@@ -265,6 +270,7 @@ describe("sync core", () => {
       batch([
         {
           type: "dispense_upsert",
+          recipientName: "Иванов И.И.",
           id: lateDispenseId,
           shiftId, // уже закрыта — офлайн-ретраи допустимы
           vehicleId: baseVehicleId,
@@ -273,6 +279,7 @@ describe("sync core", () => {
         },
         {
           type: "dispense_upsert",
+          recipientName: "Иванов И.И.",
           id: randomUUID(),
           shiftId,
           vehicleId: randomUUID(),

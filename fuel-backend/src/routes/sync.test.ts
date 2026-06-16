@@ -42,6 +42,7 @@ function validSyncRequest(): { deviceId: string; events: JsonObject[] } {
         shiftId,
         vehicleId,
         liters: 10.5,
+        recipientName: "Иванов И.И.",
         happenedAtClient: "2026-06-12T08:00:00.000Z"
       }
     ]
@@ -77,6 +78,7 @@ describe("POST /sync", () => {
           shiftId: uuid(24),
           vehicleId: uuid(25),
           liters: 10.5,
+          recipientName: "Иванов И.И.",
           happenedAtClient: "2026-06-12T08:00:00.000Z"
         }
       ]
