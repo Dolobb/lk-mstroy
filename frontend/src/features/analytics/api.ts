@@ -15,6 +15,8 @@ import type {
   BigObjectsResponse,
   SidebarSummaryResponse,
   TrackResponse,
+  DataStatusUnit,
+  DataStatusResponse,
 } from './types';
 
 // ─── Geo-admin API ──────────────────────────────────────
@@ -286,6 +288,23 @@ export async function fetchUnifiedData(
   const dstRows = kipVehicles.map(kipWeeklyToVehicleRow);
 
   return { dtRows, dstRows };
+}
+
+// ─── Ingest Ledger / Data Status API ───────────────────
+
+export async function fetchDataStatus(
+  from: string,
+  to: string,
+  vehicle?: string,
+  pipeline?: string,
+): Promise<DataStatusUnit[]> {
+  const q = new URLSearchParams({ from, to });
+  if (vehicle) q.set('vehicle', vehicle);
+  if (pipeline) q.set('pipeline', pipeline);
+  const r = await fetch(`/api/analytics/data-status?${q}`);
+  if (!r.ok) throw new Error(`Data status API error: ${r.status}`);
+  const data = await r.json() as DataStatusResponse;
+  return data.units;
 }
 
 // ─── Track API (Session 9) ─────────────────────────────

@@ -1,5 +1,27 @@
 export type VehicleSource = 'dump_truck' | 'dst';
 
+// ─── Ingest Ledger types ─────────────────────────────────
+
+export type LedgerStatus = 'pending' | 'running' | 'done' | 'empty' | 'failed';
+
+export interface DataStatusUnit {
+  pipeline: string;
+  vehicleRef: string;
+  vehicleLabel: string | null;
+  date: string;         // YYYY-MM-DD
+  shift: string;        // morning|evening|shift1|shift2|full
+  status: LedgerStatus;
+  reasonCode: string | null;
+  reasonLabel: string | null;
+  attempt: number;
+  lastError: string | null;
+  finishedAt: string | null;
+}
+
+export interface DataStatusResponse {
+  units: DataStatusUnit[];
+}
+
 // ─── Geo-admin types ─────────────────────────────────────
 
 export interface GeoObject {

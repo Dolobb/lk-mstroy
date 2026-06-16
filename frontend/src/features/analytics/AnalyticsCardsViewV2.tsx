@@ -1,5 +1,5 @@
 import React from 'react';
-import type { UnifiedVehicleRow, UnifiedRecord } from './types';
+import type { UnifiedVehicleRow, UnifiedRecord, DataStatusUnit } from './types';
 import type { AnalyticsGroup } from './AnalyticsCardsView';
 import { VehicleCardV2 } from './VehicleCardV2';
 import { DayTimelineNav } from './DayTimelineNav';
@@ -38,6 +38,11 @@ interface AnalyticsCardsViewV2Props {
   visibleVehicleCount: number;
   totalVehicleCount: number;
   onShowMore: () => void;
+  /**
+   * Map из useDataStatus: ключ `${vehicleRef.toUpperCase()}|${date}` → DataStatusUnit.
+   * Передаётся из AnalyticsPage для отображения причины отсутствия данных в карточках.
+   */
+  dataStatusByVehicleDate?: Map<string, DataStatusUnit>;
 }
 
 export function AnalyticsCardsViewV2({
@@ -49,6 +54,7 @@ export function AnalyticsCardsViewV2({
   visibleVehicleCount,
   totalVehicleCount,
   onShowMore,
+  dataStatusByVehicleDate,
 }: AnalyticsCardsViewV2Props) {
   const recordsFor = React.useCallback(
     (v: UnifiedVehicleRow): UnifiedRecord[] =>
@@ -128,18 +134,26 @@ export function AnalyticsCardsViewV2({
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid var(--sv-divider)', margin: '0 0 8px 0' }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, alignItems: 'start' }}>
-            {g.vehicles.map(v => (
-              <div key={v.regNumber} style={{ minWidth: 0 }}>
-                <VehicleCardV2
-                  row={v}
-                  records={recordsFor(v)}
-                  selectedDate={active.date}
-                  selectedShift={active.shift}
-                  renderWork={renderWork}
-                  onSelectVehicle={onSelectVehicle}
-                />
-              </div>
-            ))}
+            {g.vehicles.map(v => {
+              const dsKey = `${v.regNumber.toUpperCase()}|${active.date}`;
+              // undefined если Map не передан; null — явно отсутствует в Map
+              const dsUnit = dataStatusByVehicleDate
+                ? (dataStatusByVehicleDate.get(dsKey) ?? null)
+                : undefined;
+              return (
+                <div key={v.regNumber} style={{ minWidth: 0 }}>
+                  <VehicleCardV2
+                    row={v}
+                    records={recordsFor(v)}
+                    selectedDate={active.date}
+                    selectedShift={active.shift}
+                    renderWork={renderWork}
+                    onSelectVehicle={onSelectVehicle}
+                    dataStatusUnit={dsUnit}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}

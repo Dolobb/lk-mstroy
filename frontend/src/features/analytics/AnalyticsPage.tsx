@@ -26,12 +26,14 @@ import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, 
 import { usePositions } from './hooks/usePositions';
 import { useTrack } from './hooks/useTrack';
 import { useSidebarSummary } from './hooks/useGroups';
+import { useDataStatus } from './hooks/useDataStatus';
 import { AnalyticsMapView } from './AnalyticsMapView';
 import { AnalyticsCardsView, countGroupVehicles, limitGroupsForCards } from './AnalyticsCardsView';
 import { AnalyticsCardsViewV2 } from './AnalyticsCardsViewV2';
 import { AnalyticsSidebar } from './AnalyticsSidebar';
 import { SUBGROUP_LABELS, SUBGROUP_COLORS, SUBGROUP_ORDER, vehicleCategory } from './categories';
 import { VehicleIcon } from '@/components/VehicleIcon';
+import { ReasonBadge } from './components/ReasonBadge';
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -476,6 +478,13 @@ export function AnalyticsPage() {
     isLoading: sidebarLoading,
     error: sidebarError,
   } = useSidebarSummary(sidebarRange.from, sidebarRange.to);
+
+  // Ingest ledger: статусы данных за окно v2 (для карточек v2 — объяснение пустых карточек)
+  const { byVehicleDate: dataStatusV2 } = useDataStatus(v2Range.from, v2Range.to, 'analytics-track');
+  // Ingest ledger: статусы данных за period picker (для таблицы/карточек v1)
+  const pickerFrom = isoToYmd(dateFrom);
+  const pickerTo = isoToYmd(dateTo);
+  const { byVehicleDate: dataStatusPicker } = useDataStatus(pickerFrom, pickerTo);
 
   // ─── Fetch data ─────────────────────────────────────
 
@@ -1416,6 +1425,7 @@ export function AnalyticsPage() {
                 visibleVehicleCount={visibleCardsV2Count}
                 totalVehicleCount={totalCardsV2Count}
                 onShowMore={() => setVisibleCardsLimit(v => Math.min(v + CARDS_BATCH_SIZE, totalCardsV2Count))}
+                dataStatusByVehicleDate={dataStatusV2}
               />
           ))}
 
@@ -1556,8 +1566,10 @@ export function AnalyticsPage() {
                                           Загрузка деталей...
                                         </div>
                                       ) : records.length === 0 ? (
-                                        <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-3)' }}>
-                                          {v.source === 'dst' ? 'Нет детальных данных' : 'Нет записей'}
+                                        <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <ReasonBadge
+                                            unit={dataStatusPicker.get(`${v.regNumber.toUpperCase()}|${pickerTo}`) ?? null}
+                                          />
                                         </div>
                                       ) : (
                                         <div className="sv-chip-strip">

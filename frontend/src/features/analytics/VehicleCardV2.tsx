@@ -2,10 +2,11 @@ import React from 'react';
 import {
   Map as MapIcon, MapPin, Cog, Activity, Navigation, Timer, Route, Repeat, Fuel, Pause,
 } from 'lucide-react';
-import type { UnifiedVehicleRow, UnifiedRecord } from './types';
+import type { UnifiedVehicleRow, UnifiedRecord, DataStatusUnit } from './types';
 import { VehicleIcon } from '@/components/VehicleIcon';
 import { abbreviateOrg } from '@/features/samosvaly/orgAbbrev';
 import { vehicleCategory } from './categories';
+import { ReasonBadge } from './components/ReasonBadge';
 
 // ─── Карточка v2.0 («Навигация по дням») ──────────────────────────────
 // Статистика ТС за ВЫБРАННУЮ смену. Гейдж КИП + health-стрипа + метрики
@@ -120,9 +121,11 @@ interface VehicleCardV2Props {
   selectedShift: Shift;
   renderWork?: (rec: UnifiedRecord) => React.ReactNode;
   onSelectVehicle?: (regNumber: string) => void;
+  /** Статус из ingest ledger для выбранной даты (может быть undefined если нет записи) */
+  dataStatusUnit?: DataStatusUnit | null;
 }
 
-function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderWork, onSelectVehicle }: VehicleCardV2Props) {
+function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderWork, onSelectVehicle, dataStatusUnit }: VehicleCardV2Props) {
   const cat = vehicleCategory(row);
   const catColor = CAT_COLORS[cat] || '#60A5FA';
 
@@ -156,7 +159,7 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
     </button>
   );
 
-  // ─── «Не работал в эту смену» ────────────────────────
+  // ─── «Не работал в эту смену» / причина из ledger ────
   if (!selRec) {
     return (
       <div className="sv-v2-card idle">
@@ -172,7 +175,10 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
             <div className="sv-v2-model">{row.nameMO}</div>
           </div>
         </div>
-        <span className="sv-v2-idle-note">не работал в эту смену</span>
+        {/* dataStatusUnit=undefined → «Нет путевого листа», unit с reasonCode → причина */}
+        <div style={{ marginTop: 4 }}>
+          <ReasonBadge unit={dataStatusUnit} />
+        </div>
       </div>
     );
   }

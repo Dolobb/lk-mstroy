@@ -7,6 +7,7 @@ import { tracksRouter } from './routes/tracks';
 import { positionsRouter } from './routes/positions';
 import { groupsRouter } from './routes/groups';
 import { adminRouter } from './routes/admin';
+import { dataStatusRouter } from './routes/dataStatus';
 import { runRetention } from './jobs/retentionJob';
 
 dotenv.config();
@@ -42,6 +43,7 @@ app.use('/api', tracksRouter());
 app.use('/api', positionsRouter());
 app.use('/api', groupsRouter());
 app.use('/api', adminRouter());
+app.use('/api', dataStatusRouter());
 
 export default app;
 
