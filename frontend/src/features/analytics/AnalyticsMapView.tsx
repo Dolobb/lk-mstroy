@@ -206,7 +206,7 @@ function ZoneMapClickHandler({
 // ─── Inspector panel ─────────────────────────────────────
 
 type TrackTimelineDatum = {
-  x: number;
+  pos: number;
   pointIdx: number | null;
   speed: number | null;
   time: string;
@@ -246,31 +246,28 @@ function formatTrackSpeed(speed: number | null): string {
 
 function getChartIndex(state: unknown, data: TrackTimelineDatum[]): number | null {
   const s = state as ChartPointerState | null;
-  const pointIdx = s?.activePayload?.find(p => p.payload?.pointIdx != null)?.payload?.pointIdx;
-  if (pointIdx != null) return pointIdx;
+  const direct = s?.activePayload?.find(p => p.payload?.pointIdx != null)?.payload?.pointIdx;
+  if (direct != null) return direct;
 
-  const rawLabel = s?.activeLabel;
-  const labelMs = rawLabel == null ? NaN : Number(rawLabel);
-  if (Number.isFinite(labelMs)) {
-    let bestIdx: number | null = null;
-    let bestDistance = Infinity;
-    for (const d of data) {
-      if (d.pointIdx == null) continue;
-      const distance = Math.abs(d.x - labelMs);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestIdx = d.pointIdx;
-      }
-    }
-    return bestIdx;
-  }
-
+  // Ось индексная (pos === позиция в массиве chartData): и activeTooltipIndex,
+  // и activeLabel дают позицию. Находим ближайшую НЕ-null точку (минуя gap-разрывы).
+  let pos: number | null = null;
   const rawIndex = s?.activeTooltipIndex;
-  if (rawIndex == null) return null;
-  const n = Number(rawIndex);
-  if (!Number.isFinite(n)) return null;
-  const datum = data[Math.max(0, Math.min(data.length - 1, Math.round(n)))];
-  return datum?.pointIdx ?? null;
+  if (rawIndex != null && Number.isFinite(Number(rawIndex))) {
+    pos = Math.round(Number(rawIndex));
+  } else {
+    const rawLabel = s?.activeLabel;
+    if (rawLabel != null && Number.isFinite(Number(rawLabel))) pos = Math.round(Number(rawLabel));
+  }
+  if (pos == null) return null;
+
+  for (let d = 0; d < data.length; d++) {
+    const after = data[pos + d];
+    if (after && after.pointIdx != null) return after.pointIdx;
+    const before = data[pos - d];
+    if (before && before.pointIdx != null) return before.pointIdx;
+  }
+  return null;
 }
 
 function stopOverlayEvent(e: React.SyntheticEvent) {
@@ -357,81 +354,70 @@ function TrackTimelinePanel({
   track,
   activeIndex,
   onActiveIndexChange,
-  from,
-  to,
 }: {
   track: TrackResponse;
   activeIndex: number | null;
   onActiveIndexChange: React.Dispatch<React.SetStateAction<number | null>>;
-  from?: string;
-  to?: string;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(10);
   const points = track.points;
 
-  const axisStart = useMemo(() => {
-    const parsed = from ? new Date(from).getTime() : NaN;
-    const firstPoint = points[0] ? new Date(points[0].ts).getTime() : Date.now();
-    return Number.isFinite(parsed) ? parsed : firstPoint;
-  }, [from, points]);
-
-  const axisEnd = useMemo(() => {
-    const parsed = to ? new Date(to).getTime() : NaN;
-    const lastPoint = points[points.length - 1] ? new Date(points[points.length - 1]!.ts).getTime() : axisStart;
-    return Number.isFinite(parsed) ? parsed : lastPoint;
-  }, [axisStart, points, to]);
-
   const pointTimes = useMemo(
     () => points.map(p => new Date(p.ts).getTime()),
     [points],
   );
 
+  // График строится по ПОЗИЦИИ точки (равномерные интервалы → плотная, «красивая»
+  // кривая, как в исходной версии). На разрывах трека (> TRACK_GAP_BREAK_MS)
+  // вставляем null-точку: с connectNulls={false} область визуально рвётся, поэтому
+  // «склейка» двух разных периодов больше не выглядит непрерывной линией.
   const chartData = useMemo<TrackTimelineDatum[]>(() => {
     const out: TrackTimelineDatum[] = [];
-
+    let pos = 0;
     for (let idx = 0; idx < points.length; idx++) {
       const p = points[idx]!;
-      const x = pointTimes[idx]!;
-      const prevX = pointTimes[idx - 1];
-
-      if (idx > 0 && prevX != null && x - prevX > TRACK_GAP_BREAK_MS) {
+      const t = pointTimes[idx]!;
+      const prevT = pointTimes[idx - 1];
+      if (idx > 0 && prevT != null && t - prevT > TRACK_GAP_BREAK_MS) {
         out.push({
-          x: prevX + 1,
+          pos: pos++,
           pointIdx: null,
           speed: null,
-          time: formatTrackTime(new Date(prevX + 1).toISOString()),
-          ts: new Date(prevX + 1).toISOString(),
-        });
-        out.push({
-          x: x - 1,
-          pointIdx: null,
-          speed: null,
-          time: formatTrackTime(new Date(x - 1).toISOString()),
-          ts: new Date(x - 1).toISOString(),
+          time: '',
+          ts: new Date((prevT + t) / 2).toISOString(),
         });
       }
-
       out.push({
-        x,
+        pos: pos++,
         pointIdx: idx,
         speed: p.speed ?? 0,
         time: formatTrackTime(p.ts),
         ts: p.ts,
       });
     }
-
     return out;
   }, [pointTimes, points]);
+
+  // pointIdx (индекс реальной точки) → pos на оси графика.
+  const posByPointIdx = useMemo(() => {
+    const arr = new Array<number | undefined>(points.length);
+    for (const d of chartData) {
+      if (d.pointIdx != null) arr[d.pointIdx] = d.pos;
+    }
+    return arr;
+  }, [chartData, points.length]);
 
   const maxSpeed = useMemo(() => {
     const max = Math.max(10, ...chartData.map(d => d.speed ?? 0));
     return Math.ceil(max / 10) * 10;
   }, [chartData]);
 
+  const lastPos = chartData.length > 0 ? chartData[chartData.length - 1]!.pos : 0;
+
   const activePoint = activeIndex == null ? null : points[activeIndex] ?? null;
-  const activeX = activeIndex == null ? null : pointTimes[activeIndex] ?? null;
+  const activePos = activeIndex == null ? null : posByPointIdx[activeIndex] ?? null;
 
   const selectFromChart = useCallback((state: unknown) => {
     const idx = getChartIndex(state, chartData);
@@ -460,13 +446,14 @@ function TrackTimelinePanel({
     const id = window.setInterval(() => {
       onActiveIndexChange(prev => {
         const current = prev == null ? 0 : prev;
-        const currentMs = pointTimes[current] ?? pointTimes[0] ?? axisStart;
+        const currentMs = pointTimes[current] ?? pointTimes[0];
+        if (currentMs == null) return prev;
         const nextMs = currentMs + playbackSpeed * PLAYBACK_INTERVAL_MS;
         return findPointAtOrAfter(nextMs);
       });
     }, PLAYBACK_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [axisStart, findPointAtOrAfter, isPlaying, onActiveIndexChange, playbackSpeed, pointTimes]);
+  }, [findPointAtOrAfter, isPlaying, onActiveIndexChange, playbackSpeed, pointTimes]);
 
   useEffect(() => {
     if (isPlaying && activeIndex != null && activeIndex >= points.length - 1) {
@@ -621,18 +608,20 @@ function TrackTimelinePanel({
             </defs>
             <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
             <XAxis
-              dataKey="x"
+              dataKey="pos"
               type="number"
-              domain={[axisStart, axisEnd]}
+              domain={[0, lastPos]}
               tick={{ fill: 'rgba(255,255,255,0.52)', fontSize: 10 }}
               axisLine={{ stroke: 'rgba(255,255,255,0.16)' }}
               tickLine={{ stroke: 'rgba(255,255,255,0.16)' }}
-              minTickGap={28}
+              minTickGap={44}
               tickFormatter={(v) => {
-                const d = new Date(Number(v));
-                return Number.isNaN(d.getTime())
+                const d = chartData[Math.max(0, Math.min(chartData.length - 1, Math.round(Number(v))))];
+                if (!d) return '';
+                const date = new Date(d.ts);
+                return Number.isNaN(date.getTime())
                   ? ''
-                  : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                  : `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
               }}
             />
             <YAxis
@@ -647,8 +636,8 @@ function TrackTimelinePanel({
               cursor={{ stroke: 'rgba(248,113,113,0.65)', strokeWidth: 1 }}
               content={(props: unknown) => <TrackTimelineTooltip {...(props as TrackTimelineTooltipProps)} />}
             />
-            {activeX != null && (
-              <ReferenceLine x={activeX} stroke="#ef4444" strokeWidth={2} ifOverflow="extendDomain" />
+            {activePos != null && (
+              <ReferenceLine x={activePos} stroke="#ef4444" strokeWidth={2} ifOverflow="extendDomain" />
             )}
             <Area
               type="monotone"
@@ -1282,8 +1271,6 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             track={track}
             activeIndex={activeTrackPointIdx}
             onActiveIndexChange={setActiveTrackPointIdx}
-            from={dateFrom}
-            to={dateTo}
           />
         )}
 
