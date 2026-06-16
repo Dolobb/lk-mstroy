@@ -10,6 +10,7 @@ import { AdminPage } from './features/admin';
 import { AiReportsPage } from './features/ai-reports';
 import { ReportsPage } from './features/reports';
 import { AnalyticsPage } from './features/analytics';
+import { FuelAdminPage } from './features/fuel';
 
 const KipPage: React.FC = () => {
   const { theme } = useTheme();
@@ -97,6 +98,7 @@ const App: React.FC = () => {
         <Route path="/vehicle-status" element={<VehicleStatusPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/ai-demo" element={<AiReportsPage />} />
+        <Route path="/fuel" element={<FuelAdminPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
