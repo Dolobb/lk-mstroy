@@ -30,6 +30,9 @@ import {
   setNextCooldownFn,
 } from './segmentProgress';
 import { getJobController, isCancelledError, abortableSleep } from '../services/jobController';
+// Ledger через namespace-алиас: имена markRunning/markDone совпадают с in-memory
+// прогресс-трекером выше. ledger.* пишет в ingest.tasks (mstroy). Контракт — INGEST_LEDGER_SPEC.md.
+import * as ledger from '../services/ledgerClient';
 
 const SEGMENT_COUNT = 24;
 const SEGMENT_DURATION_MIN = 30;
@@ -140,15 +143,33 @@ export async function fetchKipSegments(
 
   markRunning(vehicleId, date, shiftType);
 
+  // Ledger write-through (kip-segments). best-effort, никогда не валит джоб.
+  // ledgerSettled = терминальный статус уже записан (empty/done) → catch не перезапишет.
+  const ledgerTaskId = await ledger.ensureTask({
+    pipeline: 'kip-segments',
+    unitKey: `${vehicleId.toUpperCase()}|${date}|${shiftType}`,
+    targetDate: date,
+    shiftType,
+    vehicleRef: vehicleId.toUpperCase(),
+  });
+  let ledgerSettled = false;
+  if (ledgerTaskId != null) await ledger.markRunning(ledgerTaskId);
+
   try {
     if (jobController.isCancelled()) {
       markError(vehicleId, date, shiftType, 'cancelled');
+      if (ledgerTaskId != null) await ledger.markFailed(ledgerTaskId, 'cancelled', 'job cancelled');
       return;
     }
 
     // 1. Find idMO
     const idMO = await findIdMO(vehicleId);
     if (!idMO) {
+      // Нет id_mo → нет ПЛ/смены-источника для сегментов: это легальная «пустота».
+      if (ledgerTaskId != null) {
+        await ledger.markEmpty(ledgerTaskId, 'no_segments_source');
+        ledgerSettled = true;
+      }
       throw new Error(`No id_mo found for vehicle ${vehicleId}`);
     }
 
@@ -230,14 +251,24 @@ export async function fetchKipSegments(
     }
 
     markDone(vehicleId, date, shiftType);
+    if (ledgerTaskId != null) {
+      const engineSec = results.reduce((s, r) => s + r.engineTimeSec, 0);
+      const withData = results.filter(r => r.trackPointsCount > 0 || r.engineTimeSec > 0).length;
+      await ledger.markDone(ledgerTaskId, { segments: results.length, withData, engineSec });
+      ledgerSettled = true;
+    }
   } catch (err) {
     if (isCancelledError(err)) {
       markError(vehicleId, date, shiftType, 'cancelled');
+      if (ledgerTaskId != null && !ledgerSettled) await ledger.markFailed(ledgerTaskId, 'cancelled', 'job cancelled');
       logger.info(`[KipSegmentFetch] Cancelled for ${vehicleId} ${date} ${shiftType}`);
       return;
     }
     markError(vehicleId, date, shiftType, String(err));
     logger.error(`[KipSegmentFetch] Failed for ${vehicleId} ${date} ${shiftType}: ${String(err)}`);
+    if (ledgerTaskId != null && !ledgerSettled) {
+      await ledger.markFailed(ledgerTaskId, 'internal_error', err instanceof Error ? err.message : String(err));
+    }
   }
 
   // Process next in queue (unless cancellation was requested)

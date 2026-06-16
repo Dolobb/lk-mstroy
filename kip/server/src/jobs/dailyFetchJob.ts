@@ -19,6 +19,9 @@ import { dayjs, parseDdMmYyyyHhmm, secondsToHours } from '../utils/dateFormat';
 import { fillGapsForDate } from './gapFillJob';
 import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 import { getJobController, isCancelledError } from '../services/jobController';
+import { ensureTask, markRunning, markDone, markEmpty, markFailed } from '../services/ledgerClient';
+
+const LEDGER_PIPELINE = 'kip-shift';
 
 // Сохраняем последний созданный TisClient для чтения stats через /api/admin/tis-stats.
 // Каждый вызов runDailyFetch создаёт новый клиент, и нам интересны метрики самого
@@ -115,9 +118,36 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
   let skipCount = 0;
   let errorCount = 0;
 
+  // ─── Ledger write-through: planner-lite ─────────────────────────────────
+  // Создаём pending-задачу на КАЖДУЮ единицу (ТС × смена) ДО обработки, чтобы
+  // незавершённые/отменённые единицы оставались видимы как pending, а не
+  // «загадочно пустыми». Контракт — INGEST_LEDGER_SPEC.md. Best-effort.
+  const unitKeyFor = (t: (typeof interleaved)[0]): string =>
+    `${t.regNumber.toUpperCase()}|${t.shift.date}|${t.shift.shiftType}`;
+  const ledgerTaskIds = new Map<string, number | null>();
+  for (const t of interleaved) {
+    const key = unitKeyFor(t);
+    if (ledgerTaskIds.has(key)) continue;
+    const taskId = await ensureTask({
+      pipeline: LEDGER_PIPELINE,
+      unitKey: key,
+      targetDate: t.shift.date,
+      shiftType: t.shift.shiftType,
+      vehicleRef: t.regNumber.toUpperCase(),
+      vehicleLabel: t.nameMO,
+    });
+    ledgerTaskIds.set(key, taskId);
+  }
+
   const processOneTask = async (task: (typeof interleaved)[0]) => {
     if (jobController.isCancelled()) return;
+    const ledgerId = ledgerTaskIds.get(unitKeyFor(task)) ?? null;
+    // phase отслеживает, на каком шаге упали, чтобы выбрать reason_code:
+    // tis → tis_error, db → db_error, иначе internal_error.
+    let phase: 'tis' | 'process' | 'db' = 'tis';
     try {
+      if (ledgerId != null) await markRunning(ledgerId);
+
       const stats = await client.getMonitoringStats(
         task.idMO,
         task.shift.from,
@@ -128,8 +158,10 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
       if (!stats) {
         skipCount++;
         logger.debug(`Skipped ${task.regNumber} (${task.shift.shiftType} ${task.shift.date}) — no monitoring data`);
+        if (ledgerId != null) await markEmpty(ledgerId, 'no_monitoring');
         return;
       }
+      phase = 'process';
 
       const monitoring = parseMonitoringStats(stats);
 
@@ -230,6 +262,7 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
         fuelSensor,
       });
 
+      phase = 'db';
       await upsertVehicleRecord({
         report_date: task.shift.date,
         shift_type: task.shift.shiftType,
@@ -259,10 +292,27 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
       });
 
       successCount++;
+      if (ledgerId != null) {
+        await markDone(ledgerId, {
+          engineSec: Math.round(engineOnTime * 3600),
+          points: stats.track.length,
+          kip: kpi.utilization_ratio,
+          engineSource: engineTimeSource,
+        });
+      }
     } catch (err) {
-      if (isCancelledError(err)) throw err;
+      if (isCancelledError(err)) {
+        // Кооперативная отмена: единица не выгружена — помечаем cancelled (failed),
+        // чтобы она не осталась «running» навсегда. attempt инкрементируется.
+        if (ledgerId != null) await markFailed(ledgerId, 'cancelled', 'job cancelled');
+        throw err;
+      }
       errorCount++;
       logger.error(`Error processing ${task.regNumber} (${task.shift.shiftType} ${task.shift.date})`, err);
+      if (ledgerId != null) {
+        const reason = phase === 'tis' ? 'tis_error' : phase === 'db' ? 'db_error' : 'internal_error';
+        await markFailed(ledgerId, reason, err instanceof Error ? err.message : String(err));
+      }
     }
   };
 

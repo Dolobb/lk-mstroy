@@ -36,6 +36,7 @@ import { dayjs, parseDdMmYyyyHhmm } from '../utils/dateFormat';
 import { startPipelineRun, type TriggerType } from '../services/pipelineTracker';
 import { getJobController, isCancelledError } from '../services/jobController';
 import { processTrack, saveTrackForShift } from '../services/trackProcessor';
+import { ensureTask, markRunning, markDone, markEmpty, markFailed } from '../services/ledgerClient';
 import type { ShiftType, GeoZone, ZoneEvent, Trip, ShiftKpi, WorkType } from '../types/domain';
 
 // Singleton клиент и лимитер
@@ -344,6 +345,23 @@ export async function runShiftFetch(
 
   logger.info(`[ShiftFetch] Vehicles to process: ${vehiclesMap.size} (from PL: ${vehiclesFromPL}, discovered: ${discoveredCount})`);
 
+  // --- LEDGER: ensureTask для каждого ТС (после passport discovery) -------
+  const ledgerTaskIds = new Map<number, number>(); // idMO → task_id
+  for (const [idMO, vehicleInfo] of vehiclesMap.entries()) {
+    const unitKey = `${idMO}|${dateStr}|${shiftType}`;
+    const taskId = await ensureTask({
+      pipeline:     'dt-shift',
+      unitKey,
+      targetDate:   dateStr,
+      shiftType,
+      vehicleRef:   String(idMO),
+      vehicleLabel: vehicleInfo.nameMO || undefined,
+    });
+    if (taskId !== null) {
+      ledgerTaskIds.set(idMO, taskId);
+    }
+  }
+
   // --- AUDIT: pipeline summary --------------------------------------------
   {
     const dateOutDist: Record<string, number> = {};
@@ -381,8 +399,14 @@ export async function runShiftFetch(
   type VehicleEntry = [number, typeof vehiclesMap extends Map<number, infer V> ? V : never];
 
   const processOneVehicle = async (idMO: number, vehicleInfo: NonNullable<ReturnType<typeof vehiclesMap.get>>): Promise<void> => {
+    const ledgerTaskId = ledgerTaskIds.get(idMO) ?? null;
     try {
       logger.info(`[ShiftFetch] Processing idMO=${idMO} (${vehicleInfo.nameMO})`);
+
+      // LEDGER: пометить как running
+      if (ledgerTaskId !== null) {
+        await markRunning(ledgerTaskId, tracker.runId ?? undefined);
+      }
 
       // Определяем timezone: последний объект → timezone, fallback к Екатеринбургу
       const lastObjectUid = vehicleLastObjects.get(idMO);
@@ -404,6 +428,7 @@ export async function runShiftFetch(
           tz: usedTz, engineSec: 0, trackPoints: 0, zoneEvents: 0,
           detectedObject: null, verdict: 'no_monitoring',
         });
+        if (ledgerTaskId !== null) await markEmpty(ledgerTaskId, 'no_monitoring');
         result.vehiclesSkipped++;
         return;
       }
@@ -457,6 +482,7 @@ export async function runShiftFetch(
         } finally {
           dbClient.release();
         }
+        if (ledgerTaskId !== null) await markEmpty(ledgerTaskId, 'engine_below_threshold', { engineSec: engineTimeSec, engineSource: engineTimeSource });
         result.vehiclesSkipped++;
         return;
       }
@@ -486,6 +512,7 @@ export async function runShiftFetch(
               zoneEvents: zoneEvents.length, detectedObject: null,
               verdict: 'no_monitoring', reason: 'after tz re-query',
             });
+            if (ledgerTaskId !== null) await markEmpty(ledgerTaskId, 'no_monitoring', { afterTzRequery: true });
             result.vehiclesSkipped++;
             return;
           }
@@ -520,6 +547,7 @@ export async function runShiftFetch(
           trackPoints: track.length, zoneEvents: zoneEvents.length, detectedObject: null,
           verdict: 'no_object_detected',
         });
+        if (ledgerTaskId !== null) await markEmpty(ledgerTaskId, 'no_object_detected', { trackPoints: track.length, zoneEvents: zoneEvents.length });
         result.vehiclesSkipped++;
         return;
       }
@@ -690,6 +718,18 @@ export async function runShiftFetch(
           reason: validRecords.map(r => `${r.objectUid}:${r.workType}`).join(','),
         });
 
+        if (ledgerTaskId !== null) {
+          const totalTrips = validRecords.reduce((s, r) => s + r.trips.length, 0);
+          await markDone(ledgerTaskId, {
+            records: validRecords.length,
+            trips: totalTrips,
+            kip: validRecords[0]?.kpi.kipPct ?? null,
+            engineSec: engineTimeSec,
+            engineSource: engineTimeSource,
+            objects: validRecords.map(r => r.objectUid),
+          });
+        }
+
       } catch (dbErr) {
         await dbClient.query('ROLLBACK');
         throw dbErr;
@@ -700,6 +740,7 @@ export async function runShiftFetch(
     } catch (err) {
       if (isCancelledError(err)) {
         logger.info(`[ShiftFetch] Cancelled (caught) idMO=${idMO}`);
+        if (ledgerTaskId !== null) await markFailed(ledgerTaskId, 'cancelled', 'job cancelled');
         throw err;
       }
       const msg = `idMO=${idMO}: ${String(err)}`;
@@ -710,6 +751,7 @@ export async function runShiftFetch(
         tz: 'unknown', engineSec: 0, trackPoints: 0, zoneEvents: 0,
         detectedObject: null, verdict: 'processing_error', reason: String(err),
       });
+      if (ledgerTaskId !== null) await markFailed(ledgerTaskId, 'internal_error', err instanceof Error ? err.message : String(err));
       result.errors.push(msg);
       result.vehiclesSkipped++;
     }

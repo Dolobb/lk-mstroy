@@ -7,7 +7,10 @@ import { parseTrackPoints } from '../utils/trackParser';
 import { logger } from '../utils/logger';
 import type { TrackPoint } from '../services/dwellExtractor';
 import { computeVisitedObjectsForPoints } from '../services/visitedObjects';
+import { ensureTask, markRunning, markDone, markEmpty, markFailed } from '../services/ledgerClient';
 import { Pool } from 'pg';
+
+const LEDGER_PIPELINE = 'analytics-track';
 
 const DEFAULT_SHIFT = 'full';
 const DEFAULT_CONCURRENCY = 18;
@@ -41,21 +44,48 @@ export async function runAnalyticsFetch(
   const fromDate = new Date(`${dateStr}T00:00:00+05:00`);
   const toDate = new Date(`${dateStr}T23:59:59+05:00`);
 
+  // Ledger write-through (best-effort): ensureTask на каждый vehicle перед циклом.
+  const taskIdByVehicle = new Map<string, number | null>();
+  for (const vehicle of vehicles) {
+    const taskId = await ensureTask({
+      pipeline: LEDGER_PIPELINE,
+      unitKey: `${vehicle.vehicle_id}|${dateStr}|${DEFAULT_SHIFT}`,
+      targetDate: dateStr,
+      shiftType: DEFAULT_SHIFT,
+      vehicleRef: vehicle.vehicle_id,
+    });
+    taskIdByVehicle.set(vehicle.vehicle_id, taskId);
+  }
+
   const results = await mapConcurrent(vehicles, concurrency, async (vehicle) => {
     const vResult = { vehicle_id: vehicle.vehicle_id, sessionId: null as string | null, points: 0, error: null as string | null };
+    const taskId = taskIdByVehicle.get(vehicle.vehicle_id) ?? null;
     try {
       const existing = await getExistingSession(pool, vehicle.vehicle_id, dateStr);
+      // existing && !force → НЕ трогаем ledger (статус уже корректен).
       if (existing && !force) return vResult;
+
+      if (taskId !== null) await markRunning(taskId);
 
       if (existing && force) {
         await pool.query('DELETE FROM analytics.track_sessions WHERE id = $1', [existing]);
       }
 
       const stats = await tisClient.getMonitoringStats(vehicle.idMO, fromDate, toDate);
-      if (!stats || !stats.track || stats.track.length < 2) return vResult;
+      if (!stats) {
+        if (taskId !== null) await markEmpty(taskId, 'no_monitoring');
+        return vResult;
+      }
+      if (!stats.track || stats.track.length < 2) {
+        if (taskId !== null) await markEmpty(taskId, 'no_track');
+        return vResult;
+      }
 
       const rawPoints = parseTrackPoints(stats.track);
-      if (rawPoints.length < 2) return vResult;
+      if (rawPoints.length < 2) {
+        if (taskId !== null) await markEmpty(taskId, 'no_track');
+        return vResult;
+      }
 
       const simplified = simplifyTrack(rawPoints, stats.ignitionWork);
       const withDwells = extractDwells(simplified);
@@ -75,11 +105,27 @@ export async function runAnalyticsFetch(
         logger.warn(`visited_objects failed for ${vehicle.vehicle_id}: ${err instanceof Error ? err.message : String(err)}`);
       }
 
+      // КРИТИЧЕСКИЙ ИНВАРИАНТ: markDone ТОЛЬКО если inserted > 0.
+      // inserted === 0 при непустом входе (withDwells.length > 0) → markFailed.
+      if (taskId !== null) {
+        if (inserted > 0) {
+          const dwells = withDwells.filter(p => p.motionStatus === 'dwell').length;
+          await markDone(taskId, { points: inserted, dwells });
+        } else {
+          await markFailed(taskId, 'internal_error', 'insert returned 0 rows');
+        }
+      }
+
       vResult.sessionId = sessionId;
       vResult.points = inserted;
       return vResult;
     } catch (err) {
-      vResult.error = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
+      vResult.error = message;
+      if (taskId !== null) {
+        const reason = isTisError(err) ? 'tis_error' : 'internal_error';
+        await markFailed(taskId, reason, message);
+      }
       return vResult;
     }
   });
@@ -98,6 +144,22 @@ export async function runAnalyticsFetch(
 
   logger.info(`Analytics fetch complete: ${result.vehicles} vehicles, ${result.sessions} sessions, ${result.points} points, ${result.errors.length} errors`);
   return result;
+}
+
+/**
+ * Эвристика «это ошибка обращения к TIS» (а не внутренняя обработки).
+ * TIS-клиент бросает Error с «Timeout after…»/«429 for all…» либо axios-ошибку.
+ * Используется для выбора reason_code: tis_error vs internal_error.
+ */
+function isTisError(err: unknown): boolean {
+  if (err && typeof err === 'object') {
+    if ((err as { isAxiosError?: boolean }).isAxiosError) return true;
+    const msg = err instanceof Error
+      ? err.message
+      : String((err as { message?: unknown }).message ?? '');
+    return /timeout|429|ECONN|ETIMEDOUT|ENOTFOUND|socket hang up|network/i.test(msg);
+  }
+  return false;
 }
 
 async function mapConcurrent<T, R>(

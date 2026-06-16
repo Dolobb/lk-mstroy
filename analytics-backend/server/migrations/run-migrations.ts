@@ -19,6 +19,7 @@ const MIGRATIONS = [
   '003_track_points.sql',
   '004_idx_track_points_vehicle_ts.sql',
   '005_visited_objects.sql',
+  '006_ingest_ledger.sql',
 ];
 
 async function initializeMigrationsTable(): Promise<void> {

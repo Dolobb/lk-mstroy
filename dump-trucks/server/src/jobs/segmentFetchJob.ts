@@ -17,6 +17,7 @@ import { getAllDtZones } from '../repositories/filterRepo';
 import { replaceSegments, getRecordIdsWithSegments } from '../repositories/segmentRepo';
 import { logger } from '../utils/logger';
 import { getJobController, isCancelledError, CancelledError, abortableSleep } from '../services/jobController';
+import { ensureTask, markRunning, markDone, markFailed } from '../services/ledgerClient';
 import type { ShiftSegment, GeoZone, ShiftType } from '../types/domain';
 
 const SEGMENT_COUNT = 24;
@@ -40,6 +41,8 @@ interface ShiftRecordRow {
   shift_start: Date;
   shift_end: Date;
   object_uid: string;
+  report_date: string;   // YYYY-MM-DD (для ledger unit_key)
+  shift_type: string;    // shift1 | shift2
 }
 
 export async function runSegmentFetch(options: {
@@ -65,14 +68,16 @@ export async function runSegmentFetch(options: {
   let records: ShiftRecordRow[];
   if (options.shiftRecordIds && options.shiftRecordIds.length > 0) {
     const res = await pool.query<ShiftRecordRow>(`
-      SELECT id, vehicle_id, reg_number, shift_start, shift_end, object_uid
+      SELECT id, vehicle_id, reg_number, shift_start, shift_end, object_uid,
+             to_char(report_date, 'YYYY-MM-DD') AS report_date, shift_type
       FROM dump_trucks.shift_records
       WHERE id = ANY($1) AND work_type = 'onsite'
     `, [options.shiftRecordIds]);
     records = res.rows;
   } else if (options.dateStr && options.shiftType) {
     const res = await pool.query<ShiftRecordRow>(`
-      SELECT id, vehicle_id, reg_number, shift_start, shift_end, object_uid
+      SELECT id, vehicle_id, reg_number, shift_start, shift_end, object_uid,
+             to_char(report_date, 'YYYY-MM-DD') AS report_date, shift_type
       FROM dump_trucks.shift_records
       WHERE report_date = $1 AND shift_type = $2 AND work_type = 'onsite'
     `, [options.dateStr, options.shiftType]);
@@ -136,6 +141,19 @@ export async function runSegmentFetch(options: {
 
   await runWithConcurrencyByKey(records, record => record.vehicle_id, async (record) => {
     if (jobController.isCancelled()) return;
+
+    // Ledger write-through (dt-segments): делает выгрузку сегментов видимой.
+    // Best-effort. Контракт — INGEST_LEDGER_SPEC.md.
+    const ledgerTaskId = await ensureTask({
+      pipeline: 'dt-segments',
+      unitKey: `${record.vehicle_id}|${record.report_date}|${record.shift_type}`,
+      targetDate: record.report_date,
+      shiftType: record.shift_type,
+      vehicleRef: String(record.vehicle_id),
+      vehicleLabel: record.reg_number ?? undefined,
+    });
+    if (ledgerTaskId != null) await markRunning(ledgerTaskId);
+
     try {
       const fetchStartedAt = Date.now();
       const segments = await withVehicleDirectFetchSlot(record.vehicle_id, signal, () =>
@@ -157,14 +175,22 @@ export async function runSegmentFetch(options: {
       } finally {
         dbClient.release();
       }
+
+      if (ledgerTaskId != null) {
+        const withData = segments.filter(s => s.trackPointsCount > 0 || s.engineTimeSec > 0).length;
+        const inBoundary = segments.filter(s => s.inBoundary).length;
+        await markDone(ledgerTaskId, { segments: segments.length, withData, inBoundary });
+      }
     } catch (err) {
       if (isCancelledError(err)) {
         logger.info(`[SegmentFetch] Cancelled (caught) record=${record.id}`);
+        if (ledgerTaskId != null) await markFailed(ledgerTaskId, 'cancelled', 'job cancelled');
         return;
       }
       const msg = `Record ${record.id} (idMO=${record.vehicle_id}): ${String(err)}`;
       logger.error(`[SegmentFetch] ${msg}`);
       result.errors.push(msg);
+      if (ledgerTaskId != null) await markFailed(ledgerTaskId, 'internal_error', err instanceof Error ? err.message : String(err));
     }
   }, maxConcurrency);
 
