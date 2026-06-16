@@ -85,7 +85,7 @@ app.get('/api/vehicles/weekly', async (req, res) => {
         types: toArray(req.query.type),
         departments: toArray(req.query.department),
         kpiRanges: toArray(req.query.kpiRange),
-        excludeGapFilled: req.query.excludeGapFilled === 'true',
+        excludeGapFilled: req.query.excludeGapFilled !== 'false',
       }),
       getRequestNumbersForDateRange(from, to),
       getGhostVehicles(from, to),
@@ -331,6 +331,24 @@ app.post('/api/admin/tis-stats/reset', (_req, res) => {
   res.json({ ok: true });
 });
 
+type DailyFetchStatus =
+  | { status: 'idle' }
+  | { status: 'running'; date: string; startedAt: string }
+  | { status: 'done'; date: string; startedAt: string; completedAt: string }
+  | { status: 'error'; date: string; startedAt: string; completedAt: string; error: string };
+
+let dailyFetchStatus: DailyFetchStatus = { status: 'idle' };
+
+// Admin endpoint: poll manual daily fetch status.
+app.get('/api/admin/fetch/status', (req, res) => {
+  const date = req.query.date as string | undefined;
+  if (date && dailyFetchStatus.status !== 'idle' && dailyFetchStatus.date !== date) {
+    res.json({ status: 'not_found', current: dailyFetchStatus });
+    return;
+  }
+  res.json(dailyFetchStatus);
+});
+
 // Admin endpoint: manually trigger daily fetch for a specific date
 app.post('/api/admin/fetch', async (req, res) => {
   const date = req.query.date as string | undefined;
@@ -339,11 +357,36 @@ app.post('/api/admin/fetch', async (req, res) => {
     return;
   }
 
+  if (dailyFetchStatus.status === 'running') {
+    res.status(409).json(dailyFetchStatus);
+    return;
+  }
+
   logger.info(`Manual fetch triggered for date: ${date}`);
+  const startedAt = new Date().toISOString();
+  dailyFetchStatus = { status: 'running', date, startedAt };
+
   // Run async — respond immediately
-  runDailyFetch(date).catch(err => {
-    logger.error(`Manual fetch failed for ${date}`, err);
-  });
+  runDailyFetch(date, 'manual')
+    .then(() => {
+      dailyFetchStatus = {
+        status: 'done',
+        date,
+        startedAt,
+        completedAt: new Date().toISOString(),
+      };
+    })
+    .catch(err => {
+      const error = err instanceof Error ? err.message : String(err);
+      logger.error(`Manual fetch failed for ${date}`, err);
+      dailyFetchStatus = {
+        status: 'error',
+        date,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        error,
+      };
+    });
 
   res.json({ status: 'started', date });
 });

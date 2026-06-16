@@ -1,7 +1,7 @@
 ﻿import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { spawn, execSync, ChildProcess } from 'child_process';
+import { spawn, spawnSync, execSync, ChildProcess } from 'child_process';
 import net from 'net';
 import path from 'path';
 import fs from 'fs';
@@ -33,6 +33,7 @@ interface ServiceConfig {
   args: string[];
   cwd: string;
   port: number;
+  pythonImports?: string[];
 }
 
 const SERVICES: ServiceConfig[] = [
@@ -75,6 +76,15 @@ const SERVICES: ServiceConfig[] = [
     args: ['main.py', '--web', '--port', '8000'],
     cwd: path.join(ROOT, 'tyagachi'),
     port: 8000,
+    pythonImports: [
+      'pandas',
+      'yaml',
+      'requests',
+      'fastapi',
+      'uvicorn',
+      'sqlalchemy',
+      'apscheduler.schedulers.asyncio',
+    ],
   },
   {
     id: 'ai-reports',
@@ -271,7 +281,109 @@ function resolveCmd(cmd: string): string {
   return cmd;
 }
 
+function buildChildEnv(serviceId: string): NodeJS.ProcessEnv {
+  const isWin = process.platform === 'win32';
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    FORCE_COLOR: '1',
+    NO_PROXY: '*',
+    ...(serviceId === 'vehicle-status' ? {} : { CRON_DISABLED: 'true' }),
+  };
+
+  // На Windows после spread process.env остаётся ключ 'Path'; убираем все
+  // варианты регистра и ставим единый, иначе stale-Path перекроет наш.
+  if (isWin) {
+    for (const k of Object.keys(childEnv)) if (/^path$/i.test(k)) delete childEnv[k];
+    childEnv.Path = buildChildPath();
+  } else {
+    childEnv.PATH = buildChildPath();
+  }
+
+  return childEnv;
+}
+
+function runPythonPreflight(cfg: ServiceConfig, resolvedCmd: string, childEnv: NodeJS.ProcessEnv): boolean {
+  if (!cfg.pythonImports?.length) return true;
+
+  const code = [
+    'import importlib, sys',
+    `modules = ${JSON.stringify(cfg.pythonImports)}`,
+    'missing = []',
+    'for name in modules:',
+    '    try:',
+    '        importlib.import_module(name)',
+    '    except Exception as exc:',
+    '        missing.append(f"{name}: {exc}")',
+    'if missing:',
+    '    print("\\n".join(missing), file=sys.stderr)',
+    '    sys.exit(1)',
+  ].join('\n');
+
+  const result = spawnSync(resolvedCmd, ['-c', code], {
+    cwd: cfg.cwd,
+    env: childEnv,
+    encoding: 'utf8',
+    timeout: 15_000,
+    shell: false,
+  });
+
+  if (!result.error && result.status === 0) return true;
+
+  const stderr = String(result.stderr || '').trim();
+  const stdout = String(result.stdout || '').trim();
+  const details = stderr || stdout || result.error?.message || `exit status ${result.status ?? 'unknown'}`;
+  const hint = `${resolvedCmd} -m pip install -r requirements.txt`;
+
+  appendLog(cfg.id, '[admin] Python dependency preflight failed');
+  for (const line of details.split('\n').filter(Boolean)) {
+    appendLog(cfg.id, `[admin] ${line}`);
+  }
+  appendLog(cfg.id, `[admin] Fix: cd "${cfg.cwd}" && ${hint}`);
+
+  log.error({
+    category: 'spawn',
+    service: cfg.id,
+    msg: 'python dependency preflight failed',
+    fields: {
+      cmd: resolvedCmd,
+      cwd: cfg.cwd,
+      imports: cfg.pythonImports,
+      status: result.status,
+      signal: result.signal,
+      error: result.error?.message,
+      details,
+      hint,
+    },
+  });
+
+  return false;
+}
+
 async function startService(cfg: ServiceConfig): Promise<void> {
+  appendLog(cfg.id, `[admin] Запуск: ${cfg.cmd} ${cfg.args.join(' ')}`);
+  log.info({
+    category: 'spawn',
+    service: cfg.id,
+    msg: 'starting',
+    fields: { cmd: cfg.cmd, args: cfg.args, port: cfg.port },
+  });
+
+  const isWin = process.platform === 'win32';
+  const resolvedCmd = resolveCmd(cfg.cmd);
+  if (resolvedCmd !== cfg.cmd) {
+    log.info({
+      category: 'spawn',
+      service: cfg.id,
+      msg: `resolved '${cfg.cmd}' → ${resolvedCmd}`,
+      fields: { resolved: resolvedCmd },
+    });
+  }
+  const childEnv = buildChildEnv(cfg.id);
+
+  if (!runPythonPreflight(cfg, resolvedCmd, childEnv)) {
+    return;
+  }
+
   if (processes[cfg.id]) {
     try { processes[cfg.id]!.kill(); } catch {}
   }
@@ -292,33 +404,6 @@ async function startService(cfg: ServiceConfig): Promise<void> {
     }
   }
 
-  appendLog(cfg.id, `[admin] Запуск: ${cfg.cmd} ${cfg.args.join(' ')}`);
-  log.info({
-    category: 'spawn',
-    service: cfg.id,
-    msg: 'starting',
-    fields: { cmd: cfg.cmd, args: cfg.args, port: cfg.port },
-  });
-
-  const isWin = process.platform === 'win32';
-  const resolvedCmd = resolveCmd(cfg.cmd);
-  if (resolvedCmd !== cfg.cmd) {
-    log.info({
-      category: 'spawn',
-      service: cfg.id,
-      msg: `resolved '${cfg.cmd}' → ${resolvedCmd}`,
-      fields: { resolved: resolvedCmd },
-    });
-  }
-  const childEnv: NodeJS.ProcessEnv = { ...process.env, FORCE_COLOR: '1', NO_PROXY: '*', ...(cfg.id === 'vehicle-status' ? {} : { CRON_DISABLED: 'true' }) };
-  // На Windows после spread process.env остаётся ключ 'Path'; убираем все
-  // варианты регистра и ставим единый, иначе stale-Path перекроет наш.
-  if (isWin) {
-    for (const k of Object.keys(childEnv)) if (/^path$/i.test(k)) delete childEnv[k];
-    childEnv.Path = buildChildPath();
-  } else {
-    childEnv.PATH = buildChildPath();
-  }
   const quotedCmd = /\s/.test(resolvedCmd) ? `"${resolvedCmd}"` : resolvedCmd;
   const child = isWin
     ? spawn(`${quotedCmd} ${cfg.args.join(' ')}`, [], {
@@ -724,24 +809,18 @@ async function registerWorkers(): Promise<void> {
       const url = `http://localhost:3001/api/admin/fetch?date=${date}`;
       const t0 = Date.now();
       try {
-        const r = await fetch(url, { method: 'POST' });
+        const result = await startAndWaitForKipFetch(date, () => false);
         log.info({
           category: 'http', service: 'kip', runId, pipeline: 'kip_daily',
-          msg: `${r.status} POST ${url}`, fields: { ms: Date.now() - t0 },
+          msg: `POST ${url} completed`, fields: { ms: Date.now() - t0 },
         });
+        if (result === 'timeout') throw new Error(`Timeout waiting for KIP fetch completion: ${date}`);
       } catch (err) {
         log.error({
           category: 'http', service: 'kip', runId, pipeline: 'kip_daily',
           msg: 'connection refused', fields: { url, error: String(err) },
         });
         throw new Error(`fetch failed: ${String(err)}`);
-      }
-      if (mode === 'force') {
-        const fireTime = new Date().toISOString();
-        await waitForRawComplete(kipPool, date, fireTime, () => false);
-      } else {
-        const result = await waitForDate(kipPool, `SELECT 1 FROM vehicle_records WHERE report_date = $1 LIMIT 1`, [date], 35 * 60 * 1000, () => false);
-        if (result === 'timeout') throw new Error(`Timeout waiting for KIP data: ${date}`);
       }
       // Record vehicle count metrics
       const countRes = await kipPool.query(
@@ -1559,7 +1638,38 @@ async function waitForDate(
   return 'timeout';
 }
 
-async function runKipQueue(dates: string[], pollRaw = false) {
+async function startAndWaitForKipFetch(
+  date: string,
+  isCancelled: () => boolean,
+  timeoutMs = 35 * 60 * 1000,
+): Promise<'ok' | 'timeout' | 'cancelled'> {
+  const startRes = await fetch(`http://localhost:3001/api/admin/fetch?date=${date}`, { method: 'POST' });
+  if (startRes.status === 409) {
+    const body = await startRes.json().catch(() => null) as { date?: string } | null;
+    if (body?.date !== date) {
+      throw new Error(`KIP fetch already running for ${body?.date ?? 'another date'}`);
+    }
+  } else if (!startRes.ok) {
+    throw new Error(`KIP fetch start failed: HTTP ${startRes.status}`);
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (isCancelled()) return 'cancelled';
+    await new Promise(r => setTimeout(r, 10_000));
+    if (isCancelled()) return 'cancelled';
+
+    const statusRes = await fetch(`http://localhost:3001/api/admin/fetch/status?date=${date}`);
+    if (!statusRes.ok) continue;
+    const status = await statusRes.json().catch(() => null) as { status?: string; error?: string } | null;
+    if (status?.status === 'done') return 'ok';
+    if (status?.status === 'error') throw new Error(status.error ?? `KIP fetch failed for ${date}`);
+  }
+
+  return 'timeout';
+}
+
+async function runKipQueue(dates: string[], mode: 'normal' | 'force' | 'refresh' = 'normal') {
   fetchProgress.active = true;
   fetchProgress.service = 'kip';
   fetchProgress.done = [];
@@ -1574,34 +1684,37 @@ async function runKipQueue(dates: string[], pollRaw = false) {
     fetchProgress.startedAt = Date.now();
     fetchProgress.queue = fetchProgress.queue.filter(d => d !== date);
 
+    const runId = await pipelineRepo.createRun({ pipelineName: 'kip_daily', triggerType: 'manual', targetDate: date });
     try {
-      await fetch(`http://localhost:3001/api/admin/fetch?date=${date}`, { method: 'POST' });
-
-      if (pollRaw) {
-        // force-режим: ждём пока monitoring_raw перестанет пополняться (~30с стабильности).
-        // Естественный темп — один пайплайн за раз, никаких hard minimum.
-        const fireTime = new Date().toISOString();
-        const result = await waitForRawComplete(kipPool, date, fireTime, () => fetchProgress.cancelRequested);
-        if (result === 'cancelled') break;
-        // timeout тоже считается done (пайплайн запущен, данные придут в фоне)
-      } else {
-        // normal mode: ждём vehicle_records (30 мин, поллинг 20с)
-        const result = await waitForDate(
-          kipPool,
-          `SELECT 1 FROM vehicle_records WHERE report_date = $1 LIMIT 1`,
-          [date],
-          30 * 60 * 1000,
-        );
-        if (result === 'cancelled') break;
-        if (result === 'timeout') {
-          fetchProgress.errors.push(`${date}: таймаут (30 мин)`);
-          continue;
-        }
+      const result = await startAndWaitForKipFetch(date, () => fetchProgress.cancelRequested);
+      if (result === 'cancelled') {
+        await pipelineRepo.failRun(runId, 'cancelled');
+        break;
+      }
+      if (result === 'timeout') {
+        const message = `${date}: таймаут ожидания завершения KIP (35 мин)`;
+        fetchProgress.errors.push(message);
+        await pipelineRepo.failRun(runId, message);
+        continue;
       }
 
+      const countRes = await kipPool.query(
+        `SELECT COUNT(DISTINCT vehicle_id)::int AS cnt
+         FROM vehicle_records
+         WHERE report_date = $1 AND COALESCE(is_gap_filled, false) = false`,
+        [date],
+      );
+      const cnt = countRes.rows[0]?.cnt ?? 0;
+      await pipelineRepo.completeRun(runId, { totalVehicles: cnt, successCount: cnt, errorCount: 0 });
+      log.info({
+        category: 'pipeline', pipeline: 'kip_daily', runId, date,
+        msg: 'manual run completed', fields: { vehicles: cnt, mode },
+      });
       fetchProgress.done.push(date);
     } catch (e) {
-      fetchProgress.errors.push(`${date}: ${e}`);
+      const message = e instanceof Error ? e.message : String(e);
+      await pipelineRepo.failRun(runId, message);
+      fetchProgress.errors.push(`${date}: ${message}`);
     }
   }
 
@@ -1625,6 +1738,7 @@ async function runDTQueue(dates: string[]) {
     fetchProgress.current = date;
     fetchProgress.queue = fetchProgress.queue.filter(d => d !== date);
 
+    const runId = await pipelineRepo.createRun({ pipelineName: 'dt_daily', triggerType: 'manual', targetDate: date });
     try {
       // Запускаем обе смены
       await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift1`, { method: 'POST' });
@@ -1639,14 +1753,29 @@ async function runDTQueue(dates: string[]) {
         8 * 60 * 1000
       );
 
-      if (result === 'cancelled') break;
+      if (result === 'cancelled') {
+        await pipelineRepo.failRun(runId, 'cancelled');
+        break;
+      }
       if (result === 'timeout') {
-        fetchProgress.errors.push(`${date}: таймаут (8 мин)`);
+        const message = `${date}: таймаут (8 мин)`;
+        fetchProgress.errors.push(message);
+        await pipelineRepo.failRun(runId, message);
       } else {
+        const countRes = await mainPool.query(
+          `SELECT COUNT(DISTINCT vehicle_id)::int AS cnt
+           FROM dump_trucks.shift_records
+           WHERE report_date = $1`,
+          [date],
+        );
+        const cnt = countRes.rows[0]?.cnt ?? 0;
+        await pipelineRepo.completeRun(runId, { totalVehicles: cnt, successCount: cnt, errorCount: 0 });
         fetchProgress.done.push(date);
       }
     } catch (e) {
-      fetchProgress.errors.push(`${date}: ${e}`);
+      const message = e instanceof Error ? e.message : String(e);
+      await pipelineRepo.failRun(runId, message);
+      fetchProgress.errors.push(`${date}: ${message}`);
     }
   }
 
@@ -2030,6 +2159,135 @@ app.get('/api/admin/data-coverage', async (req, res) => {
   });
 });
 
+// ─── Coverage v2 — точное покрытие из ingest.tasks (без эвристик) ──────────────
+// Контракт: INGEST_LEDGER_SPEC.md → «Admin Coverage v2».
+// День зелёный ⟺ failed + pending + running = 0 и total > 0.
+
+const LEDGER_REASON_LABELS: Record<string, string> = {
+  no_monitoring: 'TIS: нет данных мониторинга',
+  no_track: 'Трек пуст (<2 GPS-точек)',
+  engine_below_threshold: 'Двигатель работал < 45 мин',
+  no_object_detected: 'Вне рабочих геозон',
+  no_segments_source: 'Нет смены для сегментов',
+  future_date: 'ПЛ выписан заранее (дата не наступила)',
+  gap_filled_onsite: 'Восстановлено: стояла на объекте',
+  tis_error: 'Ошибка запроса к TIS',
+  db_error: 'Ошибка записи в БД',
+  validation_error: 'Некорректный ответ TIS',
+  cancelled: 'Выгрузка прервана',
+  internal_error: 'Внутренняя ошибка обработки',
+};
+
+function ledgerReasonLabel(code: string | null, status: string): string | null {
+  if (status === 'pending') return 'Ещё не выгружено';
+  if (status === 'running') return 'Выгружается…';
+  if (!code) return null;
+  return LEDGER_REASON_LABELS[code] ?? null;
+}
+
+interface PipelineCounts {
+  done: number; empty: number; failed: number; pending: number; running: number; total: number;
+}
+
+app.get('/api/admin/coverage-v2', async (req, res) => {
+  const from = req.query.from as string;
+  const to = req.query.to as string;
+  if (!from || !to) {
+    res.status(400).json({ error: '"from" и "to" обязательны (YYYY-MM-DD)' });
+    return;
+  }
+  try {
+    const result = await mainPool.query<{ date: string; pipeline: string; status: string; cnt: number }>(
+      `SELECT to_char(target_date,'YYYY-MM-DD') AS date, pipeline, status, count(*)::int AS cnt
+         FROM ingest.tasks
+        WHERE target_date >= $1 AND target_date <= $2
+        GROUP BY target_date, pipeline, status
+        ORDER BY target_date`,
+      [from, to],
+    );
+
+    const dayMap = new Map<string, Record<string, PipelineCounts>>();
+    for (const row of result.rows) {
+      if (!dayMap.has(row.date)) dayMap.set(row.date, {});
+      const pipelines = dayMap.get(row.date)!;
+      if (!pipelines[row.pipeline]) {
+        pipelines[row.pipeline] = { done: 0, empty: 0, failed: 0, pending: 0, running: 0, total: 0 };
+      }
+      const pc = pipelines[row.pipeline]!;
+      switch (row.status) {
+        case 'done':    pc.done += row.cnt; break;
+        case 'empty':   pc.empty += row.cnt; break;
+        case 'failed':  pc.failed += row.cnt; break;
+        case 'pending': pc.pending += row.cnt; break;
+        case 'running': pc.running += row.cnt; break;
+      }
+      pc.total += row.cnt;
+    }
+
+    const days = Array.from(dayMap.entries()).map(([date, pipelines]) => ({ date, pipelines }));
+    res.json({ days });
+  } catch (err) {
+    log.error({ category: 'handler', msg: 'coverage-v2 query failed', fields: { error: String(err) } });
+    res.status(500).json({ error: 'ingest.tasks query failed', detail: String(err) });
+  }
+});
+
+interface LedgerTaskRow {
+  pipeline: string;
+  vehicle_ref: string;
+  vehicle_label: string | null;
+  date: string;
+  shift_type: string | null;
+  status: string;
+  reason_code: string | null;
+  attempt: number;
+  last_error: string | null;
+  finished_at: Date | null;
+}
+
+app.get('/api/admin/coverage-v2/units', async (req, res) => {
+  const date = req.query.date as string;
+  const pipeline = req.query.pipeline as string | undefined;
+  const status = req.query.status as string | undefined;
+  if (!date) {
+    res.status(400).json({ error: '"date" обязателен (YYYY-MM-DD)' });
+    return;
+  }
+  const params: unknown[] = [date];
+  const where: string[] = ['target_date = $1'];
+  if (pipeline) { params.push(pipeline); where.push(`pipeline = $${params.length}`); }
+  if (status)   { params.push(status);   where.push(`status = $${params.length}`); }
+
+  try {
+    const result = await mainPool.query<LedgerTaskRow>(
+      `SELECT pipeline, vehicle_ref, vehicle_label,
+              to_char(target_date,'YYYY-MM-DD') AS date,
+              shift_type, status, reason_code, attempt, last_error, finished_at
+         FROM ingest.tasks
+        WHERE ${where.join(' AND ')}
+        ORDER BY pipeline, vehicle_ref, shift_type`,
+      params,
+    );
+    const units = result.rows.map(r => ({
+      pipeline: r.pipeline,
+      vehicleRef: r.vehicle_ref,
+      vehicleLabel: r.vehicle_label,
+      date: r.date,
+      shift: r.shift_type,
+      status: r.status,
+      reasonCode: r.reason_code,
+      reasonLabel: ledgerReasonLabel(r.reason_code, r.status),
+      attempt: r.attempt,
+      lastError: r.last_error,
+      finishedAt: r.finished_at ? new Date(r.finished_at).toISOString() : null,
+    }));
+    res.json({ units });
+  } catch (err) {
+    log.error({ category: 'handler', msg: 'coverage-v2/units query failed', fields: { error: String(err) } });
+    res.status(500).json({ error: 'ingest.tasks query failed', detail: String(err) });
+  }
+});
+
 // GET fetch status
 app.get('/api/admin/fetch/status', async (_req, res) => {
   // Primary: in-memory progress (drives queue/done/errors UI).
@@ -2164,16 +2422,17 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
       return;
     }
   } else if (force && service === 'kip') {
-    // force-режим: перевыгружаем только даты у которых есть vehicle_records, но нет monitoring_raw
+    // force-режим: перевыгружаем даты с отсутствующим или неполным monitoring_raw
     const [kipResult, rawResult] = await Promise.all([
       getKipDates(from, to),
       getKipRawDates(from, to),
     ]);
     const kipSet = new Set(kipResult.dates);
     const rawSet = new Set(rawResult.dates);
-    missing = allDates.filter(d => kipSet.has(d) && !rawSet.has(d));
+    const rawPartialSet = new Set(rawResult.partial);
+    missing = allDates.filter(d => kipSet.has(d) && (!rawSet.has(d) || rawPartialSet.has(d)));
     if (missing.length === 0) {
-      res.json({ ok: true, message: 'Все даты уже есть в monitoring_raw', missing: 0 });
+      res.json({ ok: true, message: 'Все даты уже есть в monitoring_raw с полным покрытием', missing: 0 });
       return;
     }
   } else {
@@ -2191,15 +2450,11 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
 
   res.json({ ok: true, started: true, missing: missing.length, dates: missing });
 
-  // Запускаем в фоне — отправляем pg-boss jobs + запускаем legacy queue для UI-прогресса
+  // Запускаем в фоне через in-memory очередь UI. Cron/cascade остаются в pg-boss,
+  // а ручной запуск не должен дублировать тот же KIP/DT fetch вторым оркестратором.
   const mode = force ? 'force' : refresh ? 'refresh' : 'normal';
-  for (const date of missing) {
-    const jobName = service === 'kip' ? 'fetch-kip-date' : 'fetch-dt-date';
-    boss.send(jobName, { date, mode, triggerType: 'manual' as const }).catch(() => {});
-  }
-
   if (service === 'kip') {
-    runKipQueue(missing, force).catch(console.error);
+    runKipQueue(missing, mode).catch(console.error);
   } else {
     runDTQueue(missing).catch(console.error);
   }

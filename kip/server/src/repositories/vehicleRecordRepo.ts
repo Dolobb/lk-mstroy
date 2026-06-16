@@ -150,7 +150,7 @@ export async function getWeeklyAggregated(params: {
   const pool = getPool();
 
   const hasDepts = params.departments && params.departments.length > 0;
-  const excludeGap = params.excludeGapFilled === true;
+  const excludeSynthetic = params.excludeGapFilled !== false;
 
   const query = `
     WITH agg AS (
@@ -174,7 +174,25 @@ export async function getWeeklyAggregated(params: {
         AND report_date <= CURRENT_DATE
         AND ($3::varchar IS NULL OR shift_type = $3)
         AND ($4::bool = false OR department_unit = ANY($5::varchar[]))
-        AND ($6::bool = false OR is_gap_filled = false)
+        AND (
+          $6::bool = false
+          OR (
+            is_gap_filled = false
+            AND NOT (
+              total_stay_time = 12
+              AND engine_on_time = 0
+              AND idle_time = 12
+              AND fuel_consumed_total = 0
+              AND fuel_rate_fact = 0
+              AND fuel_max_calc = 0
+              AND fuel_variance = 0
+              AND load_efficiency_pct = 0
+              AND utilization_ratio = 0
+              AND track_simplified IS NULL
+              AND COALESCE(department_unit, '') = ''
+            )
+          )
+        )
       GROUP BY vehicle_id
     )
     SELECT * FROM agg
@@ -187,7 +205,7 @@ export async function getWeeklyAggregated(params: {
     params.shift || null,
     hasDepts,
     hasDepts ? params.departments : [],
-    excludeGap,
+    excludeSynthetic,
   ]);
 
   let rows = result.rows.map(coerceWeeklyRow);

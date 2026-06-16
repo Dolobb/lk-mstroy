@@ -1057,6 +1057,8 @@ const DayCardPopover: React.FC<{
 
   if (card.kip.vehicleCount === 0) {
     kipActions.push({ label: 'Загрузить КИП', action: 'fetch-kip' });
+  } else if (kipPct < 85) {
+    kipActions.push({ label: 'Перевыгрузить КИП', action: 'refresh-kip' });
   } else if (card.kip.rawPct < 90) {
     kipActions.push({ label: 'Перевыгрузить raw', action: 'force-kip' });
   } else {
@@ -1280,10 +1282,10 @@ const CoverageDashboard: React.FC<{
     const parts: string[] = [];
     if (kipMissing.length > 0) parts.push(`КИП: ${kipMissing.length} дн. (${kipMissing[0]} … ${kipMissing[kipMissing.length - 1]})`);
     if (dtMissing.length > 0) parts.push(`DT: ${dtMissing.length} дн. (${dtMissing[0]} … ${dtMissing[dtMissing.length - 1]})`);
-    if (!confirm(`Запустить перевыгрузку?\n\n${parts.join('\n')}\n\nДиапазон будет перевыгружен целиком (force).`)) return;
+    if (!confirm(`Запустить перевыгрузку?\n\n${parts.join('\n')}\n\nДиапазон будет перевыгружен целиком.`)) return;
 
     if (kipMissing.length > 0) {
-      await onFetch('kip', kipMissing[0], kipMissing[kipMissing.length - 1], { force: true });
+      await onFetch('kip', kipMissing[0], kipMissing[kipMissing.length - 1], { refresh: true });
     }
     if (dtMissing.length > 0) {
       await onFetch('dump-trucks', dtMissing[0], dtMissing[dtMissing.length - 1], { refresh: true });
@@ -1537,6 +1539,198 @@ const CoverageDashboard: React.FC<{
   );
 };
 
+// ─── Ledger Coverage v2 (точное покрытие из ingest.tasks) ──────────────────────
+
+interface LedgerPipelineCounts {
+  done: number; empty: number; failed: number; pending: number; running: number; total: number;
+}
+interface LedgerDay { date: string; pipelines: Record<string, LedgerPipelineCounts>; }
+interface LedgerUnit {
+  pipeline: string; vehicleRef: string; vehicleLabel: string | null; date: string;
+  shift: string | null; status: string; reasonCode: string | null; reasonLabel: string | null;
+  attempt: number; lastError: string | null; finishedAt: string | null;
+}
+
+const LEDGER_PIPELINES = ['kip-shift', 'kip-segments', 'dt-shift', 'dt-segments', 'analytics-track'] as const;
+const LEDGER_PIPELINE_LABELS: Record<string, string> = {
+  'kip-shift': 'КИП смены',
+  'kip-segments': 'КИП сегменты',
+  'dt-shift': 'Самосвалы смены',
+  'dt-segments': 'Самосвалы сегменты',
+  'analytics-track': 'Аналитика треки',
+};
+
+// Цвет ячейки дня: зелёный ⟺ failed+pending+running=0 и total>0; красный при failed;
+// жёлтый при pending/running; серый при total=0 (не планировалось).
+function ledgerCellClass(c: LedgerPipelineCounts | undefined): string {
+  if (!c || c.total === 0) return 'bg-muted/40 text-muted-foreground border-border/40';
+  const open = c.failed + c.pending + c.running;
+  if (open === 0) return 'bg-green-500/25 text-green-700 dark:text-green-300 border-green-500/40';
+  if (c.failed > 0) return 'bg-red-500/25 text-red-700 dark:text-red-300 border-red-500/40';
+  return 'bg-yellow-400/25 text-yellow-700 dark:text-yellow-300 border-yellow-400/40';
+}
+
+function ledgerUnitDotClass(status: string, reasonCode: string | null): string {
+  if (status === 'done') return reasonCode === 'gap_filled_onsite' ? 'bg-blue-500' : 'bg-green-500';
+  if (status === 'empty') return 'bg-gray-400';
+  if (status === 'failed') return reasonCode === 'cancelled' ? 'bg-orange-500' : 'bg-red-500';
+  if (status === 'running') return 'bg-yellow-500';
+  if (status === 'pending') return 'bg-muted-foreground';
+  return 'bg-muted';
+}
+
+const LedgerCoveragePanel: React.FC<{ from: string; to: string }> = ({ from, to }) => {
+  const [days, setDays] = useState<LedgerDay[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [sel, setSel] = useState<{ date: string; pipeline: string } | null>(null);
+  const [units, setUnits] = useState<LedgerUnit[] | null>(null);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/admin/coverage-v2?from=${from}&to=${to}`);
+      const j = await r.json();
+      setDays(Array.isArray(j.days) ? j.days : []);
+    } catch {
+      setDays([]);
+    }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openUnits = async (date: string, pipeline: string) => {
+    setSel({ date, pipeline });
+    setUnits(null);
+    setUnitsLoading(true);
+    try {
+      const r = await fetch(`/api/admin/coverage-v2/units?date=${date}&pipeline=${pipeline}`);
+      const j = await r.json();
+      setUnits(Array.isArray(j.units) ? j.units : []);
+    } catch {
+      setUnits([]);
+    }
+    setUnitsLoading(false);
+  };
+
+  const sorted = (days ?? []).slice().sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
+      <div className="flex items-center gap-3 flex-wrap" style={{ fontSize: '11px' }}>
+        <span className="text-muted-foreground">
+          Точное покрытие из <span className="font-mono text-foreground">ingest.tasks</span> — без эвристик.
+          Зелёный ⟺ нет failed/pending/running.
+        </span>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="ml-auto px-2 py-1 rounded-lg text-xs border-none cursor-pointer bg-muted text-foreground hover:bg-muted/80 disabled:opacity-60"
+          style={{ fontSize: '10px' }}
+        >
+          {loading ? '...' : 'Обновить'}
+        </button>
+      </div>
+
+      {sorted.length === 0 ? (
+        <div className="text-xs text-muted-foreground" style={{ fontSize: '11px' }}>
+          {loading ? 'Загрузка...' : 'Нет задач в ingest.tasks за период (запустите backfill или пайплайн).'}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="border-collapse" style={{ fontSize: '10px' }}>
+            <thead>
+              <tr>
+                <th className="text-left pr-2 text-muted-foreground font-normal sticky left-0 bg-background">Пайплайн</th>
+                {sorted.map(d => (
+                  <th key={d.date} className="px-1 text-muted-foreground font-normal whitespace-nowrap">
+                    {d.date.slice(5)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {LEDGER_PIPELINES.map(p => (
+                <tr key={p}>
+                  <td className="pr-2 whitespace-nowrap text-foreground sticky left-0 bg-background">
+                    {LEDGER_PIPELINE_LABELS[p]}
+                  </td>
+                  {sorted.map(d => {
+                    const c = d.pipelines[p];
+                    const open = c ? c.failed + c.pending + c.running : 0;
+                    const title = c
+                      ? `${p} ${d.date}\ndone=${c.done} empty=${c.empty} failed=${c.failed} pending=${c.pending} running=${c.running} (всего ${c.total})`
+                      : `${p} ${d.date}\nнет задач`;
+                    return (
+                      <td key={d.date} className="p-0.5">
+                        <button
+                          title={title}
+                          onClick={() => openUnits(d.date, p)}
+                          className={`w-full min-w-[34px] h-6 rounded border cursor-pointer leading-none ${ledgerCellClass(c)}`}
+                        >
+                          {c && c.total > 0 ? (open > 0 ? `${open}!` : c.total) : '·'}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Drill-down: единицы выбранной ячейки */}
+      {sel && (
+        <div className="rounded-lg border border-border/50 p-2 flex flex-col gap-1">
+          <div className="flex items-center gap-2" style={{ fontSize: '11px' }}>
+            <span className="font-semibold text-foreground">
+              {LEDGER_PIPELINE_LABELS[sel.pipeline] ?? sel.pipeline} · {sel.date}
+            </span>
+            <button
+              onClick={() => { setSel(null); setUnits(null); }}
+              className="ml-auto px-2 py-0.5 rounded text-xs border-none cursor-pointer bg-muted text-foreground hover:bg-muted/80"
+              style={{ fontSize: '10px' }}
+            >
+              Закрыть
+            </button>
+          </div>
+          {unitsLoading ? (
+            <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>Загрузка...</div>
+          ) : (
+            <div className="flex flex-col gap-0.5 max-h-64 overflow-y-auto" style={{ fontSize: '10px' }}>
+              {(units ?? []).filter(u => u.status !== 'done').length === 0 && (
+                <div className="text-green-600 dark:text-green-400">
+                  Все {(units ?? []).length} ед. в статусе done — проблем нет.
+                </div>
+              )}
+              {(units ?? [])
+                .slice()
+                .sort((a, b) => {
+                  const rank = (s: string) => (s === 'failed' ? 0 : s === 'running' ? 1 : s === 'pending' ? 2 : s === 'empty' ? 3 : 4);
+                  return rank(a.status) - rank(b.status);
+                })
+                .filter(u => u.status !== 'done')
+                .slice(0, 200)
+                .map((u, i) => (
+                  <div key={`${u.vehicleRef}-${u.shift}-${i}`} className="flex items-center gap-1.5 whitespace-nowrap">
+                    <span className={`inline-block size-2 rounded-full shrink-0 ${ledgerUnitDotClass(u.status, u.reasonCode)}`} />
+                    <span className="font-mono text-foreground">{u.vehicleRef}</span>
+                    {u.shift && <span className="text-muted-foreground">{u.shift}</span>}
+                    <span className="text-muted-foreground" title={u.lastError ?? undefined}>
+                      {u.reasonLabel ?? u.status}
+                      {u.status === 'failed' && u.attempt > 0 ? ` ×${u.attempt}` : ''}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export const AdminPage: React.FC = () => {
@@ -1743,7 +1937,7 @@ export const AdminPage: React.FC = () => {
   const handleStartFetch = async (service: 'kip' | 'dump-trucks') => {
     if (refreshMode) {
       const result = await startRefreshFetch(service, coverageFrom, coverageTo);
-      if (result.total === 0 && !result.started) {
+      if ((result.missing ?? 0) === 0 && !result.started) {
         alert('Нет дат в выбранном периоде.');
         return;
       }
@@ -1953,6 +2147,12 @@ export const AdminPage: React.FC = () => {
           cancellingFetch={cancelling.fetch}
           cancellingRecalc={cancelling.recalc}
         />
+      </div>
+
+      {/* Ledger coverage v2 — точное покрытие из ingest.tasks + причины */}
+      <div>
+        <h2 className="text-sm font-semibold mb-2">Покрытие из ledger (причины «пустых» машин)</h2>
+        <LedgerCoveragePanel from={coverageFrom} to={coverageTo} />
       </div>
 
       {/* Advanced tools — collapsible */}
