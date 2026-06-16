@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionStore } from "@/stores/session";
@@ -9,6 +10,7 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 const PIN_LENGTH = 4;
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const status = useSessionStore((s) => s.status);
   const driver = useSessionStore((s) => s.driver);
   const { loginOnline, unlockOffline } = useAuth();
@@ -62,7 +64,10 @@ export default function LoginScreen() {
   }
 
   return (
-    <View className="flex-1 bg-surface-1 items-center justify-center p-6 gap-8">
+    <View
+      className="flex-1 bg-surface-1 items-center justify-center p-6 gap-8"
+      style={{ paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }}
+    >
       <View className="items-center gap-2">
         <Text className="text-title font-bold text-ink-1">{locked ? "С возвращением" : "Вход"}</Text>
         {locked ? (

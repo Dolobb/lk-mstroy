@@ -121,7 +121,7 @@ export default function CloseShiftScreen() {
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-4"
-        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        contentContainerStyle={{ paddingBottom: 16 + insets.bottom }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

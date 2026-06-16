@@ -139,7 +139,7 @@ export default function AddVehicleScreen() {
           className="flex-1"
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="gap-2"
-          contentContainerStyle={{ paddingBottom: insets.bottom }}
+          contentContainerStyle={{ paddingBottom: 16 + insets.bottom }}
         >
           {filteredOrganizations.length === 0 ? (
             <Text className="text-body-sm text-ink-3 px-1">Организации не найдены</Text>

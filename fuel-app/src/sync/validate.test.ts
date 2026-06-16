@@ -28,6 +28,7 @@ describe("validate литры", () => {
       shiftId: "s1",
       vehicleId: "v1",
       liters: 6_000_000,
+      recipientName: "Иванов И.И.",
       happenedAtClient: "2026-06-13T10:00:00+03:00",
     };
     expect(validateSyncEvent(bad)).not.toBeNull();

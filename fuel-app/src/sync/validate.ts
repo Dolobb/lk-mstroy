@@ -28,6 +28,28 @@ export function assertValidLiters(liters: number): void {
   if (err) throw new Error(err);
 }
 
+export const MAX_RECIPIENT_NAME = 200;
+
+/**
+ * Валидация Фамилии И.О. получателя — ЗЕРКАЛО серверного `z.string().trim().min(1).max(200)`
+ * (dispenseUpsertEventSchema). Непустая после trim строка; иначе весь батч /sync упадёт 400.
+ */
+export function recipientNameError(recipientName: unknown): string | null {
+  if (typeof recipientName !== "string" || recipientName.trim().length === 0) {
+    return "Фамилия И.О.: укажите непустое значение";
+  }
+  if (recipientName.trim().length > MAX_RECIPIENT_NAME) {
+    return `Фамилия И.О.: не более ${MAX_RECIPIENT_NAME} символов`;
+  }
+  return null;
+}
+
+/** Бросает при невалидной Фамилии И.О. (для mutations — до постановки события в outbox). */
+export function assertValidRecipientName(recipientName: string): void {
+  const err = recipientNameError(recipientName);
+  if (err) throw new Error(err);
+}
+
 /**
  * Проверка события ПЕРЕД отправкой в `/sync`. Возвращает причину карантина или null.
  * Сейчас критичный вектор «отравления» батча — литры (выдача/получение); остальные поля
@@ -36,6 +58,7 @@ export function assertValidLiters(liters: number): void {
 export function validateSyncEvent(event: SyncEvent): string | null {
   switch (event.type) {
     case "dispense_upsert":
+      return litersError(event.liters) ?? recipientNameError(event.recipientName);
     case "receipt_upsert":
       return litersError(event.liters);
     default:

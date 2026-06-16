@@ -48,6 +48,7 @@ export default function DispenseScreen() {
   const [query, setQuery] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleRow | null>(null);
   const [liters, setLiters] = useState("");
+  const [recipientName, setRecipientName] = useState("");
   const [busy, setBusy] = useState(false);
   const submittingRef = useRef(false);
   const vehicles = useVehicleSearch(query);
@@ -107,7 +108,8 @@ export default function DispenseScreen() {
   // Доступный остаток АТЗ (серверный + локальные дельты) — для проверки «нельзя выдать больше, чем в баке».
   const { remaining: available } = useAtzRemaining(shift?.atzId ?? null, shift?.shiftId ?? null);
   const exceedsTank = validLiters && litersNumber > available;
-  const canSubmit = validLiters && !exceedsTank;
+  const recipientValid = recipientName.trim().length > 0;
+  const canSubmit = validLiters && !exceedsTank && recipientValid;
 
   // useLiveQuery на маунте отдаёт [] (updatedAt undefined) до первого чтения кэша.
   if (currentShiftQuery.updatedAt === undefined && !shift) {
@@ -127,12 +129,16 @@ export default function DispenseScreen() {
         Alert.alert("Проверьте литры", "Введите количество больше 0");
         return;
       }
+      if (!recipientValid) {
+        Alert.alert("Укажите получателя", "Введите Фамилию И.О. получателя топлива");
+        return;
+      }
       if (litersNumber > available) {
         Alert.alert("Недостаточно топлива", `В баке доступно ${formatLiters(available)} Л`);
         return;
       }
       setBusy(true);
-      await addDispense(shift.shiftId, selectedVehicle.id, litersNumber);
+      await addDispense(shift.shiftId, selectedVehicle.id, litersNumber, recipientName);
       router.back();
     } finally {
       submittingRef.current = false;
@@ -149,6 +155,7 @@ export default function DispenseScreen() {
             onPress={() => {
               setSelectedVehicle(null);
               setLiters("");
+              setRecipientName("");
             }}
             className="min-w-tap-min min-h-tap-min rounded-full bg-canvas border border-hairline-strong items-center justify-center active:bg-surface-3"
           >
@@ -187,6 +194,19 @@ export default function DispenseScreen() {
           <Text className={`text-body-sm ${exceedsTank ? "text-error" : "text-ink-3"}`}>
             {exceedsTank ? "Больше, чем в баке" : " "}
           </Text>
+        </View>
+
+        <View className="gap-2">
+          <Text className="text-label font-bold text-ink-3 uppercase">Фамилия И.О.</Text>
+          <TextInput
+            className="min-h-tap-secondary px-4 rounded-md border border-hairline-strong bg-canvas text-body text-ink-1"
+            placeholder="Иванов И.И."
+            placeholderTextColor="#8a8f98"
+            autoCapitalize="words"
+            autoCorrect={false}
+            value={recipientName}
+            onChangeText={setRecipientName}
+          />
         </View>
 
         <Pressable

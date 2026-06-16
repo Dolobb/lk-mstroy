@@ -14,6 +14,7 @@ function dispense(id: string, liters: number): DispenseUpsertEvent {
     shiftId: "shift-1",
     vehicleId: "veh-1",
     liters,
+    recipientName: "Иванов И.И.",
     happenedAtClient: "2026-06-13T10:00:00+03:00",
   };
 }

@@ -46,6 +46,8 @@ export interface DispenseUpsertEvent {
   shiftId: string;
   vehicleId: string;
   liters: number;
+  /** Фамилия И.О. получателя топлива (обязательно, непустая строка) */
+  recipientName: string;
   happenedAtClient: IsoDateTime;
   isDeleted?: boolean;
   editedAt?: IsoDateTime | null;

@@ -5,7 +5,7 @@ import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { useDbMigrations } from "@/db/client";
@@ -14,7 +14,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAutoSync } from "@/hooks/useAutoSync";
 import { useSessionStore } from "@/stores/session";
 
-export default function RootLayout() {
+function RootContent() {
+  const insets = useSafeAreaInsets();
   const migrations = useDbMigrations();
   const status = useSessionStore((s) => s.status);
   const { restore } = useAuth();
@@ -49,17 +50,25 @@ export default function RootLayout() {
   // SafeAreaProvider — инсеты системных панелей (Android рисует edge-to-edge: нижняя навигация
   // наплывала на кнопки). GestureHandlerRootView + BottomSheetModalProvider — для @gorhom/bottom-sheet.
   return (
-    <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <BottomSheetModalProvider>
-          <View style={{ flex: 1 }}>
-            {update.available && update.apkUrl && (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <BottomSheetModalProvider>
+        <View style={{ flex: 1 }}>
+          {update.available && update.apkUrl && (
+            <View style={{ paddingTop: insets.top }}>
               <UpdateBanner apkUrl={update.apkUrl} onDismiss={update.dismiss} />
-            )}
-            {content}
-          </View>
-        </BottomSheetModalProvider>
-      </GestureHandlerRootView>
+            </View>
+          )}
+          {content}
+        </View>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <RootContent />
     </SafeAreaProvider>
   );
 }

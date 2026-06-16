@@ -88,7 +88,7 @@ export default function ProfileScreen() {
             <Text className="text-body-sm text-ink-3">Смен пока нет</Text>
           </View>
         ) : (
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom }}>
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 + insets.bottom }}>
             <View className="gap-3 pb-6">
               {shifts.data.map((shift) => (
                 <ShiftCard key={shift.id} shift={shift} />

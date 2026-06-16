@@ -13,7 +13,7 @@ import type {
   ShiftOpenEvent,
   VehicleAddEvent,
 } from "./types";
-import { assertValidLiters } from "./validate";
+import { assertValidLiters, assertValidRecipientName } from "./validate";
 
 const CURRENT_SHIFT_KEY = "currentShift";
 
@@ -62,8 +62,14 @@ export async function closeShift(shiftId: string, closingRemainingLiters?: numbe
 }
 
 /** Выдача топлива ТС. happenedAtClient фиксируется в момент ввода. */
-export async function addDispense(shiftId: string, vehicleId: string, liters: number): Promise<string> {
+export async function addDispense(
+  shiftId: string,
+  vehicleId: string,
+  liters: number,
+  recipientName: string,
+): Promise<string> {
   assertValidLiters(liters);
+  assertValidRecipientName(recipientName);
   const id = uuid();
   const event: DispenseUpsertEvent = {
     type: "dispense_upsert",
@@ -71,6 +77,7 @@ export async function addDispense(shiftId: string, vehicleId: string, liters: nu
     shiftId,
     vehicleId,
     liters,
+    recipientName: recipientName.trim(),
     happenedAtClient: nowIso(),
   };
   await outboxStore.enqueue(event);
