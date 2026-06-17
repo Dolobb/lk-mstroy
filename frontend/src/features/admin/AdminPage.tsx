@@ -2100,7 +2100,7 @@ export const AdminPage: React.FC = () => {
       </div>
 
       {/* Coverage Dashboard (new) */}
-      <div>
+      <div className="relative z-[1]">
         <h2 className="text-sm font-semibold mb-2">Покрытие данных</h2>
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <DateRangePicker
