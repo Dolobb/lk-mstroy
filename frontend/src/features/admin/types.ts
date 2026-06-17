@@ -24,6 +24,8 @@ export interface FetchStatus {
   service: 'kip' | 'dump-trucks' | null;
   current: string | null;
   startedAt: number | null;
+  processedVehicles?: number;
+  totalVehicles?: number;
   queue: string[];
   done: string[];
   errors: string[];

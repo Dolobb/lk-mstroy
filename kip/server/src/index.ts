@@ -333,7 +333,7 @@ app.post('/api/admin/tis-stats/reset', (_req, res) => {
 
 type DailyFetchStatus =
   | { status: 'idle' }
-  | { status: 'running'; date: string; startedAt: string }
+  | { status: 'running'; date: string; startedAt: string; processedVehicles: number; totalVehicles: number }
   | { status: 'done'; date: string; startedAt: string; completedAt: string }
   | { status: 'error'; date: string; startedAt: string; completedAt: string; error: string };
 
@@ -364,10 +364,14 @@ app.post('/api/admin/fetch', async (req, res) => {
 
   logger.info(`Manual fetch triggered for date: ${date}`);
   const startedAt = new Date().toISOString();
-  dailyFetchStatus = { status: 'running', date, startedAt };
+  dailyFetchStatus = { status: 'running', date, startedAt, processedVehicles: 0, totalVehicles: 0 };
 
   // Run async — respond immediately
-  runDailyFetch(date, 'manual')
+  runDailyFetch(date, 'manual', (processedVehicles, totalVehicles) => {
+    if (dailyFetchStatus.status === 'running' && dailyFetchStatus.date === date) {
+      dailyFetchStatus = { ...dailyFetchStatus, processedVehicles, totalVehicles };
+    }
+  })
     .then(() => {
       dailyFetchStatus = {
         status: 'done',

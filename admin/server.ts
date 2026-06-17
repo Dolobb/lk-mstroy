@@ -557,7 +557,7 @@ interface RecalcJobPayload {
 interface SegmentJobPayload {
   date: string;
   force: boolean;
-  triggerType: 'manual' | 'cascade';
+  triggerType: 'cron' | 'manual' | 'cascade';
 }
 
 interface DtShiftFetchJobPayload {
@@ -620,16 +620,20 @@ function shiftDateIso(baseIso: string, offsetDays: number): string {
 async function getKnownQueues(): Promise<Set<string>> {
   const known = new Set<string>([
     'fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift',
-    'recalc-kip-date', 'recalc-dt-date', 'fetch-dt-segments', 'fetch-analytics-date',
+    'recalc-kip-date', 'recalc-dt-date', 'fetch-dt-segments', 'fetch-kip-segments', 'fetch-analytics-date',
   ]);
   try {
     const tzRes = await mainPool.query(`SELECT DISTINCT timezone FROM geo.objects WHERE timezone IS NOT NULL`);
     const tzs: string[] = tzRes.rows.length > 0
       ? tzRes.rows.map((r: { timezone: string }) => r.timezone)
       : ['Asia/Yekaterinburg'];
-    for (const tz of tzs) known.add(`kip-cron-${tz.replace(/\//g, '-').toLowerCase()}`);
+    for (const tz of tzs) {
+      known.add(`kip-cron-${tz.replace(/\//g, '-').toLowerCase()}`);
+      known.add(`kip-segments-cron-${tz.replace(/\//g, '-').toLowerCase()}`);
+    }
   } catch {
     known.add('kip-cron-asia-yekaterinburg');
+    known.add('kip-segments-cron-asia-yekaterinburg');
   }
   for (const entry of DT_CRON_SCHEDULE) known.add(`dt-cron-${entry.time.replace(':', '')}`);
   known.add('analytics-cron');
@@ -647,6 +651,7 @@ const STALE_THRESHOLDS_MIN: Record<string, number> = {
   kip_recalc:   35, // 25min handler + 10min buffer
   dt_recalc:    35, // ~25min handler + 10min buffer
   dt_segments:  25, // 15min handler + 10min buffer
+  kip_segments: 55, // 45min handler + 10min buffer
   analytics_daily: 25, // 15min handler + 10min buffer
 };
 const STALE_FALLBACK_MIN = 60; // unknown pipeline_name — be conservative
@@ -737,7 +742,7 @@ async function reconcileOnStart(): Promise<void> {
     const stalePending = await mainPool.query<{ id: string }>(
       `DELETE FROM pgboss.job
        WHERE name IN ('fetch-kip-date','fetch-dt-date','fetch-dt-shift',
-                      'recalc-kip-date','recalc-dt-date','fetch-dt-segments')
+                      'recalc-kip-date','recalc-dt-date','fetch-dt-segments','fetch-kip-segments')
          AND state IN ('created','retry')
          AND created_on < now() - interval '1 hour'
        RETURNING id`,
@@ -788,7 +793,7 @@ async function registerWorkers(): Promise<void> {
   const queues = [
     'fetch-kip-date', 'fetch-dt-date', 'fetch-dt-shift',
     'recalc-kip-date', 'recalc-dt-date',
-    'fetch-dt-segments', 'fetch-analytics-date',
+    'fetch-dt-segments', 'fetch-kip-segments', 'fetch-analytics-date',
   ];
   for (const q of queues) {
     await boss.createQueue(q);
@@ -1266,6 +1271,41 @@ async function registerWorkers(): Promise<void> {
   };
   await boss.work('fetch-dt-segments', { batchSize: 1 }, dtSegHandler as any);
 
+  // fetch-kip-segments worker — runs runKipSegBulk in-process, then records metrics.
+  // Reuses kipSegBulk state machine (same as admin UI trigger) — guards against
+  // concurrent runs with the `active` flag.
+  const kipSegmentsHandler: Handler<SegmentJobPayload> = async (jobs) => {
+    const { date, force, triggerType } = jobs[0].data;
+    const runId = await pipelineRepo.createRun({ pipelineName: 'kip_segments', triggerType, targetDate: date });
+    log.info({ category: 'pipeline', pipeline: 'kip_segments', runId, date, msg: 'run started', fields: { triggerType, force } });
+    try {
+      if (kipSegBulk.active) {
+        throw new Error('kipSegBulk already active — skipping cron to avoid conflict');
+      }
+      const existing = await getKipDates(date, date);
+      if (existing.dates.length === 0) {
+        await pipelineRepo.completeRun(runId, { totalVehicles: 0, successCount: 0, errorCount: 0 });
+        log.info({ category: 'pipeline', pipeline: 'kip_segments', runId, date, msg: 'no kip data for date — skipped' });
+        return;
+      }
+      await runKipSegBulk([date], force);
+      const countRes = await kipPool.query<{ cnt: number }>(
+        `SELECT COUNT(DISTINCT vehicle_id)::int AS cnt FROM kip_shift_segments WHERE report_date = $1`,
+        [date],
+      );
+      const cnt = countRes.rows[0]?.cnt ?? 0;
+      const errCnt = kipSegBulk.errors.length;
+      await pipelineRepo.completeRun(runId, { totalVehicles: cnt, successCount: cnt, errorCount: errCnt });
+      log.info({ category: 'pipeline', pipeline: 'kip_segments', runId, date, msg: 'run completed', fields: { vehicles: cnt, enqueued: kipSegBulk.totalEnqueued, errors: errCnt } });
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      await pipelineRepo.failRun(runId, errMsg);
+      log.error({ category: 'pipeline', pipeline: 'kip_segments', runId, date, msg: 'run failed', fields: { error: errMsg } });
+      throw err;
+    }
+  };
+  await boss.work('fetch-kip-segments', { batchSize: 1 }, kipSegmentsHandler as any);
+
   // ─── Cron schedules via pg-boss (timezone-aware) ──────────────────────────
 
   // Known timezone → UTC offset map for cron scheduling
@@ -1302,6 +1342,25 @@ async function registerWorkers(): Promise<void> {
       const date = yesterday.toISOString().slice(0, 10);
       console.log(`[pg-boss cron] KIP fetch for ${date} (${tz})`);
       await boss.send('fetch-kip-date', { date, mode: 'normal', triggerType: 'cron' });
+    });
+  }
+
+  // ─── KIP Segments cron (per-timezone, 10:00 local = daily-fetch + 1.5h) ───
+  // Queues 30-min segment windows for all vehicles that worked yesterday (engine_on_time > 0).
+  // Runs in admin (not KIP service) so it survives KIP restarts at 09:30.
+  for (const tz of objectTimezones) {
+    const offset = TZ_OFFSETS[tz] ?? 5;
+    const utcHour = (10 - offset + 24) % 24; // 10:00 local → UTC
+    const cronName = `kip-segments-cron-${tz.replace(/\//g, '-').toLowerCase()}`;
+    await boss.createQueue(cronName);
+    await boss.schedule(cronName, `0 ${utcHour} * * *`, {});
+    await boss.work(cronName, async () => {
+      const now = new Date();
+      const local = new Date(now.getTime() + offset * 60 * 60 * 1000);
+      const yesterday = new Date(local.getTime() - 24 * 60 * 60 * 1000);
+      const date = yesterday.toISOString().slice(0, 10);
+      console.log(`[pg-boss cron] KIP segments for ${date} (${tz})`);
+      await boss.send('fetch-kip-segments', { date, force: false, triggerType: 'cron' });
     });
   }
 
@@ -1529,6 +1588,8 @@ interface FetchProgress {
   queue: string[];        // даты ожидающие загрузки
   current: string | null; // дата в процессе
   startedAt: number | null; // unix ms когда текущая дата начала загружаться
+  processedVehicles: number;
+  totalVehicles: number;
   done: string[];         // успешно загруженные
   errors: string[];       // ошибки по датам
   cancelRequested: boolean;
@@ -1540,6 +1601,8 @@ const fetchProgress: FetchProgress = {
   queue: [],
   current: null,
   startedAt: null,
+  processedVehicles: 0,
+  totalVehicles: 0,
   done: [],
   errors: [],
   cancelRequested: false,
@@ -1661,7 +1724,16 @@ async function startAndWaitForKipFetch(
 
     const statusRes = await fetch(`http://localhost:3001/api/admin/fetch/status?date=${date}`);
     if (!statusRes.ok) continue;
-    const status = await statusRes.json().catch(() => null) as { status?: string; error?: string } | null;
+    const status = await statusRes.json().catch(() => null) as {
+      status?: string;
+      error?: string;
+      processedVehicles?: number;
+      totalVehicles?: number;
+    } | null;
+    if (status?.processedVehicles !== undefined) {
+      fetchProgress.processedVehicles = status.processedVehicles;
+      fetchProgress.totalVehicles = status.totalVehicles ?? 0;
+    }
     if (status?.status === 'done') return 'ok';
     if (status?.status === 'error') throw new Error(status.error ?? `KIP fetch failed for ${date}`);
   }
@@ -1670,18 +1742,23 @@ async function startAndWaitForKipFetch(
 }
 
 async function runKipQueue(dates: string[], mode: 'normal' | 'force' | 'refresh' = 'normal') {
+  const uniqueDates = [...new Set(dates)]; // защита от дубликатов на случай гонки
   fetchProgress.active = true;
   fetchProgress.service = 'kip';
   fetchProgress.done = [];
   fetchProgress.errors = [];
   fetchProgress.cancelRequested = false;
-  fetchProgress.queue = [...dates];
+  fetchProgress.processedVehicles = 0;
+  fetchProgress.totalVehicles = 0;
+  fetchProgress.queue = [...uniqueDates];
 
-  for (const date of dates) {
+  for (const date of uniqueDates) {
     if (fetchProgress.cancelRequested) break;
 
     fetchProgress.current = date;
     fetchProgress.startedAt = Date.now();
+    fetchProgress.processedVehicles = 0;
+    fetchProgress.totalVehicles = 0;
     fetchProgress.queue = fetchProgress.queue.filter(d => d !== date);
 
     const runId = await pipelineRepo.createRun({ pipelineName: 'kip_daily', triggerType: 'manual', targetDate: date });
@@ -1721,6 +1798,8 @@ async function runKipQueue(dates: string[], mode: 'normal' | 'force' | 'refresh'
   fetchProgress.active = false;
   fetchProgress.current = null;
   fetchProgress.startedAt = null;
+  fetchProgress.processedVehicles = 0;
+  fetchProgress.totalVehicles = 0;
   fetchProgress.service = null;
 }
 
@@ -1730,12 +1809,16 @@ async function runDTQueue(dates: string[]) {
   fetchProgress.done = [];
   fetchProgress.errors = [];
   fetchProgress.cancelRequested = false;
+  fetchProgress.processedVehicles = 0;
+  fetchProgress.totalVehicles = 0;
   fetchProgress.queue = [...dates];
 
   for (const date of dates) {
     if (fetchProgress.cancelRequested) break;
 
     fetchProgress.current = date;
+    fetchProgress.processedVehicles = 0;
+    fetchProgress.totalVehicles = 0;
     fetchProgress.queue = fetchProgress.queue.filter(d => d !== date);
 
     const runId = await pipelineRepo.createRun({ pipelineName: 'dt_daily', triggerType: 'manual', targetDate: date });
@@ -1781,6 +1864,8 @@ async function runDTQueue(dates: string[]) {
 
   fetchProgress.active = false;
   fetchProgress.current = null;
+  fetchProgress.processedVehicles = 0;
+  fetchProgress.totalVehicles = 0;
   fetchProgress.service = null;
 }
 
@@ -2297,6 +2382,8 @@ app.get('/api/admin/fetch/status', async (_req, res) => {
       service: fetchProgress.service,
       current: fetchProgress.current,
       startedAt: fetchProgress.startedAt,
+      processedVehicles: fetchProgress.processedVehicles,
+      totalVehicles: fetchProgress.totalVehicles,
       queue: fetchProgress.queue,
       done: fetchProgress.done,
       errors: fetchProgress.errors,
@@ -2332,6 +2419,8 @@ app.get('/api/admin/fetch/status', async (_req, res) => {
     service: null,
     current: null,
     startedAt: null,
+    processedVehicles: 0,
+    totalVehicles: 0,
     queue: [],
     done: fetchProgress.done,
     errors: fetchProgress.errors,
@@ -2447,6 +2536,12 @@ app.post('/api/admin/fetch/:service', async (req, res) => {
       return;
     }
   }
+
+  // Помечаем active синхронно ДО ответа клиенту, чтобы параллельные POST-запросы
+  // получали 409 сразу — иначе fire-and-forget runKipQueue успевает запуститься несколько
+  // раз до того как внутри функции выставится active=true (race condition).
+  fetchProgress.active = true;
+  fetchProgress.service = service as 'kip' | 'dump-trucks';
 
   res.json({ ok: true, started: true, missing: missing.length, dates: missing });
 

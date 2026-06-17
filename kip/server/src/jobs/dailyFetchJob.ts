@@ -31,7 +31,11 @@ export function getLastDailyTisClient(): TisClient | null {
   return lastDailyClient;
 }
 
-export async function runDailyFetch(dateStr?: string, triggerType: TriggerType = 'cron'): Promise<void> {
+export async function runDailyFetch(
+  dateStr?: string,
+  triggerType: TriggerType = 'cron',
+  onProgress?: (processed: number, total: number) => void,
+): Promise<void> {
   const jobController = getJobController('fetch');
   // Reset only after a completed cancellation so concurrent calls share the signal
   if (jobController.isCancelled()) jobController.reset();
@@ -77,6 +81,9 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
   // 3. Build & interleave vehicle tasks (filter → split shifts → interleave)
   const tasks = buildVehicleTasks(routeLists);
   const interleaved = interleaveTasks(tasks);
+  let processed = 0;
+  const total = interleaved.length;
+  onProgress?.(0, total);
   logger.info(`${interleaved.length} vehicle tasks after filtering and shift splitting`);
 
   if (interleaved.length === 0) {
@@ -324,8 +331,10 @@ export async function runDailyFetch(dateStr?: string, triggerType: TriggerType =
       if (i >= interleaved.length) break;
       try {
         await processOneTask(interleaved[i]);
+        onProgress?.(++processed, total);
       } catch (err) {
         if (isCancelledError(err)) break;
+        onProgress?.(++processed, total);
         throw err;
       }
     }

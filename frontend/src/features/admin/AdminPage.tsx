@@ -1366,6 +1366,9 @@ const CoverageDashboard: React.FC<{
               Загрузка ({fetchStatus.service === 'kip' ? 'КИП' : 'Самосвалы'}): <span className="text-foreground font-mono">
                 {fetchStatus.current ? fmtDate(fetchStatus.current) : '...'}
               </span>
+              {fetchStatus.processedVehicles !== undefined && (fetchStatus.totalVehicles ?? 0) > 0 && (
+                <span className='text-muted-foreground'> — Машин: {fetchStatus.processedVehicles} / {fetchStatus.totalVehicles}</span>
+              )}
             </span>
             <span className="text-muted-foreground">
               {fetchStatus.done.length} из {fetchTotal} дн.
@@ -2268,6 +2271,9 @@ export const AdminPage: React.FC = () => {
                   Загружается: <span className="text-foreground font-mono">
                     {fetchStatus.current ? fmtDate(fetchStatus.current) : '...'}
                   </span>
+                  {fetchStatus.processedVehicles !== undefined && (fetchStatus.totalVehicles ?? 0) > 0 && (
+                    <span className='text-muted-foreground'> — Машин: {fetchStatus.processedVehicles} / {fetchStatus.totalVehicles}</span>
+                  )}
                   {elapsedSec > 0 && (
                     <span className="text-muted-foreground ml-1.5">
                       {elapsedSec < 60
