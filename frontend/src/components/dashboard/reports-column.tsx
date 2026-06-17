@@ -12,6 +12,7 @@ interface LegacyReport {
   matched_count: number | null;
   from_pl: string | null;
   to_pl: string | null;
+  v2_exists?: boolean;
 }
 
 interface TyagachiSummary {
@@ -19,6 +20,17 @@ interface TyagachiSummary {
   requests_total: number;
   requests_stable: number;
   requests_in_progress: number;
+}
+
+const formatRuDate = (date: Date): string =>
+  `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`
+
+const shiftRuDate = (dateStr: string, days: number): string => {
+  const [day, month, year] = dateStr.split(".").map(Number)
+  if (!day || !month || !year) return dateStr
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + days)
+  return formatRuDate(date)
 }
 
 function AddressMultiSelect({
@@ -152,10 +164,13 @@ interface ReportsColumnProps {
 }
 
 export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideTypeSlider }: ReportsColumnProps) {
-  const [orderStart, setOrderStart] = useState("01.12.2025")
-  const [orderEnd, setOrderEnd] = useState(() => {
+  const [orderStart, setOrderStart] = useState(() => {
     const d = new Date()
-    return `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`
+    d.setDate(d.getDate() - 14)
+    return formatRuDate(d)
+  })
+  const [orderEnd, setOrderEnd] = useState(() => {
+    return formatRuDate(new Date())
   })
   const [showSkeleton, setShowSkeleton] = useState(true)
   const [summary, setSummary] = useState<TyagachiSummary | null>(null)
@@ -237,7 +252,7 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
         body: JSON.stringify({
           from_pl: orderStart,
           to_pl: orderEnd,
-          from_requests: orderStart,
+          from_requests: shiftRuDate(orderStart, -60),
           to_requests: orderEnd,
         }),
       })
@@ -430,16 +445,22 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
                 {report.matched_count != null && ` · ${report.matched_count} совп.`}
               </div>
               <div className="flex items-center gap-2">
-                <a
-                  href={`/api/tyagachi/reports/${report.id}/v2`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#22C55E] text-white text-xs font-semibold hover:bg-[#22C55E]/90 transition-colors"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Открыть
-                </a>
+                {report.v2_exists === false ? (
+                  <span className="px-3 py-1 rounded-lg bg-card text-text-muted text-xs font-semibold border border-border">
+                    Не сформирован
+                  </span>
+                ) : (
+                  <a
+                    href={`/api/tyagachi/reports/${report.id}/v2`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#22C55E] text-white text-xs font-semibold hover:bg-[#22C55E]/90 transition-colors"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Открыть
+                  </a>
+                )}
               </div>
             </div>
           ))

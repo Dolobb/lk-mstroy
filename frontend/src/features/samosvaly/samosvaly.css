@@ -1413,6 +1413,7 @@ td.sv-obj-return {
 
 /* ── ShiftGanttBar (vertical bar chart) ──────── */
 .sv-shift-gantt {
+  position: relative;
   --_gantt-axis: rgba(255,255,255,0.25);
   --_gantt-grid: rgba(255,255,255,0.10);
   --_gantt-tick: rgba(255,255,255,0.25);

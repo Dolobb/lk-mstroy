@@ -820,6 +820,11 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
   const [fullscreen, setFullscreen] = useState(false);
   const [activeTrackPointIdx, setActiveTrackPointIdx] = useState<number | null>(null);
 
+  const selectedTrack = useMemo(() => {
+    if (!selectedVehicleId || !track) return null;
+    return track.vehicleId.toUpperCase() === selectedVehicleId.toUpperCase() ? track : null;
+  }, [selectedVehicleId, track]);
+
   useEffect(() => {
     setActiveTrackPointIdx(null);
   }, [selectedVehicleId, track]);
@@ -906,9 +911,9 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
   // (from the map, the table or the cards view) this is the single zoom
   // authority — see activeBounds below.
   const trackBounds: LatLngBoundsLiteral | null = useMemo(() => {
-    if (!selectedVehicleId || !track || !track.points.length) return null;
-    return computeBounds(track.points.map(p => [p.lat, p.lng] as LatLngTuple));
-  }, [selectedVehicleId, track]);
+    if (!selectedTrack || !selectedTrack.points.length) return null;
+    return computeBounds(selectedTrack.points.map(p => [p.lat, p.lng] as LatLngTuple));
+  }, [selectedTrack]);
 
   // Single fitBounds authority for active drill-downs. The all-objects fit is
   // intentionally one-shot on map load, so clearing a zone does not zoom out.
@@ -980,14 +985,13 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
   }, [positions, vehicleRowMap]);
 
   const selectedTrackPin = useMemo(() => {
-    if (!selectedVehicleId || !track || !track.points.length) return null;
-    if (track.vehicleId.toUpperCase() !== selectedVehicleId.toUpperCase()) return null;
-    const lastPoint = track.points[track.points.length - 1]!;
+    if (!selectedVehicleId || !selectedTrack || !selectedTrack.points.length) return null;
+    const lastPoint = selectedTrack.points[selectedTrack.points.length - 1]!;
     const row = vehicleRowMap.get(selectedVehicleId)
       ?? allPositionPins.find(p => p.row.regNumber === selectedVehicleId)?.row;
     if (!row) return null;
     return { row, lat: lastPoint.lat, lng: lastPoint.lng };
-  }, [selectedVehicleId, track, vehicleRowMap, allPositionPins]);
+  }, [selectedVehicleId, selectedTrack, vehicleRowMap, allPositionPins]);
 
   // ── Reg numbers for all vehicles that belong to at least one named object ──
   const allInObjectRegs = useMemo(() => {
@@ -1048,9 +1052,9 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     return withSelectedTrackPin([]);
   }, [focusedObjectUid, boundaryList, showOutsideOnMap, allInObjectRegs, allPositionPins, selectedTrackPin]);
 
-  const hasTrackTimeline = Boolean(selectedVehicleId && track && track.points.length > 1);
+  const hasTrackTimeline = Boolean(selectedTrack && selectedTrack.points.length > 1);
   const activeTrackPoint = hasTrackTimeline && activeTrackPointIdx != null
-    ? track!.points[activeTrackPointIdx] ?? null
+    ? selectedTrack!.points[activeTrackPointIdx] ?? null
     : null;
 
   if (geoError) {
@@ -1107,7 +1111,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
-          <InitialFitBounds bounds={allBounds} />
+          <InitialFitBounds bounds={selectedVehicleId || focusedObjectUid ? null : allBounds} />
           <ZoneMapClickHandler
             selectedData={selectedData}
             onOutsideSelected={() => onFocusObject?.(null)}
@@ -1258,17 +1262,17 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             })}
           </MarkerClusterGroup>
 
-          {track && (
-            <TrackLayer track={track} onDeselect={() => onSelectVehicle?.(null)} />
+          {selectedTrack && (
+            <TrackLayer track={selectedTrack} onDeselect={() => onSelectVehicle?.(null)} />
           )}
           {activeTrackPoint && (
             <TrackPlaybackMarker point={activeTrackPoint} />
           )}
         </MapContainer>
 
-        {hasTrackTimeline && track && (
+        {hasTrackTimeline && selectedTrack && (
           <TrackTimelinePanel
-            track={track}
+            track={selectedTrack}
             activeIndex={activeTrackPointIdx}
             onActiveIndexChange={setActiveTrackPointIdx}
           />

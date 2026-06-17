@@ -413,7 +413,7 @@ _INDEX_TEMPLATE = '''<!DOCTYPE html>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="from_requests">Дата начала</label>
-                                <input type="text" id="from_requests" placeholder="ДД.ММ.ГГГГ" value="01.12.2025" required>
+                                <input type="text" id="from_requests" placeholder="ДД.ММ.ГГГГ" value="{default_from_requests}" required>
                             </div>
                             <div class="form-group">
                                 <label for="to_requests">Дата окончания</label>
@@ -424,7 +424,7 @@ _INDEX_TEMPLATE = '''<!DOCTYPE html>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="from_pl">Дата начала</label>
-                                <input type="text" id="from_pl" placeholder="ДД.ММ.ГГГГ" value="" required>
+                                <input type="text" id="from_pl" placeholder="ДД.ММ.ГГГГ" value="{default_from_pl}" required>
                             </div>
                             <div class="form-group">
                                 <label for="to_pl">Дата окончания</label>
@@ -439,7 +439,7 @@ _INDEX_TEMPLATE = '''<!DOCTYPE html>
                         </div>
                         <div class="form-row">
                             <button type="submit" class="btn btn-primary" id="fetchBtn">Создать отчёт</button>
-                            <button type="button" class="btn btn-secondary" onclick="fillSameDate()">= даты</button>
+                            <button type="button" class="btn btn-secondary" onclick="fillRequestDatesFromPl()">Заявки -60д</button>
                         </div>
                     </form>
                     <div class="status-panel" id="statusPanel">
@@ -758,9 +758,19 @@ _INDEX_TEMPLATE = '''<!DOCTYPE html>
             window.open('/api/request/' + reqNumber + '/report', '_blank');
         }}
 
-        function fillSameDate() {{
-            document.getElementById('from_pl').value = document.getElementById('from_requests').value;
-            document.getElementById('to_pl').value = document.getElementById('to_requests').value;
+        function shiftDateRu(value, days) {{
+            const parts = value.split('.').map(Number);
+            if (parts.length !== 3 || parts.some(Number.isNaN)) return value;
+            const date = new Date(parts[2], parts[1] - 1, parts[0]);
+            date.setDate(date.getDate() + days);
+            return String(date.getDate()).padStart(2, '0') + '.' +
+                String(date.getMonth() + 1).padStart(2, '0') + '.' +
+                date.getFullYear();
+        }}
+
+        function fillRequestDatesFromPl() {{
+            document.getElementById('from_requests').value = shiftDateRu(document.getElementById('from_pl').value, -60);
+            document.getElementById('to_requests').value = document.getElementById('to_pl').value;
         }}
 
         async function startFetch(event) {{
@@ -862,7 +872,10 @@ _INDEX_TEMPLATE = '''<!DOCTYPE html>
 async def index():
     """Main menu page - create reports and view history."""
     reports = db.get_reports(limit=20)
-    today = datetime.now().strftime('%d.%m.%Y')
+    today_dt = datetime.now()
+    today = today_dt.strftime('%d.%m.%Y')
+    default_from_pl = (today_dt - timedelta(days=14)).strftime('%d.%m.%Y')
+    default_from_requests = (today_dt - timedelta(days=74)).strftime('%d.%m.%Y')
 
     # Build reports list HTML
     reports_html = ""
@@ -982,6 +995,8 @@ async def index():
 
     html = _INDEX_TEMPLATE.format(
         today=today,
+        default_from_pl=default_from_pl,
+        default_from_requests=default_from_requests,
         reports_html=reports_html,
         vehicles_html=vehicles_html,
         sync_summary_html=sync_summary_html,
@@ -1084,6 +1099,14 @@ async def get_archived_numbers():
 async def get_reports(limit: int = 50, offset: int = 0):
     """Get list of reports from history."""
     reports = db.get_reports(limit=limit, offset=offset)
+    for report in reports:
+        html_filename = report.get('html_filename')
+        if not html_filename:
+            report['html_exists'] = False
+            report['v2_exists'] = False
+            continue
+        report['html_exists'] = (HISTORY_DIR / html_filename).exists()
+        report['v2_exists'] = (HISTORY_DIR / html_filename.replace('.html', '_v2.html')).exists()
     return {"reports": reports}
 
 

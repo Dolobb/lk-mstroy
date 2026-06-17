@@ -318,9 +318,22 @@ export async function hadEngineOffInPastWeek(
 }
 
 /**
- * Возвращает ТС, у которых нет данных в указанном периоде [from..to],
- * но есть данные в предшествующие 30 дней (условие 5: нет данных >4 дней).
- * Включает последнюю известную позицию.
+ * Возвращает множество vehicle_id, у которых есть хоть одна запись в периоде [from..to].
+ * Используется для корректного определения ghost-машин независимо от KPI-фильтра.
+ */
+export async function getVehicleIdsInPeriod(from: string, to: string): Promise<Set<string>> {
+  const pool = getPool();
+  const res = await pool.query(
+    `SELECT DISTINCT vehicle_id FROM vehicle_records
+     WHERE report_date BETWEEN $1 AND $2 AND report_date <= CURRENT_DATE`,
+    [from, to],
+  );
+  return new Set(res.rows.map((r: { vehicle_id: string }) => r.vehicle_id.toUpperCase()));
+}
+
+/**
+ * Возвращает ТС, у которых нет данных в указанном периоде [from..to].
+ * Включает последнюю известную позицию за всё время истории (не ограничено 30 днями).
  */
 export async function getGhostVehicles(
   from: string,
@@ -335,7 +348,8 @@ export async function getGhostVehicles(
        longitude
      FROM vehicle_records
      WHERE report_date < $1
-       AND report_date >= $1::date - interval '30 days'
+       AND latitude IS NOT NULL
+       AND longitude IS NOT NULL
        AND vehicle_id NOT IN (
          SELECT DISTINCT vehicle_id FROM vehicle_records
          WHERE report_date BETWEEN $1 AND $2

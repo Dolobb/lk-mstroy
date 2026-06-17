@@ -67,7 +67,7 @@ app.get('/api/vehicles/weekly', async (req, res) => {
   }
 
   try {
-    const { getWeeklyAggregated, getRequestNumbersForDateRange, getGhostVehicles } = await import('./repositories/vehicleRecordRepo');
+    const { getWeeklyAggregated, getRequestNumbersForDateRange, getGhostVehicles, getVehicleIdsInPeriod } = await import('./repositories/vehicleRecordRepo');
 
     // Helper to parse query param as string array
     const toArray = (val: unknown): string[] => {
@@ -76,19 +76,30 @@ app.get('/api/vehicles/weekly', async (req, res) => {
       return [val as string];
     };
 
-    const [rows, reqMap, ghosts] = await Promise.all([
-      getWeeklyAggregated({
-        from,
-        to,
-        shift: req.query.shift as string | undefined,
-        branches: toArray(req.query.branch),
-        types: toArray(req.query.type),
-        departments: toArray(req.query.department),
-        kpiRanges: toArray(req.query.kpiRange),
-        excludeGapFilled: req.query.excludeGapFilled !== 'false',
-      }),
+    const kpiRanges = toArray(req.query.kpiRange);
+    // Separate 'no-data' from numeric ranges — don't pass it to the SQL aggregator
+    const numericKpiRanges = kpiRanges.filter(r => r !== 'no-data');
+    const showNoData = kpiRanges.length === 0 || kpiRanges.includes('no-data');
+    // showRegular=false only when filter is active AND contains only 'no-data'
+    const showRegular = kpiRanges.length === 0 || numericKpiRanges.length > 0;
+
+    const [rows, reqMap, ghosts, vehiclesWithDataSet] = await Promise.all([
+      showRegular
+        ? getWeeklyAggregated({
+            from,
+            to,
+            shift: req.query.shift as string | undefined,
+            branches: toArray(req.query.branch),
+            types: toArray(req.query.type),
+            departments: toArray(req.query.department),
+            kpiRanges: numericKpiRanges,
+            excludeGapFilled: req.query.excludeGapFilled !== 'false',
+          })
+        : Promise.resolve([]),
       getRequestNumbersForDateRange(from, to),
       getGhostVehicles(from, to),
+      // Независимый запрос: какие ТС вообще имеют данные в периоде (без KPI-фильтра)
+      getVehicleIdsInPeriod(from, to),
     ]);
 
     // Enrich with type/branch from registry + request numbers
@@ -104,13 +115,15 @@ app.get('/api/vehicles/weekly', async (req, res) => {
       };
     });
 
-    // Add registered vehicles without records in this period as ghosts
-    const vehiclesWithData = new Set(rows.map(r => r.vehicle_id.toUpperCase()));
+    // Add registered vehicles without records in this period as ghosts.
+    // Клиент фильтрует их через displayVehicles — сервер возвращает всегда.
     const allRegistered = getRegisteredVehicles();
+    const ghostCoords = new Map(ghosts.map(g => [g.vehicle_id.toUpperCase(), g]));
     for (const v of allRegistered) {
-      if (vehiclesWithData.has(v.regNumber.toUpperCase())) continue;
+      if (vehiclesWithDataSet.has(v.regNumber.toUpperCase())) continue;
 
       const info = getVehicleInfo(v.regNumber);
+      const gd = ghostCoords.get(v.regNumber.toUpperCase());
       enriched.push({
         vehicle_id:              v.regNumber,
         vehicle_model:           '',
@@ -124,13 +137,13 @@ app.get('/api/vehicles/weekly', async (req, res) => {
         avg_fuel:                0,
         avg_load_efficiency_pct: 0,
         avg_utilization_ratio:   0,
-        latitude:                null,
-        longitude:               null,
+        latitude:                gd?.latitude ?? null,
+        longitude:               gd?.longitude ?? null,
         record_count:            0,
         gap_filled_count:        0,
         request_numbers:         reqMap.get(v.regNumber) ?? [],
         is_ghost:                true,
-        last_seen_date:          undefined,
+        last_seen_date:          gd?.last_seen_date,
       });
     }
 

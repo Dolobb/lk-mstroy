@@ -12,13 +12,14 @@
 .sv-v2-tl-shifts { display: flex; gap: 3px; }
 .sv-v2-tl-cell {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  width: 26px; height: 56px; padding: 3px 0; border-radius: 6px; cursor: pointer;
+  width: 26px; height: 64px; padding: 3px 0; border-radius: 6px; cursor: pointer;
   border: 1px solid transparent; background: var(--sv-hover-bg);
   transition: border-color .12s, background .12s;
 }
 .sv-v2-tl-cell:hover { border-color: rgba(96,165,250,.35); }
 .sv-v2-tl-cell.selected { border-color: var(--sv-accent); background: rgba(249,115,22,.12); }
 .sv-v2-tl-cell.empty { opacity: .4; cursor: default; }
+.sv-v2-tl-pct { font-size: 8px; line-height: 10px; height: 10px; color: var(--sv-text-2); font-variant-numeric: tabular-nums; }
 .sv-v2-tl-bar { width: 12px; border-radius: 2px; min-height: 2px; }
 .sv-v2-tl-cnt { font-size: 8px; color: var(--sv-text-3); margin-top: 2px; height: 10px; }
 .sv-v2-tl-shift-lbl { font-size: 7px; color: var(--sv-text-4); text-transform: uppercase; }

@@ -40,7 +40,7 @@ export function DayTimelineNav({ days, selectedDate, selectedShift, onSelect }: 
           <div className="sv-v2-tl-shifts">
             {d.cells.map(c => {
               const sel = selectedDate === d.date && selectedShift === c.shift;
-              const h = c.hasData ? Math.max(2, Math.round((c.kip / 100) * 38)) : 2;
+              const h = c.hasData ? Math.max(2, Math.round((c.kip / 100) * 30)) : 2;
               const shiftLbl = c.shift === 'shift1' ? 'C1' : 'C2';
               return (
                 <div
@@ -51,6 +51,7 @@ export function DayTimelineNav({ days, selectedDate, selectedShift, onSelect }: 
                     ? `${dayLabel(d.date)} ${shiftLbl} · КИП ${Math.round(c.kip)}% · ${c.count} ТС`
                     : `${dayLabel(d.date)} ${shiftLbl} · нет данных`}
                 >
+                  <span className="sv-v2-tl-pct">{c.hasData ? Math.round(c.kip) : ''}</span>
                   <div
                     className="sv-v2-tl-bar"
                     style={{ height: h, background: c.hasData ? kipColorV2(c.kip) : 'var(--sv-text-4)' }}

@@ -1,0 +1,12 @@
+{
+  "name": "lk-mstroy",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n admin,frontend -c cyan,yellow --kill-others-on-fail \"npm run dev --prefix admin\" \"npm run dev --prefix frontend\"",
+    "migrate:all": "npm run migrate --prefix kip/server && npm run migrate --prefix dump-trucks/server && npm run migrate --prefix vehicle-status/server && npm run migrate --prefix geo-admin/server",
+    "typecheck:all": "npm run lint --prefix kip && tsc --noEmit -p dump-trucks/server && tsc --noEmit -p vehicle-status/server && tsc --noEmit -p geo-admin/server && tsc --noEmit -p admin && tsc --noEmit -p frontend && tsc --noEmit -p ai-reports/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

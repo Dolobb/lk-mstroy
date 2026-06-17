@@ -39,7 +39,7 @@ class APIClient:
         self.base_url = api_config.get('base_url', 'https://tt.tis-online.com/tt/api/v3')
         self.token = api_config.get('token', '')
         self.format = api_config.get('format', 'json')
-        self.timeout = api_config.get('timeout', 30)
+        self.timeout = max(int(api_config.get('timeout', 30)), 30)
         self.retry_count = api_config.get('retry_count', 3)
 
         if not self.token:
@@ -85,10 +85,6 @@ class APIClient:
             **params
         }
 
-        # Build URL with query parameters
-        param_str = '&'.join(f"{k}={v}" for k, v in url_params.items())
-        full_url = f"{self.base_url}?{param_str}"
-
         last_error = None
         attempt = 0
         rate_limit_retries = 0
@@ -97,7 +93,11 @@ class APIClient:
         while attempt < self.retry_count:
             try:
                 self.logger.debug(f"Request attempt {attempt + 1}: {command}")
-                response = requests.post(full_url, timeout=self.timeout)
+                response = requests.post(
+                    self.base_url,
+                    params=url_params,
+                    timeout=(10, self.timeout),
+                )
                 response.raise_for_status()
 
                 data = response.json()

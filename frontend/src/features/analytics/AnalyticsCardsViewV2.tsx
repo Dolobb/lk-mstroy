@@ -6,6 +6,24 @@ import { DayTimelineNav } from './DayTimelineNav';
 import type { TlDay, Shift } from './DayTimelineNav';
 import './analyticsV2.css';
 
+function useBrokenPlates(): Set<string> {
+  const [broken, setBroken] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    fetch('/api/vs/vehicles')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { data: Array<{ plateNumber: string; isBroken: boolean }> } | null) => {
+        if (!d) return;
+        const s = new Set<string>();
+        for (const v of d.data) {
+          if (v.isBroken) s.add(v.plateNumber.toUpperCase());
+        }
+        setBroken(s);
+      })
+      .catch(() => {});
+  }, []);
+  return broken;
+}
+
 // ─── Карточки v2.0 («Навигация по дням») ──────────────────────────────
 // Единая навигация по дням сверху (DayTimelineNav), карточки показывают
 // статистику ТС за выбранную смену. Тип-фильтры/поиск/объект — снаружи
@@ -35,6 +53,8 @@ interface AnalyticsCardsViewV2Props {
   dstRecords: Map<string, UnifiedRecord[]>;
   renderWork?: (rec: UnifiedRecord) => React.ReactNode;
   onSelectVehicle?: (regNumber: string) => void;
+  selected: { date: string; shift: Shift } | null;
+  onSelectedChange: (selected: { date: string; shift: Shift }) => void;
   visibleVehicleCount: number;
   totalVehicleCount: number;
   onShowMore: () => void;
@@ -51,11 +71,14 @@ export function AnalyticsCardsViewV2({
   dstRecords,
   renderWork,
   onSelectVehicle,
+  selected,
+  onSelectedChange,
   visibleVehicleCount,
   totalVehicleCount,
   onShowMore,
   dataStatusByVehicleDate,
 }: AnalyticsCardsViewV2Props) {
+  const brokenPlates = useBrokenPlates();
   const recordsFor = React.useCallback(
     (v: UnifiedVehicleRow): UnifiedRecord[] =>
       v.source === 'dump_truck' ? v.records : (dstRecords.get(v.regNumber) ?? []),
@@ -106,8 +129,14 @@ export function AnalyticsCardsViewV2({
     return null;
   }, [timelineDays]);
 
-  const [sel, setSel] = React.useState<{ date: string; shift: Shift } | null>(null);
-  const active = sel ?? defaultSel;
+  const selectedExists = React.useMemo(() => {
+    if (!selected) return false;
+    return timelineDays.some(day =>
+      day.date === selected.date && day.cells.some(cell => cell.shift === selected.shift && cell.hasData)
+    );
+  }, [selected, timelineDays]);
+
+  const active = selectedExists ? selected : defaultSel;
 
   if (!active) {
     return (
@@ -123,7 +152,7 @@ export function AnalyticsCardsViewV2({
         days={timelineDays}
         selectedDate={active.date}
         selectedShift={active.shift}
-        onSelect={(date, shift) => setSel({ date, shift })}
+        onSelect={(date, shift) => onSelectedChange({ date, shift })}
       />
 
       {filteredGroups.map(g => (
@@ -150,6 +179,7 @@ export function AnalyticsCardsViewV2({
                     renderWork={renderWork}
                     onSelectVehicle={onSelectVehicle}
                     dataStatusUnit={dsUnit}
+                    isRepairing={brokenPlates.has(v.regNumber.toUpperCase())}
                   />
                 </div>
               );

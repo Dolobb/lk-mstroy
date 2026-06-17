@@ -201,9 +201,9 @@ function isoToYmd(iso: string): string {
   return iso.split('T')[0] ?? iso;
 }
 const _today = new Date();
-const _yesterday = new Date(_today.getTime() - 86400000);
-const DEFAULT_DATE_FROM = toYekatIso(new Date(_today.getFullYear(), _today.getMonth(), 1));
-const DEFAULT_DATE_TO = toYekatIso(new Date(_yesterday.getFullYear(), _yesterday.getMonth(), _yesterday.getDate(), 23, 45));
+const _yesterday = new Date(_today.getFullYear(), _today.getMonth(), _today.getDate() - 1, 7, 30);
+const DEFAULT_DATE_FROM = toYekatIso(_yesterday);
+const DEFAULT_DATE_TO = toYekatIso(new Date(_today.getFullYear(), _today.getMonth(), _today.getDate(), 7, 30));
 
 const OUTSIDE_GROUP_UID = '__outside' as const;
 
@@ -462,6 +462,7 @@ export function AnalyticsPage() {
   const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
   const [focusedObjectUid, setFocusedObjectUid] = useState<string | null>(null);
   const [showOutsideOnMap, setShowOutsideOnMap] = useState(false);
+  const [cardsV2Selection, setCardsV2Selection] = useState<{ date: string; shift: 'shift1' | 'shift2' } | null>(null);
 
   // Session 9: selected vehicle for track rendering
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -1302,8 +1303,9 @@ export function AnalyticsPage() {
           </button>
           <button
             className={`sv-view-tab ${viewMode === 'cards' ? 'active' : ''}`}
+            hidden
             onClick={() => setViewMode('cards')}
-            style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            style={{ fontSize: 11, padding: '4px 12px', display: 'none', alignItems: 'center', gap: 4 }}
           >
             <LayoutGrid size={12} />Карточки
           </button>
@@ -1422,6 +1424,8 @@ export function AnalyticsPage() {
                 dstRecords={dstDetailsV2}
                 renderWork={renderCardWorkV2}
                 onSelectVehicle={handleSelectVehicleToMap}
+                selected={cardsV2Selection}
+                onSelectedChange={setCardsV2Selection}
                 visibleVehicleCount={visibleCardsV2Count}
                 totalVehicleCount={totalCardsV2Count}
                 onShowMore={() => setVisibleCardsLimit(v => Math.min(v + CARDS_BATCH_SIZE, totalCardsV2Count))}
@@ -1772,7 +1776,7 @@ function EmptyGanttDiagram({ onFetch, fetching }: { onFetch: () => void; fetchin
           </div>
         </div>
       </div>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
         <button
           onClick={onFetch}
           disabled={fetching}
@@ -1785,6 +1789,7 @@ function EmptyGanttDiagram({ onFetch, fetching }: { onFetch: () => void; fetchin
             color: 'inherit',
             padding: '3px 10px',
             opacity: fetching ? 0.6 : 1,
+            pointerEvents: 'auto',
           }}
         >
           {fetching ? 'Выгрузка...' : 'Выгрузить'}

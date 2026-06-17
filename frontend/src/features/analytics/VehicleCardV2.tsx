@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Map as MapIcon, MapPin, Cog, Activity, Navigation, Timer, Route, Repeat, Fuel, Pause,
+  Map as MapIcon, MapPin, Cog, Activity, Navigation, Timer, Route, Repeat, Fuel, Pause, Wrench, AlertTriangle,
 } from 'lucide-react';
 import type { UnifiedVehicleRow, UnifiedRecord, DataStatusUnit } from './types';
 import { VehicleIcon } from '@/components/VehicleIcon';
@@ -123,9 +123,10 @@ interface VehicleCardV2Props {
   onSelectVehicle?: (regNumber: string) => void;
   /** Статус из ingest ledger для выбранной даты (может быть undefined если нет записи) */
   dataStatusUnit?: DataStatusUnit | null;
+  isRepairing?: boolean;
 }
 
-function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderWork, onSelectVehicle, dataStatusUnit }: VehicleCardV2Props) {
+function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderWork, onSelectVehicle, dataStatusUnit, isRepairing }: VehicleCardV2Props) {
   const cat = vehicleCategory(row);
   const catColor = CAT_COLORS[cat] || '#60A5FA';
 
@@ -163,12 +164,13 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
   if (!selRec) {
     return (
       <div className="sv-v2-card idle">
-        <span className="sv-v2-stripe" style={{ background: 'var(--sv-text-4)' }} />
+        <span className="sv-v2-stripe" style={{ background: isRepairing ? '#EF4444' : 'var(--sv-text-4)' }} />
         <div className="sv-v2-head">
           <Gauge pct={0} color="var(--sv-text-4)" />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="sv-v2-plate">{row.regNumber}</span>
+              {isRepairing && <span title="В ремонте" style={{ display: 'inline-flex', flexShrink: 0 }}><Wrench size={11} strokeWidth={2} style={{ color: '#EF4444' }} /></span>}
               {mapBtn}
               <VehicleIcon kind={cat} color={catColor} size={16} />
             </div>
@@ -185,6 +187,9 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
 
   const kip = Math.round(selRec.kipPct);
   const color = kipColorV2(kip);
+
+  // Подозрительный 100%: двигатель работал весь сдвиг, но нагрузка/движение = 0
+  const isSuspicious100 = kip >= 95 && selRec.secondaryPct <= 5 && (selRec.movingTimeSec ?? 0) < 60;
 
   const metrics: Metric[] = row.source === 'dump_truck'
     ? [
@@ -210,10 +215,17 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="sv-v2-plate">{row.regNumber}</span>
+            {isRepairing && <span title="В ремонте" style={{ display: 'inline-flex', flexShrink: 0 }}><Wrench size={11} strokeWidth={2} style={{ color: '#EF4444' }} /></span>}
             {mapBtn}
             <VehicleIcon kind={cat} color={catColor} size={16} />
           </div>
           <div className="sv-v2-model">{row.nameMO}</div>
+          {isSuspicious100 && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 2, padding: '1px 5px', borderRadius: 4, background: '#F59E0B22', color: '#F59E0B', fontSize: 10, fontWeight: 600 }}>
+              <AlertTriangle size={9} strokeWidth={2.5} />
+              требует проверки
+            </div>
+          )}
           {selRec.objectName && (
             <div className="sv-v2-obj"><MapPin size={9} /> {selRec.objectName}</div>
           )}
