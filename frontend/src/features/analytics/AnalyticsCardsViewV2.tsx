@@ -62,9 +62,6 @@ export function AnalyticsCardsViewV2({
   onShowMore,
   dataStatusByVehicleDate,
 }: AnalyticsCardsViewV2Props) {
-  const tlTo = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const tlFrom = React.useMemo(() => new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10), []);
-  const repairPeriods = useRepairPeriods(tlFrom, tlTo);
   const recordsFor = React.useCallback(
     (v: UnifiedVehicleRow): UnifiedRecord[] =>
       v.source === 'dump_truck' ? v.records : (dstRecords.get(v.regNumber) ?? []),
@@ -103,6 +100,12 @@ export function AnalyticsCardsViewV2({
       }),
     }));
   }, [allGroups, recordsFor]);
+
+  // Окно периодов ремонта = диапазон видимого таймлайна (а не «последние 30 дней»),
+  // чтобы значок-ключ корректно показывался и при просмотре старых дат.
+  const repairFrom = timelineDays.length ? timelineDays[0]!.date : '';
+  const repairTo = timelineDays.length ? timelineDays[timelineDays.length - 1]!.date : '';
+  const repairPeriods = useRepairPeriods(repairFrom, repairTo);
 
   // Дефолт = последняя смена с данными (правый край таймлайна).
   const defaultSel = React.useMemo(() => {
