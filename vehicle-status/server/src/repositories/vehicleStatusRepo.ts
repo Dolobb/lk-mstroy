@@ -27,25 +27,42 @@ export async function queryRepairPeriods(
       WHERE snapshot_date BETWEEN $1::date - interval '180 days' AND $2::date
       GROUP BY plate_number, snapshot_date
     ),
+    flagged AS (
+      -- LAG не может быть вложен в SUM(...) OVER в одном CTE (PG: «вложенные
+      -- вызовы оконных функций недопустимы»), поэтому смену статуса считаем здесь,
+      -- а накопительную сумму (grp_id) — в следующем CTE.
+      SELECT *,
+        CASE WHEN status != COALESCE(LAG(status) OVER (PARTITION BY plate_number ORDER BY snapshot_date), '') THEN 1 ELSE 0 END AS is_change
+      FROM daily
+    ),
     with_grp AS (
       SELECT *,
-        SUM(CASE WHEN status != COALESCE(LAG(status) OVER (PARTITION BY plate_number ORDER BY snapshot_date), '') THEN 1 ELSE 0 END)
-          OVER (PARTITION BY plate_number ORDER BY snapshot_date) AS grp_id
-      FROM daily
+        SUM(is_change) OVER (PARTITION BY plate_number ORDER BY snapshot_date) AS grp_id
+      FROM flagged
     ),
     grouped AS (
       SELECT
         plate_number,
         status,
-        MAX(tech_status) AS tech_status,
-        MIN(snapshot_date)::text AS from_date,
-        MAX(snapshot_date)::text AS to_date
+        -- lower(): старые снимки (до перехода на lowercase) хранят «Списание» и т.п.;
+        -- нормализуем, чтобы popup был единообразным независимо от возраста данных.
+        lower(MAX(tech_status)) AS tech_status,
+        MIN(snapshot_date) AS from_date,
+        MAX(snapshot_date) AS to_date
       FROM with_grp
       WHERE status != 'false'
       GROUP BY plate_number, grp_id, status
     )
-    SELECT * FROM grouped
-    WHERE to_date >= $1
+    -- Сравниваем как даты (to_date >= $1::date), а в текст конвертируем только
+    -- на выходе — иначе pg-драйвер выводит тип $1 как date и падает на text >= date.
+    SELECT
+      plate_number,
+      status,
+      tech_status,
+      from_date::text AS from_date,
+      to_date::text AS to_date
+    FROM grouped
+    WHERE to_date >= $1::date
     ORDER BY plate_number, from_date DESC
   `, [from, to]);
 

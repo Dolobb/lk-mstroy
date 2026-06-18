@@ -238,6 +238,8 @@ app.get('/api/vs/debug/raw', async (req, res) => {
   }
 });
 
+// Исторические периоды ремонта (gap-and-islands по snapshots).
+// Используется всеми фронтенд-вкладками для значка-ключа на конкретную дату.
 app.get('/api/vs/repair-periods', async (req, res) => {
   try {
     const defaultFrom = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
