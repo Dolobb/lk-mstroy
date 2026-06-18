@@ -5,7 +5,7 @@ import type { VehicleRecord, SyncStatus, SyncLogEntry } from './types';
 import { fetchVehicles, fetchSyncStatus, triggerSync, fetchSnapshotDates, fetchSnapshots, fetchSyncLogs } from './api';
 import { RepairBadge } from './RepairBadge';
 import { useRepairPeriods } from './useRepairPeriods';
-import type { RepairPeriod } from './repairPeriods';
+import { getRepairOnDate } from './repairPeriods';
 
 const PAGE_SIZE = 50;
 
@@ -105,8 +105,15 @@ export const VehicleStatusPage: React.FC = () => {
   const [showSyncHistory, setShowSyncHistory] = useState(false);
   const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
 
-  const repairTo = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const repairFrom = React.useMemo(() => new Date(Date.now() - 60 * 86400_000).toISOString().slice(0, 10), []);
+  // Дата, на которую показываем статус: архив → выбранная дата снимка, иначе сегодня.
+  // Значок-ключ должен соответствовать этой дате (а не «последнему периоду вообще»).
+  const today = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const viewDate = snapshotMode && selectedSnapshotDate ? selectedSnapshotDate : today;
+  const repairFrom = React.useMemo(() => {
+    const d180 = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
+    return viewDate < d180 ? viewDate : d180;
+  }, [viewDate]);
+  const repairTo = React.useMemo(() => (viewDate > today ? viewDate : today), [viewDate, today]);
   const repairPeriods = useRepairPeriods(repairFrom, repairTo);
 
   const [loading, setLoading] = useState(false);
@@ -342,7 +349,8 @@ export const VehicleStatusPage: React.FC = () => {
       <td className="px-3 py-1.5">
         {(() => {
           const periods = repairPeriods.get(r.plateNumber.toUpperCase()) ?? [];
-          const latestPeriod: RepairPeriod | undefined = periods[0];
+          // Период, покрывающий просматриваемую дату — согласован с цветом badge.
+          const activePeriod = getRepairOnDate(periods, viewDate) ?? undefined;
           const badgeClass = r.isBroken === true
             ? 'bg-destructive/15 text-destructive'
             : r.isBroken === 'middle'
@@ -356,7 +364,7 @@ export const VehicleStatusPage: React.FC = () => {
               >
                 {r.techStatus || '—'}
               </span>
-              {latestPeriod && <RepairBadge period={latestPeriod} size={11} />}
+              {activePeriod && <RepairBadge period={activePeriod} size={11} />}
             </span>
           );
         })()}
