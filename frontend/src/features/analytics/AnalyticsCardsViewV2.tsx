@@ -4,25 +4,9 @@ import type { AnalyticsGroup } from './AnalyticsCardsView';
 import { VehicleCardV2 } from './VehicleCardV2';
 import { DayTimelineNav } from './DayTimelineNav';
 import type { TlDay, Shift } from './DayTimelineNav';
+import { useRepairPeriods } from '@/features/vehicle-status/useRepairPeriods';
+import { getRepairOnDate } from '@/features/vehicle-status/repairPeriods';
 import './analyticsV2.css';
-
-function useBrokenPlates(): Set<string> {
-  const [broken, setBroken] = React.useState<Set<string>>(new Set());
-  React.useEffect(() => {
-    fetch('/api/vs/vehicles')
-      .then(r => r.ok ? r.json() : null)
-      .then((d: { data: Array<{ plateNumber: string; isBroken: boolean }> } | null) => {
-        if (!d) return;
-        const s = new Set<string>();
-        for (const v of d.data) {
-          if (v.isBroken) s.add(v.plateNumber.toUpperCase());
-        }
-        setBroken(s);
-      })
-      .catch(() => {});
-  }, []);
-  return broken;
-}
 
 // ─── Карточки v2.0 («Навигация по дням») ──────────────────────────────
 // Единая навигация по дням сверху (DayTimelineNav), карточки показывают
@@ -78,7 +62,9 @@ export function AnalyticsCardsViewV2({
   onShowMore,
   dataStatusByVehicleDate,
 }: AnalyticsCardsViewV2Props) {
-  const brokenPlates = useBrokenPlates();
+  const tlTo = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const tlFrom = React.useMemo(() => new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10), []);
+  const repairPeriods = useRepairPeriods(tlFrom, tlTo);
   const recordsFor = React.useCallback(
     (v: UnifiedVehicleRow): UnifiedRecord[] =>
       v.source === 'dump_truck' ? v.records : (dstRecords.get(v.regNumber) ?? []),
@@ -179,7 +165,7 @@ export function AnalyticsCardsViewV2({
                     renderWork={renderWork}
                     onSelectVehicle={onSelectVehicle}
                     dataStatusUnit={dsUnit}
-                    isRepairing={brokenPlates.has(v.regNumber.toUpperCase())}
+                    repairPeriod={getRepairOnDate(repairPeriods.get(v.regNumber.toUpperCase()) ?? [], active.date) ?? undefined}
                   />
                 </div>
               );

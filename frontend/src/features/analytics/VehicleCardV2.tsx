@@ -1,7 +1,9 @@
 import React from 'react';
 import {
-  Map as MapIcon, MapPin, Cog, Activity, Navigation, Timer, Route, Repeat, Fuel, Pause, Wrench, AlertTriangle,
+  Map as MapIcon, MapPin, Cog, Activity, Navigation, Timer, Route, Repeat, Fuel, Pause, AlertTriangle,
 } from 'lucide-react';
+import { RepairBadge } from '@/features/vehicle-status/RepairBadge';
+import type { RepairPeriod } from '@/features/vehicle-status/repairPeriods';
 import type { UnifiedVehicleRow, UnifiedRecord, DataStatusUnit } from './types';
 import { VehicleIcon } from '@/components/VehicleIcon';
 import { abbreviateOrg } from '@/features/samosvaly/orgAbbrev';
@@ -123,12 +125,13 @@ interface VehicleCardV2Props {
   onSelectVehicle?: (regNumber: string) => void;
   /** Статус из ingest ledger для выбранной даты (может быть undefined если нет записи) */
   dataStatusUnit?: DataStatusUnit | null;
-  isRepairing?: boolean;
+  repairPeriod?: RepairPeriod;
 }
 
-function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderWork, onSelectVehicle, dataStatusUnit, isRepairing }: VehicleCardV2Props) {
+function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderWork, onSelectVehicle, dataStatusUnit, repairPeriod }: VehicleCardV2Props) {
   const cat = vehicleCategory(row);
   const catColor = CAT_COLORS[cat] || '#60A5FA';
+  const repairColor = repairPeriod?.status === 'true' ? '#EF4444' : '#F59E0B';
 
   const selRec = React.useMemo(
     () => records.find(r => toDateStr(r.reportDate) === selectedDate && r.shiftType === selectedShift),
@@ -164,13 +167,13 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
   if (!selRec) {
     return (
       <div className="sv-v2-card idle">
-        <span className="sv-v2-stripe" style={{ background: isRepairing ? '#EF4444' : 'var(--sv-text-4)' }} />
+        <span className="sv-v2-stripe" style={{ background: repairPeriod ? repairColor : 'var(--sv-text-4)' }} />
         <div className="sv-v2-head">
           <Gauge pct={0} color="var(--sv-text-4)" />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="sv-v2-plate">{row.regNumber}</span>
-              {isRepairing && <span title="В ремонте" style={{ display: 'inline-flex', flexShrink: 0 }}><Wrench size={11} strokeWidth={2} style={{ color: '#EF4444' }} /></span>}
+              {repairPeriod && <RepairBadge period={repairPeriod} size={11} />}
               {mapBtn}
               <VehicleIcon kind={cat} color={catColor} size={16} />
             </div>
@@ -215,7 +218,7 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="sv-v2-plate">{row.regNumber}</span>
-            {isRepairing && <span title="В ремонте" style={{ display: 'inline-flex', flexShrink: 0 }}><Wrench size={11} strokeWidth={2} style={{ color: '#EF4444' }} /></span>}
+            {repairPeriod && <RepairBadge period={repairPeriod} size={11} />}
             {mapBtn}
             <VehicleIcon kind={cat} color={catColor} size={16} />
           </div>

@@ -8,7 +8,7 @@ export interface VehicleRecord {
   techStatus: string | null;
   workType: string | null;
   category: string;
-  isBroken: boolean;
+  isBroken: boolean | 'middle';
   lastCheckDate: string | null;
   updatedAt: string;
 }

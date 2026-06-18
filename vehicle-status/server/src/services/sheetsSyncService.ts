@@ -67,10 +67,12 @@ function isValidTechStatus(s: string): boolean {
   return false;
 }
 
-function isBroken(statusText: string): boolean {
+function repairStatus(statusText: string): boolean | 'middle' {
   const st = statusText.trim().toLowerCase();
-  if (['исправен', 'частично исправен', 'требует ремонта'].some(x => st.includes(x))) return false;
-  if (['неисправен', 'ремонт', 'авария', 'не на ходу', 'на списание', 'списание', 'реализация'].some(x => st.includes(x))) return true;
+  // middle FIRST — 'требует ремонта' содержит 'ремонт', поэтому до broken-проверки
+  if (['требует ремонта', 'требует ремонт', 'требуется ремонт'].some(x => st.includes(x))) return 'middle';
+  // 'неисправен'/'не исправен' — проверяем явно, иначе substring 'исправен' матчит их в false-ветке
+  if (['неисправен', 'не исправен', 'ремонт', 'авария', 'не на ходу', 'на списание', 'списание', 'реализация'].some(x => st.includes(x))) return true;
   return false;
 }
 
@@ -172,7 +174,7 @@ interface ParsedVehicle {
   constructionObject: string;
   techStatus: string;
   workType: string;
-  isBroken: boolean;
+  isBroken: boolean | 'middle';
 }
 
 export interface SyncResult {
@@ -269,7 +271,7 @@ export async function runDiagnostic(): Promise<DiagnosticResult> {
         }
 
         statuses.add(status || '(пусто)');
-        parsed.push({ plate, status, broken: isBroken(status) });
+        parsed.push({ plate, status, broken: repairStatus(status) !== false });
       }
     }
 
@@ -401,7 +403,7 @@ export async function runSync(signal?: AbortSignal): Promise<SyncResult> {
         if (columns.techStatus !== undefined) {
           for (let c = columns.techStatus; c <= columns.techStatus + 2 && c < row.length; c++) {
             const v = String(row[c] ?? '').trim();
-            if (v && isValidTechStatus(v)) { techStatus = v; break; }
+            if (v && isValidTechStatus(v)) { techStatus = v.toLowerCase(); break; }
             if (v && !isValidTechStatus(v)) continue;
           }
         }
@@ -433,7 +435,7 @@ export async function runSync(signal?: AbortSignal): Promise<SyncResult> {
           constructionObject,
           techStatus,
           workType,
-          isBroken: isBroken(techStatus),
+          isBroken: repairStatus(techStatus),
         });
       }
 

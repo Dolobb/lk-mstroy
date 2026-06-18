@@ -12,6 +12,7 @@ import {
   updateSyncLog,
   querySyncLogs,
   queryMissingSnapshotDates,
+  queryRepairPeriods,
 } from './repositories/vehicleStatusRepo';
 import { runSync, runSyncWithRetry, runDiagnostic, debugRawRows, type SyncResult } from './services/sheetsSyncService';
 
@@ -233,6 +234,24 @@ app.get('/api/vs/debug/raw', async (req, res) => {
     const result = await debugRawRows(sheetName, plate);
     res.json(result);
   } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get('/api/vs/repair-periods', async (req, res) => {
+  try {
+    const defaultFrom = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
+    const from = String(req.query.from || defaultFrom);
+    const to   = String(req.query.to   || new Date().toISOString().slice(0, 10));
+    const pool = getPool();
+    const rows = await queryRepairPeriods(pool, from, to);
+    const byPlate: Record<string, typeof rows> = {};
+    for (const r of rows) {
+      (byPlate[r.plateNumber.toUpperCase()] ??= []).push(r);
+    }
+    res.json({ data: byPlate });
+  } catch (err) {
+    console.error('GET /api/vs/repair-periods error', err);
     res.status(500).json({ error: String(err) });
   }
 });

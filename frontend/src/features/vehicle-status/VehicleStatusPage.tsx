@@ -3,6 +3,9 @@ import { RefreshCw, Filter, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRig
 import { FilterDropdown, uniqueSortedBy } from '@/components/FilterDropdown';
 import type { VehicleRecord, SyncStatus, SyncLogEntry } from './types';
 import { fetchVehicles, fetchSyncStatus, triggerSync, fetchSnapshotDates, fetchSnapshots, fetchSyncLogs } from './api';
+import { RepairBadge } from './RepairBadge';
+import { useRepairPeriods } from './useRepairPeriods';
+import type { RepairPeriod } from './repairPeriods';
 
 const PAGE_SIZE = 50;
 
@@ -101,6 +104,10 @@ export const VehicleStatusPage: React.FC = () => {
   const [selectedSnapshotDate, setSelectedSnapshotDate] = useState<string>('');
   const [showSyncHistory, setShowSyncHistory] = useState(false);
   const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
+
+  const repairTo = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const repairFrom = React.useMemo(() => new Date(Date.now() - 60 * 86400_000).toISOString().slice(0, 10), []);
+  const repairPeriods = useRepairPeriods(repairFrom, repairTo);
 
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -311,7 +318,7 @@ export const VehicleStatusPage: React.FC = () => {
     <tr
       key={`${isPinned ? 'p' : 'u'}-${r.id}`}
       className={`border-b border-border/30 transition-colors hover:bg-muted/30 ${
-        r.isBroken ? 'bg-destructive/5' : ''
+        r.isBroken === true ? 'bg-destructive/5' : r.isBroken === 'middle' ? 'bg-amber-500/5' : ''
       } ${isPinned ? 'bg-primary/5' : ''}`}
     >
       <td className="px-1 py-1.5 text-center">
@@ -333,16 +340,26 @@ export const VehicleStatusPage: React.FC = () => {
       <td className="px-3 py-1.5">{cellText(r.brand)}</td>
       <td className="px-3 py-1.5 text-muted-foreground">{cellText(r.constructionObject)}</td>
       <td className="px-3 py-1.5">
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium ${
-            r.isBroken
-              ? 'bg-destructive/15 text-destructive'
-              : 'bg-green-500/15 text-green-600 dark:text-green-400'
-          }`}
-          style={{ fontSize: '10px' }}
-        >
-          {r.techStatus || '—'}
-        </span>
+        {(() => {
+          const periods = repairPeriods.get(r.plateNumber.toUpperCase()) ?? [];
+          const latestPeriod: RepairPeriod | undefined = periods[0];
+          const badgeClass = r.isBroken === true
+            ? 'bg-destructive/15 text-destructive'
+            : r.isBroken === 'middle'
+            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+            : 'bg-green-500/15 text-green-600 dark:text-green-400';
+          return (
+            <span className="inline-flex items-center gap-1">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium ${badgeClass}`}
+                style={{ fontSize: '10px' }}
+              >
+                {r.techStatus || '—'}
+              </span>
+              {latestPeriod && <RepairBadge period={latestPeriod} size={11} />}
+            </span>
+          );
+        })()}
       </td>
       <td className="px-3 py-1.5 text-muted-foreground">{cellText(r.workType)}</td>
       <td className="px-3 py-1.5 text-muted-foreground">{cellText(r.category)}</td>

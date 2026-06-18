@@ -1,5 +1,63 @@
 import type { PoolClient, Pool } from 'pg';
 
+export interface RepairPeriodRow {
+  plateNumber: string;
+  status: 'middle' | 'true';
+  techStatus: string;
+  from: string; // YYYY-MM-DD
+  to: string;   // YYYY-MM-DD
+}
+
+export async function queryRepairPeriods(
+  pool: Pool,
+  from: string,
+  to: string,
+): Promise<RepairPeriodRow[]> {
+  const result = await pool.query(`
+    WITH daily AS (
+      SELECT
+        plate_number,
+        snapshot_date,
+        CASE MAX(CASE is_broken WHEN 'true' THEN 2 WHEN 'middle' THEN 1 ELSE 0 END)
+          WHEN 2 THEN 'true' WHEN 1 THEN 'middle' ELSE 'false' END AS status,
+        (ARRAY_AGG(tech_status ORDER BY
+          CASE is_broken WHEN 'true' THEN 2 WHEN 'middle' THEN 1 ELSE 0 END DESC
+        ))[1] AS tech_status
+      FROM vehicle_status.snapshots
+      WHERE snapshot_date BETWEEN $1::date - interval '180 days' AND $2::date
+      GROUP BY plate_number, snapshot_date
+    ),
+    with_grp AS (
+      SELECT *,
+        SUM(CASE WHEN status != COALESCE(LAG(status) OVER (PARTITION BY plate_number ORDER BY snapshot_date), '') THEN 1 ELSE 0 END)
+          OVER (PARTITION BY plate_number ORDER BY snapshot_date) AS grp_id
+      FROM daily
+    ),
+    grouped AS (
+      SELECT
+        plate_number,
+        status,
+        MAX(tech_status) AS tech_status,
+        MIN(snapshot_date)::text AS from_date,
+        MAX(snapshot_date)::text AS to_date
+      FROM with_grp
+      WHERE status != 'false'
+      GROUP BY plate_number, grp_id, status
+    )
+    SELECT * FROM grouped
+    WHERE to_date >= $1
+    ORDER BY plate_number, from_date DESC
+  `, [from, to]);
+
+  return result.rows.map(r => ({
+    plateNumber: r.plate_number,
+    status: r.status as 'middle' | 'true',
+    techStatus: r.tech_status ?? '',
+    from: r.from_date,
+    to: r.to_date,
+  }));
+}
+
 export interface VehicleRecord {
   id: number;
   plateNumber: string;
@@ -10,9 +68,15 @@ export interface VehicleRecord {
   techStatus: string | null;
   workType: string | null;
   category: string;
-  isBroken: boolean;
+  isBroken: boolean | 'middle';
   lastCheckDate: string | null;
   updatedAt: string;
+}
+
+function parseRepairStatus(val: string | boolean): boolean | 'middle' {
+  if (val === true || val === 'true') return true;
+  if (val === 'middle') return 'middle';
+  return false;
 }
 
 export async function deleteByCategory(client: PoolClient, category: string): Promise<void> {
@@ -33,7 +97,7 @@ export async function insertVehicle(
     techStatus: string;
     workType: string;
     category: string;
-    isBroken: boolean;
+    isBroken: boolean | 'middle';
     today: string;
   },
 ): Promise<void> {
@@ -51,7 +115,7 @@ export async function insertVehicle(
       data.techStatus || null,
       data.workType || null,
       data.category,
-      data.isBroken,
+      String(data.isBroken),
       data.today,
     ],
   );
@@ -76,7 +140,7 @@ export async function queryAllVehicles(
     techStatus: r.tech_status,
     workType: r.work_type,
     category: r.category,
-    isBroken: r.is_broken,
+    isBroken: parseRepairStatus(r.is_broken),
     lastCheckDate: r.last_check_date,
     updatedAt: r.updated_at,
   }));
@@ -124,7 +188,7 @@ export async function insertSnapshot(
     techStatus: string;
     workType: string;
     category: string;
-    isBroken: boolean;
+    isBroken: boolean | 'middle';
     snapshotDate: string;
   },
 ): Promise<void> {
@@ -152,7 +216,7 @@ export async function insertSnapshot(
       data.techStatus || null,
       data.workType || null,
       data.category,
-      data.isBroken,
+      String(data.isBroken),
     ],
   );
 }
@@ -176,7 +240,7 @@ export async function querySnapshotsByDate(pool: Pool, date: string): Promise<Ve
     techStatus: r.tech_status,
     workType: r.work_type,
     category: r.category,
-    isBroken: r.is_broken,
+    isBroken: parseRepairStatus(r.is_broken),
     lastCheckDate: r.last_check_date,
     updatedAt: r.updated_at,
   }));

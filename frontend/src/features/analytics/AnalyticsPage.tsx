@@ -6,6 +6,9 @@ import { DataFreshnessBadge } from '@/components/DataFreshnessBadge';
 import { MiniBar } from '@/components/MiniBar';
 import { ShiftChip } from '@/components/ShiftChip';
 import type { MicroBar } from '@/components/ShiftChip';
+import { RepairBadge } from '@/features/vehicle-status/RepairBadge';
+import { useRepairPeriods } from '@/features/vehicle-status/useRepairPeriods';
+import { getRepairOnDate, repairIntersects } from '@/features/vehicle-status/repairPeriods';
 import { ShiftGanttBar } from '@/components/ShiftGanttBar';
 import { abbreviateOrg } from '@/features/samosvaly/orgAbbrev';
 import { ShiftSubTable } from '@/features/samosvaly/DumpTrucksPage';
@@ -382,6 +385,7 @@ export function AnalyticsPage() {
   const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
   const fromDate = new Date(dateFrom);
   const toDate = new Date(dateTo);
+  const repairPeriods = useRepairPeriods(dateFrom.slice(0, 10), dateTo.slice(0, 10));
   const [shift, setShift] = useState<'all' | 'shift1' | 'shift2'>('all');
   const [vehicleFilters, setVehicleFilters] = useState<Set<string>>(new Set(['all']));
   const [expandedFilterGroups, setExpandedFilterGroups] = useState<Set<string>>(new Set());
@@ -974,7 +978,7 @@ export function AnalyticsPage() {
   // ─── Chip helpers ───────────────────────────────────
 
   type ChipData = {
-    key: string; date: string; shift: 0 | 1 | 2;
+    key: string; date: string; isoDate: string; shift: 0 | 1 | 2;
     trips: number; kip: number; movement: number;
     workType: string; engineHours?: number; shiftRecordId?: number;
   };
@@ -986,6 +990,7 @@ export function AnalyticsPage() {
     return sorted.map(r => ({
       key: `${regNumber}_${toDateStr(r.reportDate)}_${r.shiftType}`,
       date: fmtDateShort(toDateStr(r.reportDate)),
+      isoDate: toDateStr(r.reportDate),
       shift: (r.shiftType === 'shift1' ? 1 : 2) as 1 | 2,
       trips: r.tripsCount ?? 0,
       kip: r.kipPct,
@@ -1546,6 +1551,16 @@ export function AnalyticsPage() {
                                             setViewMode('map');
                                           }}
                                         >{v.regNumber}</span>
+                                        {(repairPeriods.get(v.regNumber.toUpperCase()) ?? []).find(p =>
+                                          repairIntersects(p, dateFrom.slice(0, 10), dateTo.slice(0, 10))
+                                        ) && (
+                                          <RepairBadge
+                                            period={(repairPeriods.get(v.regNumber.toUpperCase()) ?? []).find(p =>
+                                              repairIntersects(p, dateFrom.slice(0, 10), dateTo.slice(0, 10))
+                                            )!}
+                                            size={10}
+                                          />
+                                        )}
                                         <span className="sv-veh-model">{v.nameMO}</span>
                                         {sourceTag}
                                       </div>
@@ -1578,7 +1593,11 @@ export function AnalyticsPage() {
                                       ) : (
                                         <div className="sv-chip-strip">
                                           {buildChips(records, v.regNumber).map(c => {
-                                            const { key: _k, shiftRecordId, ...chip } = c;
+                                            const { key: _k, shiftRecordId, isoDate, ...chip } = c;
+                                            const chipRepairPeriod = getRepairOnDate(
+                                              repairPeriods.get(v.regNumber.toUpperCase()) ?? [],
+                                              isoDate,
+                                            ) ?? undefined;
                                             return (
                                               <ShiftChip
                                                 key={c.key}
@@ -1586,6 +1605,7 @@ export function AnalyticsPage() {
                                                 isSelected={selectedChip === c.key}
                                                 onClick={() => handleChipClick(c.key)}
                                                 microBars={shiftRecordId != null ? chipSegments.get(shiftRecordId) : undefined}
+                                                repairPeriod={chipRepairPeriod}
                                               />
                                             );
                                           })}

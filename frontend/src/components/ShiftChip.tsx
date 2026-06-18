@@ -1,4 +1,6 @@
 import React from 'react';
+import { RepairBadge } from '@/features/vehicle-status/RepairBadge';
+import type { RepairPeriod } from '@/features/vehicle-status/repairPeriods';
 
 export interface MicroBar {
   kip: number;
@@ -16,6 +18,7 @@ export interface ShiftChipProps {
   isSelected: boolean;
   onClick: () => void;
   microBars?: MicroBar[];
+  repairPeriod?: RepairPeriod;
 }
 
 function barColor(v: number): string {
@@ -26,7 +29,7 @@ function kipColorClass(v: number): string {
   return v >= 75 ? 'kg' : v >= 50 ? 'kb' : 'kr';
 }
 
-export function ShiftChip({ date, shift, trips, kip, movement, workType, engineHours, isSelected, onClick, microBars }: ShiftChipProps) {
+export function ShiftChip({ date, shift, trips, kip, movement, workType, engineHours, isSelected, onClick, microBars, repairPeriod }: ShiftChipProps) {
   const isOnsite = workType === 'onsite';
   const hasMicro = isOnsite && microBars != null && microBars.length > 0;
   const isZero = isOnsite ? (!engineHours || engineHours === 0) : trips === 0;
@@ -52,10 +55,15 @@ export function ShiftChip({ date, shift, trips, kip, movement, workType, engineH
       title={titleLines.join('\n')}
       onClick={onClick}
     >
-      {/* Left: date + shift */}
+      {/* Left: date + shift + repair indicator */}
       <span className="sv-chip-date">
         {date}
         <small>{shiftLabel}</small>
+        {repairPeriod && (
+          <span style={{ display: 'inline-flex', marginLeft: 2 }}>
+            <RepairBadge period={repairPeriod} size={9} />
+          </span>
+        )}
       </span>
 
       {/* Center: vis tracks / micro-bar chart */}
