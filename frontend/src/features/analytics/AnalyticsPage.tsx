@@ -37,6 +37,7 @@ import { AnalyticsSidebar } from './AnalyticsSidebar';
 import { SUBGROUP_LABELS, SUBGROUP_COLORS, SUBGROUP_ORDER, vehicleCategory } from './categories';
 import { VehicleIcon } from '@/components/VehicleIcon';
 import { ReasonBadge } from './components/ReasonBadge';
+import { previousShift } from './shiftPresets';
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -203,10 +204,42 @@ function toYekatIso(d: Date): string {
 function isoToYmd(iso: string): string {
   return iso.split('T')[0] ?? iso;
 }
-const _today = new Date();
-const _yesterday = new Date(_today.getFullYear(), _today.getMonth(), _today.getDate() - 1, 7, 30);
-const DEFAULT_DATE_FROM = toYekatIso(_yesterday);
-const DEFAULT_DATE_TO = toYekatIso(new Date(_today.getFullYear(), _today.getMonth(), _today.getDate(), 7, 30));
+// Дефолтный диапазон без кэша = «Предыдущая смена» (последняя завершённая смена).
+function defaultDateRange(): { from: string; to: string } {
+  const { from, to } = previousShift();
+  return { from: toYekatIso(from), to: toYekatIso(to) };
+}
+
+// ─── Кэш состояния вкладки/диапазона (localStorage) ──────
+const LS_VIEW = 'sv-analytics-view';
+const LS_FROM = 'sv-analytics-from';
+const LS_TO = 'sv-analytics-to';
+const VIEW_MODES = ['table', 'map', 'cards', 'cardsV2'] as const;
+type ViewMode = (typeof VIEW_MODES)[number];
+
+function lsGet(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function lsSet(key: string, val: string): void {
+  try { localStorage.setItem(key, val); } catch { /* SSR / quota — игнор */ }
+}
+function isValidIso(s: string | null): s is string {
+  return !!s && !Number.isNaN(new Date(s).getTime());
+}
+function initialDateFrom(): string {
+  const cached = lsGet(LS_FROM);
+  return isValidIso(cached) ? cached : defaultDateRange().from;
+}
+function initialDateTo(): string {
+  const cached = lsGet(LS_TO);
+  return isValidIso(cached) ? cached : defaultDateRange().to;
+}
+function initialViewMode(): ViewMode {
+  const cached = lsGet(LS_VIEW);
+  return (VIEW_MODES as readonly string[]).includes(cached ?? '')
+    ? (cached as ViewMode)
+    : 'table';
+}
 
 const OUTSIDE_GROUP_UID = '__outside' as const;
 
@@ -381,8 +414,8 @@ function last7ClosedDays(): { from: string; to: string } {
 
 export function AnalyticsPage() {
   const { resolvedTheme } = useTheme();
-  const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
-  const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
+  const [dateFrom, setDateFrom] = useState(initialDateFrom);
+  const [dateTo, setDateTo] = useState(initialDateTo);
   const fromDate = new Date(dateFrom);
   const toDate = new Date(dateTo);
   const repairPeriods = useRepairPeriods(dateFrom.slice(0, 10), dateTo.slice(0, 10));
@@ -428,7 +461,13 @@ export function AnalyticsPage() {
     });
   };
 
-  const [viewMode, setViewMode] = useState<'table' | 'map' | 'cards' | 'cardsV2'>('table');
+  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
+
+  // Кэш: сохраняем вкладку и диапазон в localStorage при каждом изменении,
+  // чтобы перезагрузка страницы не сбрасывала состояние на дефолт.
+  useEffect(() => { lsSet(LS_VIEW, viewMode); }, [viewMode]);
+  useEffect(() => { lsSet(LS_FROM, dateFrom); }, [dateFrom]);
+  useEffect(() => { lsSet(LS_TO, dateTo); }, [dateTo]);
 
   const [dtRows, setDtRows] = useState<UnifiedVehicleRow[]>([]);
   const [dstRows, setDstRows] = useState<UnifiedVehicleRow[]>([]);
@@ -1205,6 +1244,9 @@ export function AnalyticsPage() {
       <div className="sv-an-filterbar">
         <DataFreshnessBadge />
 
+        {/* Навигация по диапазону скрыта в cardsV2: там фиксированное окно 16 дней
+            и собственный DayTimelineNav, глобальный date-picker не нужен. */}
+        {viewMode !== 'cardsV2' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <button
             className="sv-view-tab"
@@ -1234,6 +1276,7 @@ export function AnalyticsPage() {
             style={{ width: 24, height: 24, fontSize: 14, padding: 0, justifyContent: 'center', flexShrink: 0 }}
           >›</button>
         </div>
+        )}
 
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {/* Все */}

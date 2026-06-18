@@ -10,6 +10,8 @@ export interface DatePreset {
   label: string;
   from: Date;
   to: Date;
+  /** Показать тонкий разделитель после этого пресета (между сменными и календарными). */
+  dividerAfter?: boolean;
 }
 
 export interface DatePickerCoreProps {
@@ -82,14 +84,16 @@ export function DatePickerCore({
             {/* Sidebar */}
             <div className="sv-dp-sidebar">
               {presets.map((p, i) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  className={`sv-dp-preset${activePresetIdx === i ? ' active' : ''}`}
-                  onClick={() => onPreset(p)}
-                >
-                  {p.label}
-                </button>
+                <React.Fragment key={p.label}>
+                  <button
+                    type="button"
+                    className={`sv-dp-preset${activePresetIdx === i ? ' active' : ''}`}
+                    onClick={() => onPreset(p)}
+                  >
+                    {p.label}
+                  </button>
+                  {p.dividerAfter && <div className="sv-dp-preset-divider" />}
+                </React.Fragment>
               ))}
               {sidebarContent}
             </div>

@@ -126,6 +126,14 @@
   color: var(--dp-selected-text);
 }
 
+/* Разделитель между сменными и календарными пресетами */
+.sv-dp-preset-divider {
+  height: 1px;
+  width: 100%;
+  background: var(--dp-border);
+  margin: 4px 0;
+}
+
 /* ── Shift buttons in sidebar ── */
 .sv-dp-shifts {
   margin-top: auto;

@@ -5,6 +5,7 @@ import {
   subDays, format, parseISO,
 } from 'date-fns';
 import { DatePickerCore, fmtTrigger, matchPreset, type DatePreset } from '../DateRangePicker';
+import { currentShift, previousShift, lastTwoShifts } from '../../features/analytics/shiftPresets';
 
 export interface DateTimeRangePickerProps {
   from: Date;
@@ -12,11 +13,6 @@ export interface DateTimeRangePickerProps {
   onChange: (from: Date, to: Date) => void;
   tz?: string;
 }
-
-const SHIFT1_START = { hours: 7, minutes: 30 };
-const SHIFT1_END = { hours: 19, minutes: 30 };
-const SHIFT2_START = { hours: 19, minutes: 30 };
-const SHIFT2_END = { hours: 7, minutes: 30 };
 
 const WK = { weekStartsOn: 1 as const };
 
@@ -44,47 +40,18 @@ function mkDate(ts: number, h: number, m: number): Date {
   return d;
 }
 
-function shiftEndDate(ts: number, plusDays: number, h: number, m: number): Date {
-  const d = shiftDay(ts, plusDays);
-  d.setHours(h, m, 0, 0);
-  return d;
-}
-
-function getCurrentShift(now: Date): { from: Date; to: Date } {
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const shift1StartMin = SHIFT1_START.hours * 60 + SHIFT1_START.minutes;
-  const shift2StartMin = SHIFT2_START.hours * 60 + SHIFT2_START.minutes;
-
-  if (minutes >= shift1StartMin && minutes < shift2StartMin) {
-    return {
-      from: setTime(midnight, SHIFT1_START.hours, SHIFT1_START.minutes),
-      to: setTime(midnight, SHIFT1_END.hours, SHIFT1_END.minutes),
-    };
-  }
-  const yesterdayMidnight = shiftDay(midnight.getTime(), -1);
-  return {
-    from: setTime(yesterdayMidnight, SHIFT2_START.hours, SHIFT2_START.minutes),
-    to: setTime(midnight, SHIFT2_END.hours, SHIFT2_END.minutes),
-  };
-}
-
 function buildPresets(now: Date): DatePreset[] {
   const ts = now.getTime();
-  const currentShift = getCurrentShift(now);
+
+  // Сменные пресеты — единый источник истины в shiftPresets.ts
+  const cur = currentShift(now);
+  const prev = previousShift(now);
+  const twoPrev = lastTwoShifts(now);
 
   return [
-    { label: 'Текущая смена', from: currentShift.from, to: currentShift.to },
-    {
-      label: 'Утренняя смена',
-      from: mkDate(ts, SHIFT1_START.hours, SHIFT1_START.minutes),
-      to: mkDate(ts, SHIFT1_END.hours, SHIFT1_END.minutes),
-    },
-    {
-      label: 'Вечерняя смена (вчера)',
-      from: shiftEndDate(ts, -1, SHIFT2_START.hours, SHIFT2_START.minutes),
-      to: shiftEndDate(ts, 0, SHIFT2_END.hours, SHIFT2_END.minutes),
-    },
+    { label: 'Текущая смена', from: cur.from, to: cur.to },
+    { label: 'Предыдущая смена', from: prev.from, to: prev.to },
+    { label: '2 предыдущие смены', from: twoPrev.from, to: twoPrev.to, dividerAfter: true },
     {
       label: 'Сегодня',
       from: mkDate(ts, 0, 0),
