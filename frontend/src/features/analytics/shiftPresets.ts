@@ -60,6 +60,19 @@ export function previousShift(now: Date = new Date()): ShiftRange {
   return shiftBefore(currentShift(now).from);
 }
 
+/**
+ * Последняя полностью завершённая смена как {дата, тип} — для выбора в карточках/таймлайне.
+ * Ночная смена (shift2) датируется днём её НАЧАЛА (19:30), как и везде в таймлайне.
+ *  • сейчас 14:21 19 июня → ночная 18→19 → { date: '2026-06-18', shift: 'shift2' }
+ */
+export function previousShiftCell(now: Date = new Date()): { date: string; shift: 'shift1' | 'shift2' } {
+  const { from } = previousShift(now);
+  const min = from.getHours() * 60 + from.getMinutes();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${from.getFullYear()}-${pad(from.getMonth() + 1)}-${pad(from.getDate())}`;
+  return { date, shift: min === SHIFT_MID_MIN ? 'shift2' : 'shift1' };
+}
+
 /** Две последние полностью завершённые смены (непрерывное 24-часовое окно). */
 export function lastTwoShifts(now: Date = new Date()): ShiftRange {
   const prev = previousShift(now);

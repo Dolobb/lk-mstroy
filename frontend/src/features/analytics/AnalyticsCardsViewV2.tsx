@@ -6,6 +6,7 @@ import { DayTimelineNav } from './DayTimelineNav';
 import type { TlDay, Shift } from './DayTimelineNav';
 import { useRepairPeriods } from '@/features/vehicle-status/useRepairPeriods';
 import { getRepairOnDate } from '@/features/vehicle-status/repairPeriods';
+import { previousShiftCell } from './shiftPresets';
 import './analyticsV2.css';
 
 // ─── Карточки v2.0 («Навигация по дням») ──────────────────────────────
@@ -107,12 +108,23 @@ export function AnalyticsCardsViewV2({
   const repairTo = timelineDays.length ? timelineDays[timelineDays.length - 1]!.date : '';
   const repairPeriods = useRepairPeriods(repairFrom, repairTo);
 
-  // Дефолт = последняя смена с данными (правый край таймлайна).
+  // Дефолт = последняя ПОЛНОСТЬЮ завершённая смена (а не правый край с данными:
+  // у текущей идущей смены данные тоже могут быть частично — её брать нельзя).
+  // Якорь — previousShiftCell(); от него ищем назад первую смену с данными,
+  // пропуская идущую/будущую смену (правее якоря).
   const defaultSel = React.useMemo(() => {
+    const anchor = previousShiftCell();
+    const isAfterAnchor = (date: string, shift: Shift) => {
+      if (date > anchor.date) return true;
+      if (date < anchor.date) return false;
+      return shift === 'shift2' && anchor.shift === 'shift1';
+    };
     for (let i = timelineDays.length - 1; i >= 0; i--) {
       const day = timelineDays[i]!;
       for (let s = day.cells.length - 1; s >= 0; s--) {
-        if (day.cells[s]!.hasData) return { date: day.date, shift: day.cells[s]!.shift };
+        const cell = day.cells[s]!;
+        if (isAfterAnchor(day.date, cell.shift)) continue;
+        if (cell.hasData) return { date: day.date, shift: cell.shift };
       }
     }
     return null;
