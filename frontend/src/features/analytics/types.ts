@@ -105,6 +105,8 @@ export interface UnifiedRecord {
 
 export interface UnifiedVehicleRow {
   regNumber: string;
+  /** Идентификатор ТС в ingest.tasks: idMO для DT, госномер для KIP. */
+  ledgerVehicleRef: string;
   nameMO: string;
   organization: string | null;
   vehicleType: string;

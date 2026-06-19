@@ -14,31 +14,46 @@ export interface ReasonBadgeUnit {
 
 interface ReasonBadgeProps {
   unit: ReasonBadgeUnit | null | undefined;
-  /** Если unit === undefined/null — показываем «Нет путевого листа» */
+  /** undefined = статус ещё неизвестен; null = задачи в ledger нет. */
+  missingReason?: 'no_task' | 'ledger_gap' | 'result_mismatch';
   className?: string;
 }
 
 /**
  * Бейдж с причиной отсутствия данных из ingest ledger.
  *
- * - unit === null/undefined → «Нет путевого листа» (серый тусклый)
+ * - unit === undefined → ничего (загрузка/статус не запрашивался)
+ * - unit === null → нейтральное отсутствие задачи или подтверждённый пропуск ledger
  * - status='done' без reasonCode → null (ничего не рендерить)
  * - иначе → цветной бейдж с подписью
  *
  * Для failed добавляет ×N (attempt) и title с lastError.
  */
-export function ReasonBadge({ unit, className }: ReasonBadgeProps): React.ReactElement | null {
-  // Нет записи в ledger — машина без путевого листа
-  if (!unit) {
+export function ReasonBadge({
+  unit,
+  missingReason = 'no_task',
+  className,
+}: ReasonBadgeProps): React.ReactElement | null {
+  if (unit === undefined) return null;
+
+  if (unit === null) {
+    const isLedgerGap = missingReason === 'ledger_gap';
+    const isResultMismatch = missingReason === 'result_mismatch';
     return (
       <Badge
         className={cn(
-          'border-none text-[10px] font-normal opacity-60',
-          'bg-muted text-muted-foreground',
+          'border-none text-[10px] font-normal',
+          isLedgerGap || isResultMismatch
+            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+            : 'bg-muted text-muted-foreground opacity-70',
           className,
         )}
       >
-        Нет путевого листа
+        {isLedgerGap
+          ? 'Пропуск ledger'
+          : isResultMismatch
+            ? 'Ledger done, данных нет'
+            : 'Нет задачи выгрузки'}
       </Badge>
     );
   }

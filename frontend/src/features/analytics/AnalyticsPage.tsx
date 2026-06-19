@@ -29,7 +29,7 @@ import type { UnifiedVehicleRow, UnifiedRecord, KipSegment, KipSegmentProgress, 
 import { usePositions } from './hooks/usePositions';
 import { useTrack } from './hooks/useTrack';
 import { useSidebarSummary } from './hooks/useGroups';
-import { useDataStatus } from './hooks/useDataStatus';
+import { dataStatusVehicleKey, useDataStatus } from './hooks/useDataStatus';
 import { AnalyticsMapView } from './AnalyticsMapView';
 import { AnalyticsCardsView, countGroupVehicles, limitGroupsForCards } from './AnalyticsCardsView';
 import { AnalyticsCardsViewV2 } from './AnalyticsCardsViewV2';
@@ -484,12 +484,18 @@ export function AnalyticsPage() {
     error: sidebarError,
   } = useSidebarSummary(sidebarRange.from, sidebarRange.to);
 
-  // Ingest ledger: статусы данных за окно v2 (для карточек v2 — объяснение пустых карточек)
-  const { byVehicleDate: dataStatusV2 } = useDataStatus(v2Range.from, v2Range.to, 'analytics-track');
+  // Ingest ledger: точные статусы смен KIP/DT. Pipeline выбирается по типу ТС.
+  const {
+    byPipelineVehicleDateShift: dataStatusV2,
+    loading: dataStatusV2Loading,
+  } = useDataStatus(v2Range.from, v2Range.to);
   // Ingest ledger: статусы данных за period picker (для таблицы/карточек v1)
   const pickerFrom = isoToYmd(dateFrom);
   const pickerTo = isoToYmd(dateTo);
-  const { byVehicleDate: dataStatusPicker } = useDataStatus(pickerFrom, pickerTo);
+  const {
+    byPipelineVehicle: dataStatusPicker,
+    loading: dataStatusPickerLoading,
+  } = useDataStatus(pickerFrom, pickerTo);
 
   // ─── Fetch data ─────────────────────────────────────
 
@@ -1015,6 +1021,17 @@ export function AnalyticsPage() {
     return dstDetails.get(row.regNumber) ?? [];
   }
 
+  function getLatestDisplayStatus(row: UnifiedVehicleRow) {
+    const pipeline = row.source === 'dump_truck' ? 'dt-shift' : 'kip-shift';
+    const key = dataStatusVehicleKey(pipeline, row.ledgerVehicleRef);
+    const units = dataStatusPicker.get(key) ?? [];
+    for (let i = units.length - 1; i >= 0; i -= 1) {
+      const unit = units[i]!;
+      if (unit.status !== 'done' || unit.reasonCode) return unit;
+    }
+    return units[units.length - 1] ?? null;
+  }
+
   // ─── Chip detail renderer for cards view ────────────
 
   const renderCardsChipDetail = React.useCallback((chipKey: string): React.ReactNode => {
@@ -1434,7 +1451,8 @@ export function AnalyticsPage() {
                 visibleVehicleCount={visibleCardsV2Count}
                 totalVehicleCount={totalCardsV2Count}
                 onShowMore={() => setVisibleCardsLimit(v => Math.min(v + CARDS_BATCH_SIZE, totalCardsV2Count))}
-                dataStatusByVehicleDate={dataStatusV2}
+                dataStatusByUnit={dataStatusV2}
+                dataStatusLoading={dataStatusV2Loading}
               />
           ))}
 
@@ -1586,9 +1604,18 @@ export function AnalyticsPage() {
                                         </div>
                                       ) : records.length === 0 ? (
                                         <div style={{ padding: 8, fontSize: 11, color: 'var(--sv-text-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                          <ReasonBadge
-                                            unit={dataStatusPicker.get(`${v.regNumber.toUpperCase()}|${pickerTo}`) ?? null}
-                                          />
+                                          {(() => {
+                                            const status = dataStatusPickerLoading
+                                              ? undefined
+                                              : getLatestDisplayStatus(v);
+                                            const doneWithoutReason = status?.status === 'done' && !status.reasonCode;
+                                            return (
+                                              <ReasonBadge
+                                                unit={doneWithoutReason ? null : status}
+                                                missingReason={doneWithoutReason ? 'result_mismatch' : 'no_task'}
+                                              />
+                                            );
+                                          })()}
                                         </div>
                                       ) : (
                                         <div className="sv-chip-strip">

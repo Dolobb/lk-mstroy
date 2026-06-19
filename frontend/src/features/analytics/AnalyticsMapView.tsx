@@ -949,6 +949,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           pins.push({
             row: {
               regNumber: p.regNumber,
+              ledgerVehicleRef: p.regNumber,
               nameMO: p.regNumber,
               organization: null,
               vehicleType: '',

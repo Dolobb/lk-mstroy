@@ -14,10 +14,14 @@ import type { DataStatusUnit } from '../types';
  * DataStatusUnit для точного матчинга по смене.
  */
 export interface DataStatusResult {
-  /** По ключу vehicleRef|date — последний (наиболее полный) статус */
+  /** По ключу vehicleRef|date — наиболее важный статус среди загруженных pipeline. */
   byVehicleDate: Map<string, DataStatusUnit>;
-  /** По ключу vehicleRef|date|shift — точный матч */
+  /** Legacy-ключ без pipeline. Не использовать, если несколько pipeline имеют одинаковый ref. */
   byVehicleDateShift: Map<string, DataStatusUnit>;
+  /** Точный ключ pipeline|vehicleRef|date|shift. */
+  byPipelineVehicleDateShift: Map<string, DataStatusUnit>;
+  /** Все статусы единицы ТС в pipeline за период, по возрастанию даты. */
+  byPipelineVehicle: Map<string, DataStatusUnit[]>;
   loading: boolean;
   error: Error | null;
   refetch: () => void;
@@ -45,16 +49,29 @@ export function useDataStatus(
 
   const byVehicleDate = new Map<string, DataStatusUnit>();
   const byVehicleDateShift = new Map<string, DataStatusUnit>();
+  const byPipelineVehicleDateShift = new Map<string, DataStatusUnit>();
+  const byPipelineVehicle = new Map<string, DataStatusUnit[]>();
 
   if (units) {
     for (const unit of units) {
       const ref = unit.vehicleRef.toUpperCase();
 
+      const exactKey = dataStatusUnitKey(unit.pipeline, ref, unit.date, unit.shift);
+      byPipelineVehicleDateShift.set(exactKey, unit);
+
+      const vehicleKey = dataStatusVehicleKey(unit.pipeline, ref);
+      const vehicleUnits = byPipelineVehicle.get(vehicleKey) ?? [];
+      vehicleUnits.push(unit);
+      byPipelineVehicle.set(vehicleKey, vehicleUnits);
+
       // Точный ключ по смене
       const shiftKey = `${ref}|${unit.date}|${unit.shift}`;
-      byVehicleDateShift.set(shiftKey, unit);
+      const existingShift = byVehicleDateShift.get(shiftKey);
+      if (!existingShift || statusPriority(unit.status) > statusPriority(existingShift.status)) {
+        byVehicleDateShift.set(shiftKey, unit);
+      }
 
-      // Сводный ключ по дате (приоритет: done > empty > failed > running > pending)
+      // Сводный legacy-ключ по дате: приоритет у проблемы, а не у done.
       const dayKey = `${ref}|${unit.date}`;
       const existing = byVehicleDate.get(dayKey);
       if (!existing || statusPriority(unit.status) > statusPriority(existing.status)) {
@@ -66,20 +83,35 @@ export function useDataStatus(
   return {
     byVehicleDate,
     byVehicleDateShift,
+    byPipelineVehicleDateShift,
+    byPipelineVehicle,
     loading: isLoading,
     error: error as Error | null,
     refetch,
   };
 }
 
-/** Приоритет статуса для сводного ключа (выше = "интереснее" показывать) */
+export function dataStatusUnitKey(
+  pipeline: string,
+  vehicleRef: string,
+  date: string,
+  shift: string,
+): string {
+  return `${pipeline}|${vehicleRef.toUpperCase()}|${date}|${shift}`;
+}
+
+export function dataStatusVehicleKey(pipeline: string, vehicleRef: string): string {
+  return `${pipeline}|${vehicleRef.toUpperCase()}`;
+}
+
+/** Приоритет проблемы для сводного ключа (выше = важнее показать). */
 function statusPriority(status: string): number {
   switch (status) {
-    case 'done': return 5;
-    case 'failed': return 4;
-    case 'empty': return 3;
-    case 'running': return 2;
-    case 'pending': return 1;
+    case 'failed': return 5;
+    case 'running': return 4;
+    case 'pending': return 3;
+    case 'empty': return 2;
+    case 'done': return 1;
     default: return 0;
   }
 }

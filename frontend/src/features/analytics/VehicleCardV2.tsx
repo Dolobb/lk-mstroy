@@ -180,7 +180,7 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
             <div className="sv-v2-model">{row.nameMO}</div>
           </div>
         </div>
-        {/* dataStatusUnit=undefined → «Нет путевого листа», unit с reasonCode → причина */}
+        {/* Нет результата смены: показываем точную причину pipeline или отсутствие задачи. */}
         <div style={{ marginTop: 4 }}>
           <ReasonBadge unit={dataStatusUnit} />
         </div>
@@ -223,6 +223,11 @@ function VehicleCardV2Inner({ row, records, selectedDate, selectedShift, renderW
             <VehicleIcon kind={cat} color={catColor} size={16} />
           </div>
           <div className="sv-v2-model">{row.nameMO}</div>
+          <ReasonBadge
+            unit={dataStatusUnit}
+            missingReason="ledger_gap"
+            className="mt-1"
+          />
           {isSuspicious100 && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 2, padding: '1px 5px', borderRadius: 4, background: '#F59E0B22', color: '#F59E0B', fontSize: 10, fontWeight: 600 }}>
               <AlertTriangle size={9} strokeWidth={2.5} />

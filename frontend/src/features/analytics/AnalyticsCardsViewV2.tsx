@@ -6,6 +6,7 @@ import { DayTimelineNav } from './DayTimelineNav';
 import type { TlDay, Shift } from './DayTimelineNav';
 import { useRepairPeriods } from '@/features/vehicle-status/useRepairPeriods';
 import { getRepairOnDate } from '@/features/vehicle-status/repairPeriods';
+import { dataStatusUnitKey } from './hooks/useDataStatus';
 import './analyticsV2.css';
 
 // ─── Карточки v2.0 («Навигация по дням») ──────────────────────────────
@@ -42,11 +43,9 @@ interface AnalyticsCardsViewV2Props {
   visibleVehicleCount: number;
   totalVehicleCount: number;
   onShowMore: () => void;
-  /**
-   * Map из useDataStatus: ключ `${vehicleRef.toUpperCase()}|${date}` → DataStatusUnit.
-   * Передаётся из AnalyticsPage для отображения причины отсутствия данных в карточках.
-   */
-  dataStatusByVehicleDate?: Map<string, DataStatusUnit>;
+  /** Точный ledger-ключ pipeline|vehicleRef|date|shift. */
+  dataStatusByUnit?: Map<string, DataStatusUnit>;
+  dataStatusLoading?: boolean;
 }
 
 export function AnalyticsCardsViewV2({
@@ -60,7 +59,8 @@ export function AnalyticsCardsViewV2({
   visibleVehicleCount,
   totalVehicleCount,
   onShowMore,
-  dataStatusByVehicleDate,
+  dataStatusByUnit,
+  dataStatusLoading = false,
 }: AnalyticsCardsViewV2Props) {
   const recordsFor = React.useCallback(
     (v: UnifiedVehicleRow): UnifiedRecord[] =>
@@ -127,6 +127,72 @@ export function AnalyticsCardsViewV2({
 
   const active = selectedExists ? selected : defaultSel;
 
+  const statusSummary = React.useMemo(() => {
+    if (!active || dataStatusLoading || !dataStatusByUnit) return null;
+
+    const counts = {
+      done: 0,
+      empty: 0,
+      failed: 0,
+      open: 0,
+      noTask: 0,
+      ledgerGap: 0,
+      reasons: new Map<string, number>(),
+    };
+
+    const kipShift = active.shift === 'shift1' ? 'morning' : 'evening';
+    for (const unit of dataStatusByUnit.values()) {
+      const isSelectedShift =
+        unit.date === active.date
+        && (
+          (unit.pipeline === 'kip-shift' && unit.shift === kipShift)
+          || (unit.pipeline === 'dt-shift' && unit.shift === active.shift)
+        );
+      if (!isSelectedShift) continue;
+
+      if (unit.status === 'done') {
+        counts.done += 1;
+      } else if (unit.status === 'empty') {
+        counts.empty += 1;
+      } else if (unit.status === 'failed') {
+        counts.failed += 1;
+      } else {
+        counts.open += 1;
+      }
+
+      if (unit.reasonCode) {
+        const label = unit.reasonLabel ?? unit.reasonCode;
+        counts.reasons.set(label, (counts.reasons.get(label) ?? 0) + 1);
+      }
+    }
+
+    for (const group of filteredGroups) {
+      for (const vehicle of group.vehicles) {
+        const pipeline = vehicle.source === 'dump_truck' ? 'dt-shift' : 'kip-shift';
+        const shift = vehicle.source === 'dump_truck'
+          ? active.shift
+          : (active.shift === 'shift1' ? 'morning' : 'evening');
+        const key = dataStatusUnitKey(
+          pipeline,
+          vehicle.ledgerVehicleRef,
+          active.date,
+          shift,
+        );
+        const unit = dataStatusByUnit.get(key);
+
+        if (!unit) {
+          const hasResult = recordsFor(vehicle).some(record =>
+            toDateStr(record.reportDate) === active.date && record.shiftType === active.shift
+          );
+          if (hasResult) counts.ledgerGap += 1;
+          else counts.noTask += 1;
+        }
+      }
+    }
+
+    return counts;
+  }, [active, dataStatusByUnit, dataStatusLoading, filteredGroups, recordsFor]);
+
   if (!active) {
     return (
       <div className="sv-empty"><span className="sv-empty-text">Нет данных</span></div>
@@ -144,6 +210,33 @@ export function AnalyticsCardsViewV2({
         onSelect={(date, shift) => onSelectedChange({ date, shift })}
       />
 
+      {statusSummary && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 6,
+            alignItems: 'center',
+            margin: '2px 0 10px',
+            fontSize: 10,
+            color: 'var(--sv-text-3)',
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>Ledger смены:</span>
+          <span>данные {statusSummary.done}</span>
+          <span>пусто по причине {statusSummary.empty}</span>
+          {statusSummary.failed > 0 && <span style={{ color: '#EF4444' }}>ошибки {statusSummary.failed}</span>}
+          {statusSummary.open > 0 && <span style={{ color: '#F59E0B' }}>в очереди {statusSummary.open}</span>}
+          {[...statusSummary.reasons.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([label, count]) => <span key={label}>{label}: {count}</span>)}
+          <span>нет задачи у видимых {statusSummary.noTask}</span>
+          {statusSummary.ledgerGap > 0 && (
+            <span style={{ color: '#F59E0B' }}>результат без ledger {statusSummary.ledgerGap}</span>
+          )}
+        </div>
+      )}
+
       {filteredGroups.map(g => (
         <div key={g.groupUid ?? g.groupName} style={{ marginBottom: 16 }}>
           <div className="sv-v2-grp-head">
@@ -153,10 +246,20 @@ export function AnalyticsCardsViewV2({
           <hr style={{ border: 'none', borderTop: '1px solid var(--sv-divider)', margin: '0 0 8px 0' }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, alignItems: 'start' }}>
             {g.vehicles.map(v => {
-              const dsKey = `${v.regNumber.toUpperCase()}|${active.date}`;
-              // undefined если Map не передан; null — явно отсутствует в Map
-              const dsUnit = dataStatusByVehicleDate
-                ? (dataStatusByVehicleDate.get(dsKey) ?? null)
+              const pipeline = v.source === 'dump_truck' ? 'dt-shift' : 'kip-shift';
+              const shift = v.source === 'dump_truck'
+                ? active.shift
+                : (active.shift === 'shift1' ? 'morning' : 'evening');
+              const dsKey = dataStatusUnitKey(
+                pipeline,
+                v.ledgerVehicleRef,
+                active.date,
+                shift,
+              );
+              const dsUnit = dataStatusLoading
+                ? undefined
+                : dataStatusByUnit
+                  ? (dataStatusByUnit.get(dsKey) ?? null)
                 : undefined;
               return (
                 <div key={v.regNumber} style={{ minWidth: 0 }}>
