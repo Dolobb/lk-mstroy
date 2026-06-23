@@ -210,7 +210,7 @@ export async function queryShiftRecords(
       WHERE t.shift_record_id = sr.id
     ) trip_agg ON true
     ${where}
-    ORDER BY sr.report_date DESC, sr.shift_type, sr.vehicle_id
+    ORDER BY sr.report_date DESC, sr.reg_number, sr.shift_type, sr.trips_count DESC, sr.id
   `, params);
 
   return result.rows.map(r => ({

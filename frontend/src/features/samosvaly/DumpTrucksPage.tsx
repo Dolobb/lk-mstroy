@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from 'next-themes';
 import { DateRangePicker } from '@/components/DateRangePicker';
@@ -662,25 +662,54 @@ function UnlinkedGantt({ shifts, dateFrom, dateTo }: {
     : filteredDates;
 
   // Build cell map
-  type UCell = { s1: number; s2: number; s1has: boolean; s2has: boolean };
+  type UCell = {
+    s1: number; s2: number;
+    s1work: string; s2work: string;
+    s1mov: number; s2mov: number;
+    s1has: boolean; s2has: boolean;
+  };
   const cellMap = new Map<string, Map<string, UCell>>();
   shifts.forEach(r => {
     const d = toDateStr(r.reportDate);
     if (!cellMap.has(r.regNumber)) cellMap.set(r.regNumber, new Map());
     const dm = cellMap.get(r.regNumber)!;
-    if (!dm.has(d)) dm.set(d, { s1: 0, s2: 0, s1has: false, s2has: false });
+    if (!dm.has(d)) dm.set(d, {
+      s1: 0, s2: 0,
+      s1work: '', s2work: '',
+      s1mov: 0, s2mov: 0,
+      s1has: false, s2has: false,
+    });
     const c = dm.get(d)!;
-    if (r.shiftType === 'shift1') { c.s1 = r.tripsCount; c.s1has = true; }
-    else { c.s2 = r.tripsCount; c.s2has = true; }
+    const mov = Math.round(r.movementPct || 0);
+    if (r.shiftType === 'shift1') {
+      if (!c.s1has || (c.s1 === 0 && r.tripsCount > 0)) {
+        c.s1 = r.tripsCount;
+        c.s1work = r.workType ?? '';
+        c.s1mov = mov;
+      }
+      c.s1has = true;
+    } else {
+      if (!c.s2has || (c.s2 === 0 && r.tripsCount > 0)) {
+        c.s2 = r.tripsCount;
+        c.s2work = r.workType ?? '';
+        c.s2mov = mov;
+      }
+      c.s2has = true;
+    }
   });
 
   // Total trips per vehicle
   const totalByVeh = new Map<string, number>();
   shifts.forEach(r => totalByVeh.set(r.regNumber, (totalByVeh.get(r.regNumber) ?? 0) + r.tripsCount));
 
-  const renderUCell = (trips: number, hasData: boolean) => {
+  const renderUCell = (trips: number, workType: string, mov: number, hasData: boolean) => {
     if (trips > 0) return <div className="sv-gc f">{trips}</div>;
-    if (hasData) return <div className="sv-gc gc-warn" title="0 рейсов">!</div>;
+    if (workType === 'onsite') {
+      return mov > 0
+        ? <div className="sv-gc f" title="Работа по месту">{mov}%</div>
+        : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
+    }
+    if (hasData && workType === 'unknown') return <div className="sv-gc gc-warn" title="Необъяснённый 0 рейсов">!</div>;
     return <div className="sv-gc gc-absent"></div>;
   };
 
@@ -764,11 +793,16 @@ function UnlinkedGantt({ shifts, dateFrom, dateTo }: {
                     </div>
                   </td>
                   {visibleDates.map(d => {
-                    const c = dm.get(d) ?? { s1: 0, s2: 0, s1has: false, s2has: false };
+                    const c = dm.get(d) ?? {
+                      s1: 0, s2: 0,
+                      s1work: '', s2work: '',
+                      s1mov: 0, s2mov: 0,
+                      s1has: false, s2has: false,
+                    };
                     return (
                       <React.Fragment key={d}>
-                        <td>{renderUCell(c.s1, c.s1has)}</td>
-                        <td>{renderUCell(c.s2, c.s2has)}</td>
+                        <td>{renderUCell(c.s1, c.s1work, c.s1mov, c.s1has)}</td>
+                        <td>{renderUCell(c.s2, c.s2work, c.s2mov, c.s2has)}</td>
                       </React.Fragment>
                     );
                   })}
@@ -865,12 +899,13 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
   const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
 
   type CellPopup =
-    | { kind: 'trips'; shiftRecordId: number; shiftType: string; reportDate: string; x: number; y: number }
-    | { kind: 'info'; text: string; x: number; y: number }
-    | { kind: 'orderInfo'; orders: { number: number; cargo: string; dateFrom: string; dateTo: string }[]; x: number; y: number }
-    | { kind: 'multiReq'; reqNumbers: number[]; x: number; y: number };
+    | { kind: 'trips'; shiftRecordId: number; shiftType: string; reportDate: string; x: number; y: number; anchorTop: number }
+    | { kind: 'info'; text: string; x: number; y: number; anchorTop: number }
+    | { kind: 'orderInfo'; orders: { number: number; cargo: string; dateFrom: string; dateTo: string }[]; x: number; y: number; anchorTop: number }
+    | { kind: 'multiReq'; reqNumbers: number[]; x: number; y: number; anchorTop: number };
 
   const [cellPopup, setCellPopup] = useState<CellPopup | null>(null);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -889,6 +924,42 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, [cellPopup]);
+
+  useLayoutEffect(() => {
+    const popup = popupRef.current;
+    if (!cellPopup || !popup) return;
+
+    const viewportPadding = 8;
+    const popupGap = 4;
+    const updatePosition = () => {
+      const { width, height } = popup.getBoundingClientRect();
+      const maxX = Math.max(viewportPadding, window.innerWidth - width - viewportPadding);
+      const x = Math.min(Math.max(viewportPadding, cellPopup.x), maxX);
+
+      const belowY = cellPopup.y;
+      const aboveY = cellPopup.anchorTop - popupGap - height;
+      const maxY = Math.max(viewportPadding, window.innerHeight - height - viewportPadding);
+      const preferredY = belowY + height <= window.innerHeight - viewportPadding
+        ? belowY
+        : aboveY >= viewportPadding
+          ? aboveY
+          : maxY;
+      const y = Math.min(Math.max(viewportPadding, preferredY), maxY);
+
+      setPopupPosition(current =>
+        current.x === x && current.y === y ? current : { x, y }
+      );
+    };
+
+    updatePosition();
+    const resizeObserver = new ResizeObserver(updatePosition);
+    resizeObserver.observe(popup);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updatePosition);
+    };
   }, [cellPopup]);
 
   if (err) return <div className="sv-loading-cell" style={{ color: '#EF4444' }}>Ошибка загрузки</div>;
@@ -969,11 +1040,17 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
     const reqNums = r.request_numbers ?? [];
     const reqCount = reqNums.length;
     if (r.shift_type === 'shift1') {
-      cell.s1 = trips; cell.s1work = r.work_type || ''; cell.s1mov = mov; cell.s1has = true;
-      cell.s1id = Number(r.id); cell.s1reqCount = reqCount; cell.s1reqNums = reqNums; cell.s1objUid = r.object_uid || '';
+      if (!cell.s1has || (cell.s1 === 0 && trips > 0)) {
+        cell.s1 = trips; cell.s1work = r.work_type || ''; cell.s1mov = mov;
+        cell.s1id = Number(r.id); cell.s1reqCount = reqCount; cell.s1reqNums = reqNums; cell.s1objUid = r.object_uid || '';
+      }
+      cell.s1has = true;
     } else {
-      cell.s2 = trips; cell.s2work = r.work_type || ''; cell.s2mov = mov; cell.s2has = true;
-      cell.s2id = Number(r.id); cell.s2reqCount = reqCount; cell.s2reqNums = reqNums; cell.s2objUid = r.object_uid || '';
+      if (!cell.s2has || (cell.s2 === 0 && trips > 0)) {
+        cell.s2 = trips; cell.s2work = r.work_type || ''; cell.s2mov = mov;
+        cell.s2id = Number(r.id); cell.s2reqCount = reqCount; cell.s2reqNums = reqNums; cell.s2objUid = r.object_uid || '';
+      }
+      cell.s2has = true;
     }
   });
 
@@ -1027,11 +1104,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
   /** Compute popup position from click event */
   const popupPos = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = Math.min(rect.left, window.innerWidth - 420);
-    const y = rect.bottom + 4 > window.innerHeight - 300
-      ? Math.max(4, rect.top - 300)
-      : rect.bottom + 4;
-    return { x: Math.max(4, x), y };
+    return { x: rect.left, y: rect.bottom + 4, anchorTop: rect.top };
   };
 
   /** Compute norm CSS class for color coding */
@@ -1046,7 +1119,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
   /** Render a single gantt cell */
   const renderGanttCell = (
     trips: number, hasData: boolean, shiftId: number, shiftType: string, reportDate: string,
-    reqCount: number, reqNums: number[], objUid: string, presKey: string,
+    reqCount: number, reqNums: number[], objUid: string, presKey: string, workType: string, mov: number,
   ) => {
     const nc = normClass(trips, norm);
     if (trips > 0 && reqCount > 1) {
@@ -1066,11 +1139,16 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
         </div>
       );
     }
-    if (hasData && orderObjectUids.has(objUid)) {
+    if (hasData && orderObjectUids.has(objUid) && workType === 'onsite') {
+      return mov > 0
+        ? <div className="sv-gc f" title="Работа по месту">{mov}%</div>
+        : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
+    }
+    if (hasData && orderObjectUids.has(objUid) && workType === 'unknown') {
       return (
         <div className="sv-gc gc-warn" style={{ cursor: 'pointer' }}
-          title="На объекте, 0 рейсов"
-          onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'info', text: `Машина на объекте заявки, но 0 рейсов за эту смену (${shiftType === 'shift1' ? '1 смена' : '2 смена'}, ${fmtDateShort(reportDate)}).`, ...popupPos(e) }); }}>
+          title="Необъяснённый 0 рейсов"
+          onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'info', text: `Машина на объекте заявки, но тип работы не определён и рейсов нет (${shiftType === 'shift1' ? '1 смена' : '2 смена'}, ${fmtDateShort(reportDate)}).`, ...popupPos(e) }); }}>
           !
         </div>
       );
@@ -1241,8 +1319,8 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
 
                   return (
                     <React.Fragment key={d}>
-                      <td className={tdClass1}>{renderGanttCell(cell.s1, cell.s1has, cell.s1id, 'shift1', d, cell.s1reqCount, cell.s1reqNums, cell.s1objUid, s1key)}</td>
-                      <td className={tdClass2}>{renderGanttCell(cell.s2, cell.s2has, cell.s2id, 'shift2', d, cell.s2reqCount, cell.s2reqNums, cell.s2objUid, s2key)}</td>
+                      <td className={tdClass1}>{renderGanttCell(cell.s1, cell.s1has, cell.s1id, 'shift1', d, cell.s1reqCount, cell.s1reqNums, cell.s1objUid, s1key, cell.s1work, cell.s1mov)}</td>
+                      <td className={tdClass2}>{renderGanttCell(cell.s2, cell.s2has, cell.s2id, 'shift2', d, cell.s2reqCount, cell.s2reqNums, cell.s2objUid, s2key, cell.s2work, cell.s2mov)}</td>
                     </React.Fragment>
                   );
                 })}
@@ -1258,7 +1336,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
       {/* Cell popup portal */}
       {cellPopup && createPortal(
         <div ref={popupRef} className="sv-gg-popup" data-theme={theme}
-          style={{ left: cellPopup.x, top: cellPopup.y }}
+          style={{ left: popupPosition.x, top: popupPosition.y }}
           onClick={e => e.stopPropagation()}>
           {cellPopup.kind === 'trips' && (
             <ShiftSubTable shiftRecord={{ id: cellPopup.shiftRecordId, shiftType: cellPopup.shiftType, reportDate: cellPopup.reportDate } as ShiftRecord} />
@@ -2868,8 +2946,14 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
     const nc = ggNormClass(trips, cellNorm);
     if (trips > 0 && reqCount > 1) return <div className={`sv-gc f multi${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }}>={trips}</div>;
     if (trips > 0) return <div className={`sv-gc f${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }}>{trips}</div>;
-    if (workType === 'onsite' && mov > 0) return <div className="sv-gc f">{mov}%</div>;
-    if (hasData) return <div className="sv-gc gc-warn" title="0 рейсов" onClick={handleClick} style={{ cursor: 'pointer' }}>!</div>;
+    if (workType === 'onsite') {
+      return mov > 0
+        ? <div className="sv-gc f" title="Работа по месту">{mov}%</div>
+        : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
+    }
+    if (hasData && workType === 'unknown') {
+      return <div className="sv-gc gc-warn" title="Необъяснённый 0 рейсов" onClick={handleClick} style={{ cursor: 'pointer' }}>!</div>;
+    }
     return <div className="sv-gc gc-absent"></div>;
   };
 

@@ -420,7 +420,7 @@ app.get('/api/dt/orders/:number/gantt', async (req, res) => {
         request_numbers
       FROM dump_trucks.shift_records_active
       WHERE request_numbers @> ARRAY[$1::int]
-      ORDER BY reg_number, report_date, shift_type
+      ORDER BY report_date, reg_number, shift_type, trips_count DESC, id
     `, [num]);
     const rangeResult = await pool.query(`
       SELECT

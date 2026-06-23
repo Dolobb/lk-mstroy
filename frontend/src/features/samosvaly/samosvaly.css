@@ -946,15 +946,16 @@ tr.sv-gg-expanded-bottom td { border-bottom: 1.5px solid var(--sv-tree-line) !im
 /* Trip popup */
 .sv-gg-popup {
   position: fixed;
+  box-sizing: border-box;
   z-index: 9999;
   background: #0F172A;
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,.4);
   padding: 8px;
-  max-height: 400px;
-  max-width: 600px;
-  overflow-y: auto;
+  max-height: min(400px, calc(100vh - 16px));
+  max-width: min(600px, calc(100vw - 16px));
+  overflow: auto;
 }
 .sv-gg-popup[data-theme="light"] {
   background: #FFFFFF;
