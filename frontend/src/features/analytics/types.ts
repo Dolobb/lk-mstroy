@@ -273,6 +273,8 @@ export interface SidebarSummaryResponse {
   to: string;
   generatedAt: string;
   objects: SidebarObjectCard[];
+  /** Объекты с dst_zone вне ключевых, у которых есть ДСТ-активность в периоде. */
+  secondaryObjects: SidebarObjectCard[];
 }
 
 // ─── Track (Session 9) ──────────────────────────────────

@@ -214,8 +214,11 @@ function defaultDateRange(): { from: string; to: string } {
 const LS_VIEW = 'sv-analytics-view';
 const LS_FROM = 'sv-analytics-from';
 const LS_TO = 'sv-analytics-to';
+const LS_TIERS = 'sv-analytics-tiers';
 const VIEW_MODES = ['table', 'map', 'cards', 'cardsV2'] as const;
 type ViewMode = (typeof VIEW_MODES)[number];
+
+type ObjectTier = 'key' | 'secondary';
 
 function lsGet(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -239,6 +242,10 @@ function initialViewMode(): ViewMode {
   return (VIEW_MODES as readonly string[]).includes(cached ?? '')
     ? (cached as ViewMode)
     : 'table';
+}
+// Активная вкладка объектов; по умолчанию — ключевые.
+function initialActiveTier(): ObjectTier {
+  return lsGet(LS_TIERS) === 'secondary' ? 'secondary' : 'key';
 }
 
 const OUTSIDE_GROUP_UID = '__outside' as const;
@@ -463,11 +470,15 @@ export function AnalyticsPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
 
+  // Активная вкладка объектов (сайд-бар): ключевые/второстепенные.
+  const [activeTier, setActiveTier] = useState<ObjectTier>(initialActiveTier);
+
   // Кэш: сохраняем вкладку и диапазон в localStorage при каждом изменении,
   // чтобы перезагрузка страницы не сбрасывала состояние на дефолт.
   useEffect(() => { lsSet(LS_VIEW, viewMode); }, [viewMode]);
   useEffect(() => { lsSet(LS_FROM, dateFrom); }, [dateFrom]);
   useEffect(() => { lsSet(LS_TO, dateTo); }, [dateTo]);
+  useEffect(() => { lsSet(LS_TIERS, activeTier); }, [activeTier]);
 
   const [dtRows, setDtRows] = useState<UnifiedVehicleRow[]>([]);
   const [dstRows, setDstRows] = useState<UnifiedVehicleRow[]>([]);
@@ -679,13 +690,42 @@ export function AnalyticsPage() {
     [sortedRows, dstGeoMatch],
   );
 
+  // ─── Tier-видимость (глазик ключевые/второстепенные) ──
+  // Ключевые объекты — те, что бэкенд отдаёт в sidebarSummary.objects.
+  // Группа считается «ключевой», если её objectUid входит в этот набор;
+  // всё остальное (прочие объекты, подразделения, «без объекта») — второстепенное.
+  const keyObjectUids = React.useMemo(
+    () => new Set((sidebarSummary?.objects ?? []).map(o => o.uid)),
+    [sidebarSummary],
+  );
+  const applyTierFilter = useCallback((src: GroupEntry[]): GroupEntry[] => {
+    // До загрузки сайд-бара набор ключевых неизвестен — ничего не скрываем.
+    if (keyObjectUids.size === 0) return src;
+    return src.filter(g => {
+      const isKey = !!g.groupUid && keyObjectUids.has(g.groupUid);
+      return (isKey ? 'key' : 'secondary') === activeTier;
+    });
+  }, [keyObjectUids, activeTier]);
+
+  const tierGroups = React.useMemo(() => applyTierFilter(groups), [groups, applyTierFilter]);
+
   // ─── Filtered groups (focus) ────────────────────────
 
   const filteredGroups = React.useMemo(() => {
-    if (focusedObjectUid === null) return groups;
+    if (focusedObjectUid === null) return tierGroups;
     if (focusedObjectUid === OUTSIDE_GROUP_UID) return []; // drill-down not yet implemented
-    return groups.filter(g => g.groupUid === focusedObjectUid);
-  }, [groups, focusedObjectUid]);
+    return tierGroups.filter(g => g.groupUid === focusedObjectUid);
+  }, [tierGroups, focusedObjectUid]);
+
+  // Если сфокусированный объект относится к неактивной вкладке — снять фокус.
+  useEffect(() => {
+    if (!focusedObjectUid || focusedObjectUid === OUTSIDE_GROUP_UID) return;
+    if (keyObjectUids.size === 0) return;
+    const isKey = keyObjectUids.has(focusedObjectUid);
+    if ((isKey ? 'key' : 'secondary') !== activeTier) {
+      setFocusedObjectUid(null);
+    }
+  }, [focusedObjectUid, keyObjectUids, activeTier]);
 
   const totalCardsVehicleCount = React.useMemo(() => countGroupVehicles(filteredGroups), [filteredGroups]);
 
@@ -709,11 +749,12 @@ export function AnalyticsPage() {
     () => buildGroups(allRowsV2, dstGeoMatchV2),
     [allRowsV2, dstGeoMatchV2],
   );
+  const tierGroupsV2 = React.useMemo(() => applyTierFilter(groupsV2), [groupsV2, applyTierFilter]);
   const filteredGroupsV2 = React.useMemo(() => {
-    if (focusedObjectUid === null) return groupsV2;
+    if (focusedObjectUid === null) return tierGroupsV2;
     if (focusedObjectUid === OUTSIDE_GROUP_UID) return [];
-    return groupsV2.filter(g => g.groupUid === focusedObjectUid);
-  }, [groupsV2, focusedObjectUid]);
+    return tierGroupsV2.filter(g => g.groupUid === focusedObjectUid);
+  }, [tierGroupsV2, focusedObjectUid]);
   const totalCardsV2Count = React.useMemo(() => countGroupVehicles(filteredGroupsV2), [filteredGroupsV2]);
   const visibleCardGroupsV2 = React.useMemo(
     () => limitGroupsForCards(filteredGroupsV2, visibleCardsLimit),
@@ -1414,7 +1455,7 @@ export function AnalyticsPage() {
           {/* Map view */}
           {viewMode === 'map' && (
             <MapViewWithPositions
-              groups={groups}
+              groups={tierGroups}
               dateFrom={dateFrom}
               dateTo={dateTo}
               selectedVehicleId={selectedVehicleId}
@@ -1711,6 +1752,9 @@ export function AnalyticsPage() {
         {/* Right: sidebar */}
         <AnalyticsSidebar
           objects={sidebarSummary?.objects ?? []}
+          secondaryObjects={sidebarSummary?.secondaryObjects ?? []}
+          activeTier={activeTier}
+          onTierChange={setActiveTier}
           focusedObjectUid={focusedObjectUid}
           onFocusObject={setFocusedObjectUid}
           from={sidebarSummary?.from ?? sidebarRange.from}

@@ -1,7 +1,12 @@
 import type { SidebarObjectCard, SidebarTrendPoint } from './types';
 
+export type ObjectTier = 'key' | 'secondary';
+
 interface AnalyticsSidebarProps {
   objects: SidebarObjectCard[];
+  secondaryObjects: SidebarObjectCard[];
+  activeTier: ObjectTier;
+  onTierChange: (tier: ObjectTier) => void;
   focusedObjectUid: string | null;
   onFocusObject: (uid: string | null) => void;
   from: string;
@@ -247,8 +252,69 @@ function ObjectCard({
   );
 }
 
+function TierTab({
+  title,
+  count,
+  active,
+  onClick,
+}: {
+  title: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 7,
+        padding: '8px 10px',
+        borderRadius: 8,
+        background: active ? 'rgba(96,165,250,0.12)' : 'transparent',
+        border: '1px solid',
+        borderColor: active ? 'rgba(96,165,250,0.55)' : 'transparent',
+        cursor: 'pointer',
+        color: 'inherit',
+        transition: 'background 0.15s, border-color 0.15s',
+      }}
+    >
+      <span style={{
+        fontSize: 12,
+        fontWeight: 850,
+        color: active ? 'var(--sv-text-1)' : 'var(--sv-text-3)',
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+        whiteSpace: 'nowrap',
+      }}>
+        {title}
+      </span>
+      <span style={{
+        minWidth: 18,
+        padding: '1px 6px',
+        borderRadius: 999,
+        fontSize: 10,
+        fontWeight: 850,
+        textAlign: 'center',
+        color: active ? 'var(--sv-text-2)' : 'var(--sv-text-3)',
+        background: 'rgba(148,163,184,0.14)',
+        border: '1px solid var(--sv-divider)',
+      }}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
 export function AnalyticsSidebar({
   objects,
+  secondaryObjects,
+  activeTier,
+  onTierChange,
   focusedObjectUid,
   onFocusObject,
   from,
@@ -256,6 +322,7 @@ export function AnalyticsSidebar({
   loading,
   error,
 }: AnalyticsSidebarProps) {
+  const activeObjects = activeTier === 'key' ? objects : secondaryObjects;
   return (
     <aside style={{
       background: 'var(--sv-card)',
@@ -282,6 +349,29 @@ export function AnalyticsSidebar({
         <div style={{ marginTop: 3, fontSize: 10, color: 'var(--sv-text-3)' }}>
           последние 7 закрытых дней
         </div>
+
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          marginTop: 12,
+          padding: 4,
+          borderRadius: 10,
+          background: 'var(--sv-card-inner)',
+          border: '1px solid var(--sv-card-inner-border)',
+        }}>
+          <TierTab
+            title="Ключевые"
+            count={objects.length}
+            active={activeTier === 'key'}
+            onClick={() => onTierChange('key')}
+          />
+          <TierTab
+            title="Второстепенные"
+            count={secondaryObjects.length}
+            active={activeTier === 'secondary'}
+            onClick={() => onTierChange('secondary')}
+          />
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
@@ -293,13 +383,13 @@ export function AnalyticsSidebar({
           <div style={{ padding: 12, borderRadius: 8, background: 'rgba(239,68,68,0.10)', color: '#EF4444', fontSize: 12 }}>
             Не удалось загрузить сайдбар
           </div>
-        ) : objects.length === 0 ? (
+        ) : activeObjects.length === 0 ? (
           <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12, color: 'var(--sv-text-3)' }}>
-            Нет объектов
+            {activeTier === 'key' ? 'Нет объектов' : 'Нет второстепенных зон за период'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {objects.map(object => (
+            {activeObjects.map(object => (
               <ObjectCard
                 key={object.uid}
                 object={object}

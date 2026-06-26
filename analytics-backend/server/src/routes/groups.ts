@@ -53,6 +53,8 @@ export interface SidebarSummaryResponse {
   to: string;
   generatedAt: string;
   objects: SidebarObjectCard[];
+  /** Объекты с dst_zone, не входящие в ключевые, у которых есть ДСТ-активность в периоде. */
+  secondaryObjects: SidebarObjectCard[];
 }
 
 interface VehicleRegistryEntry {
@@ -226,6 +228,40 @@ export async function getBigObjects(): Promise<BigObject[]> {
   return res.rows;
 }
 
+/**
+ * Второстепенные зоны: объекты с зоной dst_zone, НЕ являющиеся ключевыми
+ * (нет связки dt_boundary + рабочая зона). Активность за период фильтруется
+ * позже, в getSidebarSummary (показываем только зоны с реальными ДСТ-записями).
+ */
+export async function getSecondaryObjects(): Promise<BigObject[]> {
+  const pool = getPool();
+
+  const res = await pool.query<{ uid: string; name: string; timezone: string }>(
+    `SELECT o.uid, o.name, o.timezone
+     FROM geo.objects o
+     WHERE EXISTS (
+       SELECT 1 FROM geo.zones z
+       JOIN geo.zone_tags zt ON zt.zone_id = z.id
+       WHERE z.object_id = o.id AND zt.tag = 'dst_zone'
+     )
+     AND NOT (
+       EXISTS (
+         SELECT 1 FROM geo.zones z
+         JOIN geo.zone_tags zt ON zt.zone_id = z.id
+         WHERE z.object_id = o.id AND zt.tag = 'dt_boundary'
+       )
+       AND EXISTS (
+         SELECT 1 FROM geo.zones z
+         JOIN geo.zone_tags zt ON zt.zone_id = z.id
+         WHERE z.object_id = o.id AND zt.tag IN ('dt_loading', 'dt_unloading', 'dt_onsite')
+       )
+     )
+     ORDER BY o.name`,
+  );
+
+  return res.rows;
+}
+
 async function getDumpTruckSidebarRecords(from: string, to: string): Promise<MetricRecord[]> {
   const pool = getPool();
   const res = await pool.query<{
@@ -330,14 +366,18 @@ async function getDstSidebarRecords(from: string, to: string): Promise<MetricRec
 }
 
 export async function getSidebarSummary(from: string, to: string): Promise<SidebarSummaryResponse> {
-  const [objects, dtRecords, dstRecords] = await Promise.all([
+  const [keyObjects, secondaryObjectDefs, dtRecords, dstRecords] = await Promise.all([
     getBigObjects(),
+    getSecondaryObjects(),
     getDumpTruckSidebarRecords(from, to),
     getDstSidebarRecords(from, to),
   ]);
 
-  const bigObjectUids = new Set(objects.map(o => o.uid));
-  const records = [...dtRecords, ...dstRecords].filter(r => bigObjectUids.has(r.objectUid));
+  const relevantUids = new Set([
+    ...keyObjects.map(o => o.uid),
+    ...secondaryObjectDefs.map(o => o.uid),
+  ]);
+  const records = [...dtRecords, ...dstRecords].filter(r => relevantUids.has(r.objectUid));
   const days = daysInclusive(from, to);
 
   const recordsByObject = new Map<string, MetricRecord[]>();
@@ -346,37 +386,44 @@ export async function getSidebarSummary(from: string, to: string): Promise<Sideb
     recordsByObject.get(rec.objectUid)!.push(rec);
   }
 
+  const buildCard = (obj: BigObject): SidebarObjectCard => {
+    const objectRecords = recordsByObject.get(obj.uid) ?? [];
+    const objectVehicleIds = new Set(objectRecords.map(r => r.vehicleId));
+    const objectKip = avgKip(objectRecords.map(r => r.kipPct)) ?? 0;
+
+    return {
+      uid: obj.uid,
+      name: obj.name,
+      timezoneLabel: timezoneLabel(obj.timezone),
+      vehicleCount: objectVehicleIds.size,
+      kipPct: objectKip,
+      trend: days.map(date => ({
+        date,
+        weekday: weekdayShort(date),
+        kipPct: avgKip(objectRecords.filter(r => r.date === date).map(r => r.kipPct)),
+      })),
+      groups: SIDEBAR_GROUPS.map(group => {
+        const groupRecords = objectRecords.filter(r => r.groupKey === group.key);
+        const vehicleIds = new Set(groupRecords.map(r => r.vehicleId));
+        return {
+          ...group,
+          vehicleCount: vehicleIds.size,
+          kipPct: avgKip(groupRecords.map(r => r.kipPct)),
+        };
+      }),
+    };
+  };
+
   return {
     from,
     to,
     generatedAt: new Date().toISOString(),
-    objects: objects.map(obj => {
-      const objectRecords = recordsByObject.get(obj.uid) ?? [];
-      const objectVehicleIds = new Set(objectRecords.map(r => r.vehicleId));
-      const objectKip = avgKip(objectRecords.map(r => r.kipPct)) ?? 0;
-
-      return {
-        uid: obj.uid,
-        name: obj.name,
-        timezoneLabel: timezoneLabel(obj.timezone),
-        vehicleCount: objectVehicleIds.size,
-        kipPct: objectKip,
-        trend: days.map(date => ({
-          date,
-          weekday: weekdayShort(date),
-          kipPct: avgKip(objectRecords.filter(r => r.date === date).map(r => r.kipPct)),
-        })),
-        groups: SIDEBAR_GROUPS.map(group => {
-          const groupRecords = objectRecords.filter(r => r.groupKey === group.key);
-          const vehicleIds = new Set(groupRecords.map(r => r.vehicleId));
-          return {
-            ...group,
-            vehicleCount: vehicleIds.size,
-            kipPct: avgKip(groupRecords.map(r => r.kipPct)),
-          };
-        }),
-      };
-    }),
+    // Ключевые показываем всегда (даже без активности — как раньше).
+    objects: keyObjects.map(buildCard),
+    // Второстепенные — только те, у кого реально есть ДСТ-записи в периоде.
+    secondaryObjects: secondaryObjectDefs
+      .filter(obj => (recordsByObject.get(obj.uid)?.length ?? 0) > 0)
+      .map(buildCard),
   };
 }
 

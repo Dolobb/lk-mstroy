@@ -4,7 +4,8 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { LatLngBoundsLiteral, LatLngTuple } from 'leaflet';
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts';
-import { Pause, Play, RotateCcw, SkipBack, SkipForward, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MoveHorizontal, Pause, Play, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -206,11 +207,9 @@ function ZoneMapClickHandler({
 // ─── Inspector panel ─────────────────────────────────────
 
 type TrackTimelineDatum = {
-  pos: number;
-  pointIdx: number | null;
+  ts: number;               // мс эпохи — X-координата (ось ВРЕМЕНИ, пропорциональная)
+  pointIdx: number | null;  // индекс в points[]; null — маркер разрыва данных
   speed: number | null;
-  time: string;
-  ts: string;
 };
 
 type TrackTimelineTooltipProps = {
@@ -225,13 +224,23 @@ type ChartPointerState = {
 };
 
 const PLAYBACK_INTERVAL_MS = 250;
-const TRACK_GAP_BREAK_MS = 30 * 60_000;
 const PLAYBACK_SPEEDS = [10, 60, 180, 600, 1800] as const;
 type PlaybackSpeed = typeof PLAYBACK_SPEEDS[number];
 
-function formatTrackTime(ts: string): string {
+// Зум/панорама оси времени графика скорости.
+const MIN_VIEW_SPAN_MS = 60_000;   // нельзя приблизить мельче 1 минуты
+const ZOOM_STEP = 1.6;             // во сколько раз меняем окно за клик
+const PAN_STEP_FRAC = 0.3;         // на какую долю окна сдвигаем при панораме
+const AXIS_TICK_TARGET = 12;       // ориентир по числу подписей снизу
+const AXIS_TICK_STEPS_MS = [
+  60_000, 2 * 60_000, 5 * 60_000, 10 * 60_000, 15 * 60_000, 30 * 60_000,
+  60 * 60_000, 2 * 60 * 60_000, 3 * 60 * 60_000, 6 * 60 * 60_000,
+  12 * 60 * 60_000, 24 * 60 * 60_000,
+];
+
+function formatTrackTime(ts: string | number): string {
   const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return ts.slice(11, 16) || ts;
+  if (Number.isNaN(d.getTime())) return typeof ts === 'string' ? (ts.slice(11, 16) || ts) : String(ts);
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
@@ -244,29 +253,24 @@ function formatTrackSpeed(speed: number | null): string {
   return `${Math.round(speed ?? 0)} км/ч`;
 }
 
-function getChartIndex(state: unknown, data: TrackTimelineDatum[]): number | null {
+// Подпись тика оси времени: каждая в формате DD.MM HH:MM.
+function formatAxisTick(ms: number): string {
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}.${mo} ${hh}:${mm}`;
+}
+
+// Ось числовая по времени: activeLabel = ts (мс) под курсором.
+function getChartTs(state: unknown): number | null {
   const s = state as ChartPointerState | null;
-  const direct = s?.activePayload?.find(p => p.payload?.pointIdx != null)?.payload?.pointIdx;
-  if (direct != null) return direct;
-
-  // Ось индексная (pos === позиция в массиве chartData): и activeTooltipIndex,
-  // и activeLabel дают позицию. Находим ближайшую НЕ-null точку (минуя gap-разрывы).
-  let pos: number | null = null;
-  const rawIndex = s?.activeTooltipIndex;
-  if (rawIndex != null && Number.isFinite(Number(rawIndex))) {
-    pos = Math.round(Number(rawIndex));
-  } else {
-    const rawLabel = s?.activeLabel;
-    if (rawLabel != null && Number.isFinite(Number(rawLabel))) pos = Math.round(Number(rawLabel));
-  }
-  if (pos == null) return null;
-
-  for (let d = 0; d < data.length; d++) {
-    const after = data[pos + d];
-    if (after && after.pointIdx != null) return after.pointIdx;
-    const before = data[pos - d];
-    if (before && before.pointIdx != null) return before.pointIdx;
-  }
+  const rawLabel = s?.activeLabel;
+  if (rawLabel != null && Number.isFinite(Number(rawLabel))) return Number(rawLabel);
+  const fromPayload = s?.activePayload?.find(p => p.payload?.ts != null)?.payload?.ts;
+  if (fromPayload != null && Number.isFinite(Number(fromPayload))) return Number(fromPayload);
   return null;
 }
 
@@ -288,7 +292,7 @@ function TrackTimelineTooltip({ active, payload }: TrackTimelineTooltipProps) {
       fontSize: 11,
       fontVariantNumeric: 'tabular-nums',
     }}>
-      <div style={{ fontWeight: 700, marginBottom: 2 }}>{datum.time}</div>
+      <div style={{ fontWeight: 700, marginBottom: 2 }}>{formatTrackTime(datum.ts)}</div>
       <div style={{ color: '#fecaca', fontWeight: 700 }}>{Math.round(datum.speed)} км/ч</div>
     </div>
   );
@@ -364,66 +368,126 @@ function TrackTimelinePanel({
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(10);
   const points = track.points;
 
+  // Палитра окна таймлайна под тёмную/светлую тему (SVG-цвета Recharts нужны
+  // конкретными строками — var(--sv-*) в атрибутах SVG не резолвится).
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== 'light';
+  const ui = isDark
+    ? {
+        panelBg: 'rgba(15,23,42,0.90)', panelBorder: 'rgba(255,255,255,0.12)',
+        groupBg: 'rgba(255,255,255,0.04)', groupBorder: 'rgba(255,255,255,0.08)',
+        btnBg: 'rgba(255,255,255,0.06)', btnBorder: 'rgba(255,255,255,0.12)',
+        divider: 'rgba(255,255,255,0.12)',
+        speedBg: 'rgba(255,255,255,0.05)', speedBorder: 'rgba(255,255,255,0.10)',
+        text1: '#F1F5F9', text2: '#94A3B8',
+        grid: 'rgba(255,255,255,0.08)', axisLine: 'rgba(255,255,255,0.16)',
+        tickX: 'rgba(255,255,255,0.52)', tickY: 'rgba(255,255,255,0.46)',
+      }
+    : {
+        panelBg: 'rgba(255,255,255,0.94)', panelBorder: 'rgba(0,0,0,0.10)',
+        groupBg: 'rgba(0,0,0,0.03)', groupBorder: 'rgba(0,0,0,0.08)',
+        btnBg: 'rgba(0,0,0,0.04)', btnBorder: 'rgba(0,0,0,0.12)',
+        divider: 'rgba(0,0,0,0.10)',
+        speedBg: 'rgba(0,0,0,0.04)', speedBorder: 'rgba(0,0,0,0.10)',
+        text1: '#0F172A', text2: '#475569',
+        grid: 'rgba(0,0,0,0.08)', axisLine: 'rgba(0,0,0,0.18)',
+        tickX: 'rgba(0,0,0,0.55)', tickY: 'rgba(0,0,0,0.50)',
+      };
+
   const pointTimes = useMemo(
     () => points.map(p => new Date(p.ts).getTime()),
     [points],
   );
 
-  // График строится по ПОЗИЦИИ точки (равномерные интервалы → плотная, «красивая»
-  // кривая, как в исходной версии). На разрывах трека (> TRACK_GAP_BREAK_MS)
-  // вставляем null-точку: с connectNulls={false} область визуально рвётся, поэтому
-  // «склейка» двух разных периодов больше не выглядит непрерывной линией.
-  const chartData = useMemo<TrackTimelineDatum[]>(() => {
-    const out: TrackTimelineDatum[] = [];
-    let pos = 0;
-    for (let idx = 0; idx < points.length; idx++) {
-      const p = points[idx]!;
-      const t = pointTimes[idx]!;
-      const prevT = pointTimes[idx - 1];
-      if (idx > 0 && prevT != null && t - prevT > TRACK_GAP_BREAK_MS) {
-        out.push({
-          pos: pos++,
-          pointIdx: null,
-          speed: null,
-          time: '',
-          ts: new Date((prevT + t) / 2).toISOString(),
-        });
-      }
-      out.push({
-        pos: pos++,
-        pointIdx: idx,
-        speed: p.speed ?? 0,
-        time: formatTrackTime(p.ts),
-        ts: p.ts,
-      });
-    }
-    return out;
-  }, [pointTimes, points]);
+  // Полный временной диапазон трека.
+  const fullStart = pointTimes[0] ?? 0;
+  const fullEndRaw = pointTimes[pointTimes.length - 1] ?? fullStart;
+  const fullEnd = fullEndRaw > fullStart ? fullEndRaw : fullStart + MIN_VIEW_SPAN_MS;
+  const fullSpan = fullEnd - fullStart;
 
-  // pointIdx (индекс реальной точки) → pos на оси графика.
-  const posByPointIdx = useMemo(() => {
-    const arr = new Array<number | undefined>(points.length);
-    for (const d of chartData) {
-      if (d.pointIdx != null) arr[d.pointIdx] = d.pos;
+  // Видимое окно оси X (зум/панорама). null → весь диапазон.
+  const [view, setView] = useState<{ start: number; end: number } | null>(null);
+  useEffect(() => { setView(null); }, [points]);  // сброс при смене ТС/периода
+
+  const viewStart = view ? view.start : fullStart;
+  const viewEnd = view ? view.end : fullEnd;
+
+  const clampView = useCallback((s: number, e: number): { start: number; end: number } | null => {
+    let w = e - s;
+    if (w >= fullSpan) return null;             // окно ≥ полного → снять зум
+    if (w < MIN_VIEW_SPAN_MS) w = MIN_VIEW_SPAN_MS;
+    let ns = s;
+    let ne = s + w;
+    if (ns < fullStart) { ns = fullStart; ne = ns + w; }
+    if (ne > fullEnd) { ne = fullEnd; ns = ne - w; }
+    if (ns < fullStart) ns = fullStart;
+    return { start: ns, end: ne };
+  }, [fullStart, fullEnd, fullSpan]);
+
+  const zoomBy = useCallback((factor: number) => {
+    setView(v => {
+      const s = v ? v.start : fullStart;
+      const e = v ? v.end : fullEnd;
+      const c = (s + e) / 2;
+      const w = (e - s) * factor;
+      return clampView(c - w / 2, c + w / 2);
+    });
+  }, [clampView, fullStart, fullEnd]);
+
+  const panBy = useCallback((dir: number) => {
+    setView(v => {
+      const s = v ? v.start : fullStart;
+      const e = v ? v.end : fullEnd;
+      const w = e - s;
+      const shift = w * PAN_STEP_FRAC * dir;
+      return clampView(s + shift, e + shift);
+    });
+  }, [clampView, fullStart, fullEnd]);
+
+  // «Масштаб по данным» — обрезать простой по краям, показать движение (speed > 1).
+  const fitToData = useCallback(() => {
+    let lo = -1, hi = -1;
+    for (let i = 0; i < points.length; i++) {
+      if ((points[i]!.speed ?? 0) > 1) { if (lo < 0) lo = i; hi = i; }
     }
-    return arr;
-  }, [chartData, points.length]);
+    if (lo < 0 || hi <= lo) { setView(null); return; }
+    const pad = Math.max((pointTimes[hi]! - pointTimes[lo]!) * 0.02, 30_000);
+    setView(clampView(pointTimes[lo]! - pad, pointTimes[hi]! + pad));
+  }, [points, pointTimes, clampView]);
+
+  const resetView = useCallback(() => setView(null), []);
+
+  // График по РЕАЛЬНОМУ времени, БЕЗ разрывов: линия непрерывна и идёт по нулю там,
+  // где скорость 0 (простой = плоская линия у нуля пропорциональной ширины). Скачки
+  // 0→значение не прерывают линию.
+  const chartData = useMemo<TrackTimelineDatum[]>(
+    () => points.map((p, idx) => ({ ts: pointTimes[idx]!, pointIdx: idx, speed: p.speed ?? 0 })),
+    [points, pointTimes],
+  );
 
   const maxSpeed = useMemo(() => {
     const max = Math.max(10, ...chartData.map(d => d.speed ?? 0));
     return Math.ceil(max / 10) * 10;
   }, [chartData]);
 
-  const lastPos = chartData.length > 0 ? chartData[chartData.length - 1]!.pos : 0;
+  // Подписи времени снизу: «красивый» шаг под ширину окна, выровненный по локальным
+  // границам времени (МСК = UTC+3, getTimezoneOffset в минутах).
+  const axisTicks = useMemo(() => {
+    const span = viewEnd - viewStart;
+    if (span <= 0) return [];
+    let step = AXIS_TICK_STEPS_MS[AXIS_TICK_STEPS_MS.length - 1]!;
+    for (const s of AXIS_TICK_STEPS_MS) {
+      if (span / s <= AXIS_TICK_TARGET) { step = s; break; }
+    }
+    const off = new Date().getTimezoneOffset() * 60_000;  // local = utc - off
+    const firstLocal = Math.ceil((viewStart - off) / step) * step;
+    const out: number[] = [];
+    for (let t = firstLocal + off; t <= viewEnd; t += step) out.push(t);
+    return out;
+  }, [viewStart, viewEnd]);
 
   const activePoint = activeIndex == null ? null : points[activeIndex] ?? null;
-  const activePos = activeIndex == null ? null : posByPointIdx[activeIndex] ?? null;
-
-  const selectFromChart = useCallback((state: unknown) => {
-    const idx = getChartIndex(state, chartData);
-    if (idx == null) return;
-    onActiveIndexChange(idx);
-  }, [chartData, onActiveIndexChange]);
+  const activeTs = activeIndex == null ? null : pointTimes[activeIndex] ?? null;
 
   const findPointAtOrAfter = useCallback((targetMs: number): number => {
     let lo = 0;
@@ -440,6 +504,21 @@ function TrackTimelinePanel({
     }
     return answer;
   }, [pointTimes]);
+
+  const findNearestIdx = useCallback((targetMs: number): number => {
+    const after = findPointAtOrAfter(targetMs);
+    if (after <= 0) return 0;
+    const before = after - 1;
+    const da = Math.abs(pointTimes[after]! - targetMs);
+    const db = Math.abs(pointTimes[before]! - targetMs);
+    return db <= da ? before : after;
+  }, [findPointAtOrAfter, pointTimes]);
+
+  const selectFromChart = useCallback((state: unknown) => {
+    const ts = getChartTs(state);
+    if (ts == null) return;
+    onActiveIndexChange(findNearestIdx(ts));
+  }, [findNearestIdx, onActiveIndexChange]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -465,20 +544,13 @@ function TrackTimelinePanel({
     if (!points.length) setIsPlaying(false);
   }, [points.length]);
 
-  const stepActive = useCallback((delta: number) => {
-    onActiveIndexChange(prev => {
-      const current = prev == null ? (delta > 0 ? -1 : points.length) : prev;
-      return Math.max(0, Math.min(points.length - 1, current + delta));
-    });
-  }, [onActiveIndexChange, points.length]);
-
   const controlButtonStyle: React.CSSProperties = {
     width: 30,
     height: 30,
     borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.06)',
-    color: 'var(--sv-text-1)',
+    border: `1px solid ${ui.btnBorder}`,
+    background: ui.btnBg,
+    color: ui.text1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -489,13 +561,23 @@ function TrackTimelinePanel({
     height: 26,
     minWidth: 34,
     borderRadius: 7,
-    border: playbackSpeed === speed ? '1px solid rgba(239,68,68,0.7)' : '1px solid rgba(255,255,255,0.10)',
-    background: playbackSpeed === speed ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.05)',
-    color: playbackSpeed === speed ? '#fecaca' : 'var(--sv-text-2)',
+    border: playbackSpeed === speed ? '1px solid rgba(239,68,68,0.7)' : `1px solid ${ui.speedBorder}`,
+    background: playbackSpeed === speed ? 'rgba(239,68,68,0.16)' : ui.speedBg,
+    color: playbackSpeed === speed ? '#e11d48' : ui.text2,
     fontSize: 11,
     fontWeight: 800,
     cursor: 'pointer',
   });
+
+  const groupStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 6px',
+    borderRadius: 10,
+    background: ui.groupBg,
+    border: `1px solid ${ui.groupBorder}`,
+  };
 
   return (
     <div
@@ -516,54 +598,51 @@ function TrackTimelinePanel({
         minWidth: 320,
         padding: '12px 14px 10px',
         borderRadius: 12,
-        background: 'rgba(15,23,42,0.90)',
-        border: '1px solid rgba(255,255,255,0.12)',
+        background: ui.panelBg,
+        border: `1px solid ${ui.panelBorder}`,
         backdropFilter: 'blur(18px)',
-        boxShadow: '0 18px 42px rgba(0,0,0,0.34)',
+        boxShadow: isDark ? '0 18px 42px rgba(0,0,0,0.34)' : '0 18px 42px rgba(15,23,42,0.16)',
         display: 'grid',
         gridTemplateRows: 'auto 1fr',
         gap: 8,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <button
-          type="button"
-          title={isPlaying ? 'Пауза' : 'Воспроизвести'}
-          onClick={() => {
-            if (isPlaying) {
-              setIsPlaying(false);
-              return;
-            }
-            if (activeIndex == null || activeIndex >= points.length - 1) onActiveIndexChange(0);
-            setIsPlaying(true);
-          }}
-          style={{ ...controlButtonStyle, background: 'rgba(239,68,68,0.18)', borderColor: 'rgba(239,68,68,0.45)', color: '#fecaca' }}
-        >
-          {isPlaying ? <Pause size={15} /> : <Play size={15} />}
-        </button>
-        <button type="button" title="Назад" onClick={() => stepActive(-1)} style={controlButtonStyle}>
-          <SkipBack size={14} />
-        </button>
-        <button type="button" title="Вперед" onClick={() => stepActive(1)} style={controlButtonStyle}>
-          <SkipForward size={14} />
-        </button>
-
-        <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
-        {PLAYBACK_SPEEDS.map(speed => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+        {/* Блок 1 — проигрывание трека */}
+        <div style={groupStyle}>
           <button
-            key={speed}
             type="button"
-            title={`Скорость ${speed}x`}
-            onClick={() => setPlaybackSpeed(speed)}
-            style={speedButtonStyle(speed)}
+            title={isPlaying ? 'Пауза' : 'Воспроизвести'}
+            onClick={() => {
+              if (isPlaying) {
+                setIsPlaying(false);
+                return;
+              }
+              if (activeIndex == null || activeIndex >= points.length - 1) onActiveIndexChange(0);
+              setIsPlaying(true);
+            }}
+            style={{ ...controlButtonStyle, background: 'rgba(239,68,68,0.18)', borderColor: 'rgba(239,68,68,0.45)', color: '#fecaca' }}
           >
-            {speed}x
+            {isPlaying ? <Pause size={15} /> : <Play size={15} />}
           </button>
-        ))}
+          <div style={{ width: 1, height: 20, background: ui.divider }} />
+          {PLAYBACK_SPEEDS.map(speed => (
+            <button
+              key={speed}
+              type="button"
+              title={`Скорость ${speed}x`}
+              onClick={() => setPlaybackSpeed(speed)}
+              style={speedButtonStyle(speed)}
+            >
+              {speed}x
+            </button>
+          ))}
+        </div>
 
-        <div style={{ flex: 1, minWidth: 0 }} />
+        <div style={{ flex: 1, minWidth: 8 }} />
+
         <div style={{
-          minWidth: 148,
+          minWidth: 140,
           textAlign: 'right',
           fontSize: 11,
           fontWeight: 700,
@@ -575,9 +654,31 @@ function TrackTimelinePanel({
         }}>
           {activePoint ? `${formatTrackTime(activePoint.ts)} · ${formatTrackSpeed(activePoint.speed)}` : `${points.length} точек`}
         </div>
-        <button type="button" title="В начало" onClick={() => onActiveIndexChange(0)} style={controlButtonStyle}>
-          <RotateCcw size={14} />
-        </button>
+
+        {/* Блок 2 — масштаб/панорама графика */}
+        <div style={groupStyle}>
+          <button type="button" title="Сдвинуть влево" onClick={() => panBy(-1)} style={controlButtonStyle}>
+            <ArrowLeft size={14} />
+          </button>
+          <button type="button" title="Сдвинуть вправо" onClick={() => panBy(1)} style={controlButtonStyle}>
+            <ArrowRight size={14} />
+          </button>
+          <div style={{ width: 1, height: 20, background: ui.divider }} />
+          <button type="button" title="Отдалить" onClick={() => zoomBy(ZOOM_STEP)} style={controlButtonStyle}>
+            <ZoomOut size={14} />
+          </button>
+          <button type="button" title="Приблизить" onClick={() => zoomBy(1 / ZOOM_STEP)} style={controlButtonStyle}>
+            <ZoomIn size={14} />
+          </button>
+          <div style={{ width: 1, height: 20, background: ui.divider }} />
+          <button type="button" title="Масштаб по данным" onClick={fitToData} style={controlButtonStyle}>
+            <MoveHorizontal size={14} />
+          </button>
+          <button type="button" title="Сбросить масштаб" onClick={resetView} style={controlButtonStyle}>
+            <RotateCcw size={14} />
+          </button>
+        </div>
+
         <button type="button" title="Скрыть точку" onClick={() => { setIsPlaying(false); onActiveIndexChange(null); }} style={controlButtonStyle}>
           <X size={15} />
         </button>
@@ -587,7 +688,7 @@ function TrackTimelinePanel({
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
-            margin={{ top: 8, right: 8, bottom: 18, left: -18 }}
+            margin={{ top: 8, right: 10, bottom: 18, left: 6 }}
             onClick={selectFromChart}
             onMouseDown={(state: unknown) => {
               setIsDragging(true);
@@ -606,38 +707,33 @@ function TrackTimelinePanel({
                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0.03} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+            <CartesianGrid stroke={ui.grid} vertical={false} />
             <XAxis
-              dataKey="pos"
+              dataKey="ts"
               type="number"
-              domain={[0, lastPos]}
-              tick={{ fill: 'rgba(255,255,255,0.52)', fontSize: 10 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.16)' }}
-              tickLine={{ stroke: 'rgba(255,255,255,0.16)' }}
-              minTickGap={44}
-              tickFormatter={(v) => {
-                const d = chartData[Math.max(0, Math.min(chartData.length - 1, Math.round(Number(v))))];
-                if (!d) return '';
-                const date = new Date(d.ts);
-                return Number.isNaN(date.getTime())
-                  ? ''
-                  : `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-              }}
+              domain={[viewStart, viewEnd]}
+              ticks={axisTicks}
+              allowDataOverflow
+              tick={{ fill: ui.tickX, fontSize: 10 }}
+              axisLine={{ stroke: ui.axisLine }}
+              tickLine={{ stroke: ui.axisLine }}
+              minTickGap={64}
+              tickFormatter={(v) => formatAxisTick(Number(v))}
             />
             <YAxis
               domain={[0, maxSpeed]}
-              tick={{ fill: 'rgba(255,255,255,0.46)', fontSize: 10 }}
+              tick={{ fill: ui.tickY, fontSize: 10 }}
               axisLine={false}
               tickLine={false}
-              width={34}
+              width={38}
               tickFormatter={(v) => `${Math.round(Number(v))}`}
             />
             <ChartTooltip
               cursor={{ stroke: 'rgba(248,113,113,0.65)', strokeWidth: 1 }}
               content={(props: unknown) => <TrackTimelineTooltip {...(props as TrackTimelineTooltipProps)} />}
             />
-            {activePos != null && (
-              <ReferenceLine x={activePos} stroke="#ef4444" strokeWidth={2} ifOverflow="extendDomain" />
+            {activeTs != null && (
+              <ReferenceLine x={activeTs} stroke="#ef4444" strokeWidth={2} ifOverflow="hidden" />
             )}
             <Area
               type="monotone"

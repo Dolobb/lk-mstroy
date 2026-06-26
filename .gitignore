@@ -55,3 +55,38 @@ ai-reports/server/data/
 # Файлы, случайно попавшие в корень
 /New Folder With Items/
 /index (2).html
+
+# ── Локальная аналитика TIS (НПС/ДиМ/КИП) — только на этой машине ──
+# Единая локальная папка: кэш getMonitoringStats + временные дампы/данные
+/_local/
+# подстраховка, если что-то снова запишется в корень
+/comparison-cache/
+/nps_cookies.txt
+/nps_*.json
+/nps-passports-raw.local.json
+/sensordata.json
+/fetch_nps.log
+
+# ad-hoc скрипты выгрузки/сборки (локальные, ссылаются на _local/)
+/fetch_nps.py
+/build_nps_xlsx.py
+/build_kip_dim.py
+/demo_fuel_window.py
+/*.local.js
+
+# сгенерированные отчёты — хранить локально в корне, не в репозитории
+/КИП-ДиМ-*.xlsx
+/Показатели НПС*.xlsx
+/kip-dim-*.csv
+/kip-dim-*.xlsx
+/tis-samosvaly-*.csv
+/Для расчета показателей.xlsx
+
+# data-дампы аналитики под kip/config (в репозиторий не нужны)
+/kip/config/dim-fuelnorm-coverage.json
+/kip/config/dim-vehicle-registry-matches.json
+/kip/config/vehicle-registry-passport-matches.json
+/kip/config/FUELNORM-COVERAGE-REPORT.md
+
+# Excel lock-файлы (~$...) в корне
+~$*
