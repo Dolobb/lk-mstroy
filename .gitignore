@@ -67,11 +67,8 @@ ai-reports/server/data/
 /sensordata.json
 /fetch_nps.log
 
-# ad-hoc скрипты выгрузки/сборки (локальные, ссылаются на _local/)
-/fetch_nps.py
-/build_nps_xlsx.py
-/build_kip_dim.py
-/demo_fuel_window.py
+# скрипты выгрузки/сборки коммитятся (токен вынесен в _local/nps_token.txt);
+# *.local.js остаются локальными (могут содержать секреты)
 /*.local.js
 
 # сгенерированные отчёты — хранить локально в корне, не в репозитории
