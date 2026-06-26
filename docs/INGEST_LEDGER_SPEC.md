@@ -96,7 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_ingest_events_task ON ingest.task_events (task_id
 | `validation_error` | Некорректный ответ TIS | failed | красный |
 | `cancelled` | Выгрузка прервана | failed | оранжевый |
 | `internal_error` | Внутренняя ошибка обработки | failed | красный |
-| (task отсутствует) | Нет путевого листа | — | серый, тусклый |
+| (task отсутствует) | Нет задачи выгрузки | — | серый, тусклый |
 | `pending`/`running` | Ещё не выгружено / Выгружается… | — | оранжевый |
 
 Бейдж «Ошибка …» дополняется `×N` (attempt) и tooltip'ом с `last_error`.
@@ -145,6 +145,11 @@ GET /api/analytics/data-status?from=YYYY-MM-DD&to=YYYY-MM-DD[&vehicle=REF][&pipe
 
 `reasonLabel` подставляет бэкенд по таблице выше. Фронт дублирует словарь
 (`frontend/src/features/analytics/ledgerLabels.ts`) для офлайн-маппинга.
+
+Отсутствие задачи само по себе **не доказывает отсутствие ПЛ**: это также может быть
+неактивная ТС, фильтр реестра или дефект planner/backfill. Поэтому UI использует
+нейтральную подпись «Нет задачи выгрузки». Если результат смены существует, но задачи
+нет, UI показывает отдельную диагностическую причину «Пропуск ledger».
 
 ## Admin Coverage v2
 

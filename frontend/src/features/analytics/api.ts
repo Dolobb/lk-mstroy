@@ -224,6 +224,7 @@ function dtRecordsToVehicleRow(regNumber: string, recs: ShiftRecord[]): UnifiedV
 
   return {
     regNumber,
+    ledgerVehicleRef: String(first.vehicleId),
     nameMO: stripSamosvaly(first.nameMO),
     organization: first.organization,
     vehicleType: 'Самосвал',
@@ -242,6 +243,7 @@ function dtRecordsToVehicleRow(regNumber: string, recs: ShiftRecord[]): UnifiedV
 export function kipWeeklyToVehicleRow(kv: KipWeeklyVehicle): UnifiedVehicleRow {
   return {
     regNumber: kv.vehicle_id,
+    ledgerVehicleRef: kv.vehicle_id,
     nameMO: kv.vehicle_model,
     organization: kv.company_name || null,
     vehicleType: kv.vehicle_type,
