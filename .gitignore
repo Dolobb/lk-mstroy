@@ -87,3 +87,7 @@ ai-reports/server/data/
 
 # Excel lock-файлы (~$...) в корне
 ~$*
+
+# Запиненные бинарники (восстанавливаются по ops/bin/README.md, в git не храним)
+ops/bin/*
+!ops/bin/README.md

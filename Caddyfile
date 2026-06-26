@@ -1,0 +1,74 @@
+# Caddyfile — ЛК Мстрой (прод, фаза 1: LAN/HTTP)
+# Заменяет Vite dev-proxy (frontend/vite.config.ts). Раздаёт собранный фронт (frontend/dist)
+# и проксирует /api/* на локальные бэкенды. Карта 1:1 с vite.config.ts на 2026-06-25.
+#
+# Запуск (smoke): caddy run --config C:\lk-mstroy\Caddyfile
+# Прод: как Windows-служба (см. winsw\caddy.xml).
+# Фаза 2 (интернет): заменить ":80" на домен → Caddy сам возьмёт Let's Encrypt (авто-HTTPS :443).
+{
+	# Глобальные опции. admin-эндпоинт Caddy на localhost:2019 (по умолчанию).
+	auto_https off
+}
+
+:80 {
+	encode gzip zstd
+
+	log {
+		output file C:\lk-mstroy\logs\caddy-access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
+
+	# --- API с переписыванием префикса на /api (как rewrite в vite) ---
+	handle_path /api/kip/* {
+		rewrite * /api{uri}
+		reverse_proxy localhost:3001
+	}
+	handle_path /api/tyagachi/* {
+		rewrite * /api{uri}
+		reverse_proxy localhost:8000
+	}
+
+	# --- API без переписывания (бэкенд ждёт полный путь /api/xx/...) ---
+	handle /api/vs/* {
+		reverse_proxy localhost:3004
+	}
+	handle /api/dt/* {
+		reverse_proxy localhost:3002
+	}
+	handle /api/admin/* {
+		reverse_proxy localhost:3005
+	}
+	handle /api/reports/* {
+		reverse_proxy localhost:3006
+	}
+	handle /api/geo/* {
+		reverse_proxy localhost:3003
+	}
+	handle /api/analytics/* {
+		reverse_proxy localhost:3007
+	}
+
+	# --- /api/fuel/* → внешний РФ-VPS (топливное приложение, writeable-из-интернета) ---
+	# PLACEHOLDER: vite инжектит "Authorization: Bearer {FUEL_ADMIN_TOKEN}" и переписывает /api/fuel → /admin.
+	# Чтобы включить — раскомментировать и подставить токен из frontend/.env (FUEL_ADMIN_TOKEN).
+	# handle_path /api/fuel/* {
+	# 	rewrite * /admin{uri}
+	# 	reverse_proxy https://atz.pisarenkovmax.ru {
+	# 		header_up Host {upstream_hostport}
+	# 		header_up Authorization "Bearer ПОДСТАВИТЬ_FUEL_ADMIN_TOKEN"
+	# 	}
+	# }
+
+	# --- Статика единого фронтенда (SPA fallback на index.html) ---
+	handle {
+		root * C:\lk-mstroy\frontend\dist
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# ПРИМЕЧАНИЕ про KIP-iframe: вкладка /kip рендерит <iframe src="http://{hostname}:3001">,
+# т.е. ходит на :3001 НАПРЯМУЮ, мимо Caddy. Значит порт 3001 тоже должен быть доступен клиентам
+# по LAN (kip-сервер должен слушать 0.0.0.0). Это не покрывается этим прокси — учесть в firewall.

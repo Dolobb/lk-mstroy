@@ -1,0 +1,15 @@
+<service>
+  <id>lk-caddy</id>
+  <name>LK Mstroy - Caddy</name>
+  <description>Reverse-proxy + статика единого фронта ЛК Мстрой (Caddyfile в корне репо).</description>
+  <executable>C:\Users\monit\AppData\Local\Microsoft\WinGet\Packages\CaddyServer.Caddy_Microsoft.Winget.Source_8wekyb3d8bbwe\caddy.exe</executable>
+  <arguments>run --config C:\lk-mstroy\Caddyfile</arguments>
+  <workingdirectory>C:\lk-mstroy</workingdirectory>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec"/>
+  <log mode="roll-by-size">
+    <sizeThreshold>20480</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <logpath>C:\lk-mstroy\logs</logpath>
+</service>

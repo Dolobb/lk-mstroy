@@ -1,0 +1,24 @@
+<service>
+  <id>lk-admin</id>
+  <name>LK Mstroy - Admin (backends)</name>
+  <description>Admin-процесс ЛК Мстрой: авто-стартует все 7 бэкендов. ИНТЕРИМ v1: запускает рабочую dev-команду `npm run dev` (см. примечание).</description>
+
+  <!-- ИНТЕРИМ v1: запускаем проверенный `npm run dev` из корня (admin+frontend+бэки).
+       Это dev-watcher'ы (см. vault 02-Packaging-and-Runtime) — работает, но не «прод-сборка».
+       Прод-цель: собрать все 7 сервисов (build) и научить admin/server.ts выбирать start-команду по NODE_ENV,
+       затем здесь запускать `node dist/server.js` только admin (а frontend отдаёт Caddy из dist).
+       Пока этот рефактор не сделан — оставляем рабочий вариант. -->
+  <executable>C:\Program Files\nodejs\npm.cmd</executable>
+  <arguments>run dev</arguments>
+  <workingdirectory>C:\lk-mstroy</workingdirectory>
+
+  <env name="PATH" value="C:\Program Files\nodejs;C:\Program Files\PostgreSQL\17\bin;C:\Users\monit\AppData\Local\Programs\Python\Python314;%PATH%"/>
+
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="15 sec"/>
+  <log mode="roll-by-size">
+    <sizeThreshold>20480</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <logpath>C:\lk-mstroy\logs</logpath>
+</service>

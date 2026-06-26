@@ -24,7 +24,7 @@
 
 Перед чтением документации/исходников **сначала проверить vault** по теме.
 
-**Путь:** `C:/Users/user_ogtr1/Documents/пмворкк/obsidian-vault/02-Projects/ЛК Мстрой/`
+**Путь:** `C:/Users/monit/obsidian-vault/02-Projects/ЛК Мстрой/`
 **Доступ:** MCP-сервер `obsidian` (search / read-file). Если MCP недоступен — читать как обычные файлы.
 
 **Что лежит в vault (чего нет в docs/):**
