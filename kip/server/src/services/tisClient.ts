@@ -8,6 +8,8 @@ import type {
   TisRequest,
   TisRouteList,
   TisMonitoringStats,
+  TisPassport,
+  TisPassportsResponse,
 } from '../types/tis-api';
 
 interface TisClientOptions {
@@ -231,6 +233,19 @@ export class TisClient {
     }
 
     return null;
+  }
+
+  /**
+   * Паспортный справочник всего парка TIS (regNumber → idMO).
+   * Один тяжёлый вызов на прогон — используется для discovery ТС без ПЛ.
+   */
+  async getPassports(signal?: AbortSignal): Promise<TisPassport[]> {
+    const result = await this.requestWithRetry<TisPassportsResponse>(
+      'getPassports',
+      {},
+      signal,
+    );
+    return result?.passports ?? [];
   }
 
   private sleep(ms: number): Promise<void> {

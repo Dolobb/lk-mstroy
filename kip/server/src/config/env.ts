@@ -38,6 +38,8 @@ export function loadEnvConfig(): EnvConfig {
     fetchConcurrency: process.env['FETCH_CONCURRENCY'] && !isNaN(parseInt(process.env['FETCH_CONCURRENCY']!, 10))
       ? parseInt(process.env['FETCH_CONCURRENCY']!, 10)
       : null,
+    // discovery ТС без ПЛ включён по умолчанию; отключить — KIP_DISCOVERY_NO_PL=false
+    discoveryNoPl: optionalEnv('KIP_DISCOVERY_NO_PL', 'true').toLowerCase() !== 'false',
   };
 }
 

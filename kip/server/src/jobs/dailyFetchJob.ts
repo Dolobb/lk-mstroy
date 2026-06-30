@@ -2,6 +2,7 @@ import { TisClient } from '../services/tisClient';
 import { TokenPool } from '../services/tokenPool';
 import { PerVehicleRateLimiter } from '../services/rateLimiter';
 import { buildVehicleTasks, interleaveTasks } from '../services/plParser';
+import { buildDiscoveryTasks } from '../services/discoveryTasks';
 import { parseMonitoringStats } from '../services/monitoringParser';
 import { parseRequests } from '../services/requestParser';
 import { matchFuelNorm } from '../services/vehicleFilter';
@@ -80,6 +81,29 @@ export async function runDailyFetch(
 
   // 3. Build & interleave vehicle tasks (filter → split shifts → interleave)
   const tasks = buildVehicleTasks(routeLists);
+
+  // 3b. Discovery ТС без ПЛ (по образцу самосвалов): реестровые ТС, у которых нет
+  //     путевого листа на targetDate, добираем из getPassports и фетчим по фикс-окнам
+  //     смен. Помечаются plId=0, requestNumbers=[].
+  if (config.discoveryNoPl) {
+    try {
+      jobController.throwIfCancelled();
+      // ключи `regNumber|shiftType`, уже покрытые ПЛ именно на targetDate (не на других днях окна)
+      const coveredKeys = new Set<string>();
+      for (const t of tasks) {
+        if (t.shift.date === dateLabel) {
+          coveredKeys.add(`${t.regNumber.toUpperCase().trim()}|${t.shift.shiftType}`);
+        }
+      }
+      const passports = await client.getPassports(signal);
+      const discovered = buildDiscoveryTasks(dateLabel, passports, coveredKeys);
+      tasks.push(...discovered);
+    } catch (err) {
+      if (isCancelledError(err)) throw err;
+      logger.warn(`[KIP discovery] getPassports/discovery failed (non-critical, skipping)`, err);
+    }
+  }
+
   const interleaved = interleaveTasks(tasks);
   let processed = 0;
   const total = interleaved.length;
@@ -221,7 +245,7 @@ export async function runDailyFetch(
 
       let totalStayTime = geozoneResult.totalStayTime > 0
         ? geozoneResult.totalStayTime
-        : engineOnTime; // fallback if no zones matched or track empty
+        : 12; // fallback: зона не определилась → считаем присутствие = полная смена (12ч)
       const departmentUnit = geozoneResult.departmentUnit;
 
       // Изменение B: if vehicle started and ended in the same zone but totalStayTime < 12h,

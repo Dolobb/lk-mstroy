@@ -70,6 +70,7 @@ export interface EnvConfig {
   nodeEnv: string;
   rateLimitPerVehicleMs: number;
   fetchConcurrency: number | null; // null = по числу токенов
+  discoveryNoPl: boolean;          // discovery реестровых ТС без ПЛ (getPassports)
 }
 
 // Weekly / detail API types

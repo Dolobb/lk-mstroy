@@ -172,7 +172,7 @@ export async function recalculateForDate(
       const geozoneResult = await analyzeTrackGeozones(fullTrack);
       let totalStayTime = geozoneResult.totalStayTime > 0
         ? geozoneResult.totalStayTime
-        : engineOnTime; // fallback: no zones matched or empty track
+        : 12; // fallback: зона не определилась → считаем присутствие = полная смена (12ч)
       const departmentUnit = geozoneResult.departmentUnit;
 
       // Изменение B: cap to 12h if same zone start/end

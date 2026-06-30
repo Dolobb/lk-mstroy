@@ -143,3 +143,18 @@ export interface TisMonitoringStats {
   parkings: TisParking[];
   fuels: TisFuel[];
 }
+
+// === getPassports — паспортный справочник всего парка TIS ===
+// Используется для discovery ТС без ПЛ: даёт regNumber → idMO для всего парка.
+export interface TisPassport {
+  idMO: number;
+  regNumber: string;
+  modelOrMarkOrModif: string;
+  garageNumber?: string;
+  registered: boolean;
+  kindType?: string | null;
+}
+
+export interface TisPassportsResponse {
+  passports: TisPassport[];
+}
