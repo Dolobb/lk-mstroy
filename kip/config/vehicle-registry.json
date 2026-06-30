@@ -1565,6 +1565,366 @@
       "type": "Краны пневмоколёсные, г/п 60",
       "branch": "МО15",
       "fuelNorm": 9
+    },
+    {
+      "regNumber": "9723ОЕ72",
+      "type": "Автогрейдер",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "5134ОВ72",
+      "type": "Автогрейдер",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "6648ОЕ72",
+      "type": "Автогрейдер",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "9510ОЕ72",
+      "type": "Автогрейдер",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "9724ОЕ72",
+      "type": "Автогрейдер",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "Р597ТО186",
+      "type": "Автокран",
+      "branch": "Не указан",
+      "fuelNorm": 8
+    },
+    {
+      "regNumber": "Р110УВ186",
+      "type": "Автокран",
+      "branch": "Не указан",
+      "fuelNorm": 8
+    },
+    {
+      "regNumber": "2225ОК72",
+      "type": "Автокран",
+      "branch": "Не указан",
+      "fuelNorm": 8
+    },
+    {
+      "regNumber": "С987УХ27",
+      "type": "Автокран",
+      "branch": "Не указан",
+      "fuelNorm": 8
+    },
+    {
+      "regNumber": "К607ВХ27",
+      "type": "Автокран",
+      "branch": "Не указан",
+      "fuelNorm": 8
+    },
+    {
+      "regNumber": "0543ТА72",
+      "type": "Автопогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "6208ТА72",
+      "type": "Автопогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "7286ОЕ72",
+      "type": "Автопогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "4577ОВ72",
+      "type": "Асфальтоукладчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "8847ОВ72",
+      "type": "Асфальтоукладчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "2240ОК72",
+      "type": "Бульдозер",
+      "branch": "Не указан",
+      "fuelNorm": 16.5
+    },
+    {
+      "regNumber": "2977",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "4198",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "А00002520",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "A00002670",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "4191",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "A00002662",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "A00002979",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "D00003801",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "2936",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "8405",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "9865",
+      "type": "Вибропогружатель",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "6764ТУ72",
+      "type": "Машина буровая",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "8868ТУ72",
+      "type": "Машина буровая",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "5360ОВ72",
+      "type": "Машина буровая",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "7016ТА72",
+      "type": "Машина буровая",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "6763ОЕ72",
+      "type": "Машина буровая",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "7952ОЕ72",
+      "type": "Машина буровая",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "6029ТР72",
+      "type": "Машина буровая",
+      "branch": "Не указан",
+      "fuelNorm": 24
+    },
+    {
+      "regNumber": "0059ОА72",
+      "type": "Минипогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "4457АО72",
+      "type": "Минипогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "7650ОА72",
+      "type": "Минипогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "7253УХ86",
+      "type": "Минипогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "8845ОВ72",
+      "type": "Минипогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "1701ОВ72",
+      "type": "Минипогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "8931ОВ72",
+      "type": "Минипогрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "7225ОВ72",
+      "type": "Погрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "0815ОК72",
+      "type": "Погрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "4843ОА72",
+      "type": "Погрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "9822ТВ86",
+      "type": "Погрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "6311ОВ72",
+      "type": "Погрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "8834ОВ72",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "2131",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "3139ТК72",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "9354ТХ72",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "1946ТУ72",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "6446",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "1121",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "2422",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "2468",
+      "type": "Сваебойная установка",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "2245ОК72",
+      "type": "Экскаватор-погрузчик",
+      "branch": "Не указан",
+      "fuelNorm": 6.5
+    },
+    {
+      "regNumber": "2224ОК72",
+      "type": "Экскаватор гусеничный",
+      "branch": "Не указан",
+      "fuelNorm": 16.4
+    },
+    {
+      "regNumber": "2227ОК72",
+      "type": "Кран гусеничный",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "2229ОК72",
+      "type": "Кран гусеничный",
+      "branch": "Не указан",
+      "fuelNorm": 0
+    },
+    {
+      "regNumber": "5597ОЕ72",
+      "type": "Подъёмник",
+      "branch": "Не указан",
+      "fuelNorm": 0
     }
   ]
 }
