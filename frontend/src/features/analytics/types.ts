@@ -270,6 +270,19 @@ export interface SidebarObjectCard {
   groups: SidebarGroupSummary[];
 }
 
+/** ДСТ-машина, работавшая вне всех геозон (нет объекта) за период. */
+export interface NoObjectVehicle {
+  vehicleId: string;
+  type: string;
+  engineHours: number;
+  kipPct: number | null;
+  lat: number;
+  lon: number;
+  nearestObjectUid: string | null;
+  nearestObjectName: string | null;
+  distanceKm: number | null;
+}
+
 export interface SidebarSummaryResponse {
   from: string;
   to: string;
@@ -277,6 +290,8 @@ export interface SidebarSummaryResponse {
   objects: SidebarObjectCard[];
   /** Объекты с dst_zone вне ключевых, у которых есть ДСТ-активность в периоде. */
   secondaryObjects: SidebarObjectCard[];
+  /** ДСТ-машины, работавшие вне всех геозон (engine>0, нет объекта). */
+  noObjectVehicles: NoObjectVehicle[];
 }
 
 // ─── Track (Session 9) ──────────────────────────────────

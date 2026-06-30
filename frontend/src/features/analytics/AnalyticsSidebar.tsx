@@ -1,10 +1,11 @@
-import type { SidebarObjectCard, SidebarTrendPoint } from './types';
+import type { SidebarObjectCard, SidebarTrendPoint, NoObjectVehicle } from './types';
 
-export type ObjectTier = 'key' | 'secondary';
+export type ObjectTier = 'key' | 'secondary' | 'noObject';
 
 interface AnalyticsSidebarProps {
   objects: SidebarObjectCard[];
   secondaryObjects: SidebarObjectCard[];
+  noObjectVehicles: NoObjectVehicle[];
   activeTier: ObjectTier;
   onTierChange: (tier: ObjectTier) => void;
   focusedObjectUid: string | null;
@@ -310,9 +311,68 @@ function TierTab({
   );
 }
 
+function kipPill(v: number | null): string {
+  if (v == null) return 'var(--sv-text-4)';
+  return kipColor(v);
+}
+
+/** Список ДСТ-машин без объекта: госномер, тип, моточасы, КИП, ближайший объект + км. */
+function NoObjectList({ vehicles }: { vehicles: NoObjectVehicle[] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 10, color: 'var(--sv-text-3)', lineHeight: 1.4, marginBottom: 2 }}>
+        Работали с заведённым двигателем, но позиция не попала ни в одну геозону.
+        «0 км» — зона рядом, нужно расширить границы; большое расстояние — объект не оцифрован.
+      </div>
+      {vehicles.map(v => (
+        <div
+          key={v.vehicleId}
+          style={{
+            padding: 12,
+            borderRadius: 8,
+            background: 'var(--sv-card-inner)',
+            border: '1px solid var(--sv-card-inner-border)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--sv-text-1)', fontVariantNumeric: 'tabular-nums' }}>
+              {v.vehicleId}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--sv-text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {v.type}
+            </span>
+            <span style={{
+              marginLeft: 'auto', flexShrink: 0,
+              padding: '2px 7px', borderRadius: 999, fontSize: 11, fontWeight: 800,
+              color: kipPill(v.kipPct),
+              background: 'rgba(148,163,184,0.13)', border: '1px solid var(--sv-divider)',
+            }}>
+              {v.kipPct == null ? '—' : `${v.kipPct}%`}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--sv-text-2)' }}>
+              {v.engineHours} ч моточасов
+            </span>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--sv-text-3)', lineHeight: 1.3 }}>
+            ближайший: <span style={{ color: 'var(--sv-text-2)' }}>{v.nearestObjectName ?? '—'}</span>
+            {v.distanceKm != null && (
+              <span style={{ fontWeight: 800, color: v.distanceKm <= 1 ? '#F59E0B' : 'var(--sv-text-3)' }}>
+                {' '}· {v.distanceKm} км
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function AnalyticsSidebar({
   objects,
   secondaryObjects,
+  noObjectVehicles,
   activeTier,
   onTierChange,
   focusedObjectUid,
@@ -322,7 +382,7 @@ export function AnalyticsSidebar({
   loading,
   error,
 }: AnalyticsSidebarProps) {
-  const activeObjects = activeTier === 'key' ? objects : secondaryObjects;
+  const activeObjects = activeTier === 'key' ? objects : activeTier === 'secondary' ? secondaryObjects : [];
   return (
     <aside style={{
       background: 'var(--sv-card)',
@@ -371,6 +431,12 @@ export function AnalyticsSidebar({
             active={activeTier === 'secondary'}
             onClick={() => onTierChange('secondary')}
           />
+          <TierTab
+            title="Без объекта"
+            count={noObjectVehicles.length}
+            active={activeTier === 'noObject'}
+            onClick={() => onTierChange('noObject')}
+          />
         </div>
       </div>
 
@@ -383,6 +449,14 @@ export function AnalyticsSidebar({
           <div style={{ padding: 12, borderRadius: 8, background: 'rgba(239,68,68,0.10)', color: '#EF4444', fontSize: 12 }}>
             Не удалось загрузить сайдбар
           </div>
+        ) : activeTier === 'noObject' ? (
+          noObjectVehicles.length === 0 ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12, color: 'var(--sv-text-3)' }}>
+              Все работавшие машины привязаны к объектам
+            </div>
+          ) : (
+            <NoObjectList vehicles={noObjectVehicles} />
+          )
         ) : activeObjects.length === 0 ? (
           <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12, color: 'var(--sv-text-3)' }}>
             {activeTier === 'key' ? 'Нет объектов' : 'Нет второстепенных зон за период'}

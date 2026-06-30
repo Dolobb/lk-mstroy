@@ -48,6 +48,19 @@ export interface SidebarObjectCard {
   groups: SidebarGroupSummary[];
 }
 
+/** ДСТ-машина, работавшая вне всех геозон (нет объекта) за период. */
+export interface NoObjectVehicle {
+  vehicleId: string;
+  type: string;
+  engineHours: number;   // суммарно за период
+  kipPct: number | null; // средний КИП по сменам с engine>0
+  lat: number;
+  lon: number;
+  nearestObjectUid: string | null;
+  nearestObjectName: string | null;
+  distanceKm: number | null;
+}
+
 export interface SidebarSummaryResponse {
   from: string;
   to: string;
@@ -55,6 +68,8 @@ export interface SidebarSummaryResponse {
   objects: SidebarObjectCard[];
   /** Объекты с dst_zone, не входящие в ключевые, у которых есть ДСТ-активность в периоде. */
   secondaryObjects: SidebarObjectCard[];
+  /** ДСТ-машины, работавшие вне всех геозон (engine>0, ни одна позиция не попала в dst_zone). */
+  noObjectVehicles: NoObjectVehicle[];
 }
 
 interface VehicleRegistryEntry {
@@ -365,12 +380,110 @@ async function getDstSidebarRecords(from: string, to: string): Promise<MetricRec
     .filter((r): r is MetricRecord => r !== null);
 }
 
+/**
+ * ДСТ-машины, работавшие вне всех геозон за период: engine>0, и НИ ОДНА позиция
+ * (последняя точка смены) не попала в dst_zone. Для каждой — ближайший объект + расстояние.
+ */
+export async function getNoObjectVehicles(from: string, to: string): Promise<NoObjectVehicle[]> {
+  const kipPool = getKipPool();
+  const kipRes = await kipPool.query<{
+    idx: number; date: string; vehicle_id: string; vehicle_model: string;
+    utilization_ratio: string | number; engine_on_time: string | number;
+    latitude: string | number; longitude: string | number;
+  }>(
+    `SELECT row_number() OVER ()::int AS idx,
+        report_date::text AS date, vehicle_id, vehicle_model,
+        utilization_ratio, engine_on_time, latitude, longitude
+     FROM vehicle_records
+     WHERE report_date BETWEEN $1 AND $2
+       AND COALESCE(is_gap_filled, false) = false
+       AND engine_on_time > 0
+       AND latitude IS NOT NULL AND longitude IS NOT NULL`,
+    [from, to],
+  );
+  if (!kipRes.rows.length) return [];
+
+  const points = kipRes.rows
+    .map(r => ({ idx: Number(r.idx), lng: Number(r.longitude), lat: Number(r.latitude) }))
+    .filter(p => Number.isFinite(p.lng) && Number.isFinite(p.lat));
+
+  const pool = getPool();
+  // idx, попавшие хотя бы в одну dst_zone
+  const matchRes = await pool.query<{ idx: number }>(
+    `WITH points AS (
+       SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(idx int, lng double precision, lat double precision)
+     )
+     SELECT DISTINCT p.idx
+     FROM points p
+     JOIN geo.zones z ON ST_Covers(z.geom, ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4326))
+     JOIN geo.zone_tags zt ON zt.zone_id = z.id AND zt.tag = 'dst_zone'`,
+    [JSON.stringify(points)],
+  );
+  const matchedIdx = new Set(matchRes.rows.map(r => Number(r.idx)));
+
+  // группировка по ТС: матчился ли хоть один record
+  const byVehicle = new Map<string, { rows: typeof kipRes.rows; anyMatched: boolean }>();
+  for (const r of kipRes.rows) {
+    const v = byVehicle.get(r.vehicle_id) ?? { rows: [], anyMatched: false };
+    v.rows.push(r);
+    if (matchedIdx.has(Number(r.idx))) v.anyMatched = true;
+    byVehicle.set(r.vehicle_id, v);
+  }
+
+  const registry = loadVehicleRegistry();
+  const noObj: Array<{ vehicleId: string; type: string; engineHours: number; kipPct: number | null; lat: number; lon: number; idx: number }> = [];
+  for (const [vehicleId, info] of byVehicle) {
+    if (info.anyMatched) continue; // машина была на каком-то объекте — не сюда
+    const last = [...info.rows].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    const engineHours = info.rows.reduce((s, r) => s + Number(r.engine_on_time), 0);
+    const kipVals = info.rows.map(r => Number(r.utilization_ratio)).filter(Number.isFinite);
+    const kipPct = kipVals.length ? Math.round(kipVals.reduce((s, v) => s + v, 0) / kipVals.length) : null;
+    const type = registry.get(vehicleId.toUpperCase())?.type ?? last.vehicle_model;
+    noObj.push({
+      vehicleId, type, engineHours: Math.round(engineHours * 10) / 10, kipPct,
+      lat: Number(last.latitude), lon: Number(last.longitude), idx: Number(last.idx),
+    });
+  }
+  if (!noObj.length) return [];
+
+  // ближайший dst_zone объект для каждой «беспризорной» точки
+  const nearPoints = noObj.map(v => ({ idx: v.idx, lng: v.lon, lat: v.lat }));
+  const nearRes = await pool.query<{ idx: number; uid: string; name: string; dist_m: number }>(
+    `WITH points AS (
+       SELECT * FROM jsonb_to_recordset($1::jsonb) AS p(idx int, lng double precision, lat double precision)
+     )
+     SELECT DISTINCT ON (p.idx) p.idx, o.uid, o.name,
+       ST_Distance(z.geom::geography, ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4326)::geography) AS dist_m
+     FROM points p
+     CROSS JOIN geo.zones z
+     JOIN geo.zone_tags zt ON zt.zone_id = z.id AND zt.tag = 'dst_zone'
+     JOIN geo.objects o ON o.id = z.object_id
+     ORDER BY p.idx, dist_m ASC`,
+    [JSON.stringify(nearPoints)],
+  );
+  const nearByIdx = new Map(nearRes.rows.map(r => [Number(r.idx), r]));
+
+  return noObj
+    .map(v => {
+      const near = nearByIdx.get(v.idx);
+      return {
+        vehicleId: v.vehicleId, type: v.type, engineHours: v.engineHours, kipPct: v.kipPct,
+        lat: v.lat, lon: v.lon,
+        nearestObjectUid: near?.uid ?? null,
+        nearestObjectName: near?.name ?? null,
+        distanceKm: near ? Math.round(Number(near.dist_m) / 100) / 10 : null,
+      };
+    })
+    .sort((a, b) => b.engineHours - a.engineHours);
+}
+
 export async function getSidebarSummary(from: string, to: string): Promise<SidebarSummaryResponse> {
-  const [keyObjects, secondaryObjectDefs, dtRecords, dstRecords] = await Promise.all([
+  const [keyObjects, secondaryObjectDefs, dtRecords, dstRecords, noObjectVehicles] = await Promise.all([
     getBigObjects(),
     getSecondaryObjects(),
     getDumpTruckSidebarRecords(from, to),
     getDstSidebarRecords(from, to),
+    getNoObjectVehicles(from, to),
   ]);
 
   const relevantUids = new Set([
@@ -424,6 +537,7 @@ export async function getSidebarSummary(from: string, to: string): Promise<Sideb
     secondaryObjects: secondaryObjectDefs
       .filter(obj => (recordsByObject.get(obj.uid)?.length ?? 0) > 0)
       .map(buildCard),
+    noObjectVehicles,
   };
 }
 
@@ -475,6 +589,27 @@ export function groupsRouter(): Router {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error('Sidebar summary endpoint failed', err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // ДСТ-машины, работавшие вне всех геозон (нет объекта) за период.
+  router.get('/analytics/no-object', async (req, res) => {
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const fromDate = from ? parseDateOnly(from) : null;
+    const toDate = to ? parseDateOnly(to) : null;
+    if (!from || !to || !fromDate || !toDate || fromDate.getTime() > toDate.getTime()) {
+      res.status(400).json({ error: 'Query parameters "from" and "to" required (YYYY-MM-DD)' });
+      return;
+    }
+
+    try {
+      const vehicles = await getNoObjectVehicles(from, to);
+      res.json({ from, to, vehicles });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error('No-object endpoint failed', err);
       res.status(500).json({ error: msg });
     }
   });

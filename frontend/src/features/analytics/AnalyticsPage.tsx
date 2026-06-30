@@ -215,10 +215,11 @@ const LS_VIEW = 'sv-analytics-view';
 const LS_FROM = 'sv-analytics-from';
 const LS_TO = 'sv-analytics-to';
 const LS_TIERS = 'sv-analytics-tiers';
+const LS_V2SEL = 'sv-analytics-v2sel';
 const VIEW_MODES = ['table', 'map', 'cards', 'cardsV2'] as const;
 type ViewMode = (typeof VIEW_MODES)[number];
 
-type ObjectTier = 'key' | 'secondary';
+type ObjectTier = 'key' | 'secondary' | 'noObject';
 
 function lsGet(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -245,7 +246,20 @@ function initialViewMode(): ViewMode {
 }
 // Активная вкладка объектов; по умолчанию — ключевые.
 function initialActiveTier(): ObjectTier {
-  return lsGet(LS_TIERS) === 'secondary' ? 'secondary' : 'key';
+  const v = lsGet(LS_TIERS);
+  return v === 'secondary' || v === 'noObject' ? v : 'key';
+}
+// Выбранная смена в «Карточках v2» (sticky между перезагрузками/вкладками).
+function initialCardsV2Selection(): { date: string; shift: 'shift1' | 'shift2' } | null {
+  const raw = lsGet(LS_V2SEL);
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw);
+    if (v && typeof v.date === 'string' && (v.shift === 'shift1' || v.shift === 'shift2')) {
+      return { date: v.date, shift: v.shift };
+    }
+  } catch { /* битый кэш — игнор */ }
+  return null;
 }
 
 const OUTSIDE_GROUP_UID = '__outside' as const;
@@ -516,7 +530,11 @@ export function AnalyticsPage() {
   const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
   const [focusedObjectUid, setFocusedObjectUid] = useState<string | null>(null);
   const [showOutsideOnMap, setShowOutsideOnMap] = useState(false);
-  const [cardsV2Selection, setCardsV2Selection] = useState<{ date: string; shift: 'shift1' | 'shift2' } | null>(null);
+  const [cardsV2Selection, setCardsV2Selection] = useState<{ date: string; shift: 'shift1' | 'shift2' } | null>(initialCardsV2Selection);
+  // Sticky: сохраняем выбранную смену «Карточек v2» между перезагрузками/вкладками.
+  useEffect(() => {
+    if (cardsV2Selection) lsSet(LS_V2SEL, JSON.stringify(cardsV2Selection));
+  }, [cardsV2Selection]);
 
   // Session 9: selected vehicle for track rendering
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -1780,6 +1798,7 @@ export function AnalyticsPage() {
         <AnalyticsSidebar
           objects={sidebarSummary?.objects ?? []}
           secondaryObjects={sidebarSummary?.secondaryObjects ?? []}
+          noObjectVehicles={sidebarSummary?.noObjectVehicles ?? []}
           activeTier={activeTier}
           onTierChange={setActiveTier}
           focusedObjectUid={focusedObjectUid}
