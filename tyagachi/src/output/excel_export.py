@@ -1,3 +1,4 @@
+from datetime import datetime
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
@@ -20,9 +21,8 @@ def _fmt_date(value) -> str:
     # Пробуем распарсить ISO-формат (2024-06-01T08:00:00 / 2024-06-01 08:00:00)
     for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
         try:
-            from datetime import datetime
             dt = datetime.strptime(s[:len(fmt) + 2].rstrip("Z"), fmt)
-            return dt.strptime("%d.%m.%Y %H:%M")
+            return dt.strftime("%d.%m.%Y %H:%M")
         except ValueError:
             continue
     return s  # если не распознали — отдаём строку как есть
