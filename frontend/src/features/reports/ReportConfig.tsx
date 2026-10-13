@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DateRangePicker } from '../../components/DateRangePicker/DateRangePicker';
+import { DateTimeRangePicker } from '@/components/DateTimeRangePicker';
 import type { ReportType, ReportMeta, ReportFilters } from './types';
+
+export type ReportShift = 'all' | 'shift1' | 'shift2';
 
 interface VehicleMultiSelectProps {
   options: { id: string; label: string }[];
@@ -86,9 +88,11 @@ const VehicleMultiSelect: React.FC<VehicleMultiSelectProps> = ({ options, select
 interface Props {
   reportType: ReportType;
   onTypeChange: (t: ReportType) => void;
-  dateFrom: string;
-  dateTo: string;
-  onDateChange: (from: string, to: string) => void;
+  dateFrom: Date;
+  dateTo: Date;
+  onDateChange: (from: Date, to: Date) => void;
+  shiftType: ReportShift;
+  onShiftChange: (s: ReportShift) => void;
   meta: ReportMeta | null;
   filters: ReportFilters;
   onFiltersChange: (f: ReportFilters) => void;
@@ -103,6 +107,8 @@ export const ReportConfig: React.FC<Props> = ({
   dateFrom,
   dateTo,
   onDateChange,
+  shiftType,
+  onShiftChange,
   meta,
   filters,
   onFiltersChange,
@@ -130,14 +136,28 @@ export const ReportConfig: React.FC<Props> = ({
         </select>
       </div>
 
-      {/* Date range */}
+      {/* Date range — границы операционных суток 07:30→07:30 (как в аналитике) */}
       <div className="flex flex-col gap-1">
         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Период</label>
-        <DateRangePicker
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onRangeChange={onDateChange}
+        <DateTimeRangePicker
+          from={dateFrom}
+          to={dateTo}
+          onChange={onDateChange}
         />
+      </div>
+
+      {/* Shift filter — дефолт «Обе смены» */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Смена</label>
+        <select
+          value={shiftType}
+          onChange={e => onShiftChange(e.target.value as ReportShift)}
+          className={selectClass}
+        >
+          <option value="all">Обе смены</option>
+          <option value="shift1">1 смена</option>
+          <option value="shift2">2 смена</option>
+        </select>
       </div>
 
       {/* Object filter — dump trucks (trips + onsite) */}

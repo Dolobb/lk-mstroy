@@ -4,17 +4,77 @@ import { ReportConfig } from './ReportConfig';
 import { ColumnConfigurator } from './ColumnConfigurator';
 import { fetchReportMeta, generateReport, downloadBlob } from './api';
 import type { ReportType, ReportMeta, ReportFilters } from './types';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { format } from 'date-fns';
 
-const toYmd = (d: Date) => format(d, 'yyyy-MM-dd');
+const SHIFT_START_MIN = 7 * 60 + 30; // 07:30 — граница операционных суток
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+// Операционные сутки (report_date) момента: до 07:30 — это предыдущий день.
+function operationalDay(d: Date): string {
+  const min = d.getHours() * 60 + d.getMinutes();
+  const base = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (min < SHIFT_START_MIN) base.setDate(base.getDate() - 1);
+  return ymd(base);
+}
+
+// Пикер отдаёт from = 07:30 «от», to = 07:30 выбранного «до» (начало его дневной смены).
+// Операционные сутки идут 07:30→07:30, поэтому выбранный «до» день включается ПОЛНОСТЬЮ
+// (его обе смены, ночная заканчивается в 07:30 следующего дня). Диапазон report_date:
+// operationalDay(from) .. operationalDay(to) включительно.
+function toReportRange(from: Date, to: Date): { dateFrom: string; dateTo: string } {
+  return {
+    dateFrom: operationalDay(from),
+    dateTo: operationalDay(to),
+  };
+}
+
 const now = new Date();
-const defaultFrom = toYmd(startOfWeek(now, { weekStartsOn: 1 }));
-const defaultTo = toYmd(endOfWeek(now, { weekStartsOn: 1 }));
+function at730(base: Date, plusDays = 0): Date {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + plusDays);
+  d.setHours(7, 30, 0, 0);
+  return d;
+}
+// Дефолт: последние 7 операционных суток (07:30 семь дней назад → 07:30 сегодня).
+const defaultFrom = at730(now, -7);
+const defaultTo = at730(now, 0);
+
+// ─── Sticky-состояние (localStorage), как на странице «Аналитика» ──────
+const LS_FROM = 'sv-reports-from';
+const LS_TO = 'sv-reports-to';
+const LS_SHIFT = 'sv-reports-shift';
+const LS_TYPE = 'sv-reports-type';
+
+function lsGet(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function lsSet(key: string, val: string): void {
+  try { localStorage.setItem(key, val); } catch { /* SSR / quota — игнор */ }
+}
+function initDate(key: string, fallback: Date): Date {
+  const cached = lsGet(key);
+  if (cached) {
+    const d = new Date(cached);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return fallback;
+}
+function initShift(): 'all' | 'shift1' | 'shift2' {
+  const v = lsGet(LS_SHIFT);
+  return v === 'shift1' || v === 'shift2' ? v : 'all';
+}
+function initType(): ReportType {
+  const v = lsGet(LS_TYPE);
+  return v === 'dump-truck-trips' || v === 'dump-truck-onsite' ? v : 'kip';
+}
 
 export const ReportsPage: React.FC = () => {
-  const [reportType, setReportType] = useState<ReportType>('kip');
-  const [dateFrom, setDateFrom] = useState(defaultFrom);
-  const [dateTo, setDateTo] = useState(defaultTo);
+  const [reportType, setReportType] = useState<ReportType>(initType);
+  const [dateFrom, setDateFrom] = useState<Date>(() => initDate(LS_FROM, defaultFrom));
+  const [dateTo, setDateTo] = useState<Date>(() => initDate(LS_TO, defaultTo));
+  // Фильтр смены: 'all' (обе, дефолт) | 'shift1' | 'shift2'
+  const [shiftType, setShiftType] = useState<'all' | 'shift1' | 'shift2'>(initShift);
   const [meta, setMeta] = useState<ReportMeta | null>(null);
   const [included, setIncluded] = useState<string[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({});
@@ -23,10 +83,11 @@ export const ReportsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load meta on type/date change
+  // Load meta on type/date change (мета зависит от диапазона операционных суток)
   const loadMeta = useCallback(async () => {
     try {
-      const m = await fetchReportMeta(reportType, dateFrom, dateTo);
+      const { dateFrom: df, dateTo: dt } = toReportRange(dateFrom, dateTo);
+      const m = await fetchReportMeta(reportType, df, dt);
       setMeta(m);
       // Reset columns to defaults for this report type
       setIncluded(m.columns.filter(c => c.defaultIncluded).map(c => c.id));
@@ -40,7 +101,13 @@ export const ReportsPage: React.FC = () => {
     loadMeta();
   }, [loadMeta]);
 
-  const handleDateChange = (from: string, to: string) => {
+  // Sticky: сохраняем выбор в localStorage при каждом изменении.
+  useEffect(() => { lsSet(LS_FROM, dateFrom.toISOString()); }, [dateFrom]);
+  useEffect(() => { lsSet(LS_TO, dateTo.toISOString()); }, [dateTo]);
+  useEffect(() => { lsSet(LS_SHIFT, shiftType); }, [shiftType]);
+  useEffect(() => { lsSet(LS_TYPE, reportType); }, [reportType]);
+
+  const handleDateChange = (from: Date, to: Date) => {
     setDateFrom(from);
     setDateTo(to);
   };
@@ -54,16 +121,17 @@ export const ReportsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      const { dateFrom: df, dateTo: dt } = toReportRange(dateFrom, dateTo);
       const blob = await generateReport({
         reportType,
-        dateFrom,
-        dateTo,
+        dateFrom: df,
+        dateTo: dt,
         columns: included,
-        filters,
+        filters: { ...filters, shiftType },
         splitByDays: reportType === 'kip' ? splitByDays : undefined,
         splitByShifts: reportType === 'kip' ? splitByShifts : undefined,
       });
-      downloadBlob(blob, `report_${reportType}_${dateFrom}_${dateTo}.xlsx`);
+      downloadBlob(blob, `report_${reportType}_${df}_${dt}.xlsx`);
     } catch (err: any) {
       setError(err.message || 'Ошибка генерации');
     } finally {
@@ -85,6 +153,8 @@ export const ReportsPage: React.FC = () => {
           dateFrom={dateFrom}
           dateTo={dateTo}
           onDateChange={handleDateChange}
+          shiftType={shiftType}
+          onShiftChange={setShiftType}
           meta={meta}
           filters={filters}
           onFiltersChange={setFilters}

@@ -42,6 +42,8 @@ export interface OnsiteDateShiftGroup {
 interface DtOnsiteFilters {
   objectUid?: string;
   vehicles?: string[];
+  /** 'all' | 'shift1' | 'shift2' — фильтр по смене (дефолт: обе). */
+  shiftType?: string;
 }
 
 const SEGMENT_DURATION_SEC = 30 * 60;
@@ -92,6 +94,16 @@ export async function queryDtOnsiteData(
 ): Promise<OnsiteDateShiftGroup[]> {
   const pool = getPg17();
   const params: any[] = [dateFrom || null, dateTo || null, filters.objectUid || null];
+  let vehiclesClause = '';
+  if (filters.vehicles?.length) {
+    params.push(filters.vehicles);
+    vehiclesClause = `AND sr.reg_number = ANY($${params.length}::varchar[])`;
+  }
+  let shiftClause = '';
+  if (filters.shiftType && filters.shiftType !== 'all') {
+    params.push(filters.shiftType);
+    shiftClause = `AND sr.shift_type = $${params.length}`;
+  }
 
   // Query 1: onsite shift records (+ aggregated fuel from raw_monitoring JSON)
   const recRes = await pool.query<OnsiteRecordRow>(`
@@ -120,9 +132,10 @@ export async function queryDtOnsiteData(
       AND ($1::date IS NULL OR sr.report_date >= $1)
       AND ($2::date IS NULL OR sr.report_date <= $2)
       AND ($3::text IS NULL OR sr.object_uid = $3)
-      ${filters.vehicles?.length ? `AND sr.reg_number = ANY($4::varchar[])` : ''}
+      ${vehiclesClause}
+      ${shiftClause}
     ORDER BY sr.report_date, sr.shift_type, sr.object_name, sr.reg_number
-  `, filters.vehicles?.length ? [...params, filters.vehicles] : params);
+  `, params);
 
   if (recRes.rows.length === 0) return [];
 

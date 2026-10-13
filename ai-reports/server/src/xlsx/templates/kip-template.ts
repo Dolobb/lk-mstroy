@@ -4,15 +4,16 @@ import {
   allThinBorders, headerFill, headerFont, centerAlign,
   KIP_DARK_BLUE, KIP_MED_BLUE, KIP_LIGHT_BLUE, KIP_GROUP_BLUE,
 } from '../styles';
+import { categoryLabel, categoryOrderIndex } from '../../reports/vehicleCategory';
 
 // ─── Constants ─────────────────────────────────────────────────────
 
 // DB field → column label
 const METRIC_LABELS: Record<string, string> = {
   utilization_ratio: 'КИП, %',
-  total_stay_time: 'Вр. на объекте',
-  engine_on_time: 'Время работы двиг.',
-  load_efficiency_pct: 'Нагрузка, %',
+  total_stay_time: 'Время нахождения на объекте',
+  engine_on_time: 'Время работы двигателя',
+  load_efficiency_pct: 'Работа под нагрузкой, %',
   idle_time: 'Простой, ч',
   fuel_consumed_total: 'Расход, л',
   fuel_rate_fact: 'Расх. факт, л/ч',
@@ -73,6 +74,9 @@ interface PreparedRow {
   colB: string | number;    // seq number, date, or date+shift
   shift1: Record<string, number>;
   shift2: Record<string, number>;  // empty in singleShift mode
+  // Агрегированный режим (как ОТТУ): одна ТС = несколько строк по объектам.
+  // Первая строка ТС несёт №/№п/п/Марку, продолжения — пустые. undefined → одиночная строка.
+  firstOfVehicle?: boolean;
 }
 
 // ─── Main build function ───────────────────────────────────────────
@@ -199,18 +203,29 @@ export async function buildKipXlsx(
 
   // ─── Data rows ────────────────────────────────────────────────
   let rowIdx = 6;
-  let globalNum = 0;
+  let globalRunning = 0;            // сквозной № для режимов «по дням/сменам»
+  // Агрегированный режим (как ОТТУ): № — по типу, № п/п — по подразделению,
+  // одна ТС = несколько строк по объектам (продолжения — без №/Марки).
+  const aggregatedMode = !byDays;
 
-  for (const [model, rows] of groups) {
+  // Группы идут в порядке категорий ОТТУ (Бульдозеры, Краны автомобильные, …),
+  // прочие — в хвост.
+  const orderedGroups = [...groups.entries()].sort(
+    ([a], [b]) => categoryOrderIndex(a) - categoryOrderIndex(b) || a.localeCompare(b, 'ru'),
+  );
+
+  for (const [category, rows] of orderedGroups) {
     // Type group header
     ws.mergeCells(rowIdx, 1, rowIdx, totalCols);
     const typeCell = ws.getCell(rowIdx, 1);
-    typeCell.value = `Тип: ${model}`;
+    typeCell.value = `Тип ${categoryLabel(category)}`;
     typeCell.font = headerFont('Arial Narrow', HDR_SIZE);
     typeCell.fill = headerFill(KIP_GROUP_BLUE);
     typeCell.alignment = centerAlign;
     typeCell.border = allThinBorders;
     rowIdx++;
+
+    let typeNum = 0;                 // № (колонка A) — сквозной внутри типа
 
     // Sub-group by organization
     const orgGroups = new Map<string, PreparedRow[]>();
@@ -231,19 +246,25 @@ export async function buildKipXlsx(
       orgCell.border = allThinBorders;
       rowIdx++;
 
+      let subNum = 0;                // № п/п (колонка B) — сквозной внутри подразделения
+
     for (const pr of orgRows) {
-      globalNum++;
+      const isVehicleStart = pr.firstOfVehicle !== false;
       const row = ws.getRow(rowIdx);
       row.height = DATA_ROW_H;
 
-      // Column A: global number
-      ws.getCell(rowIdx, 1).value = globalNum;
-
-      // Column B: seq number, date, or date+shift
-      ws.getCell(rowIdx, 2).value = pr.colB;
-
-      // Column C: rich text — model | **regNumber**
-      ws.getCell(rowIdx, 3).value = buildVehicleRichText(pr.model, pr.regNumber);
+      if (aggregatedMode) {
+        // № / № п/п / Марка — только на первой строке ТС; продолжения по объектам пустые.
+        if (isVehicleStart) { typeNum++; subNum++; }
+        ws.getCell(rowIdx, 1).value = isVehicleStart ? typeNum : '';
+        ws.getCell(rowIdx, 2).value = isVehicleStart ? subNum : '';
+        ws.getCell(rowIdx, 3).value = isVehicleStart ? buildVehicleRichText(pr.model, pr.regNumber) : '';
+      } else {
+        globalRunning++;
+        ws.getCell(rowIdx, 1).value = globalRunning;
+        ws.getCell(rowIdx, 2).value = pr.colB;  // дата / дата+смена
+        ws.getCell(rowIdx, 3).value = buildVehicleRichText(pr.model, pr.regNumber);
+      }
 
       // Column D: site
       ws.getCell(rowIdx, 4).value = pr.site;
@@ -303,45 +324,53 @@ function prepareData(
   return { groups: prepareAggregated(data, metricCols), colBHeader };
 }
 
-// Mode 1: Aggregated — one row per vehicle
+// Mode 1: Aggregated (как ОТТУ) — одна ТС = несколько строк по объектам строительства.
+// Группировка: категория → ТС → объект (department_unit) → {утро, вечер}.
 function prepareAggregated(data: KipRow[], metricCols: string[]): Map<string, PreparedRow[]> {
-  // Group: model → vid → { mornings: KipRow[], evenings: KipRow[] }
-  const tree = new Map<string, Map<string, { model: string; site: string; companyName: string; mornings: KipRow[]; evenings: KipRow[] }>>();
+  interface Veh {
+    model: string;
+    companyName: string;
+    objects: Map<string, { mornings: KipRow[]; evenings: KipRow[] }>;
+  }
+  const tree = new Map<string, Map<string, Veh>>();
 
   for (const row of data) {
-    const model = row.vehicle_model || 'Прочие';
+    const cat = row.vehicle_type || 'Прочие';
     const vid = row.vehicle_id;
-    if (!tree.has(model)) tree.set(model, new Map());
-    const vMap = tree.get(model)!;
-    if (!vMap.has(vid)) {
-      vMap.set(vid, { model, site: row.department_unit, companyName: row.company_name || '', mornings: [], evenings: [] });
-    }
-    const bucket = vMap.get(vid)!;
-    // Keep latest site name
-    if (row.department_unit) bucket.site = row.department_unit;
-    if (row.company_name) bucket.companyName = row.company_name;
+    const site = row.department_unit || '';
+    if (!tree.has(cat)) tree.set(cat, new Map());
+    const vMap = tree.get(cat)!;
+    if (!vMap.has(vid)) vMap.set(vid, { model: row.vehicle_model || '', companyName: row.company_name || '', objects: new Map() });
+    const veh = vMap.get(vid)!;
+    if (row.vehicle_model) veh.model = row.vehicle_model;
+    if (row.company_name) veh.companyName = row.company_name;
+    if (!veh.objects.has(site)) veh.objects.set(site, { mornings: [], evenings: [] });
+    const bucket = veh.objects.get(site)!;
     if (row.shift_type === 'morning') bucket.mornings.push(row);
     else bucket.evenings.push(row);
   }
 
   const groups = new Map<string, PreparedRow[]>();
-  let localNum = 0;
 
-  for (const [model, vMap] of tree) {
+  for (const [cat, vMap] of tree) {
     const rows: PreparedRow[] = [];
-    for (const [vid, bucket] of vMap) {
-      localNum++;
-      rows.push({
-        model: bucket.model,
-        regNumber: vid,
-        site: bucket.site,
-        companyName: bucket.companyName,
-        colB: localNum,
-        shift1: aggregateMetrics(bucket.mornings, metricCols),
-        shift2: aggregateMetrics(bucket.evenings, metricCols),
-      });
+    for (const [vid, veh] of vMap) {
+      let first = true;
+      for (const [site, bucket] of veh.objects) {
+        rows.push({
+          model: veh.model,
+          regNumber: vid,
+          site,
+          companyName: veh.companyName,
+          colB: '',                 // № п/п проставляется при рендере (по подразделению)
+          firstOfVehicle: first,
+          shift1: aggregateMetrics(bucket.mornings, metricCols),
+          shift2: aggregateMetrics(bucket.evenings, metricCols),
+        });
+        first = false;
+      }
     }
-    groups.set(model, rows);
+    groups.set(cat, rows);
   }
 
   return groups;
@@ -352,11 +381,11 @@ function prepareSplitByDays(data: KipRow[], metricCols: string[]): Map<string, P
   const tree = new Map<string, Map<string, Map<string, { morning?: KipRow; evening?: KipRow }>>>();
 
   for (const row of data) {
-    const model = row.vehicle_model || 'Прочие';
+    const cat = row.vehicle_type || 'Прочие';
     const vid = row.vehicle_id;
     const date = row.report_date;
-    if (!tree.has(model)) tree.set(model, new Map());
-    const vMap = tree.get(model)!;
+    if (!tree.has(cat)) tree.set(cat, new Map());
+    const vMap = tree.get(cat)!;
     if (!vMap.has(vid)) vMap.set(vid, new Map());
     const dateMap = vMap.get(vid)!;
     if (!dateMap.has(date)) dateMap.set(date, {});
@@ -367,13 +396,13 @@ function prepareSplitByDays(data: KipRow[], metricCols: string[]): Map<string, P
 
   const groups = new Map<string, PreparedRow[]>();
 
-  for (const [model, vMap] of tree) {
+  for (const [cat, vMap] of tree) {
     const rows: PreparedRow[] = [];
     for (const [vid, dateMap] of vMap) {
       for (const [date, entry] of dateMap) {
         const src = entry.morning || entry.evening!;
         rows.push({
-          model: src.vehicle_model || model,
+          model: src.vehicle_model || '',
           regNumber: vid,
           site: src.department_unit || '',
           companyName: src.company_name || '',
@@ -383,7 +412,7 @@ function prepareSplitByDays(data: KipRow[], metricCols: string[]): Map<string, P
         });
       }
     }
-    groups.set(model, rows);
+    groups.set(cat, rows);
   }
 
   return groups;
@@ -394,11 +423,11 @@ function prepareSplitByShifts(data: KipRow[], metricCols: string[]): Map<string,
   const tree = new Map<string, Map<string, { model: string; entries: { date: string; shift: string; row: KipRow }[] }>>();
 
   for (const row of data) {
-    const model = row.vehicle_model || 'Прочие';
+    const cat = row.vehicle_type || 'Прочие';
     const vid = row.vehicle_id;
-    if (!tree.has(model)) tree.set(model, new Map());
-    const vMap = tree.get(model)!;
-    if (!vMap.has(vid)) vMap.set(vid, { model, entries: [] });
+    if (!tree.has(cat)) tree.set(cat, new Map());
+    const vMap = tree.get(cat)!;
+    if (!vMap.has(vid)) vMap.set(vid, { model: row.vehicle_model || '', entries: [] });
     vMap.get(vid)!.entries.push({
       date: row.report_date,
       shift: row.shift_type === 'morning' ? '1см' : '2см',
@@ -408,12 +437,12 @@ function prepareSplitByShifts(data: KipRow[], metricCols: string[]): Map<string,
 
   const groups = new Map<string, PreparedRow[]>();
 
-  for (const [model, vMap] of tree) {
+  for (const [cat, vMap] of tree) {
     const rows: PreparedRow[] = [];
     for (const [vid, bucket] of vMap) {
       for (const e of bucket.entries) {
         rows.push({
-          model: e.row.vehicle_model || model,
+          model: e.row.vehicle_model || '',
           regNumber: vid,
           site: e.row.department_unit || '',
           companyName: e.row.company_name || '',
@@ -423,7 +452,7 @@ function prepareSplitByShifts(data: KipRow[], metricCols: string[]): Map<string,
         });
       }
     }
-    groups.set(model, rows);
+    groups.set(cat, rows);
   }
 
   return groups;

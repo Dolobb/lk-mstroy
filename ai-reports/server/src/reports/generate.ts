@@ -31,11 +31,18 @@ export async function generateHandler(req: Request, res: Response) {
 
     let workbook;
 
+    // Фильтр смены приходит нейтральным: 'all' | 'shift1' | 'shift2' (дефолт обе).
+    // КИП хранит смену как morning/evening — маппим; самосвалы — shift1/shift2 как есть.
+    const shiftNeutral = body.filters.shiftType;
+    const kipShift = shiftNeutral === 'shift1' ? 'morning'
+      : shiftNeutral === 'shift2' ? 'evening'
+      : shiftNeutral;
+
     if (body.reportType === 'kip') {
       const data = await queryKipData(body.dateFrom, body.dateTo, {
         departments: body.filters.departments,
         vehicles: body.filters.vehicles,
-        shiftType: body.filters.shiftType,
+        shiftType: kipShift,
       });
 
       if (data.length === 0) {
@@ -50,6 +57,7 @@ export async function generateHandler(req: Request, res: Response) {
       const data = await queryDtTripsData(body.dateFrom, body.dateTo, {
         objectUid: body.filters.objectUid,
         vehicles: body.filters.vehicles,
+        shiftType: shiftNeutral,
       });
 
       if (data.length === 0) {
@@ -61,6 +69,7 @@ export async function generateHandler(req: Request, res: Response) {
       const data = await queryDtOnsiteData(body.dateFrom, body.dateTo, {
         objectUid: body.filters.objectUid,
         vehicles: body.filters.vehicles,
+        shiftType: shiftNeutral,
       });
 
       if (data.length === 0) {

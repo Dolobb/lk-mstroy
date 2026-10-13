@@ -1,12 +1,22 @@
 /* ─── Карточки Аналитики v2.0 («Навигация по дням») ─────────────────── */
 /* Изолированный неймспейс sv-v2-*. План: ANALYTICS_CARDS_V2_PLAN.md       */
 
-/* Таймлайн-навигатор день×смена (заменяет daterangepicker) */
+/* Таймлайн-навигатор день×смена (заменяет daterangepicker).
+   Прилипает к верху при прокрутке списка карточек (sticky) — выбор даты
+   всегда доступен. Контейнер прокрутки — .sv-v2-scroll (overflow-y:auto). */
 .sv-v2-timeline {
+  position: sticky; top: 0; z-index: 20;
   display: flex; align-items: flex-start; gap: 10px;
   padding: 10px 12px; margin: 0 0 12px;
-  background: var(--sv-card); border: 1px solid var(--sv-card-border);
+  /* НЕПРОЗРАЧНЫЙ фон (не var(--sv-card), который полупрозрачный) — иначе при
+     sticky карточки просвечивают сквозь меню выбора даты. */
+  background: #0F1829; border: 1px solid var(--sv-card-border);
   border-radius: 12px; overflow-x: auto;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.22);
+}
+.sv-root[data-theme="light"] .sv-v2-timeline {
+  background: #EEF2F7;
+  box-shadow: 0 6px 14px rgba(15,23,42,0.12);
 }
 .sv-v2-tl-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
 .sv-v2-tl-shifts { display: flex; gap: 3px; }

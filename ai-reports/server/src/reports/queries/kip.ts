@@ -1,10 +1,13 @@
 import { getPg16 } from '../../db/pg16';
+import { categoryForReg, categoryKey } from '../vehicleCategory';
 
 export interface KipRow {
   report_date: string;
   shift_type: string;
   vehicle_id: string;
   vehicle_model: string;
+  /** Базовая категория ТС (без г/п) из реестра — для группировки отчёта. */
+  vehicle_type: string;
   company_name: string;
   department_unit: string;
   utilization_ratio: number;
@@ -96,6 +99,7 @@ export async function queryKipData(
     shift_type: r.shift_type,
     vehicle_id: r.vehicle_id,
     vehicle_model: r.vehicle_model || '',
+    vehicle_type: categoryKey(categoryForReg(r.vehicle_id)),
     company_name: r.company_name || '',
     department_unit: r.department_unit || '',
     utilization_ratio: Number(r.utilization_ratio) || 0,

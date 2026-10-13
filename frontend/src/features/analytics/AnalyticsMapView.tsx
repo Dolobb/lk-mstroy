@@ -973,10 +973,13 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
       if (!g.groupUid) continue;
       const zones = objectZones.get(g.groupUid);
       if (!zones) continue;
-      // Object only shown if it has a dt_boundary (same as before — the
-      // boundary is the outline + selection hit-area). Inner zones layer
-      // under it.
-      const boundary = zones.find(z => z.properties.tags?.includes('dt_boundary'));
+      // Граница объекта = контур + hit-area для выбора. Ключевые объекты имеют
+      // dt_boundary. Второстепенные (только dst_zone, без dt_boundary) рисуем по
+      // их единственной зоне dst_zone — иначе они не отображались на карте вовсе.
+      // Если зон несколько и нет ни dt_boundary, ни dst_zone — берём первую.
+      const boundary = zones.find(z => z.properties.tags?.includes('dt_boundary'))
+        ?? zones.find(z => z.properties.tags?.includes('dst_zone'))
+        ?? zones[0];
       if (!boundary) continue;
       out.push({
         objectUid: g.groupUid,
@@ -989,12 +992,17 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
     return out;
   }, [groups, objectZones]);
 
-  // All-objects fitBounds
+  // All-objects fitBounds. Используем ВСЕ зоны объекта (а не только границу):
+  // у второстепенных объектов может быть несколько dst_zone без dt_boundary —
+  // кадрируем так, чтобы все они попали в видимую область. Для ключевых это
+  // эквивалентно границе (внутренние зоны лежат внутри неё).
   const allBounds: LatLngBoundsLiteral | null = useMemo(() => {
     const allPositions: LatLngTuple[] = [];
     for (const bd of boundaryList) {
-      const ring = bd.boundary.geometry.coordinates[0];
-      if (ring) allPositions.push(...geoJsonRingToLeaflet(ring));
+      for (const z of bd.zones) {
+        const ring = z.geometry.coordinates[0];
+        if (ring) allPositions.push(...geoJsonRingToLeaflet(ring));
+      }
     }
     return computeBounds(allPositions);
   }, [boundaryList]);
@@ -1016,9 +1024,14 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
   const activeBounds = useMemo(() => {
     if (trackBounds) return trackBounds;
     if (!selectedData) return null;
-    const ring = selectedData.boundary.geometry.coordinates[0];
-    if (!ring) return null;
-    return computeBounds(geoJsonRingToLeaflet(ring));
+    // Все зоны объекта — чтобы у многозонных второстепенных в фокус попадали все.
+    const positions: LatLngTuple[] = [];
+    for (const z of selectedData.zones) {
+      const ring = z.geometry.coordinates[0];
+      if (ring) positions.push(...geoJsonRingToLeaflet(ring));
+    }
+    if (!positions.length) return null;
+    return computeBounds(positions);
   }, [trackBounds, selectedData]);
 
   // ── All vehicle pins (positions + fallback) ──
@@ -1217,7 +1230,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             <FitBounds
               bounds={activeBounds}
               maxZoom={trackBounds ? 16 : undefined}
-              onlyIfZoomingIn={!trackBounds}
+              onlyIfZoomingIn={false}
             />
           )}
           {boundaryList.map(bd => {
@@ -1236,7 +1249,9 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                     type (palette mirrors geo-admin). Non-interactive so the
                     object-select click still lands on the boundary below. */}
                 {bd.zones.map(z => {
-                  if (z.properties.tags?.includes('dt_boundary')) return null;
+                  // Не рисуем как внутреннюю ту зону, что уже служит границей
+                  // объекта (dt_boundary у ключевых, dst_zone у второстепенных).
+                  if (z.properties.uid === bd.boundary.properties.uid) return null;
                   const zr = z.geometry.coordinates[0];
                   if (!zr) return null;
                   const zpos = geoJsonRingToLeaflet(zr);

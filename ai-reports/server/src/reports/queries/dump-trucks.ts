@@ -76,6 +76,8 @@ interface ZoneEventRow {
 interface DtFilters {
   objectUid?: string;
   vehicles?: string[];
+  /** 'all' | 'shift1' | 'shift2' — фильтр по смене (дефолт: обе). */
+  shiftType?: string;
 }
 
 // ─── Main query ─────────────────────────────────────────────────────────────
@@ -87,6 +89,16 @@ export async function queryDtTripsData(
 ): Promise<DateShiftGroup[]> {
   const pool = getPg17();
   const params: any[] = [dateFrom || null, dateTo || null, filters.objectUid || null];
+  let vehiclesClause = '';
+  if (filters.vehicles?.length) {
+    params.push(filters.vehicles);
+    vehiclesClause = `AND sr.reg_number = ANY($${params.length}::varchar[])`;
+  }
+  let shiftClause = '';
+  if (filters.shiftType && filters.shiftType !== 'all') {
+    params.push(filters.shiftType);
+    shiftClause = `AND sr.shift_type = $${params.length}`;
+  }
 
   // Query 1: Trips with shift records
   const tripsResult = await pool.query<TripQueryRow>(`
@@ -110,9 +122,10 @@ export async function queryDtTripsData(
     WHERE ($1::date IS NULL OR sr.report_date >= $1)
       AND ($2::date IS NULL OR sr.report_date <= $2)
       AND ($3::text IS NULL OR sr.object_uid = $3)
-      ${filters.vehicles?.length ? `AND sr.reg_number = ANY($4::varchar[])` : ''}
+      ${vehiclesClause}
+      ${shiftClause}
     ORDER BY sr.report_date, sr.shift_type, sr.object_name, sr.reg_number, t.trip_number
-  `, filters.vehicles?.length ? [...params, filters.vehicles] : params);
+  `, params);
 
   // Query 2: Zone events for loading/unloading enter/exit times + zone_name
   const zeResult = await pool.query<ZoneEventRow>(`
@@ -134,9 +147,10 @@ export async function queryDtTripsData(
       AND ($2::date IS NULL OR ze.report_date <= $2)
       AND ze.zone_tag IN ('dt_loading', 'dt_unloading')
       AND ($3::text IS NULL OR sr.object_uid = $3)
-      ${filters.vehicles?.length ? `AND sr.reg_number = ANY($4::varchar[])` : ''}
+      ${vehiclesClause}
+      ${shiftClause}
     ORDER BY sr.id, ze.entered_at
-  `, filters.vehicles?.length ? [...params, filters.vehicles] : params);
+  `, params);
 
   // Build zone events index
   const zeByShift = new Map<number, { loading: ZoneEventRow[]; unloading: ZoneEventRow[] }>();

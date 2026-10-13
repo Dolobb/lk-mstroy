@@ -39,12 +39,15 @@ const CAT_COLORS: Record<string, string> = {
   samosvaly: '#F97316', ekskav: '#A78BFA', kip: '#60A5FA', krany: '#22C55E',
 };
 
+const GAUGE_TOOLTIP =
+  'КИП — коэффициент использования техники: доля времени нахождения на объекте, когда работал двигатель (время работы двигателя ÷ время на объекте), %';
+
 function Gauge({ pct, color }: { pct: number; color: string }) {
   const r = 18;
   const circ = 2 * Math.PI * r;
   const off = circ * (1 - Math.max(0, Math.min(100, pct)) / 100);
   return (
-    <div className="sv-v2-gauge">
+    <div className="sv-v2-gauge" title={GAUGE_TOOLTIP} style={{ cursor: 'help' }}>
       <svg width={46} height={46} viewBox="0 0 46 46">
         <circle cx={23} cy={23} r={r} fill="none" stroke="var(--sv-divider)" strokeWidth={4} />
         {pct > 0 && (

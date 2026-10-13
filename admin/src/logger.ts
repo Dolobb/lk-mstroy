@@ -10,6 +10,8 @@ export type LogCategory =
   | 'reconcile'
   | 'pipeline'
   | 'boss'
+  | 'catchup'
+  | 'alert'
   | 'admin';
 
 export interface LogEvent {

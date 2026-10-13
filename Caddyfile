@@ -51,15 +51,15 @@
 	}
 
 	# --- /api/fuel/* → внешний РФ-VPS (топливное приложение, writeable-из-интернета) ---
-	# PLACEHOLDER: vite инжектит "Authorization: Bearer {FUEL_ADMIN_TOKEN}" и переписывает /api/fuel → /admin.
-	# Чтобы включить — раскомментировать и подставить токен из frontend/.env (FUEL_ADMIN_TOKEN).
-	# handle_path /api/fuel/* {
-	# 	rewrite * /admin{uri}
-	# 	reverse_proxy https://atz.pisarenkovmax.ru {
-	# 		header_up Host {upstream_hostport}
-	# 		header_up Authorization "Bearer ПОДСТАВИТЬ_FUEL_ADMIN_TOKEN"
-	# 	}
-	# }
+	# Зеркалит vite dev-proxy: переписывает /api/fuel → /admin и инжектит Bearer-токен.
+	# Токен = env FUEL_ADMIN_TOKEN (ops/start-caddy.cmd берёт его из frontend/.env; = ADMIN_BEARER_TOKEN на VPS).
+	handle_path /api/fuel/* {
+		rewrite * /admin{uri}
+		reverse_proxy https://atz.pisarenkovmax.ru {
+			header_up Host atz.pisarenkovmax.ru
+			header_up Authorization "Bearer {$FUEL_ADMIN_TOKEN}"
+		}
+	}
 
 	# --- Статика единого фронтенда (SPA fallback на index.html) ---
 	handle {

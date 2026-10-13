@@ -15,10 +15,14 @@ export interface TlDay {
   cells: TlShiftCell[];
 }
 
+// Непрерывный градиент КИП (red→amber→green) по тону HSL: соседние значения
+// в «жёлтой» середине (напр. 65 vs 71) различимы по цвету, а не сливаются в один
+// оранжевый, как было на 3 ступенях. Опорные точки: ≤35% красный, 85%+ зелёный.
 function kipColorV2(v: number): string {
-  if (v >= 75) return '#22C55E';
-  if (v >= 50) return '#F59E0B';
-  return '#EF4444';
+  const c = Math.max(0, Math.min(100, v));
+  const t = Math.max(0, Math.min(1, (c - 35) / (85 - 35)));
+  const hue = t * 120; // 0° (красный) → 120° (зелёный)
+  return `hsl(${Math.round(hue)}, 80%, 45%)`;
 }
 function dayLabel(date: string): string {
   const p = date.split('-');
