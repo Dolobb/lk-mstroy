@@ -2171,7 +2171,7 @@ app.use(cors());
 app.use(express.json());
 // PIN-защита /api/admin/* — до всех остальных роутов (см. src/auth.ts).
 registerAuth(app);
-registerVehicleRoutes(app);
+registerVehicleRoutes(app, { kipPool, mainPool });
 registerCatchupRoutes(app);
 registerAlertRoutes(app);
 

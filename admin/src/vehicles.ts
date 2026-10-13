@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { Express, Request, Response } from 'express';
+import type { Pool } from 'pg';
 import { log } from './logger';
 
 export const KIP_REGISTRY_PATH = path.resolve(__dirname, '../../kip/config/vehicle-registry.json');
@@ -109,7 +110,59 @@ function sendList(res: Response, extra: Record<string, unknown> = {}): void {
   });
 }
 
-export function registerVehicleRoutes(app: Express): void {
+interface MonitoringDeps {
+  kipPool: Pool;
+  mainPool: Pool;
+}
+
+/** Какая техника реально попадает в ЛК: КИП (по реестру), самосвалы и тягачи (по путевым листам). */
+async function buildMonitoring({ kipPool, mainPool }: MonitoringDeps) {
+  const [kip, dt, tyagachi] = await Promise.all([
+    kipPool.query<{ vehicle_id: string; last_work: string | null; last_record: string | null; work_days7: number }>(`
+      SELECT vehicle_id,
+             (MAX(report_date) FILTER (WHERE engine_on_time > 0 AND report_date <= CURRENT_DATE))::text AS last_work,
+             (MAX(report_date) FILTER (WHERE report_date <= CURRENT_DATE))::text AS last_record,
+             COUNT(DISTINCT report_date) FILTER (
+               WHERE engine_on_time > 0 AND report_date > CURRENT_DATE - 7 AND report_date <= CURRENT_DATE
+             )::int AS work_days7
+      FROM vehicle_records
+      WHERE report_date > CURRENT_DATE - 90
+      GROUP BY vehicle_id`),
+    mainPool.query<{ vehicle_id: number; reg_number: string; name_mo: string; last_date: string; days7: number; objects: string }>(`
+      SELECT vehicle_id, MAX(reg_number) AS reg_number, MAX(name_mo) AS name_mo,
+             MAX(report_date)::text AS last_date,
+             COUNT(DISTINCT report_date) FILTER (WHERE report_date > CURRENT_DATE - 7)::int AS days7,
+             STRING_AGG(DISTINCT object_name, ', ') FILTER (WHERE report_date > CURRENT_DATE - 7) AS objects
+      FROM dump_trucks.shift_records
+      WHERE report_date > CURRENT_DATE - 30
+      GROUP BY vehicle_id
+      ORDER BY MAX(report_date) DESC, MAX(reg_number)`),
+    fetch('http://127.0.0.1:8000/api/vehicles', { signal: AbortSignal.timeout(5000) })
+      .then(r => r.json() as Promise<{ vehicles?: Array<{ ts_reg_number: string; ts_name_mo: string; first_seen_at: string; last_seen_at: string; requests_total: number }> }>)
+      .catch(() => null),
+  ]);
+  const kipByReg: Record<string, { lastWork: string | null; lastRecord: string | null; workDays7: number }> = {};
+  for (const r of kip.rows) {
+    kipByReg[r.vehicle_id.toUpperCase()] = { lastWork: r.last_work, lastRecord: r.last_record, workDays7: r.work_days7 };
+  }
+  return {
+    kip: kipByReg,
+    dumpTrucks: dt.rows.map(r => ({
+      regNumber: r.reg_number, model: r.name_mo, lastDate: r.last_date, days7: r.days7, objects: r.objects ?? '',
+    })),
+    tyagachi: tyagachi?.vehicles
+      ? tyagachi.vehicles.map(v => ({
+          regNumber: v.ts_reg_number, model: v.ts_name_mo, firstSeen: v.first_seen_at, lastSeen: v.last_seen_at, requests: v.requests_total,
+        }))
+      : null,
+  };
+}
+
+export function registerVehicleRoutes(app: Express, deps: MonitoringDeps): void {
+  app.get('/api/admin/vehicles/monitoring', async (_req, res) => {
+    try { res.json(await buildMonitoring(deps)); } catch (err) { res.status(500).json({ error: String(err) }); }
+  });
+
   app.get('/api/admin/vehicles/kip', (_req, res) => {
     try { sendList(res); } catch (err) { res.status(500).json({ error: String(err) }); }
   });
