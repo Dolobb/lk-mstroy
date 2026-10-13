@@ -21,7 +21,7 @@ function clientIp(req: Request): string {
   return req.socket.remoteAddress || 'unknown';
 }
 
-function isInternal(req: Request): boolean {
+export function isInternal(req: Request): boolean {
   return isLoopback(req.socket.remoteAddress) && !req.headers['x-forwarded-for'];
 }
 

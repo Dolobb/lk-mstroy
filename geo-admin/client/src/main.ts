@@ -16,6 +16,8 @@ let pendingGeometry: GeoJSON.Polygon | null = null;
 let currentFilter: 'dst' | 'dt' = 'dst';
 let currentOpenObjectUid: string | null = null;
 let redrawTargetUid: string | null = null;
+// Рисуем границу нового объекта (первый шаг создания объекта).
+let drawingNewObjectBoundary = false;
 
 async function loadZones(filter: 'dst' | 'dt'): Promise<void> {
   mapModule.clearAllZones();
@@ -131,6 +133,18 @@ async function startRedraw(uid: string): Promise<void> {
   mapModule.activateLeafletDraw();
 }
 
+function newObjectWithBoundary(boundary: GeoJSON.Polygon): void {
+  sidebar.showNewObjectForm(async (data) => {
+    try {
+      const obj = await api.createObject({ ...data, boundary });
+      loadedObjects.push(obj);
+      sidebar.renderObjectList(loadedObjects);
+    } catch (err) {
+      sidebar.showError(`Ошибка создания объекта: ${(err as Error).message}`);
+    }
+  });
+}
+
 async function init(): Promise<void> {
   const map = mapModule.initMap();
 
@@ -151,14 +165,10 @@ async function init(): Promise<void> {
       }
     },
     onNewObject: () => {
-      sidebar.showNewObjectForm(async (data) => {
-        try {
-          const obj = await api.createObject(data);
-          loadedObjects.push(obj);
-          sidebar.renderObjectList(loadedObjects);
-        } catch (err) {
-          sidebar.showError(`Ошибка создания объекта: ${(err as Error).message}`);
-        }
+      // Шаг 1 — обязательная граница объекта, шаг 2 — название (см. draw:created).
+      sidebar.showDrawBoundaryHint(() => {
+        drawingNewObjectBoundary = true;
+        mapModule.activateLeafletDraw();
       });
     },
     onObjectEdit: (obj) => {
@@ -201,6 +211,8 @@ async function init(): Promise<void> {
     });
   });
 
+  document.getElementById('btn-help')?.addEventListener('click', () => sidebar.showHelp());
+
   // Кнопка "Нарисовать зону"
   document.getElementById('btn-draw-zone')?.addEventListener('click', () => {
     mapModule.activateLeafletDraw();
@@ -215,6 +227,7 @@ async function init(): Promise<void> {
       } else {
         mapModule.deactivateLeafletDraw();
         redrawTargetUid = null;
+        drawingNewObjectBoundary = false;
       }
     }
   });
@@ -223,6 +236,13 @@ async function init(): Promise<void> {
   map.on('draw:created', async (e: any) => {
     const geometry = e.layer.toGeoJSON().geometry as GeoJSON.Polygon;
     mapModule.deactivateLeafletDraw();
+
+    // Граница нового объекта → форма названия
+    if (drawingNewObjectBoundary) {
+      drawingNewObjectBoundary = false;
+      newObjectWithBoundary(geometry);
+      return;
+    }
 
     // Redraw existing zone
     if (redrawTargetUid) {

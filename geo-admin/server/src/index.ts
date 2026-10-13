@@ -5,7 +5,8 @@ import { getEnvConfig } from './config/env';
 import { logger } from './utils/logger';
 import * as objectRepo from './repositories/objectRepo';
 import * as zoneRepo from './repositories/zoneRepo';
-import { registerGeoAuth } from './auth';
+import { registerGeoAuth, isInternal } from './auth';
+import { assertCanCreateZone, assertCanChangeZone, RuleError } from './boundaryRules';
 
 const app = express();
 app.use(cors());
@@ -40,14 +41,32 @@ app.get('/api/geo/objects/:uid', async (req: Request, res: Response, next: NextF
 
 app.post('/api/geo/objects', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, timezone, minTripsPerShift } = req.body as {
-      name?: string; timezone?: string; minTripsPerShift?: number;
+    const { name, timezone, minTripsPerShift, boundary } = req.body as {
+      name?: string; timezone?: string; minTripsPerShift?: number; boundary?: GeoJSON.Polygon;
     };
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'name is required' });
     }
+    // Граница объекта обязательна (см. boundaryRules.ts). Без неё — только служебные скрипты на сервере.
+    if (!boundary && !isInternal(req)) {
+      return res.status(400).json({ error: 'Нарисуйте границу объекта — без неё самосвалы на объекте не считаются' });
+    }
+    if (boundary && (boundary.type !== 'Polygon' || !Array.isArray(boundary.coordinates))) {
+      return res.status(400).json({ error: 'Граница объекта должна быть полигоном' });
+    }
     const obj = await objectRepo.createObject({ name, timezone, minTripsPerShift });
-    res.status(201).json(obj);
+    if (boundary) {
+      try {
+        const zone = await zoneRepo.createZone({
+          objectUid: obj.uid, name: `Граница объекта: ${name}`, tags: ['dt_boundary'], geometry: boundary,
+        });
+        notifyZoneChanged(zone.uid, obj.uid, 'create', ['dt_boundary']);
+      } catch (err) {
+        await objectRepo.deleteObject(obj.uid);
+        throw err;
+      }
+    }
+    res.status(201).json({ ...obj, zone_count: boundary ? 1 : 0, has_boundary: !!boundary, dt_work_zone_count: 0 });
   } catch (err) { next(err); }
 });
 
@@ -124,6 +143,7 @@ app.post('/api/geo/zones', async (req: Request, res: Response, next: NextFunctio
 
     const tagErr = zoneRepo.validateTags(tags as string[]);
     if (tagErr) return res.status(400).json({ error: tagErr });
+    await assertCanCreateZone(objectUid, tags as string[]);
 
     const zone = await zoneRepo.createZone({
       objectUid,
@@ -149,6 +169,7 @@ app.put('/api/geo/zones/:uid', async (req: Request, res: Response, next: NextFun
       if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' });
       const tagErr = zoneRepo.validateTags(tags);
       if (tagErr) return res.status(400).json({ error: tagErr });
+      await assertCanChangeZone(req.params.uid, tags);
     }
 
     const zone = await zoneRepo.updateZone(req.params.uid, {
@@ -164,6 +185,7 @@ app.put('/api/geo/zones/:uid', async (req: Request, res: Response, next: NextFun
 
 app.delete('/api/geo/zones/:uid', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    await assertCanChangeZone(req.params.uid, null);
     const deleted = await zoneRepo.deleteZone(req.params.uid);
     if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.json({ deleted: true, uid: req.params.uid });
@@ -205,7 +227,7 @@ app.get('/admin/', (_req, res) => {
 // ────────────────────────────────────────────
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   logger.error('Unhandled error', err);
-  res.status(500).json({ error: err.message });
+  res.status(err instanceof RuleError ? 400 : 500).json({ error: err.message });
 });
 
 // ────────────────────────────────────────────

@@ -40,6 +40,9 @@ export function renderObjectList(objects: GeoObject[]): void {
         <span class="object-arrow">▶</span>
         <span class="object-name">${escapeHtml(obj.name)}</span>
         ${minTripsLabel}
+        ${!obj.has_boundary && (obj.dt_work_zone_count ?? 0) > 0
+          ? '<span class="object-warn" title="Нет границы объекта — самосвалы здесь не считаются. Нарисуйте зону «Граница объекта (самосвалы)».">⚠ нет границы</span>'
+          : ''}
         <span class="zone-count" title="Зоны">${obj.zone_count ?? 0}</span>
         <button class="object-btn-edit" title="Редактировать объект">✏</button>
       </div>
@@ -156,6 +159,10 @@ export function showNewObjectForm(onSubmit: (data: {
 
   content.innerHTML = `
     <h3>Новый объект</h3>
+    <p class="form-hint" style="margin-bottom: 12px">
+      ✓ Граница объекта нарисована — она сохранится как зона «Граница объекта (самосвалы)».
+      Зоны погрузки и выгрузки добавьте потом кнопкой «✏ Нарисовать зону».
+    </p>
     <form id="new-object-form">
       <label>Название объекта *
         <input type="text" name="name" required placeholder="Карьер Сингапай" />
@@ -362,6 +369,65 @@ export function showEditZoneForm(
       minDurationSec: parseInt((form.elements.namedItem('minDurationSec') as HTMLInputElement).value, 10) || 120,
     });
   });
+}
+
+/** Подсказка перед рисованием границы нового объекта. */
+export function showDrawBoundaryHint(onStart: () => void): void {
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modal-content');
+  if (!modal || !content) return;
+  content.innerHTML = `
+    <h3>Новый объект: шаг 1 — граница</h3>
+    <p style="font-size: 13px; line-height: 1.5; color: #374151">
+      Обведите на карте <b>всю территорию работ</b> объекта: места погрузки, выгрузки и дороги между ними.
+      Это обязательная «Граница объекта» — самосвал относится к объекту, только если за смену заезжал внутрь неё.
+    </p>
+    <p class="form-hint" style="margin-top: 8px">Кликайте по карте, чтобы ставить точки; замкните контур на первой точке. Esc — отмена.</p>
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" id="modal-close">Отмена</button>
+      <button type="button" class="btn-primary" id="boundary-start">Нарисовать границу</button>
+    </div>`;
+  modal.classList.remove('hidden');
+  document.getElementById('modal-close')?.addEventListener('click', hideModal);
+  document.getElementById('boundary-start')?.addEventListener('click', () => { hideModal(); onStart(); });
+}
+
+/** Шпаргалка: как зоны превращаются в данные ЛК. */
+export function showHelp(): void {
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modal-content');
+  if (!modal || !content) return;
+  content.innerHTML = `
+    <div class="help">
+      <h3>Шпаргалка: как зоны превращаются в данные</h3>
+      <p><b>Объект</b> — стройка или площадка. Всё, что на ней происходит, описывается зонами внутри объекта.</p>
+      <table class="help-table">
+        <tr><td><span class="zone-tag zone-tag-boundary">Граница объекта</span></td>
+            <td><b>Обязательна для самосвалов.</b> Вся территория работ: погрузка, выгрузка, дороги между ними.
+            Смена самосвала записывается на объект, только если машина побывала внутри границы
+            (если подходят несколько объектов — где больше точек трека). Создаётся вместе с объектом.</td></tr>
+        <tr><td><span class="zone-tag zone-tag-loading">Погрузка</span></td>
+            <td>Где самосвалы грузятся: карьер, АБЗ, причал.</td></tr>
+        <tr><td><span class="zone-tag zone-tag-unloading">Выгрузка</span></td>
+            <td>Где разгружаются. <b>Рейс = заезд в погрузку, затем в выгрузку.</b>
+            Разгрузились вне зон выгрузки — рейс не засчитан (в ЛК будет 0 рейсов).</td></tr>
+        <tr><td><span class="zone-tag zone-tag-onsite">Работа по месту</span></td>
+            <td>Для объектов, где самосвалы работают без рейсов (возят по площадке). Тогда машина,
+            проработавшая на объекте большую часть смены, считается «работа по месту».</td></tr>
+        <tr><td><span class="zone-tag zone-tag-dst">Рабочая зона КИП</span></td>
+            <td>Для техники КИП (экскаваторы, катки, краны…). КИП = время работы мотора ÷ время в рабочей зоне.
+            Вне всех рабочих зон время на объекте считается за всю смену (12 ч). Самосвалы эту зону не используют.</td></tr>
+      </table>
+      <p><b>Мин. время в зоне</b> — заезды короче не считаются (проезд транзитом мимо погрузки не станет рейсом).</p>
+      <p><b>Мин. рейсов за смену</b> (у объекта) — если самосвал сделал меньше, его работа на объекте за смену не учитывается.</p>
+      <p><b>Когда изменения вступят в силу.</b> Через ~1,5 минуты после последней правки ЛК сам пересчитает
+      последние 7 дней: самосвалы — если менялись их зоны, КИП — если менялись рабочие зоны КИП.
+      Более ранние дни — перевыгрузка в админке ЛК («Сервисы и данные»).</p>
+      <p><b>Изменять</b> объекты и зоны можно по PIN-коду администратора; смотреть — всем.</p>
+      <div class="form-actions"><button type="button" class="btn-primary" id="modal-close">Понятно</button></div>
+    </div>`;
+  modal.classList.remove('hidden');
+  document.getElementById('modal-close')?.addEventListener('click', hideModal);
 }
 
 export function hideModal(): void {

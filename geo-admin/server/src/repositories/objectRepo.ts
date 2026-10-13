@@ -13,6 +13,10 @@ export interface GeoObject {
 
 export interface GeoObjectWithCount extends GeoObject {
   zone_count: number;
+  /** Есть зона «Граница объекта» (dt_boundary) — без неё самосвалы на объекте не считаются. */
+  has_boundary: boolean;
+  /** Зон погрузки/выгрузки/работы по месту. */
+  dt_work_zone_count: number;
 }
 
 export interface ObjectWithZones {
@@ -30,9 +34,12 @@ export async function getAllObjects(): Promise<GeoObjectWithCount[]> {
   const { rows } = await pool.query<GeoObjectWithCount>(`
     SELECT
       ${OBJECT_COLUMNS},
-      COUNT(DISTINCT z.id)::int AS zone_count
+      COUNT(DISTINCT z.id)::int AS zone_count,
+      COALESCE(BOOL_OR(zt.tag = 'dt_boundary'), false) AS has_boundary,
+      COUNT(DISTINCT z.id) FILTER (WHERE zt.tag IN ('dt_loading', 'dt_unloading', 'dt_onsite'))::int AS dt_work_zone_count
     FROM geo.objects o
     LEFT JOIN geo.zones z ON z.object_id = o.id
+    LEFT JOIN geo.zone_tags zt ON zt.zone_id = z.id
     GROUP BY o.id
     ORDER BY o.name
   `);

@@ -277,3 +277,30 @@ body {
   font-weight: 500;
   color: #374151;
 }
+
+/* Предупреждение «нет границы объекта» и шпаргалка (2026-10) */
+.object-warn {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn-help {
+  margin-left: auto;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-help:hover { background: rgba(255,255,255,0.2); }
+.modal-box:has(.help) { width: 620px; }
+.help p { font-size: 13px; line-height: 1.5; color: #374151; margin-bottom: 8px; }
+.help-table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 13px; line-height: 1.45; }
+.help-table td { padding: 6px 8px; border-top: 1px solid #e5e7eb; vertical-align: top; color: #374151; }
+.help-table td:first-child { width: 150px; white-space: nowrap; }

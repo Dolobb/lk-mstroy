@@ -30,6 +30,8 @@ export interface GeoObject {
   name: string;
   min_trips_per_shift: number;
   zone_count?: number;
+  has_boundary?: boolean;
+  dt_work_zone_count?: number;
 }
 
 export interface GeoZone {
@@ -54,7 +56,7 @@ export const getObjects = (): Promise<GeoObject[]> =>
 export const getObject = (uid: string): Promise<ObjectWithZones> =>
   request('GET', `/objects/${uid}`);
 
-export const createObject = (data: { name: string; minTripsPerShift?: number }): Promise<GeoObject> =>
+export const createObject = (data: { name: string; minTripsPerShift?: number; boundary: GeoJSON.Polygon }): Promise<GeoObject> =>
   request('POST', '/objects', data);
 
 export const updateObject = (uid: string, data: { name?: string; minTripsPerShift?: number }): Promise<GeoObject> =>
