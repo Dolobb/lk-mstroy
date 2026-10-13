@@ -5,10 +5,13 @@ import { getEnvConfig } from './config/env';
 import { logger } from './utils/logger';
 import * as objectRepo from './repositories/objectRepo';
 import * as zoneRepo from './repositories/zoneRepo';
+import { registerGeoAuth } from './auth';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+// Запись (POST/PUT/DELETE) — только с PIN-сессией админки, см. src/auth.ts.
+registerGeoAuth(app);
 
 // ────────────────────────────────────────────
 // Health

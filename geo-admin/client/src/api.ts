@@ -1,11 +1,21 @@
+import { askPin } from './pin.js';
+
 const BASE = '/api/geo';
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, retried = false): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : {},
     body: body ? JSON.stringify(body) : undefined,
   });
+  // Запись без PIN-сессии → спросить PIN и повторить один раз.
+  if (res.status === 401 && !retried) {
+    const err = await res.clone().json().catch(() => ({})) as { error?: string };
+    if (err.error === 'pin_required') {
+      if (await askPin()) return request<T>(method, path, body, true);
+      throw new Error('Изменение отменено: нужен PIN-код');
+    }
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText })) as { error: string };
     throw new Error(err.error || res.statusText);
