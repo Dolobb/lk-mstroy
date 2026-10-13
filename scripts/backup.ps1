@@ -42,7 +42,14 @@ function Log($m){ $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $m"; $line
 # Яндекс — RU-инфра, прокси Hiddify надо обойти
 $env:HTTP_PROXY=''; $env:HTTPS_PROXY=''; $env:NO_PROXY='*'
 
+# rclone пишет в stderr; при ErrorActionPreference=Stop PS 5.1 превращает это в исключение.
+function Invoke-Rclone {
+  $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+  try { & $Rclone @args 2>&1 | ForEach-Object { "$_" } } finally { $ErrorActionPreference = $prev }
+}
+
 $ok = $true
+$encFiles = @()
 try {
   Log "=== backup start $ts ==="
   foreach ($db in $Databases) {
@@ -57,21 +64,25 @@ try {
     & $Age -r $AgeRecipient -o $enc $dump
     if ($LASTEXITCODE -ne 0) { throw "age encrypt $db failed ($LASTEXITCODE)" }
     Log "  encrypted -> $enc"
-
-    # заливаем в облако
-    if ($Rclone) {
-      & $Rclone copy $enc "$RemoteDir/" --no-traverse 2>&1 | Out-Null
-      if ($LASTEXITCODE -ne 0) { throw "rclone upload $db failed ($LASTEXITCODE)" }
-      Log "  uploaded -> $RemoteDir/"
-    } else { Log "  WARN: rclone не найден — облачная заливка пропущена" }
+    $encFiles += $enc
   }
+  # Локальные дампы обеих баз готовы — даже если облако ниже упадёт, откат локально возможен.
+  "$ts" | Set-Content (Join-Path $BackupRoot 'LAST_LOCAL_SUCCESS.txt')
 
   # --- Ротация локально ---
   $cutLocal = (Get-Date).AddDays(-$KeepDaysLocal)
   Get-ChildItem $DbDir,$EncDir -File | Where-Object { $_.LastWriteTime -lt $cutLocal } | ForEach-Object { Log "rotate local: rm $($_.Name)"; Remove-Item $_.FullName -Force }
 
-  # --- Ротация в облаке ---
-  if ($Rclone) { & $Rclone delete "$RemoteDir/" --min-age "${KeepDaysCloud}d" 2>&1 | Out-Null }
+  # --- Заливка в облако (ошибка облака не должна отменять локальный бэкап следующей базы) ---
+  if ($Rclone) {
+    foreach ($enc in $encFiles) {
+      $out = Invoke-Rclone copy $enc "$RemoteDir/" --no-traverse
+      if ($LASTEXITCODE -ne 0) { throw "rclone upload $(Split-Path $enc -Leaf) failed ($LASTEXITCODE): $(($out | Select-Object -Last 1))" }
+      Log "  uploaded $(Split-Path $enc -Leaf) -> $RemoteDir/"
+    }
+    # --- Ротация в облаке ---
+    Invoke-Rclone delete "$RemoteDir/" --min-age "${KeepDaysCloud}d" | Out-Null
+  } else { Log "  WARN: rclone не найден — облачная заливка пропущена" }
 
   "$ts" | Set-Content $marker
   Log "=== backup OK $ts ==="
