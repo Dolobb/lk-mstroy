@@ -18,7 +18,9 @@ const SHEET_TABS: { sheetName: string; displayName: string; columns?: ColumnMap 
   { sheetName: 'АБСАБН МС11',              displayName: 'АБС/АБН МС11'             },
   { sheetName: 'АвтобусыБортовые МС11',    displayName: 'Автобусы/Бортовые МС11'   },
   { sheetName: 'ДСТ  МС11 ',               displayName: 'ДСТ  МС11'                },
-  { sheetName: 'МС 11 Краны (новаяновая)',  displayName: 'МС 11 Краны (новая/новая)' },
+  // 2026-10: вкладку «МС 11 Краны (новаяновая)» в таблице пометили «не актуально», актуальная — «МС11 Краны новая».
+  // displayName прежний — чтобы синк заменил старые строки категории, а не оставил их висеть.
+  { sheetName: 'МС11 Краны новая',         displayName: 'МС 11 Краны (новая/новая)' },
   { sheetName: 'Спецтехника МС11',         displayName: 'Спецтехника МС11'          },
   { sheetName: 'Малая механизация МС11',   displayName: 'Малая механизация МС11'    },
   { sheetName: 'Самосвалы МС11',           displayName: 'Самосвалы МС11'           },
