@@ -113,7 +113,7 @@ async function downloadXlsx(
 async function downloadViaCurl(url: string, token: string, signal?: AbortSignal): Promise<Buffer> {
   const { spawn } = await import('node:child_process');
   return new Promise<Buffer>((resolve, reject) => {
-    const proxy = process.env.SYNC_HTTPS_PROXY || 'http://127.0.0.1:12334';
+    const proxy = process.env.SYNC_HTTPS_PROXY || 'http://127.0.0.1:10808';
     const args = [
       '-sS', '-L', '--fail-with-body', '--max-time', '60',
       '-x', proxy,

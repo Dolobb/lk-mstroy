@@ -1,3 +1,5 @@
+> **2026-10-13:** Hiddify `12334` мёртв — прокси теперь Happ `http://127.0.0.1:10808` (`SYNC_HTTPS_PROXY` в `vehicle-status/server/.env`, дефолт в коде тоже 10808).
+
 # Fix: vehicle-status sync — таймаут при скачивании xlsx из Google Drive
 
 **Дата:** 2026-04-28
