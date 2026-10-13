@@ -107,16 +107,25 @@ async function downloadXlsx(
 ): Promise<Buffer> {
   const token = auth.credentials.access_token;
   if (!token) throw new Error('No access token after authorize()');
-  return downloadViaCurl(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, token, signal);
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  const proxy = process.env.SYNC_HTTPS_PROXY || 'http://127.0.0.1:10808';
+  try {
+    return await downloadViaCurl(url, token, proxy, signal);
+  } catch (err) {
+    // curl 5/7 = прокси недоступен (Happ выключен/не подключён). С 2026-10 googleapis с сервера
+    // отвечает и напрямую — синк не должен зависеть от VPN.
+    if (signal?.aborted || !/curl exit (5|7):/.test(String(err))) throw err;
+    console.warn(`[Sync] Proxy ${proxy} unavailable, retrying direct`);
+    return downloadViaCurl(url, token, null, signal);
+  }
 }
 
-async function downloadViaCurl(url: string, token: string, signal?: AbortSignal): Promise<Buffer> {
+async function downloadViaCurl(url: string, token: string, proxy: string | null, signal?: AbortSignal): Promise<Buffer> {
   const { spawn } = await import('node:child_process');
   return new Promise<Buffer>((resolve, reject) => {
-    const proxy = process.env.SYNC_HTTPS_PROXY || 'http://127.0.0.1:10808';
     const args = [
       '-sS', '-L', '--fail-with-body', '--max-time', '60',
-      '-x', proxy,
+      ...(proxy ? ['-x', proxy] : ['--noproxy', '*']),
       '-H', `Authorization: Bearer ${token}`,
       '-o', '-', url,
     ];
