@@ -93,11 +93,16 @@ const SIDEBAR_GROUPS: Array<{ key: SidebarGroupKey; label: string; color: string
 ];
 
 let registryCache: Map<string, VehicleRegistryEntry> | null = null;
+let registryMtimeMs = 0;
+const registryPath = path.resolve(__dirname, '../../../../kip/config/vehicle-registry.json');
 
 function loadVehicleRegistry(): Map<string, VehicleRegistryEntry> {
-  if (registryCache) return registryCache;
+  // Реестр правится из админки (раздел «Техника») — перечитываем при смене mtime.
+  let mtimeMs = 0;
+  try { mtimeMs = fs.statSync(registryPath).mtimeMs; } catch { if (registryCache) return registryCache; }
+  if (registryCache && mtimeMs === registryMtimeMs) return registryCache;
+  registryMtimeMs = mtimeMs;
 
-  const registryPath = path.resolve(__dirname, '../../../../kip/config/vehicle-registry.json');
   const raw = fs.readFileSync(registryPath, 'utf-8');
   const parsed = JSON.parse(raw) as { vehicles?: VehicleRegistryEntry[] };
   registryCache = new Map(

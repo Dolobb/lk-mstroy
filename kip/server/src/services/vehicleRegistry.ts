@@ -12,21 +12,38 @@ interface RegistryFile {
   vehicles: RegistryEntry[];
 }
 
+const REGISTRY_PATH = path.resolve(__dirname, '../../../config/vehicle-registry.json');
+// Реестр правится из админки (раздел «Техника») — перечитываем файл при смене mtime,
+// проверяя не чаще раза в 5 с, чтобы рестарт КИП не требовался.
+const MTIME_CHECK_MS = 5_000;
+
 let _registry: RegistryFile | null = null;
 let _lookupMap: Map<string, RegistryEntry> | null = null;
+let _mtimeMs = 0;
+let _checkedAt = 0;
 
 function load(): RegistryFile {
-  if (!_registry) {
-    const filePath = path.resolve(__dirname, '../../../config/vehicle-registry.json');
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    _registry = JSON.parse(raw) as RegistryFile;
+  const now = Date.now();
+  if (_registry && now - _checkedAt < MTIME_CHECK_MS) return _registry;
+  _checkedAt = now;
+  let mtimeMs = 0;
+  try { mtimeMs = fs.statSync(REGISTRY_PATH).mtimeMs; } catch (err) { if (_registry) return _registry; throw err; }
+  if (!_registry || mtimeMs !== _mtimeMs) {
+    try {
+      _registry = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf-8')) as RegistryFile;
+      _mtimeMs = mtimeMs;
+      _lookupMap = null;
+    } catch (err) {
+      if (!_registry) throw err;
+      console.warn('[vehicleRegistry] не удалось перечитать реестр, остаётся прежний:', err);
+    }
   }
   return _registry;
 }
 
 function getLookupMap(): Map<string, RegistryEntry> {
+  const reg = load();
   if (!_lookupMap) {
-    const reg = load();
     _lookupMap = new Map();
     for (const v of reg.vehicles) {
       _lookupMap.set(v.regNumber.toUpperCase(), v);

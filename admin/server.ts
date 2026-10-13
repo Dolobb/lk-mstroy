@@ -21,6 +21,8 @@ import {
   registerAlertsCron,
   startAlerts,
 } from './src/notify';
+import { registerAuth } from './src/auth';
+import { registerVehicleRoutes } from './src/vehicles';
 
 dotenv.config();
 
@@ -1723,7 +1725,8 @@ async function waitForDate(
 async function startAndWaitForKipFetch(
   date: string,
   isCancelled: () => boolean,
-  timeoutMs = 35 * 60 * 1000,
+  // Полная выгрузка КИП на 2026-10 занимает 20–30 мин и растёт с парком; 35 мин давали ложные «timeout».
+  timeoutMs = 60 * 60 * 1000,
 ): Promise<'ok' | 'timeout' | 'cancelled'> {
   const startRes = await fetch(`http://localhost:3001/api/admin/fetch?date=${date}`, { method: 'POST' });
   if (startRes.status === 409) {
@@ -2166,6 +2169,9 @@ async function runDTSegmentQueue(dates: string[], force: boolean) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+// PIN-защита /api/admin/* — до всех остальных роутов (см. src/auth.ts).
+registerAuth(app);
+registerVehicleRoutes(app);
 registerCatchupRoutes(app);
 registerAlertRoutes(app);
 
