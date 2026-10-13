@@ -23,6 +23,7 @@ import {
 } from './src/notify';
 import { registerAuth } from './src/auth';
 import { registerVehicleRoutes } from './src/vehicles';
+import { registerTisVehicleRoutes } from './src/tisVehicles';
 
 dotenv.config();
 
@@ -2172,6 +2173,7 @@ app.use(express.json());
 // PIN-защита /api/admin/* — до всех остальных роутов (см. src/auth.ts).
 registerAuth(app);
 registerVehicleRoutes(app, { kipPool, mainPool });
+registerTisVehicleRoutes(app, { kipPool });
 registerCatchupRoutes(app);
 registerAlertRoutes(app);
 

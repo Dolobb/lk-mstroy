@@ -34,7 +34,7 @@ export function normalizeRegNumber(raw: string): string {
   return raw.replace(/\s+/g, '').toUpperCase();
 }
 
-function dupKey(regNumber: string): string {
+export function dupKey(regNumber: string): string {
   return normalizeRegNumber(regNumber).replace(/[ABEKMHOPCTYX]/g, ch => LOOKALIKE[ch]);
 }
 

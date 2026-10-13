@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { Database, Pencil, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -19,7 +19,52 @@ interface VehiclesResponse {
   error?: string;
 }
 
-type EditState = { mode: 'add' } | { mode: 'edit'; original: KipVehicle };
+interface VehicleForm { regNumber: string; type: string; branch: string; fuelNorm: string }
+
+type EditState =
+  | { mode: 'add'; initial?: VehicleForm; hint?: string }
+  | { mode: 'edit'; original: KipVehicle };
+
+interface TisItem {
+  idMO: number;
+  regNumber: string;
+  model: string;
+  kindType: string;
+  garageNumber: string;
+  inLk: string | null;
+  lastPl: string | null;
+  autoSection: 'dump-trucks' | 'tyagachi' | null;
+  suggestedType: string | null;
+}
+
+interface TisResponse {
+  fetchedAt: string;
+  items: TisItem[];
+  registryNotInTis: string[];
+  error?: string;
+}
+
+function useTisCatalog() {
+  const [data, setData] = useState<TisResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const load = useCallback(async (refresh = false) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/vehicles/tis${refresh ? '?refresh=1' : ''}`);
+      const body = await res.json() as TisResponse;
+      if (!res.ok) throw new Error(body.error || res.statusText);
+      setData(body);
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  return { data, error, loading, load };
+}
 
 interface Monitoring {
   kip: Record<string, { lastWork: string | null; lastRecord: string | null; workDays7: number }>;
@@ -243,6 +288,9 @@ const EMPTY_FORM = { regNumber: '', type: '', branch: '', fuelNorm: '' };
 const KipVehiclesTab: React.FC<{ monitoring: Monitoring | null; monitoringError: string | null }> = ({ monitoring, monitoringError }) => {
   const [data, setData] = useState<VehiclesResponse | null>(null);
   const [status, setStatus] = useState<DataStatus | ''>('');
+  const tis = useTisCatalog();
+  const [tisOpen, setTisOpen] = useState(false);
+  const notInTis = useMemo(() => new Set(tis.data?.registryNotInTis ?? []), [tis.data]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [branch, setBranch] = useState('');
@@ -298,7 +346,7 @@ const KipVehiclesTab: React.FC<{ monitoring: Monitoring | null; monitoringError:
       <div className="glass-card rounded-xl p-3 flex flex-col gap-1.5 text-xs">
         <div className="font-semibold text-sm">Техника, которую выгружает «КИП техники»</div>
         <div className="text-muted-foreground" style={{ fontSize: '11px' }}>
-          КИП, «Аналитика» и отчёты считают только технику из этого списка. Изменения вступают в силу сразу, без перезапуска:
+          КИП, «Аналитика» и отчёты считают только технику из этого списка. Удобнее добавлять через «Добавить из TIS» — госномер будет точно как в TIS. Изменения вступают в силу сразу, без перезапуска:
           новая машина попадёт в данные при ближайшей плановой выгрузке (утром). Чтобы получить её данные за прошлые дни —
           перевыгрузите нужные даты на вкладке «Сервисы и данные». Группировка по типу в «Конструкторе отчётов» обновится
           после перезапуска сервиса «AI Отчёты».
@@ -346,9 +394,17 @@ const KipVehiclesTab: React.FC<{ monitoring: Monitoring | null; monitoringError:
           {data ? `Показано ${filtered.length} из ${data.vehicles.length}` : ''}
         </span>
         <button
+          onClick={() => setTisOpen(true)}
+          disabled={!data}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 font-medium"
+          title="Выбрать машину из справочника TIS — госномер подставится точно как в TIS"
+        >
+          <Database className="size-3.5" /> Добавить из TIS
+        </button>
+        <button
           onClick={() => setEdit({ mode: 'add' })}
           disabled={!data}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 font-medium"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 font-medium"
         >
           <Plus className="size-3.5" /> Добавить технику
         </button>
@@ -374,7 +430,15 @@ const KipVehiclesTab: React.FC<{ monitoring: Monitoring | null; monitoringError:
           <tbody>
             {filtered.map(v => (
               <tr key={v.regNumber} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
-                <td className="px-3 py-1.5 font-mono">{v.regNumber}</td>
+                <td className="px-3 py-1.5 font-mono whitespace-nowrap">
+                  {v.regNumber}
+                  {notInTis.has(v.regNumber) && (
+                    <span
+                      className="ml-1.5 px-1 py-0.5 rounded text-[10px] font-sans bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      title="Такого госномера нет в справочнике TIS нашей организации. Проверьте написание (латиница/кириллица) — или это техника другой организации (БСМ, БСМ-мост), данные по ней могут не приходить."
+                    >нет в TIS</span>
+                  )}
+                </td>
                 <td className="px-3 py-1.5">{v.type}</td>
                 <td className={`px-3 py-1.5 ${v.branch === 'Не указан' ? 'text-muted-foreground italic' : ''}`}>{v.branch}</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">
@@ -416,6 +480,21 @@ const KipVehiclesTab: React.FC<{ monitoring: Monitoring | null; monitoringError:
         />
       )}
 
+      {tisOpen && (
+        <TisPickerDialog
+          tis={tis}
+          onClose={() => setTisOpen(false)}
+          onPick={item => {
+            setTisOpen(false);
+            setEdit({
+              mode: 'add',
+              initial: { regNumber: item.regNumber, type: item.suggestedType ?? '', branch: '', fuelNorm: '' },
+              hint: `Из TIS: ${item.model || 'модель не указана'}${item.suggestedType ? '. Тип подсказан по похожей машине из списка — проверьте.' : '. Тип выберите сами.'}`,
+            });
+          }}
+        />
+      )}
+
       {toDelete && (
         <DeleteDialog
           vehicle={toDelete}
@@ -447,6 +526,122 @@ const KipStatusCells: React.FC<{ m: Monitoring['kip'][string] | undefined; loade
   );
 };
 
+const TIS_PAGE = 200;
+
+const TisPickerDialog: React.FC<{
+  tis: ReturnType<typeof useTisCatalog>;
+  onClose: () => void;
+  onPick: (item: TisItem) => void;
+}> = ({ tis, onClose, onPick }) => {
+  const [query, setQuery] = useState('');
+  const [onlyPl, setOnlyPl] = useState(true);
+  const [hideInLk, setHideInLk] = useState(true);
+  const [hideAuto, setHideAuto] = useState(true);
+  const [onlySimilar, setOnlySimilar] = useState(true);
+
+  const rows = useMemo(() => {
+    const q = query.trim().toUpperCase().replace(/\s+/g, '');
+    return (tis.data?.items ?? []).filter(i =>
+      (!onlyPl || i.lastPl) &&
+      (!hideInLk || !i.inLk) &&
+      (!hideAuto || !i.autoSection) &&
+      (!onlySimilar || !!i.suggestedType) &&
+      (!q || i.regNumber.includes(q) || i.model.toUpperCase().replace(/\s+/g, '').includes(q) || i.garageNumber.toUpperCase().includes(q)),
+    );
+  }, [tis.data, query, onlyPl, hideInLk, hideAuto, onlySimilar]);
+
+  const fetchedAt = tis.data ? new Date(tis.data.fetchedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  return (
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Добавить технику из TIS</DialogTitle>
+          <DialogDescription>
+            Справочник всех машин организации в TIS{tis.data ? ` — ${tis.data.items.length} шт., загружен в ${fetchedAt}` : ''}.
+            Выберите машину — госномер подставится точно как в TIS, останется указать филиал и норму.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center gap-3 flex-wrap text-xs">
+          <SearchBox value={query} onChange={setQuery} placeholder="Госномер, модель или гаражный №" />
+          <label className="flex items-center gap-1.5 cursor-pointer select-none" title="Модель начинается так же, как у машин, которые уже есть в списке КИП (экскаваторы, катки, погрузчики…). Снимите, чтобы видеть всё: автобусы, прицепы, компрессоры и т.п.">
+            <input type="checkbox" checked={onlySimilar} onChange={e => setOnlySimilar(e.target.checked)} />
+            Похожа на технику из списка КИП
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input type="checkbox" checked={onlyPl} onChange={e => setOnlyPl(e.target.checked)} />
+            Работала по путевым листам за 30 дней
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input type="checkbox" checked={hideInLk} onChange={e => setHideInLk(e.target.checked)} />
+            Скрыть уже добавленные
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none" title="Самосвалы и тягачи попадают в свои разделы ЛК автоматически — в список КИП их добавлять не нужно">
+            <input type="checkbox" checked={hideAuto} onChange={e => setHideAuto(e.target.checked)} />
+            Скрыть самосвалы и тягачи
+          </label>
+          <button
+            onClick={() => tis.load(true)}
+            disabled={tis.loading}
+            className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md border-none cursor-pointer bg-muted/50 hover:bg-muted disabled:opacity-50"
+            title="Заново запросить справочник из TIS"
+          >
+            <RefreshCw className={`size-3.5 ${tis.loading ? 'animate-spin' : ''}`} /> Обновить
+          </button>
+        </div>
+
+        {tis.error && <div className="text-xs rounded-lg px-3 py-2 bg-destructive/10 text-destructive">{tis.error}</div>}
+
+        <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-border/60">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-background">
+              <tr className="text-left text-muted-foreground border-b border-border/60">
+                <th className="px-3 py-2 font-medium">Госномер</th>
+                <th className="px-3 py-2 font-medium">Модель в TIS</th>
+                <th className="px-3 py-2 font-medium">Подсказка типа</th>
+                <th className="px-3 py-2 font-medium text-right">Последний ПЛ</th>
+                <th className="px-3 py-2 w-28" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, TIS_PAGE).map(i => (
+                <tr key={i.idMO} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
+                  <td className="px-3 py-1.5 font-mono whitespace-nowrap">{i.regNumber}</td>
+                  <td className="px-3 py-1.5">{i.model || <span className="text-muted-foreground italic">—</span>}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">{i.suggestedType ?? '—'}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums">{fmtDay(i.lastPl)}</td>
+                  <td className="px-3 py-1.5 text-right">
+                    {i.inLk ? (
+                      <span className="text-muted-foreground">уже в ЛК</span>
+                    ) : i.autoSection ? (
+                      <span className="text-muted-foreground" title="Попадает в ЛК автоматически, добавлять не нужно">
+                        {i.autoSection === 'dump-trucks' ? 'в «Самосвалах»' : 'в «Тягачах»'}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => onPick(i)}
+                        className="px-2.5 py-1 rounded-md text-xs border-none cursor-pointer bg-primary text-primary-foreground hover:opacity-90 font-medium"
+                      >
+                        Добавить
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {tis.loading && !tis.data && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Загрузка справочника из TIS…</td></tr>}
+              {tis.data && rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Ничего не найдено — снимите фильтры или уточните поиск</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        {rows.length > TIS_PAGE && (
+          <div className="text-xs text-muted-foreground">Показаны первые {TIS_PAGE} из {rows.length} — уточните поиск.</div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const VehicleDialog: React.FC<{
   state: EditState;
   types: string[];
@@ -457,7 +652,7 @@ const VehicleDialog: React.FC<{
   const [form, setForm] = useState(() =>
     state.mode === 'edit'
       ? { regNumber: state.original.regNumber, type: state.original.type, branch: state.original.branch, fuelNorm: String(state.original.fuelNorm || '') }
-      : EMPTY_FORM,
+      : state.initial ?? EMPTY_FORM,
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -495,7 +690,10 @@ const VehicleDialog: React.FC<{
         <form onSubmit={save} className="flex flex-col gap-3">
           <DialogHeader>
             <DialogTitle>{state.mode === 'add' ? 'Добавить технику' : `Изменить ${state.original.regNumber}`}</DialogTitle>
-            <DialogDescription>Поля, отмеченные *, обязательны.</DialogDescription>
+            <DialogDescription>
+              {state.mode === 'add' && state.hint ? <>{state.hint}<br /></> : null}
+              Поля, отмеченные *, обязательны.
+            </DialogDescription>
           </DialogHeader>
 
           <label className="flex flex-col gap-1 text-xs">
