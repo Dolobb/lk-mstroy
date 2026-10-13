@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, AttributionControl } from 'react-leaflet';
+import { LEAFLET_ATTRIBUTION_PREFIX } from '@/lib/leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
@@ -417,7 +418,9 @@ const TyagachiReportView: React.FC = () => {
             zoom={6}
             style={{ height: '100%', width: '100%' }}
             zoomControl={true}
+            attributionControl={false}
           >
+            <AttributionControl position="bottomright" prefix={LEAFLET_ATTRIBUTION_PREFIX} />
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

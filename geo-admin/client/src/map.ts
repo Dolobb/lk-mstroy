@@ -29,6 +29,8 @@ const zoneLayerMap = new Map<string, any>();
 
 export function initMap(): any {
   map = L.map('map').setView([57.15, 65.55], 11);
+  // Без флага в префиксе (Leaflet ≥ 1.9); атрибуция OSM остаётся в tileLayer.
+  map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 19,

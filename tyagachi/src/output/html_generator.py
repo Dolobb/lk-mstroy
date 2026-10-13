@@ -2041,6 +2041,7 @@ def _build_html(hierarchy: Dict[str, Any], title: str, web_mode: bool = False, r
 
             const mapEl = container.querySelector('.leaflet-map');
             const map = L.map(mapEl).setView([56, 68], 6);
+            map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
             mapInstances[requestId] = map;
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

@@ -16,6 +16,7 @@ import { vehicleCategory, SUBGROUP_COLORS, SUBGROUP_LABELS, SUBGROUP_ORDER } fro
 import { createAnalyticsPin } from './analyticsPin';
 import './analyticsPin.css';
 import { TrackLayer } from './components/TrackLayer';
+import { LEAFLET_ATTRIBUTION_PREFIX } from '@/lib/leaflet';
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -1216,7 +1217,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
           scrollWheelZoom={true}
         >
           <ZoomControl position="bottomright" />
-          <AttributionControl position="bottomleft" prefix={false} />
+          <AttributionControl position="bottomleft" prefix={LEAFLET_ATTRIBUTION_PREFIX} />
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

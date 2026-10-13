@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap, AttributionControl } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { WeeklyVehicle, VehicleDetailRow } from '../types/vehicle';
 import { getKpiColor, capDisplay } from '../utils/kpi';
 import GeozoneLayer from './GeozoneLayer';
 import './VehicleMap.css';
+import { LEAFLET_ATTRIBUTION_PREFIX } from '../lib/leaflet';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
@@ -226,7 +227,11 @@ const VehicleMap: React.FC<Props> = ({ vehicles, selectedVehicleId, selectedDeta
       style={{ height: '100%', width: '100%' }}
       attributionControl={false}
     >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <AttributionControl position="bottomright" prefix={LEAFLET_ATTRIBUTION_PREFIX} />
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      />
 
       <DeselectOnMapClick onDeselect={handleDeselect} />
       <FitBoundsOnFilter vehicles={vehicles} />
