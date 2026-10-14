@@ -1826,6 +1826,34 @@ async function runKipQueue(dates: string[], mode: 'normal' | 'force' | 'refresh'
   fetchProgress.service = null;
 }
 
+/** Запускает одну смену на dump-trucks (ждёт, пока освободится от 409) и ждёт её завершения.
+ *  Возвращает 'done' | 'cancelled' | 'timeout' | текст ошибки. */
+async function runDtShiftAndWait(date: string, shift: 'shift1' | 'shift2'): Promise<string> {
+  const base = 'http://localhost:3002/api/dt/admin/fetch';
+  const deadline = Date.now() + 60 * 60 * 1000;
+  while (true) {
+    if (fetchProgress.cancelRequested) return 'cancelled';
+    if (Date.now() > deadline) return 'timeout';
+    const res = await fetch(`${base}?date=${date}&shift=${shift}`, { method: 'POST' });
+    if (res.status === 409) { await new Promise(r => setTimeout(r, 15_000)); continue; }
+    if (!res.ok) return `HTTP ${res.status} при запуске`;
+    break;
+  }
+  let notFound = 0;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 10_000));
+    if (fetchProgress.cancelRequested) return 'cancelled';
+    try {
+      const s = await (await fetch(`${base}/status?date=${date}&shift=${shift}`)).json() as { state: string; errors?: string[] };
+      if (s.state === 'done') return 'done';
+      if (s.state === 'error') return (s.errors ?? []).join('; ') || 'ошибка на стороне самосвалов';
+      // in-memory job потерян (рестарт dump-trucks) — дальше ждать бессмысленно
+      if (s.state === 'not_found' && ++notFound >= 3) return 'сервис самосвалов потерял задачу (перезапуск?)';
+    } catch { /* transient — retry */ }
+  }
+  return 'timeout';
+}
+
 async function runDTQueue(dates: string[]) {
   fetchProgress.active = true;
   fetchProgress.service = 'dump-trucks';
@@ -1846,25 +1874,24 @@ async function runDTQueue(dates: string[]) {
 
     const runId = await pipelineRepo.createRun({ pipelineName: 'dt_daily', triggerType: 'manual', targetDate: date });
     try {
-      // Запускаем обе смены
-      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift1`, { method: 'POST' });
-      await new Promise(r => setTimeout(r, 2000)); // небольшая пауза между сменами
-      await fetch(`http://localhost:3002/api/dt/admin/fetch?date=${date}&shift=shift2`, { method: 'POST' });
-
-      // DT pipeline быстрее — таймаут 8 минут
-      const result = await waitForDate(
-        mainPool,
-        `SELECT 1 FROM dump_trucks.shift_records WHERE report_date = $1 LIMIT 1`,
-        [date],
-        8 * 60 * 1000
-      );
+      // Смены строго по очереди: dump-trucks держит один fetch одновременно и на вторую
+      // отвечает 409. Раньше обе слались подряд, shift2 молча отклонялась, а «готово»
+      // определялось по любой записи за дату — при перевыгрузке она уже была.
+      let result: 'done' | 'cancelled' | 'timeout' = 'done';
+      const shiftErrors: string[] = [];
+      for (const shift of ['shift1', 'shift2'] as const) {
+        const r = await runDtShiftAndWait(date, shift);
+        if (r === 'cancelled' || r === 'timeout') { result = r; break; }
+        if (r !== 'done') shiftErrors.push(`${shift}: ${r}`);
+      }
+      if (shiftErrors.length > 0) throw new Error(shiftErrors.join('; '));
 
       if (result === 'cancelled') {
         await pipelineRepo.failRun(runId, 'cancelled');
         break;
       }
       if (result === 'timeout') {
-        const message = `${date}: таймаут (8 мин)`;
+        const message = `${date}: таймаут`;
         fetchProgress.errors.push(message);
         await pipelineRepo.failRun(runId, message);
       } else {
