@@ -31,9 +31,12 @@ jobs:
             install: npm ci
             command: npx tsc --noEmit
           - service: geo-admin-client
-            path: geo-admin/client
+            # Клиент не отдельный пакет: package.json, package-lock.json и
+            # node_modules лежат в корне geo-admin/, а у client/ свой только
+            # tsconfig (его typeRoots как раз смотрят на ../node_modules).
+            path: geo-admin
             install: npm ci
-            command: npx tsc --noEmit
+            command: npx tsc --noEmit -p client/tsconfig.json
           - service: admin
             path: admin
             install: npm ci

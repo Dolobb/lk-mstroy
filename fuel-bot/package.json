@@ -1,0 +1,22 @@
+{
+  "name": "fuel-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram-бот выдачи топлива — микросервис поверх логики приложения АТЗ",
+  "scripts": {
+    "dev": "tsx --env-file=.env watch src/index.ts",
+    "start": "tsx --env-file=.env src/index.ts",
+    "seed": "tsx src/db.ts --seed",
+    "lint": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/domain.test.ts"
+  },
+  "dependencies": {
+    "grammy": "1.40.1"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.3",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  }
+}
