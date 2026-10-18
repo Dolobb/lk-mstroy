@@ -9,6 +9,7 @@ import { ShiftChip } from '@/components/ShiftChip';
 import type { MicroBar } from '@/components/ShiftChip';
 import { ShiftGanttBar } from '@/components/ShiftGanttBar';
 import { abbreviateOrg } from './orgAbbrev';
+import { GanttLegend } from './GanttLegend';
 import {
   fetchObjects, fetchOrders, fetchOrderGantt,
   fetchShiftRecords, fetchShiftDetail, fetchRepairs,
@@ -1248,6 +1249,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
                     onClick={() => setScrollOffset(Math.min(maxOffset, scrollOffset + 1))}
                   >&#9654;</button>
                 </>)}
+                <GanttLegend compact />
               </span>
             </th>
             {visibleDates.map(d => {
@@ -3657,6 +3659,7 @@ export function DumpTrucksPage() {
                     onClick={() => { const i = GG_PAGE_STEPS.indexOf(ggPageSize as typeof GG_PAGE_STEPS[number]); if (i < GG_PAGE_STEPS.length - 1) setGgPageSize(GG_PAGE_STEPS[i + 1]!); }}
                     disabled={ggPageSize >= GG_PAGE_STEPS[GG_PAGE_STEPS.length - 1]} title="Отдалить">−</button>
                 </div>
+                <GanttLegend />
                 <div className="sv-filter-sep" />
                 <div className="sv-fg">
                   <div className="sv-fg-label">Сортировка</div>
