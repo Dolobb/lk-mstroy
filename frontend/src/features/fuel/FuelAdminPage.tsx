@@ -950,29 +950,94 @@ function ReceiptRow({
   );
 }
 
+const EDIT_FIELDS: Record<string, string> = {
+  liters: 'Объём',
+  isDeleted: 'Удалено',
+  status: 'Статус',
+  happenedAtClient: 'Время события',
+  startedAtClient: 'Начало смены',
+  endedAtClient: 'Конец смены',
+  editedAt: 'Время правки',
+  openingRemainingLiters: 'Остаток при открытии',
+  closingRemainingLiters: 'Остаток при закрытии',
+  recipientName: 'Получатель',
+};
+
+function shiftNoun(count: number): string {
+  const form = new Intl.PluralRules('ru').select(count);
+  return form === 'one' ? 'смена' : form === 'few' ? 'смены' : 'смен';
+}
+
+function editRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function editValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (key === 'status') return value === 'open' ? 'Открыта' : value === 'closed' ? 'Закрыта' : 'Не указан';
+  if (key === 'isDeleted') return value === true ? 'Да' : 'Нет';
+  if (key.endsWith('At') || key.endsWith('AtClient')) return formatDateTime(String(value));
+  if (key === 'liters' || key.endsWith('Liters')) {
+    const number = Number(value);
+    return Number.isFinite(number) ? `${formatLiters(number)} л` : '—';
+  }
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : '—';
+}
+
 function EditsList({ edits }: { edits: EventEdit[] }) {
   if (edits.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-background/60 p-3">
+    <div className="min-w-0 rounded-lg border border-border bg-background/60 p-3">
       <div className="mb-2 text-xs font-semibold">Правки</div>
       <div className="space-y-2">
-        {edits.map(edit => (
-          <div key={edit.id} className="rounded-md bg-muted/40 p-2 text-xs">
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-mono font-semibold">{edit.eventType}</span>
-              <span className="text-muted-foreground">{formatDateTime(edit.editedAt)}</span>
+        {edits.map(edit => {
+          const before = editRecord(edit.before);
+          const after = editRecord(edit.after);
+          const fields = Object.keys(EDIT_FIELDS).filter(key =>
+            JSON.stringify(before[key]) !== JSON.stringify(after[key]),
+          );
+          const eventLabel = edit.eventType === 'dispense' ? 'Выдача' : edit.eventType === 'receipt' ? 'Получение' : edit.eventType === 'shift' ? 'Смена' : 'Событие';
+          return (
+            <div key={edit.id} className="min-w-0 rounded-md bg-muted/40 p-2 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold">{eventLabel}</span>
+                <span className="text-muted-foreground">{formatDateTime(edit.editedAt)}</span>
+              </div>
+              {fields.length > 0 ? (
+                <table className="mt-2 w-full table-fixed border-collapse text-[10px]">
+                  <thead>
+                    <tr className="border-b border-border text-left text-muted-foreground">
+                      <th className="w-2/5 py-1 pr-2 font-medium">Поле</th>
+                      <th className="py-1 pr-2 font-medium">Было</th>
+                      <th className="py-1 font-medium">Стало</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fields.map(key => (
+                      <tr key={key} className="border-b border-border/40 align-top">
+                        <td className="py-1.5 pr-2 break-words">{EDIT_FIELDS[key]}</td>
+                        <td className="py-1.5 pr-2 break-words tabular-nums">{editValue(key, before[key])}</td>
+                        <td className="py-1.5 break-words tabular-nums">{editValue(key, after[key])}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="mt-2 text-muted-foreground">Обновлены служебные данные</div>
+              )}
+              <details className="mt-2 text-[10px] text-muted-foreground">
+                <summary className="cursor-pointer">Технические данные</summary>
+                <div className="mt-2 space-y-2">
+                  <div>Было<pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-2">{jsonPreview(edit.before)}</pre></div>
+                  <div>Стало<pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-2">{jsonPreview(edit.after)}</pre></div>
+                </div>
+              </details>
             </div>
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
-              <pre className="max-h-32 overflow-auto rounded border border-border bg-card p-2 text-[10px] text-muted-foreground">
-                {jsonPreview(edit.before)}
-              </pre>
-              <pre className="max-h-32 overflow-auto rounded border border-border bg-card p-2 text-[10px] text-muted-foreground">
-                {jsonPreview(edit.after)}
-              </pre>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1348,7 +1413,7 @@ export function FuelAdminPage() {
             >
               Марка
               {markFilterActive && (
-                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] leading-none text-primary-foreground">
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] leading-none text-primary-foreground">
                   {vehicleMarkFilters.size}
                 </span>
               )}
@@ -1412,7 +1477,7 @@ export function FuelAdminPage() {
       <div className="overflow-auto rounded-lg border border-border bg-card">
         <table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="sticky top-0 z-10 border-b border-border bg-card text-muted-foreground">
+            <tr className="sticky top-0 z-10 border-b border-border bg-popover text-muted-foreground">
               <th className="px-3 py-2 text-left font-medium">Логин</th>
               <th className="px-3 py-2 text-left font-medium">ФИО</th>
               <th className="px-3 py-2 text-left font-medium">Активен</th>
@@ -1464,7 +1529,7 @@ export function FuelAdminPage() {
             </SegmentButton>
           </div>
           <div className="ml-auto text-xs text-muted-foreground">
-            {shiftsLoading ? 'Загрузка…' : `${shifts.length} смен`}
+            {shiftsLoading ? 'Загрузка…' : `${shifts.length} ${shiftNoun(shifts.length)}`}
           </div>
         </div>
 
@@ -1479,7 +1544,7 @@ export function FuelAdminPage() {
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-card">
             <table className="w-full border-collapse text-xs">
               <thead>
-                <tr className="sticky top-0 z-10 border-b border-border bg-card text-muted-foreground">
+                <tr className="sticky top-0 z-10 border-b border-border bg-popover text-muted-foreground">
                   <th className="w-8 px-2 py-2" />
                   <th className="px-3 py-2 text-left font-medium">Водитель</th>
                   <th className="px-3 py-2 text-left font-medium">АТЗ</th>
@@ -1513,7 +1578,7 @@ export function FuelAdminPage() {
                         <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateTime(shift.endedAtClient)}</td>
                         <td className="px-3 py-2">
                           <StatusBadge tone={shift.status === 'open' ? 'amber' : 'muted'}>
-                            {shift.status === 'open' ? 'open' : 'closed'}
+                            {shift.status === 'open' ? 'Открыта' : shift.status === 'closed' ? 'Закрыта' : 'Не указан'}
                           </StatusBadge>
                         </td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">

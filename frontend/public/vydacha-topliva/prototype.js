@@ -4,6 +4,12 @@
    Граф переходов — по «Схема потока экранов» (flow.js).
    ============================================================ */
 
+function applyTheme() {
+  try { document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark'); } catch {}
+}
+applyTheme();
+addEventListener('storage', e => { if (e.key === 'theme') applyTheme(); });
+
 const byId = id => document.getElementById(id);
 const ru = n => n.toLocaleString('ru');
 
@@ -86,7 +92,7 @@ byId('loginKeypad').addEventListener('click', e => {
   const v = k.dataset.k;
   byId('pinErr').textContent = '';
   if (v === 'del') { pin = pin.slice(0, -1); renderPin(); return; }
-  if (v === 'switch') { byId('pinErr').textContent = 'Выбор заправщика — следующая итерация'; return; }
+  if (v === 'switch') return;
   if (pin.length >= 4) return;
   pin += v; renderPin();
   if (pin.length === 4) setTimeout(checkPin, 180);

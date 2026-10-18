@@ -4,16 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Выдача топлива — кликабельный прототип</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="proto.css">
 <style>
   /* ════════ ВХОД ════════ */
   .login { align-items: stretch; }
   .login-split { display: grid; grid-template-columns: 1fr 1fr; height: 100%; }
-  .login-brand { background: var(--primary); color: #fff; padding: 64px 56px; display: flex; flex-direction: column; justify-content: space-between; }
+  .login-brand { background: var(--login-brand-bg, var(--primary)); color: #fff; padding: 64px 56px; display: flex; flex-direction: column; justify-content: space-between; }
   .login-brand .lb-mark { display: flex; align-items: baseline; gap: 9px; font-weight: 800; font-size: 22px; letter-spacing: 0.04em; }
   .login-brand .lb-mark .sep { opacity: .5; font-weight: 500; }
   .login-brand h1 { margin: 0; font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; }
@@ -92,6 +89,7 @@
   .prof-meta .pm-v { font-size: var(--t-body-sm); color: var(--ink-1); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
   .prof-totals { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
   .prof-tot { padding: var(--sp-4); border-radius: var(--r-lg); background: var(--surface-1); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 2px; }
+  .prof-tot .t-label { min-height: 2.7em; text-transform: none; letter-spacing: normal; }
   .prof-tot .pt-v { font-size: var(--t-display-l); font-weight: var(--fw-black); letter-spacing: var(--track-tight); color: var(--ink-1); font-variant-numeric: tabular-nums; line-height: 1; }
   .prof-right { display: flex; flex-direction: column; min-height: 0; }
   .hist-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 4px var(--sp-3); }
@@ -223,13 +221,14 @@
   .recv-keypad { flex: none; }
   .recv-keypad .keypad { grid-template-columns: repeat(3, 1fr); }
   .recv-keypad .keypad .key { min-height: 60px; font-size: 28px; }
-  .recv-right { display: flex; flex-direction: column; gap: var(--sp-4); }
-  .ttn-card { flex: 1; display: flex; flex-direction: column; padding: var(--sp-5); gap: var(--sp-4); }
+  .recv-right { min-height: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+  .ttn-card { min-height: 0; flex: 1; display: flex; flex-direction: column; padding: var(--sp-5); gap: var(--sp-4); }
   .ttn-card .tc-title { display: flex; align-items: center; justify-content: space-between; }
-  .ttn-options { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2); }
+  .ttn-options { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2); }
   .ttn-opt { display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 64px; padding: var(--sp-3); border-radius: var(--r-md); border: 1px solid var(--hairline-strong); background: var(--canvas); color: var(--ink-2); font-family: var(--font); font-size: var(--t-caption); font-weight: var(--fw-semibold); cursor: pointer; transition: background .12s ease, border-color .12s ease; }
   .ttn-opt:hover { background: var(--surface-2); border-color: var(--primary); color: var(--primary); }
-  .ttn-drop { flex: 1; }
+  .ttn-drop { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .ttn-drop .photo-uploader { flex: 1; min-height: 0; }
   .ttn-preview { display: none; flex: 1; flex-direction: column; gap: var(--sp-3); }
   .ttn-preview.show { display: flex; }
   .ttn-drop.hide { display: none; }
@@ -242,7 +241,7 @@
   .ttn-status .s-ico { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
   .ttn-status.ok .s-ico { background: var(--success-soft); }
   .ttn-status.queued .s-ico { background: var(--queued-soft); }
-  .recv-confirm { width: 100%; }
+  .recv-confirm { width: 100%; flex-shrink: 0; }
   .recv-confirm:disabled { background: var(--surface-3); color: var(--ink-3); }
 
   /* ════════ OVERLAY · EDIT SHEET ════════ */
@@ -266,11 +265,14 @@
   .es-change { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md); border: 1px solid var(--hairline-strong); background: var(--canvas); cursor: pointer; }
   .es-change > div { display: flex; flex-direction: column; gap: 4px; }
   .es-change:hover { background: var(--surface-2); }
+  .demo-disabled { cursor: default; color: var(--ink-3); }
+  .demo-disabled small { display: block; font-size: 10px; line-height: 1.4; font-weight: 500; }
   .es-actions { display: flex; gap: var(--sp-3); }
   .btn-danger { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); min-height: var(--tap-primary); padding: 0 var(--sp-6); border-radius: var(--r-lg); border: 1px solid var(--error); background: var(--error-soft); color: var(--error); font-family: var(--font); font-size: var(--t-body-sm); font-weight: var(--fw-bold); cursor: pointer; transition: background .15s ease; }
   .btn-danger:hover { background: var(--error); color: #fff; }
   .es-confirm-del { display: none; flex-direction: column; gap: var(--sp-4); padding: var(--sp-4) 0; }
   .es-confirm-del.show { display: flex; }
+  .es-main { display: flex; flex-direction: column; gap: 16px; }
   .es-main.hide { display: none; }
 
   /* ════════ OVERLAY · ЗАКРЫТИЕ СМЕНЫ ════════ */
@@ -285,7 +287,7 @@
   .sum-cell.accent .sc-v { color: var(--primary); }
   .sum-cell.success { background: var(--success-soft); border-color: transparent; }
   .sum-cell.success .sc-v { color: var(--success); }
-  .sum-final { display: flex; align-items: baseline; justify-content: space-between; padding: var(--sp-5); border-radius: var(--r-lg); background: var(--ink-1); }
+  .sum-final { display: flex; align-items: baseline; justify-content: space-between; padding: var(--sp-5); border-radius: var(--r-lg); background: var(--summary-bg, #08090a); }
   .sum-final .sf-label { color: rgba(255,255,255,0.72); font-size: var(--t-body); font-weight: var(--fw-semibold); }
   .sum-final .sf-v { color: #fff; font-size: var(--t-display-l); font-weight: var(--fw-black); font-variant-numeric: tabular-nums; }
   .close-actions { display: flex; gap: var(--sp-3); }
@@ -296,12 +298,12 @@
   .toast .t-ico { width: 22px; height: 22px; border-radius: 50%; background: var(--success); display: flex; align-items: center; justify-content: center; flex: none; }
 
   /* ════════ НИЖНЯЯ ПАНЕЛЬ-ПРЫЖОК (ревью) ════════ */
-  .nav-rail { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; z-index: 100; max-width: calc(100vw - 24px); flex-wrap: wrap; justify-content: center; padding: 7px 12px; border-radius: var(--r-full); background: rgba(20,21,24,0.93); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-family: var(--font); }
+  .nav-rail { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; z-index: 100; max-width: calc(100vw - 24px); flex-wrap: wrap; justify-content: center; padding: 7px 12px; border-radius: var(--r-full); background: rgb(20,21,24); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-family: var(--font); }
   .nav-rail .nr-label { color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 0 4px; }
   .nav-rail .nr-sep { width: 1px; height: 20px; background: rgba(255,255,255,0.16); }
   .nav-rail button, .nav-rail a { border: none; background: transparent; color: rgba(255,255,255,0.72); font-family: var(--font); font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: var(--r-full); cursor: pointer; text-decoration: none; line-height: 1; }
   .nav-rail button:hover, .nav-rail a:hover { color: #fff; background: rgba(255,255,255,0.08); }
-  .nav-rail button.is-on { background: var(--primary); color: #fff; }
+  .nav-rail button.is-on { background: var(--primary); color: var(--on-primary); }
   .nav-rail a.doc { color: rgba(255,255,255,0.5); }
 </style>
 </head>
@@ -338,7 +340,7 @@
               <div class="key" data-k="1">1</div><div class="key" data-k="2">2</div><div class="key" data-k="3">3</div>
               <div class="key" data-k="4">4</div><div class="key" data-k="5">5</div><div class="key" data-k="6">6</div>
               <div class="key" data-k="7">7</div><div class="key" data-k="8">8</div><div class="key" data-k="9">9</div>
-              <div class="key key--ghost" data-k="switch">Сменить</div>
+              <div class="key key--ghost demo-disabled" data-k="switch" aria-disabled="true" title="Смена заправщика недоступна в демо"><span>Сменить<small>Недоступно в демо</small></span></div>
               <div class="key" data-k="0">0</div>
               <div class="key key--ghost" data-k="del">⌫</div>
             </div>
@@ -600,7 +602,7 @@
               <div class="grid-2">
                 <div class="fld org-pop">
                   <label>Организация <span class="req">обязательно</span></label>
-                  <input class="big-field" id="newOrg" type="text" placeholder="Выберите или впишите новую" autocomplete="off" oninput="onOrgInput()" onfocus="openOrgMenu()">
+                  <input class="big-field" id="newOrg" type="text" placeholder="Название организации" autocomplete="off" oninput="onOrgInput()" onfocus="openOrgMenu()">
                   <div class="org-menu" id="orgMenu"></div>
                   <div class="org-new-note" id="orgNote">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
@@ -654,7 +656,7 @@
             <div class="card ttn-card">
               <div class="tc-title"><span class="t-subheading">Фото ТТН</span><span class="t-caption">товарно-транспортная накладная</span></div>
               <div class="ttn-drop" id="ttnDrop">
-                <div class="photo-uploader" style="height:100%" onclick="attachPhoto()">
+                <div class="photo-uploader" onclick="attachPhoto()">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.5"/></svg>
                   <div class="t-body-strong">Снять или прикрепить ТТН</div>
                 </div>
@@ -704,9 +706,9 @@
                     <button class="st-btn" onclick="stepEd(10)">+</button>
                   </div>
                 </div>
-                <div class="es-change" onclick="showToast('Открыть выбор ТС (как в «Передаче»)')">
+                <div class="es-change demo-disabled" aria-disabled="true">
                   <div><div class="t-label" style="margin-bottom:2px">Транспортное средство</div><div class="t-body-strong" id="edChangePlate">—</div></div>
-                  <span class="t-body-strong" style="color:var(--primary)">Сменить</span>
+                  <span class="t-body-strong" style="color:var(--ink-3);text-align:right">Сменить<small>Недоступно в демо</small></span>
                 </div>
                 <div class="es-actions">
                   <button class="btn-danger" onclick="askDelete()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>Удалить</button>
@@ -775,7 +777,7 @@
   <button onclick="openEditFirst()">Правка</button>
   <button onclick="openClose()">Закрытие</button>
   <span class="nr-sep"></span>
-  <a class="doc" href="Foundation - Спецификация адаптации.html" target="_blank">Foundation</a>
+  <a class="doc" href="Foundation - Спецификация адаптации.html" target="_blank">Стили</a>
   <a class="doc" href="Схема потока экранов.html" target="_blank">Схема</a>
 </div>
 

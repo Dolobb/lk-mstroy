@@ -59,7 +59,7 @@
   --tap-key:       72px;   /* клавиша цифровой клавиатуры */
 
   /* ── Типографика ───────────────────────────────────────── */
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 
   --t-display-2xl: 72px;   /* hero-число (литры/остаток) */
   --t-display-xl:  56px;
@@ -163,8 +163,8 @@ body {
 .big-action .ba-label { font-size: var(--t-heading); font-weight: var(--fw-bold); letter-spacing: var(--track-tight); }
 .big-action .ba-sub   { font-size: var(--t-caption); font-weight: var(--fw-medium); }
 .big-action--primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
-.big-action--primary .ba-icon { background: rgba(255,255,255,0.16); color: #fff; }
-.big-action--primary .ba-sub  { color: rgba(255,255,255,0.78); }
+.big-action--primary .ba-icon { background: rgba(255,255,255,0.16); color: var(--on-primary); }
+.big-action--primary .ba-sub  { color: var(--on-primary); opacity: .78; }
 .big-action--primary:hover { background: var(--primary-hover); }
 .big-action--secondary { background: var(--canvas); border-color: var(--hairline-strong); color: var(--ink-1); }
 .big-action--secondary .ba-icon { background: var(--surface-3); color: var(--ink-1); }
@@ -322,3 +322,29 @@ body {
 }
 .sheet-grip { width: 44px; height: 5px; border-radius: var(--r-full); background: var(--surface-4); margin: var(--sp-3) auto; }
 .scrim { position: absolute; inset: 0; background: rgba(8,9,10,0.28); }
+
+/* Общая тема личного кабинета, сохранённая в localStorage. */
+:root.dark {
+  color-scheme: dark;
+  --canvas: #0f172a;
+  --summary-bg: #28364b;
+  --login-brand-bg: #525dc0;
+  --surface-1: #151f32;
+  --surface-2: #1e293b;
+  --surface-3: #28364b;
+  --surface-4: #334155;
+  --ink-1: #f1f5f9;
+  --ink-2: #cbd5e1;
+  --ink-3: #94a3b8;
+  --hairline: rgba(203,213,225,0.14);
+  --hairline-strong: rgba(203,213,225,0.25);
+  --hairline-faint: rgba(203,213,225,0.08);
+  --primary: #8b95ff;
+  --primary-hover: #a0a8ff;
+  --primary-pressed: #7985ef;
+  --on-primary: #0f172a;
+  --primary-soft: rgba(139,149,255,0.16);
+  --success: #4ade80;
+  --queued: #fbbf24;
+  --error: #f87171;
+}
