@@ -24,8 +24,7 @@ interface ToolStatusProps {
 function getSuffix(state: string, output?: Record<string, unknown>): string {
   if (state === 'input-streaming' || state === 'input-available') return '';
   if (state === 'output-error') {
-    const err = output?.error ?? output?.message;
-    return err ? ` — ${String(err).slice(0, 80)}` : ' — ошибка';
+    return ' — не удалось получить данные';
   }
   if (state === 'output-available' && output) {
     if (output.downloadUrl) return '';
@@ -37,7 +36,7 @@ function getSuffix(state: string, output?: Record<string, unknown>): string {
 }
 
 export const ToolStatus: React.FC<ToolStatusProps> = ({ toolName, state, output }) => {
-  const label = TOOL_LABELS[toolName] || toolName;
+  const label = TOOL_LABELS[toolName] || 'Обрабатываю данные';
   const isLoading = state === 'input-streaming' || state === 'input-available';
   const isError = state === 'output-error' || (state === 'output-available' && output?.success === false);
   const isDone = state === 'output-available' && !isError;
@@ -56,7 +55,7 @@ export const ToolStatus: React.FC<ToolStatusProps> = ({ toolName, state, output 
         {isLoading && <Loader2 className="w-3 h-3 animate-spin shrink-0" />}
         {isDone && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
         {isError && <XCircle className="w-3 h-3 shrink-0" />}
-        <span>
+        <span title={isError ? String(output?.error ?? output?.message ?? '') : undefined}>
           {label}
           {suffix}
         </span>

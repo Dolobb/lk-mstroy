@@ -66,7 +66,7 @@ const LiveChatArea: React.FC<LiveChatAreaProps> = ({ sessionId, initialMessages,
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col glass-card rounded-[18px] overflow-hidden">
+    <div className="flex-1 min-w-0 min-h-0 flex flex-col glass-card rounded-[18px] overflow-hidden">
       {isEmpty ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6">
           <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20">
@@ -75,7 +75,7 @@ const LiveChatArea: React.FC<LiveChatAreaProps> = ({ sessionId, initialMessages,
 
           <div className="text-center max-w-md">
             <h2 className="text-lg font-semibold text-foreground mb-2">
-              Ассистент НПС
+              AI-ассистент по отчётам
             </h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
               AI-помощник для генерации отчётов. Опиши что нужно —
@@ -122,7 +122,7 @@ const LiveChatArea: React.FC<LiveChatAreaProps> = ({ sessionId, initialMessages,
 
           {error && (
             <div className="text-xs text-destructive bg-destructive/10 rounded-xl p-3">
-              Ошибка: {error.message}
+              Не удалось получить ответ. Попробуйте ещё раз позже.
             </div>
           )}
         </div>
@@ -153,7 +153,7 @@ const HistoryView: React.FC<{ messages: UIMessage[]; title: string; onContinue: 
   }, [messages]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col glass-card rounded-[18px] overflow-hidden">
+    <div className="flex-1 min-w-0 min-h-0 flex flex-col glass-card rounded-[18px] overflow-hidden">
       <div className="shrink-0 px-4 py-2.5 border-b border-border/50 flex items-center gap-2">
         <History className="w-3.5 h-3.5 text-muted-foreground" />
         <span className="text-xs text-muted-foreground truncate flex-1">{title}</span>

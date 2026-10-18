@@ -140,7 +140,7 @@ export const ReportsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden p-3 gap-3">
+    <div className="flex flex-col h-full overflow-y-auto p-3 gap-3">
       {/* Block 1: Parameters */}
       <div className="glass-card rounded-[18px] p-4 shrink-0 relative z-20">
         <div className="flex items-center gap-2 mb-3">
@@ -162,12 +162,12 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Block 2: Column configurator */}
-      <div className="flex-1 min-h-0 glass-card rounded-[18px] p-4 overflow-hidden">
+      <div className="shrink-0 glass-card rounded-[18px] p-4">
         <div className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
           Столбцы отчёта
         </div>
         {meta ? (
-          <div className="h-[calc(100%-24px)]">
+          <div className="min-w-0">
             <ColumnConfigurator
               allColumns={meta.columns}
               included={included}

@@ -25,32 +25,28 @@ export const ColumnConfigurator: React.FC<Props> = ({ allColumns, included, onCh
   const removeColumn = (id: string) => onChange(included.filter(x => x !== id));
 
   return (
-    <div className="grid grid-cols-2 gap-3 h-full min-h-0">
+    <div className="grid grid-cols-2 gap-3 items-start">
       {/* Included */}
       <div className="flex flex-col min-h-0">
         <div className="text-xs font-medium text-foreground mb-2">
           Включены ({includedCols.length})
         </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1">
-          {includedCols.map(col => (
-            <div
-              key={col.id}
-              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-card-inner/50 border border-border/50 group"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs text-foreground truncate">{col.label}</span>
-                <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
-                  {col.group}
-                </span>
+        <div className="max-h-[420px] overflow-y-auto custom-scrollbar space-y-1">
+          {[...new Set(includedCols.map(c => c.group))].map(group => (
+            <div key={group} className="mb-3">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-1">{group}</div>
+              <div className="space-y-1">
+                {includedCols.filter(c => c.group === group).map(col => (
+                  <div key={col.id} className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-card-inner/50 border border-border/50">
+                    <span className="text-xs text-foreground truncate" title={col.label}>{col.label}</span>
+                    {!col.fixed && (
+                      <button onClick={() => removeColumn(col.id)} aria-label={`Убрать столбец «${col.label}»`} className="text-muted-foreground hover:text-destructive transition-colors p-0.5 cursor-pointer bg-transparent border-none shrink-0">
+                        <X className="size-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-              {!col.fixed && (
-                <button
-                  onClick={() => removeColumn(col.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors p-0.5 cursor-pointer bg-transparent border-none"
-                >
-                  <X className="size-3" />
-                </button>
-              )}
             </div>
           ))}
         </div>
@@ -61,7 +57,7 @@ export const ColumnConfigurator: React.FC<Props> = ({ allColumns, included, onCh
         <div className="text-xs font-medium text-foreground mb-2">
           Доступны ({availableCols.length})
         </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
+        <div className="max-h-[420px] overflow-y-auto custom-scrollbar space-y-2">
           {availableCols.length === 0 && (
             <div className="text-xs text-muted-foreground text-center py-4">
               Все столбцы включены
@@ -69,7 +65,7 @@ export const ColumnConfigurator: React.FC<Props> = ({ allColumns, included, onCh
           )}
           {[...availableGroups.entries()].map(([group, cols]) => (
             <div key={group}>
-              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 px-1">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-1">
                 {group}
               </div>
               <div className="space-y-1">
@@ -83,6 +79,7 @@ export const ColumnConfigurator: React.FC<Props> = ({ allColumns, included, onCh
                     </span>
                     <button
                       onClick={() => addColumn(col.id)}
+                      aria-label={`Добавить столбец «${col.label}»`}
                       className="text-muted-foreground hover:text-primary transition-colors p-0.5 cursor-pointer bg-transparent border-none"
                     >
                       <Plus className="size-3" />

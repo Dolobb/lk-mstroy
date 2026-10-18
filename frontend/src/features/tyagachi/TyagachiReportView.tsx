@@ -4,9 +4,10 @@ import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, Attri
 import { LEAFLET_ATTRIBUTION_PREFIX } from '@/lib/leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, FileSearch } from 'lucide-react';
 import type { RequestDataResponse, RequestHierarchy, PLEntry, VehicleMonitoring, TrackPoint } from './types';
 import { getRequestData } from './api';
+import { Button } from '@/components/ui/button';
 import { fmtRuDT, fmtHours, fmtRequestStatus } from './utils';
 
 // Fix leaflet marker icons in Vite build
@@ -100,31 +101,31 @@ const FactPanel: React.FC<FactPanelProps> = ({ vehicle, plId }) => {
         <div className="text-xs font-bold text-foreground mb-0.5">
           {vehicle.ts_reg_number ?? vehicle.ts_name_mo ?? `ТС #${vehicle.ts_id_mo}`}
         </div>
-        <div className="text-[10px] text-muted-foreground">ПЛ {plId}</div>
+        <div className="text-[11px] text-muted-foreground">ПЛ {plId}</div>
       </div>
 
       {/* Основные показатели */}
       <div className="grid grid-cols-2 gap-2">
         <div className="glass-card px-2 py-1.5">
-          <div className="text-[10px] text-muted-foreground">Пробег</div>
+          <div className="text-[11px] text-muted-foreground">Пробег</div>
           <div className="text-sm font-semibold text-foreground">
             {vehicle.mon_distance != null ? `${vehicle.mon_distance} км` : '—'}
           </div>
         </div>
         <div className="glass-card px-2 py-1.5">
-          <div className="text-[10px] text-muted-foreground">В движении</div>
+          <div className="text-[11px] text-muted-foreground">В движении</div>
           <div className="text-sm font-semibold text-foreground">
             {fmtHours(vehicle.mon_moving_time_hours)}
           </div>
         </div>
         <div className="glass-card px-2 py-1.5">
-          <div className="text-[10px] text-muted-foreground">Двигатель</div>
+          <div className="text-[11px] text-muted-foreground">Двигатель</div>
           <div className="text-sm font-semibold text-foreground">
             {fmtHours(vehicle.mon_engine_time_hours)}
           </div>
         </div>
         <div className="glass-card px-2 py-1.5">
-          <div className="text-[10px] text-muted-foreground">Холостой</div>
+          <div className="text-[11px] text-muted-foreground">Холостой</div>
           <div className="text-sm font-semibold text-foreground">
             {fmtHours(vehicle.mon_idling_time_hours)}
           </div>
@@ -134,7 +135,7 @@ const FactPanel: React.FC<FactPanelProps> = ({ vehicle, plId }) => {
       {/* Топливо */}
       {fuels.length > 0 && (
         <div>
-          <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">
+          <div className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">
             Топливо
           </div>
           {fuels.map((f, i) => (
@@ -155,13 +156,13 @@ const FactPanel: React.FC<FactPanelProps> = ({ vehicle, plId }) => {
       {/* Стоянки */}
       {parkings.length > 0 && (
         <div>
-          <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">
+          <div className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">
             Стоянки ({vehicle.mon_parkings_count ?? parkings.length})
           </div>
           <div className="flex flex-col gap-1">
             {parkings.slice(0, 8).map((p, i) => (
-              <div key={i} className="text-[10px] py-1 border-b border-border/30 last:border-0">
-                <div className="text-foreground truncate">{p.address ?? '—'}</div>
+              <div key={i} className="text-[11px] py-1 border-b border-border/30 last:border-0">
+                <div className="text-foreground truncate" title={p.address ?? undefined}>{p.address ?? '—'}</div>
                 <div className="text-muted-foreground flex gap-1.5">
                   <span>{fmtRuDT(p.begin)}</span>
                   {p.duration_min != null && <span>· {p.duration_min} мин</span>}
@@ -169,7 +170,7 @@ const FactPanel: React.FC<FactPanelProps> = ({ vehicle, plId }) => {
               </div>
             ))}
             {parkings.length > 8 && (
-              <div className="text-[10px] text-muted-foreground">...ещё {parkings.length - 8}</div>
+              <div className="text-[11px] text-muted-foreground">...ещё {parkings.length - 8}</div>
             )}
           </div>
         </div>
@@ -214,19 +215,19 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ hierarchy, selectedKey, onSelectV
       <div className="glass-card px-3 py-2">
         <div className="text-xs font-bold text-primary mb-1">Заявка #{hierarchy.request_number}</div>
         {hierarchy.route_start_address && (
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-[11px] text-muted-foreground">
             {hierarchy.route_start_address}
           </div>
         )}
         {hierarchy.route_end_address && (
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-[11px] text-muted-foreground">
             → {hierarchy.route_end_address}
           </div>
         )}
         {hierarchy.order_name_cargo && (
-          <div className="text-[10px] text-foreground mt-0.5">{hierarchy.order_name_cargo}</div>
+          <div className="text-[11px] text-foreground mt-0.5">{hierarchy.order_name_cargo}</div>
         )}
-        <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground flex-wrap">
+        <div className="flex gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
           {hierarchy.route_start_date && <span>{fmtRuDT(hierarchy.route_start_date)}</span>}
           {hierarchy.route_distance != null && <span>{hierarchy.route_distance} км</span>}
           {hierarchy.request_status && <span>{fmtRequestStatus(hierarchy.request_status)}</span>}
@@ -244,7 +245,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ hierarchy, selectedKey, onSelectV
             >
               <div className="flex-1 text-left min-w-0">
                 <div className="text-xs font-semibold text-foreground">ПЛ {pl.pl_id}</div>
-                <div className="text-[10px] text-muted-foreground flex gap-1.5">
+                <div className="text-[11px] text-muted-foreground flex gap-1.5">
                   {pl.pl_date_out && <span>{pl.pl_date_out}</span>}
                   {pl.pl_ts_number && <span>· {pl.pl_ts_number}</span>}
                   <span className="text-muted-foreground">· {pl.vehicles.length} ТС</span>
@@ -280,7 +281,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({ hierarchy, selectedKey, onSelectV
                         <div className="text-xs font-medium truncate">
                           {v.ts_reg_number ?? v.ts_name_mo ?? `ТС #${v.ts_id_mo}`}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-[11px] text-muted-foreground">
                           {hasTrack
                             ? `${(v.mon_track?.length ?? 0)} точек`
                             : 'нет трека'}
@@ -306,6 +307,7 @@ const TyagachiReportView: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<RequestDataResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tileStatus, setTileStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleMonitoring | null>(null);
@@ -364,15 +366,16 @@ const TyagachiReportView: React.FC = () => {
   if (error || !hierarchy) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
-        <div className="text-sm text-red-400 max-w-md text-center">
-          {error ?? 'Данные не найдены. Убедитесь что синхронизация выполнена.'}
-        </div>
-        <button
-          onClick={() => navigate('/tyagachi')}
-          className="text-xs text-primary hover:underline cursor-pointer border-none bg-transparent"
-        >
-          ← Назад к тягачам
-        </button>
+        <FileSearch className="size-10 text-muted-foreground" />
+        <h1 className="text-base font-semibold text-center" title={error ?? undefined}>
+          {!error || /404/.test(error) ? `Заявка №${requestNumber} не найдена` : 'Не удалось загрузить заявку'}
+        </h1>
+        <p className="text-sm text-muted-foreground text-center">
+          {!error || /404/.test(error) ? 'Возможно, она ещё не синхронизирована.' : 'Попробуйте открыть её позже.'}
+        </p>
+        <Button onClick={() => navigate('/tyagachi')} variant="outline" size="sm">
+          <ArrowLeft className="size-3.5" /> К тягачам
+        </Button>
       </div>
     );
   }
@@ -380,7 +383,7 @@ const TyagachiReportView: React.FC = () => {
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       {/* Header */}
-      <div className="px-3 py-1.5 shrink-0 flex items-center gap-2 border-b border-border/40">
+      <div className="px-3 py-2 shrink-0 flex items-center gap-2 min-w-0 border-b border-border/40">
         <button
           onClick={() => navigate('/tyagachi')}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer border-none bg-transparent"
@@ -389,14 +392,14 @@ const TyagachiReportView: React.FC = () => {
           Тягачи
         </button>
         <span className="text-muted-foreground text-xs">/</span>
-        <span className="text-xs font-semibold text-foreground">
-          Заявка #{requestNumber}
+        <div className="text-xs font-semibold text-foreground min-w-0 flex-1">
+          Заявка №{requestNumber}
           {hierarchy.object_expend_name && (
-            <span className="text-muted-foreground font-normal ml-1.5">
+            <span className="block truncate text-muted-foreground font-normal mt-1" title={hierarchy.object_expend_name}>
               {hierarchy.object_expend_name}
             </span>
           )}
-        </span>
+        </div>
       </div>
 
       {/* Three-column layout */}
@@ -412,7 +415,7 @@ const TyagachiReportView: React.FC = () => {
         </div>
 
         {/* Center: Map */}
-        <div className="flex-1 relative">
+        <div className="flex-1 min-w-0 relative">
           <MapContainer
             center={[55.75, 37.6]}
             zoom={6}
@@ -422,15 +425,24 @@ const TyagachiReportView: React.FC = () => {
           >
             <AttributionControl position="bottomright" prefix={LEAFLET_ATTRIBUTION_PREFIX} />
             <TileLayer
+              eventHandlers={{ loading: () => setTileStatus('loading'), tileload: () => setTileStatus('ready'), tileerror: () => setTileStatus('error') }}
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             />
             {selectedVehicle && <TrackLayer vehicle={selectedVehicle} />}
           </MapContainer>
 
+          {tileStatus !== 'ready' && (
+            <div role="status" className="absolute top-3 left-14 right-3 z-[1000] pointer-events-none flex justify-center">
+              <span className="bg-popover border border-border rounded-lg px-3 py-2 text-xs text-muted-foreground shadow-sm">
+                {tileStatus === 'loading' ? 'Загрузка подложки карты…' : 'Подложка карты недоступна. Трек и стоянки показаны.'}
+              </span>
+            </div>
+          )}
+
           {/* Map legend */}
           {selectedVehicle && (
-            <div className="absolute bottom-4 left-4 glass-card px-2.5 py-1.5 text-[10px] flex flex-col gap-1 z-[1000]">
+            <div className="absolute bottom-4 left-4 bg-popover border border-border rounded-lg px-2.5 py-1.5 text-[11px] flex flex-col gap-1 z-[1000]">
               <div className="flex items-center gap-1.5">
                 <div className="w-4 h-0.5 bg-blue-500 rounded" />
                 <span className="text-muted-foreground">Трек</span>

@@ -36,19 +36,21 @@ export const ChatInput: React.FC<Props> = ({ input, onChange, onSubmit, isLoadin
         value={input}
         onChange={onChange}
         onKeyDown={handleKeyDown}
+        aria-label="Вопрос ассистенту"
         placeholder="Опишите какой отчёт вам нужен..."
         rows={1}
         disabled={isLoading}
-        className="flex-1 resize-none bg-transparent text-foreground text-xs
+        className="min-w-0 flex-1 resize-none rounded-lg bg-popover text-foreground text-xs
           placeholder:text-muted-foreground/60
-          border-none outline-none
-          py-2 px-1
+          border border-border outline-none focus:border-primary focus:ring-2 focus:ring-primary/30
+          py-2 px-3
           disabled:opacity-50"
         style={{ maxHeight: '120px' }}
       />
 
       <button
         type="submit"
+        aria-label="Отправить вопрос"
         disabled={!input.trim() || isLoading}
         className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
           bg-primary text-primary-foreground

@@ -153,10 +153,11 @@ export function fmtRequestStatus(status: string | null): string {
   const map: Record<string, string> = {
     SUCCESSFULLY_COMPLETED: 'Завершена',
     IN_PROGRESS: 'В работе',
+    IN_WORK: 'В работе',
     CANCELLED: 'Отменена',
     CREATED: 'Создана',
   };
-  return map[status] ?? status;
+  return map[status] ?? (status ? status.toLowerCase().replace(/_/g, ' ') : 'Статус не указан');
 }
 
 /** Стабильность → readable */

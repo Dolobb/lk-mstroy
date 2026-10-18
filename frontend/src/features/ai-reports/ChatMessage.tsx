@@ -70,6 +70,28 @@ function extractDownloadLinks(message: UIMessage): { fileId: string; url: string
   return Array.from(links.entries()).map(([fileId, url]) => ({ fileId, url }));
 }
 
+// Render the assistant's basic emphasis and lists without injecting HTML.
+function renderAssistantText(text: string) {
+  const localized = text.replace(/\bdump_trucks\b/g, 'Самосвалы').replace(/\bkip\b/g, 'КИП');
+  return localized.split('\n').map((line, index) => {
+    const bullet = /^[-*]\s+/.test(line);
+    const content = line.replace(/^[-*]\s+/, '').replace(/^#{1,3}\s+/, '');
+    const parts = content.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) =>
+      part.startsWith('**') && part.endsWith('**')
+        ? <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
+        : part.startsWith('`') && part.endsWith('`')
+        ? <span key={i}>{part.slice(1, -1)}</span>
+        : part
+    );
+    return (
+      <div key={index} className={bullet ? 'flex items-start gap-2' : 'min-h-[1em]'}>
+        {bullet && <span aria-hidden="true">•</span>}
+        <span>{parts}</span>
+      </div>
+    );
+  });
+}
+
 export const ChatMessage: React.FC<Props> = ({ message }) => {
   const isUser = message.role === 'user';
 
@@ -131,7 +153,7 @@ export const ChatMessage: React.FC<Props> = ({ message }) => {
         {/* Text */}
         {cleanText.trim() && (
           <div className="whitespace-pre-wrap break-words">
-            {cleanText}
+            {isUser ? cleanText : renderAssistantText(cleanText)}
           </div>
         )}
 

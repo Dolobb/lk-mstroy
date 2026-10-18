@@ -123,7 +123,7 @@ const SessionItem: React.FC<ItemProps> = ({ session, isActive, isLive, onSelect,
           {formatDate(session.date)}
         </span>
         {isLive && (
-          <span className="text-[9px] px-1 py-px rounded bg-primary/15 text-primary font-medium">
+          <span className="text-[10px] px-1 py-px rounded bg-primary/15 text-primary font-medium">
             текущий
           </span>
         )}

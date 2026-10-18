@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { RefreshCw, Filter, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, X, Pin, ChevronsDown, ChevronsUp, History } from 'lucide-react';
+import { RefreshCw, Filter, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, X, Pin, ChevronsDown, ChevronsUp, History, ChevronDown } from 'lucide-react';
 import { FilterDropdown, uniqueSortedBy } from '@/components/FilterDropdown';
 import type { VehicleRecord, SyncStatus, SyncLogEntry } from './types';
 import { fetchVehicles, fetchSyncStatus, triggerSync, fetchSnapshotDates, fetchSnapshots, fetchSyncLogs } from './api';
@@ -36,14 +36,16 @@ function formatDateTime(iso: string | null): string {
 
 function cellText(v: string | null | undefined): string {
   if (!v) return '—';
-  return v.trim() || '—';
+  const text = v.trim();
+  return !text || /^#(?:N\/A|REF!|VALUE!|DIV\/0!|NAME\?|NUM!|NULL!|Н\/Д)$/i.test(text) ? '—' : text;
 }
 
 function getCellValue(r: VehicleRecord, key: ColKey): string {
   if (key === 'plateNumber') return r.plateNumber;
   const val = r[key as keyof VehicleRecord];
   if (val === null || val === undefined || typeof val === 'boolean') return '';
-  return String(val).trim();
+  const text = cellText(String(val));
+  return text === '—' ? '' : text;
 }
 
 type ActiveFilters = Partial<Record<ColKey, Set<string>>>;
@@ -64,7 +66,8 @@ function GroupByPills({
   onToggle: (key: ColKey) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 flex-wrap">
+    <div className="flex items-center gap-1 flex-wrap" aria-label="Группировка техники">
+      <span className="text-[11px] text-muted-foreground mr-1">Группировать:</span>
       {GROUP_PILLS.map(p => {
         const active = selected.includes(p.key);
         return (
@@ -72,15 +75,16 @@ function GroupByPills({
             key={p.key}
             type="button"
             onClick={() => onToggle(p.key)}
-            className="px-2.5 py-1 rounded-lg border-none cursor-pointer font-semibold transition-colors"
+            aria-pressed={active}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full border cursor-pointer font-semibold transition-colors"
             style={{
               fontSize: 11,
               background: active ? 'rgba(249,115,22,0.12)' : 'transparent',
-              color: active ? '#F97116' : 'var(--text-muted)',
-              border: active ? '1px solid rgba(249,115,22,0.2)' : '1px solid transparent',
+              color: active ? 'var(--primary)' : 'var(--muted-foreground)',
+              border: active ? '1px solid var(--primary)' : '1px solid var(--border)',
             }}
           >
-            {p.label}
+            {p.label}<ChevronDown className={`size-3 ${active ? 'rotate-180' : ''}`} />
           </button>
         );
       })}
@@ -334,18 +338,22 @@ export const VehicleStatusPage: React.FC = () => {
           className={`p-0.5 rounded border-none cursor-pointer transition-colors ${
             isPinned
               ? 'text-primary'
-              : 'text-muted-foreground/30 hover:text-muted-foreground'
+              : 'text-muted-foreground hover:text-primary'
           }`}
           title={isPinned ? 'Открепить' : 'Закрепить'}
+          aria-label={isPinned ? 'Открепить' : 'Закрепить'}
         >
           <Pin className="size-3" style={isPinned ? { transform: 'rotate(45deg)' } : undefined} />
         </button>
       </td>
-      <td className="px-3 py-1.5 font-mono font-medium">{r.plateNumber}</td>
-      <td className="px-3 py-1.5 text-muted-foreground">{cellText(r.branch)}</td>
-      <td className="px-3 py-1.5">{cellText(r.vehicleType)}</td>
-      <td className="px-3 py-1.5">{cellText(r.brand)}</td>
-      <td className="px-3 py-1.5 text-muted-foreground">{cellText(r.constructionObject)}</td>
+      <td className="px-3 py-1.5 font-medium">
+        <div className="font-mono">{r.plateNumber}</div>
+        <span data-source={r.category} title={`Источник: ${r.category}`} className="inline-block max-w-full truncate rounded bg-muted px-1.5 py-0.5 mt-1 text-[10px] text-muted-foreground align-middle">{r.category || 'Источник не указан'}</span>
+      </td>
+      <td className="px-3 py-1.5 text-muted-foreground"><span className="line-clamp-2 break-words" title={cellText(r.branch)}>{cellText(r.branch)}</span></td>
+      <td className="px-3 py-1.5"><span className="line-clamp-2 break-words" title={cellText(r.vehicleType)}>{cellText(r.vehicleType)}</span></td>
+      <td className="px-3 py-1.5"><span className="line-clamp-2 break-words" title={cellText(r.brand)}>{cellText(r.brand)}</span></td>
+      <td className="px-3 py-1.5 text-muted-foreground"><span className="line-clamp-2 break-words" title={cellText(r.constructionObject)}>{cellText(r.constructionObject)}</span></td>
       <td className="px-3 py-1.5">
         {(() => {
           const periods = repairPeriods.get(r.plateNumber.toUpperCase()) ?? [];
@@ -362,15 +370,15 @@ export const VehicleStatusPage: React.FC = () => {
                 className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium ${badgeClass}`}
                 style={{ fontSize: '10px' }}
               >
-                {r.techStatus || '—'}
+                {cellText(r.techStatus)}
               </span>
               {activePeriod && <RepairBadge period={activePeriod} size={11} />}
             </span>
           );
         })()}
       </td>
-      <td className="px-3 py-1.5 text-muted-foreground">{cellText(r.workType)}</td>
-      <td className="px-3 py-1.5 text-muted-foreground">{cellText(r.category)}</td>
+      <td className="px-3 py-1.5 text-muted-foreground"><span className="line-clamp-2 break-words" title={cellText(r.workType)}>{cellText(r.workType)}</span></td>
+      <td className="px-3 py-1.5 text-muted-foreground"><span className="line-clamp-2 break-words" title={cellText(r.category)}>{cellText(r.category)}</span></td>
     </tr>
   );
 
@@ -378,40 +386,38 @@ export const VehicleStatusPage: React.FC = () => {
     <div className="flex flex-col h-full overflow-hidden p-3 gap-3">
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold">Вся техника</h1>
+          <h1 className="text-base font-semibold">Состояние техники</h1>
           {syncStatus.lastSync && (
             <span className="text-xs text-muted-foreground">
               Синхронизация: {formatDateTime(syncStatus.lastSync)}
             </span>
           )}
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60 transition-opacity cursor-pointer border-none"
-        >
-          <RefreshCw className={`size-3.5 ${syncing ? 'animate-spin' : ''}`} />
-          <span>{syncing ? 'Синхронизация…' : 'Синхронизировать'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setShowSyncHistory(v => !v)} aria-expanded={showSyncHistory}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border bg-popover text-foreground hover:bg-muted cursor-pointer">
+            <History className="size-3.5" />{showSyncHistory ? 'Скрыть журнал' : 'Журнал синхронизации'}
+          </button>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60 transition-opacity cursor-pointer border-none"
+          >
+            <RefreshCw className={`size-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Синхронизация…' : 'Синхронизировать'}</span>
+          </button>
+        </div>
       </div>
 
       {syncStatus.lastResult?.errors && syncStatus.lastResult.errors.length > 0 && (
         <div className="shrink-0 text-xs text-destructive bg-destructive/10 rounded-lg p-2">
-          {syncStatus.lastResult.errors.slice(0, 3).map((e, i) => <div key={i}>{e}</div>)}
-          {syncStatus.lastResult.errors.length > 3 && <div>…ещё {syncStatus.lastResult.errors.length - 3}</div>}
+          <span title={syncStatus.lastResult.errors.join('; ')}>Не удалось обновить часть источников: {syncStatus.lastResult.errors.length} ошибок.</span>
         </div>
       )}
-      {error && <div className="shrink-0 text-xs text-destructive bg-destructive/10 rounded-lg p-2">{error}</div>}
+      {error && <div className="shrink-0 text-xs text-destructive bg-destructive/10 rounded-lg p-2" title={error}>Не удалось загрузить данные. Попробуйте открыть страницу позже.</div>}
 
         {/* Sync History Panel */}
-        <div className="shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowSyncHistory(v => !v)}
-            style={{ fontSize: 11, color: showSyncHistory ? '#F97116' : 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
-          >
-            {showSyncHistory ? 'Скрыть журнал' : 'Журнал синхронизации'}
-          </button>
+        {showSyncHistory && <div className="shrink-0">
           {showSyncHistory && syncLogs.length > 0 && (
             <div className="mt-1 overflow-auto max-h-32 rounded-lg border border-border/30" style={{ background: 'var(--card)' }}>
               <table className="w-full text-xs border-collapse" style={{ fontSize: 10 }}>
@@ -431,13 +437,13 @@ export const VehicleStatusPage: React.FC = () => {
                   {syncLogs.slice(0, 15).map(l => (
                     <tr key={l.id} className={'border-b border-border/20' + (l.status === 'error' ? ' text-destructive' : l.status === 'partial' ? ' text-orange-500' : '')}>
                       <td className="px-2 py-0.5 whitespace-nowrap">{formatDateTime(l.startedAt)}</td>
-                      <td className="px-2 py-0.5">{l.trigger === 'cron' ? 'cron' : 'руч'}</td>
-                      <td className="px-2 py-0.5 font-medium">{l.status}</td>
+                      <td className="px-2 py-0.5">{l.trigger === 'cron' ? 'По расписанию' : 'Вручную'}</td>
+                      <td className="px-2 py-0.5 font-medium">{{ success: 'Успешно', error: 'Ошибка', partial: 'Частично', running: 'Выполняется' }[l.status] || 'Нет статуса'}</td>
                       <td className="px-2 py-0.5 text-right">{l.processed || 0}</td>
-                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.downloadMs != null ? (l.downloadMs / 1000).toFixed(1) + 's' : '—'}</td>
-                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.parseMs != null ? (l.parseMs / 1000).toFixed(1) + 's' : '—'}</td>
-                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.writeMs != null ? (l.writeMs / 1000).toFixed(1) + 's' : '—'}</td>
-                      <td className="px-2 py-0.5 max-w-48 truncate">{l.errors?.[0] || l.errorMessage || ''}</td>
+                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.downloadMs != null ? (l.downloadMs / 1000).toFixed(1) + ' с' : '—'}</td>
+                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.parseMs != null ? (l.parseMs / 1000).toFixed(1) + ' с' : '—'}</td>
+                      <td className="px-2 py-0.5 text-right text-muted-foreground">{l.writeMs != null ? (l.writeMs / 1000).toFixed(1) + ' с' : '—'}</td>
+                      <td className="px-2 py-0.5 max-w-48 truncate" title={l.errors?.[0] || l.errorMessage || undefined}>{l.errors?.length || l.errorMessage ? 'Не удалось загрузить данные' : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -447,31 +453,9 @@ export const VehicleStatusPage: React.FC = () => {
           {showSyncHistory && syncLogs.length === 0 && (
             <div className="mt-1 text-xs text-muted-foreground">Нет записей. Запустите синхронизацию.</div>
           )}
-        </div>
+        </div>}
 
       <div className="flex items-center gap-3 shrink-0 flex-wrap">
-        <button
-          onClick={() => setSnapshotMode(v => !v)}
-          className="px-2.5 py-1.5 rounded-lg border-none cursor-pointer font-semibold transition-colors"
-          style={{
-            fontSize: 11,
-            background: snapshotMode ? 'rgba(249,115,22,0.12)' : 'transparent',
-            color: snapshotMode ? '#F97116' : 'var(--text-muted)',
-            border: snapshotMode ? '1px solid rgba(249,115,22,0.2)' : '1px solid transparent',
-          }}
-        >
-          Архив
-        </button>
-        {snapshotMode && (
-          <select
-            value={selectedSnapshotDate}
-            onChange={e => setSelectedSnapshotDate(e.target.value)}
-            className="text-xs px-2 py-1.5 rounded-lg bg-muted border border-border/50 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">Выберите дату</option>
-            {snapshotDates.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        )}
         <input
           type="text"
           value={searchInput}
@@ -507,8 +491,31 @@ export const VehicleStatusPage: React.FC = () => {
             <X className="size-3" /> Сбросить
           </button>
         )}
+        <button
+          onClick={() => setSnapshotMode(v => !v)}
+          role="switch" aria-checked={snapshotMode}
+          className="px-2.5 py-1.5 rounded-lg border-none cursor-pointer font-semibold transition-colors"
+          style={{
+            fontSize: 11,
+            background: snapshotMode ? 'rgba(249,115,22,0.12)' : 'transparent',
+            color: snapshotMode ? 'var(--primary)' : 'var(--muted-foreground)',
+            border: snapshotMode ? '1px solid var(--primary)' : '1px solid var(--border)',
+          }}
+        >
+          <History className="size-3 inline mr-1" /> Архив
+        </button>
+        {snapshotMode && (
+          <select
+            value={selectedSnapshotDate}
+            onChange={e => setSelectedSnapshotDate(e.target.value)}
+            className="text-xs px-2 py-1.5 rounded-lg bg-muted border border-border/50 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="">Выберите дату</option>
+            {snapshotDates.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        )}
         <span className="text-xs text-muted-foreground ml-auto" style={{ fontSize: '11px' }}>
-          {loading ? 'Загрузка…' : `${filtered.length} из ${allRecords.length}`}
+          {loading ? 'Загрузка…' : `${filtered.length} из ${allRecords.length} записей`}
         </span>
       </div>
 
@@ -516,7 +523,7 @@ export const VehicleStatusPage: React.FC = () => {
         <table className="w-full text-xs border-collapse" style={{ fontSize: '11px', tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '32px' }} />
-            <col style={{ width: '90px' }} />
+            <col style={{ width: '170px' }} />
             <col style={{ width: '80px' }} />
             <col style={{ width: '90px' }} />
             <col style={{ width: '110px' }} />
@@ -526,7 +533,7 @@ export const VehicleStatusPage: React.FC = () => {
             <col style={{ width: '130px' }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-border/50 sticky top-0 bg-card z-10">
+            <tr className="border-b border-border/50 sticky top-0 bg-popover z-10">
               <th className="px-1 py-2 w-8" />
               {COLUMNS.map(col => {
                 const filterActive = !!(activeFilters[col.key] && activeFilters[col.key]!.size > 0);
@@ -538,6 +545,8 @@ export const VehicleStatusPage: React.FC = () => {
                       {col.filterable && (
                         <span className="relative inline-flex">
                           <button
+                            aria-label={`Фильтр: ${col.label}`}
+                            aria-expanded={openFilter === col.key}
                             onClick={(e) => { e.stopPropagation(); setOpenFilter(openFilter === col.key ? null : col.key); }}
                             className={`p-0.5 rounded border-none cursor-pointer transition-colors ${
                               filterActive
@@ -548,19 +557,21 @@ export const VehicleStatusPage: React.FC = () => {
                             <Filter className="size-3" />
                           </button>
                           {filterCount > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-3 h-3 flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold leading-none" style={{ fontSize: 8, padding: '0 3px' }}>{filterCount}</span>
+                            <span className="absolute -top-1 -right-1 min-w-3 h-3 flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold leading-none" style={{ fontSize: 10, padding: '0 3px' }}>{filterCount}</span>
                           )}
                         </span>
                       )}
                     </div>
                     {col.filterable && openFilter === col.key && (
-                      <FilterDropdown
-                        values={columnValues[col.key] || []}
-                        selected={activeFilters[col.key] || new Set<string>()}
-                        onToggle={v => toggleFilterValue(col.key, v)}
-                        onClear={() => clearFilter(col.key)}
-                        onClose={handleCloseFilter}
-                      />
+                      <div className={`absolute top-full z-50 w-64 [&>div]:static [&>div]:mt-0 ${['techStatus', 'workType', 'category'].includes(col.key) ? 'right-0' : 'left-0'}`}>
+                        <FilterDropdown
+                          values={columnValues[col.key] || []}
+                          selected={activeFilters[col.key] || new Set<string>()}
+                          onToggle={v => toggleFilterValue(col.key, v)}
+                          onClear={() => clearFilter(col.key)}
+                          onClose={handleCloseFilter}
+                        />
+                      </div>
                     )}
                   </th>
                 );
@@ -584,9 +595,9 @@ export const VehicleStatusPage: React.FC = () => {
                           <span
                             className="inline-flex items-center justify-center w-[18px] h-[18px] rounded transition-transform"
                             style={{
-                              fontSize: 9,
+                              fontSize: 10,
                               transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                              color: 'var(--text-muted)',
+                              color: 'var(--muted-foreground)',
                               background: 'var(--muted)',
                             }}
                           >
@@ -597,9 +608,9 @@ export const VehicleStatusPage: React.FC = () => {
                           </span>
                           <span
                             className="px-1.5 py-0.5 rounded-md font-semibold"
-                            style={{ fontSize: 9, background: 'rgba(59,130,246,0.1)', color: '#60A5FA' }}
+                            style={{ fontSize: 10, background: 'rgba(59,130,246,0.1)', color: '#60A5FA' }}
                           >
-                            {g.records.length} ТС
+                            {g.records.length} зап.
                           </span>
                         </div>
                       </td>
@@ -628,7 +639,7 @@ export const VehicleStatusPage: React.FC = () => {
       {groupBy.length === 0 && unpinnedRecords.length > PAGE_SIZE && (
         <div className="flex items-center justify-between shrink-0 pt-1">
           <span className="text-xs text-muted-foreground" style={{ fontSize: '11px' }}>
-            Стр. {page} из {totalPages} ({unpinnedRecords.length} ТС)
+            Стр. {page} из {totalPages} ({unpinnedRecords.length} записей)
           </span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(1)} disabled={page === 1}

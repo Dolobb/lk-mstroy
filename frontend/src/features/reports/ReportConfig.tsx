@@ -36,17 +36,17 @@ const VehicleMultiSelect: React.FC<VehicleMultiSelectProps> = ({ options, select
       : `${selected.length} выбрано`;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0">
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="bg-card-inner/50 border border-border/50 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer flex items-center gap-2 min-w-[140px] justify-between"
+        className="bg-card-inner/50 border border-border/50 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer flex items-center gap-2 w-full min-w-0 justify-between"
       >
         <span className="truncate">{label}</span>
         <ChevronDown className={cn('size-3 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 min-w-full bg-card border border-border rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute top-full mt-1 left-0 z-50 w-full bg-popover border border-border rounded-lg shadow-xl overflow-hidden">
           <div className="max-h-60 overflow-y-auto">
             {selected.length > 0 && (
               <button
@@ -75,7 +75,7 @@ const VehicleMultiSelect: React.FC<VehicleMultiSelectProps> = ({ options, select
                     </svg>
                   )}
                 </div>
-                <span className="text-[11px] text-foreground whitespace-nowrap">{o.label}</span>
+                <span className="text-[11px] text-foreground break-words min-w-0">{o.label}</span>
               </label>
             ))}
           </div>
@@ -99,7 +99,7 @@ interface Props {
 }
 
 const selectClass =
-  'bg-card-inner/50 border border-border/50 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 appearance-none cursor-pointer';
+  'w-full min-w-0 max-w-[320px] bg-popover border border-border/50 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 appearance-none cursor-pointer';
 
 export const ReportConfig: React.FC<Props> = ({
   reportType,
@@ -114,14 +114,14 @@ export const ReportConfig: React.FC<Props> = ({
   onFiltersChange,
 }) => {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] items-end gap-3">
       {/* Report type */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Тип отчёта</label>
         <select
           value={reportType}
           onChange={e => onTypeChange(e.target.value as ReportType)}
-          className={selectClass}
+          className={selectClass} aria-label="Тип отчёта"
         >
           {(meta?.reportTypes || []).map(rt => (
             <option key={rt.id} value={rt.id}>{rt.label}</option>
@@ -137,7 +137,7 @@ export const ReportConfig: React.FC<Props> = ({
       </div>
 
       {/* Date range — границы операционных суток 07:30→07:30 (как в аналитике) */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Период</label>
         <DateTimeRangePicker
           from={dateFrom}
@@ -147,7 +147,7 @@ export const ReportConfig: React.FC<Props> = ({
       </div>
 
       {/* Shift filter — дефолт «Обе смены» */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Смена</label>
         <select
           value={shiftType}
@@ -162,9 +162,10 @@ export const ReportConfig: React.FC<Props> = ({
 
       {/* Object filter — dump trucks (trips + onsite) */}
       {(reportType === 'dump-truck-trips' || reportType === 'dump-truck-onsite') && meta?.filters?.objects && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
           <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Объект</label>
           <select
+            aria-label="Объект" title={meta.filters.objects.find(o => o.uid === filters.objectUid)?.name || 'Все объекты'}
             value={filters.objectUid || ''}
             onChange={e => onFiltersChange({ ...filters, objectUid: e.target.value || undefined })}
             className={selectClass}
@@ -179,9 +180,10 @@ export const ReportConfig: React.FC<Props> = ({
 
       {/* Department filter — KIP only */}
       {reportType === 'kip' && meta?.filters?.departments && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
           <label className="text-[10px] text-muted-foreground uppercase tracking-wider">СМУ</label>
           <select
+            aria-label="СМУ" title={filters.departments?.[0] || 'Все СМУ'}
             value={filters.departments?.[0] || ''}
             onChange={e => onFiltersChange({
               ...filters,
@@ -199,7 +201,7 @@ export const ReportConfig: React.FC<Props> = ({
 
       {/* Vehicle filter */}
       {meta?.filters?.vehicles && meta.filters.vehicles.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
           <label className="text-[10px] text-muted-foreground uppercase tracking-wider">ТС</label>
           <VehicleMultiSelect
             options={meta.filters.vehicles}
