@@ -718,7 +718,7 @@ function UnlinkedGantt({ shifts, dateFrom, dateTo }: {
     if (trips > 0) return <div className="sv-gc f">{trips}</div>;
     if (workType === 'onsite') {
       return mov > 0
-        ? <div className="sv-gc f" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
+        ? <div className="sv-gc f onsite-mov" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
         : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
     }
     if (hasData && workType === 'unknown') return <div className="sv-gc gc-warn" title="Необъяснённый 0 рейсов">!</div>;
@@ -1153,7 +1153,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
     }
     if (hasData && orderObjectUids.has(objUid) && workType === 'onsite') {
       return mov > 0
-        ? <div className="sv-gc f" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
+        ? <div className="sv-gc f onsite-mov" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
         : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
     }
     if (hasData && orderObjectUids.has(objUid) && workType === 'unknown') {
@@ -2960,7 +2960,7 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
     if (trips > 0) return <div className={`sv-gc f${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }}>{trips}</div>;
     if (workType === 'onsite') {
       return mov > 0
-        ? <div className="sv-gc f" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
+        ? <div className="sv-gc f onsite-mov" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
         : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
     }
     if (hasData && workType === 'unknown') {

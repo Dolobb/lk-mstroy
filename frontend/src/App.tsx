@@ -70,7 +70,7 @@ const App: React.FC = () => {
 
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden"
+      className="flex flex-col h-screen overflow-clip"
       style={{ background: 'var(--bg-gradient)', position: 'relative' }}
     >
       {/* Ambient halos — global, visible on all pages */}
