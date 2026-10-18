@@ -92,7 +92,7 @@ function SidebarKipSparkline({ trend, color }: { trend: SidebarTrendPoint[]; col
                 x={x}
                 y={height - 8}
                 textAnchor="middle"
-                fontSize="9"
+                fontSize="10"
                 fontWeight="600"
                 fill="var(--sv-text-3)"
               >
@@ -202,7 +202,7 @@ function ObjectCard({
             <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--sv-text-3)', textTransform: 'uppercase' }}>
               Группы техники
             </div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--sv-text-3)', textAlign: 'right', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--sv-text-3)', textAlign: 'right', textTransform: 'uppercase' }}>
               КИП
             </div>
           </div>

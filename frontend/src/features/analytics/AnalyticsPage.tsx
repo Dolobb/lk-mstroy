@@ -1076,7 +1076,7 @@ export function AnalyticsPage() {
   };
 
   const SortIcon = ({ col }: { col: string }) => sortCol === col
-    ? <span style={{ marginLeft: 3, fontSize: 8 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
+    ? <span style={{ marginLeft: 3, fontSize: 10 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
     : null;
 
   // ─── Chip helpers ───────────────────────────────────
@@ -1360,7 +1360,7 @@ export function AnalyticsPage() {
             className={`sv-filter-sq all ${vehicleFilters.has('all') ? 'active' : ''}`}
             onClick={() => toggleFilter('all')}
           >
-            <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1 }}>ВСЕ</span>
+            <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>ВСЕ</span>
           </button>
 
           {FILTER_GROUPS.map(group => {
@@ -1630,8 +1630,8 @@ export function AnalyticsPage() {
                                 <span className={`sv-tree-expand ${isSubOpen ? 'open' : ''}`}>▶</span>
                                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: SUBGROUP_COLORS[cat], flexShrink: 0 }} />
                                 <span>{SUBGROUP_LABELS[cat]}</span>
-                                <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, background: `${SUBGROUP_COLORS[cat]}1A`, color: SUBGROUP_COLORS[cat], fontWeight: 600 }}>{catVehicles.length} ТС</span>
-                                <span style={{ fontSize: 8, color: 'var(--sv-text-3)' }}>{subtypeBreakdown(cat, catVehicles)}</span>
+                                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, background: `${SUBGROUP_COLORS[cat]}1A`, color: SUBGROUP_COLORS[cat], fontWeight: 600 }}>{catVehicles.length} ТС</span>
+                                <span style={{ fontSize: 10, color: 'var(--sv-text-3)' }}>{subtypeBreakdown(cat, catVehicles)}</span>
                               </div>
                             </td>
                           </tr>
@@ -1645,7 +1645,7 @@ export function AnalyticsPage() {
                             const catColor = SUBGROUP_COLORS[vehicleCategory(v)];
                             const catDot = <span style={{ width: 5, height: 5, borderRadius: '50%', background: catColor, marginRight: 3, flexShrink: 0, display: 'inline-block' }} />;
                             const sourceTag = (
-                              <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, color: catColor, marginLeft: 6, display: 'inline-flex', alignItems: 'center' }}>
+                              <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 3, color: catColor, marginLeft: 6, display: 'inline-flex', alignItems: 'center' }}>
                                 {catDot}{subtypeLabel(v)}
                               </span>
                             );

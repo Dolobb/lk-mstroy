@@ -561,9 +561,9 @@ function MiniDonut({ mov, size = 70 }: { mov: number; size?: number }) {
         strokeDasharray={`${c * idle / 100} ${c * (1 - idle / 100)}`}
         strokeDashoffset={c / 4 - c * mov / 100} strokeLinecap="round" />
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill="var(--sv-text-1)"
-        fontSize={size * 0.19} fontWeight="800" fontFamily="DM Sans">{mov}%</text>
+        fontSize={size * 0.19} fontWeight="800">{mov}%</text>
       <text x={cx} y={cy + size * 0.17} textAnchor="middle" fill="var(--sv-text-3)"
-        fontSize={size * 0.1} fontWeight="600" fontFamily="DM Sans">движ.</text>
+        fontSize={Math.max(10, size * 0.1)} fontWeight="600">движ.</text>
     </svg>
   );
 }
@@ -627,7 +627,7 @@ function Fraction({ actual, planned, unit }: { actual: number; planned: number; 
     <span>
       <span style={{ fontWeight: 700, color: done ? '#22c55e' : 'var(--sv-text-2)' }}>{actual}</span>
       <span style={{ color: 'var(--sv-text-4)' }}>/{planned}</span>
-      <span style={{ fontSize: '0.85em', color: 'var(--sv-text-4)', marginLeft: 2 }}>{unit}</span>
+      <span style={{ fontSize: 10, color: 'var(--sv-text-4)', marginLeft: 2 }}>{unit}</span>
     </span>
   );
 }
@@ -1628,11 +1628,11 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }
                   <div className="sv-donut-mini-row">
                     <div className="sv-donut-mini-wrap">
                       <div className="sv-donut-mini-label">1 смена</div>
-                      {mov1Avg > 0 ? <MiniDonut mov={mov1Avg} size={90} /> : <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>}
+                      {mov1Avg > 0 ? <MiniDonut mov={mov1Avg} size={90} /> : <span style={{ fontSize: 10, color: 'var(--sv-text-4)' }}>—</span>}
                     </div>
                     <div className="sv-donut-mini-wrap">
                       <div className="sv-donut-mini-label">2 смена</div>
-                      {has2 && mov2Avg > 0 ? <MiniDonut mov={mov2Avg} size={90} /> : <span style={{ fontSize: 9, color: 'var(--sv-text-4)' }}>—</span>}
+                      {has2 && mov2Avg > 0 ? <MiniDonut mov={mov2Avg} size={90} /> : <span style={{ fontSize: 10, color: 'var(--sv-text-4)' }}>—</span>}
                     </div>
                   </div>
                   <div className="sv-donut-mini-legend">
@@ -2406,7 +2406,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
   const aggCols = new Set(getVisibleCols(settings, 'aggregates'));
 
   const SortIcon = ({ col }: { col: string }) => sortCol === col
-    ? <span style={{ marginLeft: 3, fontSize: 8 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
+    ? <span style={{ marginLeft: 3, fontSize: 10 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
     : null;
 
   const SORTABLE_COLS = new Set(['totalTrips', 'kipBar', 'engineTotal', 'onsiteMin']);
@@ -3540,7 +3540,7 @@ export function DumpTrucksPage() {
         <div key={cargo} style={{ marginBottom: 6 }}>
           <div className="sv-group-toggle" onClick={() => toggleGroup(gk)}>
             <span className={`sv-group-arrow${collapsed ? '' : ' open'}`}>&#9654;</span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '.4px' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '.4px' }}>
               {cargo} ({groupItems.length})
             </span>
           </div>

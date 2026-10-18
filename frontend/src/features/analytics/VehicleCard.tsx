@@ -120,7 +120,7 @@ function VehicleCardInner({ row, records, chipSegments, activeChipKey, onChipCli
           <span className="sv-veh-meta-lbl">Смены</span>
           <span className="sv-veh-meta-val">
             {row.shiftsCount}
-            {gap > 0 && <span style={{ marginLeft: 2, fontSize: 9, color: '#9ca3af' }}>⚑{gap}</span>}
+            {gap > 0 && <span style={{ marginLeft: 2, fontSize: 10, color: '#9ca3af' }}>⚑{gap}</span>}
           </span>
         </div>
         <div className="sv-veh-meta-item">

@@ -90,7 +90,7 @@ export function AnalyticsCardsView({
             })()}
             <span>{g.groupName}</span>
             <span style={{
-              fontSize: 9, padding: '2px 6px', borderRadius: 6,
+              fontSize: 10, padding: '2px 6px', borderRadius: 6,
               background: 'rgba(96,165,250,0.1)', color: '#60A5FA',
               fontWeight: 600,
             }}>{g.vehicles.length} ТС</span>

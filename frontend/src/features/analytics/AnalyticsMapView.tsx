@@ -822,7 +822,7 @@ function Inspector({ data, onClose, dateFrom, dateTo }: {
         padding: '8px 12px', borderBottom: '1px solid var(--sv-card-border, rgba(255,255,255,0.05))',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
             Ср. КИП
           </div>
           <div style={{ fontSize: 14, fontWeight: 800, color: kip > 0 ? kipColor(kip) : 'var(--sv-text-2)', fontVariantNumeric: 'tabular-nums' }}>
@@ -830,7 +830,7 @@ function Inspector({ data, onClose, dateFrom, dateTo }: {
           </div>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
             Типов ТС
           </div>
           <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--sv-text-2)', fontVariantNumeric: 'tabular-nums' }}>
@@ -838,7 +838,7 @@ function Inspector({ data, onClose, dateFrom, dateTo }: {
           </div>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sv-text-4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
             Период
           </div>
           <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--sv-text-2)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -1452,7 +1452,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
               <span style={{ fontWeight: 600 }}>{z.label}</span>
             </div>
           ))}
-          <div style={{ fontSize: 8, color: 'var(--sv-text-4)', marginTop: 2, textAlign: 'center' }}>
+          <div style={{ fontSize: 10, color: 'var(--sv-text-4)', marginTop: 2, textAlign: 'center' }}>
             Клик по зоне — выбор
           </div>
         </div>
