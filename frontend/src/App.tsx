@@ -17,7 +17,7 @@ const KipPage: React.FC = () => {
   const { theme } = useTheme();
   const host = window.location.hostname;
   const isTunnel = host.includes('.devtunnels.ms') || host.includes('.loca.lt') || host.includes('.ngrok') || host.includes('.trycloudflare.com');
-  const demo = isDemoMode() ? '&demo=1' : '';
+  const demo = isDemoMode() ? '&demo=1' : '&demo=0'; // явно: у iframe КИП своё хранилище, иначе маска «залипнет»
   const kipUrl = isTunnel
     ? `${window.location.origin.replace('5173', '3001')}?theme=${theme}${demo}`
     : `http://${host}:3001?theme=${theme}${demo}`;

@@ -202,7 +202,17 @@ function ClusterSpiderfyController({
         points.push(slot);
         if (points.length === count) return points;
       }
-      // Very large clusters keep readable spacing even when they exceed the map height.
+      // Не хватило свободных слотов (большая стоянка): плотная сетка по всей карте без учёта соседей —
+      // раскрытый паук перекрывает их, зато все машины остаются в видимой области и кликабельны.
+      const dense: L.Point[] = [];
+      for (let y = 40; y < size.y - 16; y += 34) {
+        for (let x = 80; x < size.x - 70; x += 150) dense.push(map.containerPointToLayerPoint(L.point(x, y)));
+      }
+      if (dense.length >= count) {
+        dense.sort((a, b) => a.distanceTo(center) - b.distanceTo(center));
+        return dense.slice(0, count);
+      }
+      // Совсем огромный кластер (больше, чем помещается на экране) — читаемый столбец ниже.
       while (points.length < count) {
         const point = center.add(L.point(0, 84 * (points.length + 1)));
         if (!points.some(p => Math.abs(p.x-point.x) < 205 && Math.abs(p.y-point.y) < 80)) points.push(point);

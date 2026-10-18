@@ -338,3 +338,4 @@ body {
 /* Пока тайлы грузятся — нейтральный фон вместо серой «дыры» */
 #map.leaflet-container { background: #e5e7eb; }
 .dark #map.leaflet-container { background: #1e293b; }
+.dark .help-table td { color: #cbd5e1; }

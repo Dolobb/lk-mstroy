@@ -1693,3 +1693,5 @@ table.sv-at thead {
 .sv-smu-card { max-width: 240px; }
 .sv-smu-card-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
 .sv-obj-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-width: 0; }
+/* Лента объектов прокручивается: правый край растворяется — видно, что дальше есть ещё */
+.sv-smu-strip { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); padding-right: 48px; }

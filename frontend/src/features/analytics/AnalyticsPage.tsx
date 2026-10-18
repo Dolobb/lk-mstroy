@@ -722,14 +722,17 @@ export function AnalyticsPage() {
     () => new Set((sidebarSummary?.objects ?? []).map(o => o.uid)),
     [sidebarSummary],
   );
-  const noObjectIds = React.useMemo(
-    () => new Set((sidebarSummary?.noObjectVehicles ?? []).map(v => v.vehicleId.toUpperCase())),
-    [sidebarSummary],
-  );
-  const applyTierFilter = useCallback((src: GroupEntry[]): GroupEntry[] => {
+  // «Без объекта» считается по тому же периоду, что и показываемые строки:
+  // недельная сводка сайдбара для другого окна дат дала бы чужой список машин.
+  const { data: pickerSummary } = useSidebarSummary(pickerFrom, pickerTo);
+  const { data: v2Summary } = useSidebarSummary(v2Range.from, v2Range.to);
+  const toIdSet = (s: typeof sidebarSummary) => new Set((s?.noObjectVehicles ?? []).map(v => v.vehicleId.toUpperCase()));
+  const noObjectIds = React.useMemo(() => toIdSet(pickerSummary), [pickerSummary]);
+  const noObjectIdsV2 = React.useMemo(() => toIdSet(v2Summary), [v2Summary]);
+  const applyTierFilter = useCallback((src: GroupEntry[], noObj: Set<string> = noObjectIds): GroupEntry[] => {
     if (activeTier === 'noObject') {
       return src
-        .map(g => ({ ...g, vehicles: g.vehicles.filter(v => noObjectIds.has(v.regNumber.toUpperCase())) }))
+        .map(g => ({ ...g, vehicles: g.vehicles.filter(v => noObj.has(v.regNumber.toUpperCase())) }))
         .filter(g => g.vehicles.length > 0);
     }
     // До загрузки сайд-бара набор ключевых неизвестен — ничего не скрываем.
@@ -782,7 +785,7 @@ export function AnalyticsPage() {
     () => buildGroups(allRowsV2, dstGeoMatchV2),
     [allRowsV2, dstGeoMatchV2],
   );
-  const tierGroupsV2 = React.useMemo(() => applyTierFilter(groupsV2), [groupsV2, applyTierFilter]);
+  const tierGroupsV2 = React.useMemo(() => applyTierFilter(groupsV2, noObjectIdsV2), [groupsV2, applyTierFilter, noObjectIdsV2]);
   const filteredGroupsV2 = React.useMemo(() => {
     if (focusedObjectUid === null) return tierGroupsV2;
     if (focusedObjectUid === OUTSIDE_GROUP_UID) return [];
@@ -1623,7 +1626,7 @@ export function AnalyticsPage() {
                       <td colSpan={totalCols}>
                         <div className="sv-smu-header" style={{ contain: 'inline-size', overflow: 'hidden' }}>
                           <span className={`sv-tree-expand ${isGroupOpen ? 'open' : ''}`}>▶</span>
-                          <span className="sv-smu-name">{g.groupName}</span>
+                          <span className="sv-smu-name" title={g.groupName}>{g.groupName}</span>
                           <span className="sv-smu-badge">{g.vehicles.length} ТС</span>
                         </div>
                       </td>
