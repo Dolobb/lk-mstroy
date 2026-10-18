@@ -560,9 +560,10 @@ function MiniDonut({ mov, size = 70 }: { mov: number; size?: number }) {
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EF4444" strokeWidth={sw}
         strokeDasharray={`${c * idle / 100} ${c * (1 - idle / 100)}`}
         strokeDashoffset={c / 4 - c * mov / 100} strokeLinecap="round" />
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill="var(--sv-text-1)"
+      {/* Блок «число + подпись» центрирован по кольцу как целое */}
+      <text x={cx} y={cy - size * 0.07} textAnchor="middle" dominantBaseline="central" fill="var(--sv-text-1)"
         fontSize={size * 0.19} fontWeight="800">{mov}%</text>
-      <text x={cx} y={cy + size * 0.17} textAnchor="middle" fill="var(--sv-text-3)"
+      <text x={cx} y={cy + size * 0.13} textAnchor="middle" dominantBaseline="central" fill="var(--sv-text-3)"
         fontSize={Math.max(10, size * 0.1)} fontWeight="600">движ.</text>
     </svg>
   );
@@ -706,7 +707,7 @@ function UnlinkedGantt({ shifts, dateFrom, dateTo }: {
     if (trips > 0) return <div className="sv-gc f">{trips}</div>;
     if (workType === 'onsite') {
       return mov > 0
-        ? <div className="sv-gc f" title="Работа по месту">{mov}%</div>
+        ? <div className="sv-gc f" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
         : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
     }
     if (hasData && workType === 'unknown') return <div className="sv-gc gc-warn" title="Необъяснённый 0 рейсов">!</div>;
@@ -1125,9 +1126,9 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
     if (trips > 0 && reqCount > 1) {
       const otherNums = reqNums.filter(n => n !== orderNumber);
       return (
-        <div className={`sv-gc f multi${nc}`} style={{ cursor: 'pointer' }}
+        <div className={`sv-gc f multi${nc}`} style={{ cursor: 'pointer' }} title="Рейсы по нескольким заявкам"
           onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'multiReq', reqNumbers: otherNums, ...popupPos(e) }); }}>
-          ={trips}
+          {trips}
         </div>
       );
     }
@@ -1141,7 +1142,7 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
     }
     if (hasData && orderObjectUids.has(objUid) && workType === 'onsite') {
       return mov > 0
-        ? <div className="sv-gc f" title="Работа по месту">{mov}%</div>
+        ? <div className="sv-gc f" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
         : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
     }
     if (hasData && orderObjectUids.has(objUid) && workType === 'unknown') {
@@ -1171,9 +1172,9 @@ function GanttTable({ orderNumber, dateFromIso, dateToIso, ordersMap, theme, nor
         });
         return (
           <div className="sv-gc gc-other-order" style={{ cursor: 'pointer' }}
-            title={nums.map(n => `#${n}`).join(', ')}
+            title={`Работа по другой заявке: ${nums.map(n => `#${n}`).join(', ')}`}
             onClick={e => { e.stopPropagation(); setCellPopup({ kind: 'orderInfo', orders: orderInfos, ...popupPos(e) }); }}>
-            →←
+            ⇄
           </div>
         );
       }
@@ -2875,11 +2876,11 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
   const BASE_PAGE = 16;
   const zoomScale = Math.min(1.5, Math.max(0.5, BASE_PAGE / pageSize));
   const cellH = Math.round(22 * zoomScale);
-  const cellFont = Math.max(7, Math.round(10 * zoomScale));
-  const regFont = Math.max(8, Math.round(12 * zoomScale));
-  const modelFont = Math.max(6, Math.round(9 * zoomScale));
-  const dateHFont = Math.max(6, Math.round(9 * zoomScale));
-  const tripsFont = Math.max(6, Math.round(9 * zoomScale));
+  const cellFont = Math.max(10, Math.round(10 * zoomScale));
+  const regFont = Math.max(10, Math.round(12 * zoomScale));
+  const modelFont = Math.max(10, Math.round(9 * zoomScale));
+  const dateHFont = Math.max(10, Math.round(9 * zoomScale));
+  const tripsFont = Math.max(10, Math.round(9 * zoomScale));
   const thPad = Math.max(1, Math.round(3 * zoomScale));
   const MIN_DATE_COLS = 4;
   const paddingCols = Math.max(0, MIN_DATE_COLS - filteredDates.length);
@@ -2944,11 +2945,11 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
       }
     };
     const nc = ggNormClass(trips, cellNorm);
-    if (trips > 0 && reqCount > 1) return <div className={`sv-gc f multi${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }}>={trips}</div>;
+    if (trips > 0 && reqCount > 1) return <div className={`sv-gc f multi${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }} title="Рейсы по нескольким заявкам">{trips}</div>;
     if (trips > 0) return <div className={`sv-gc f${nc}`} onClick={handleClick} style={{ cursor: 'pointer' }}>{trips}</div>;
     if (workType === 'onsite') {
       return mov > 0
-        ? <div className="sv-gc f" title="Работа по месту">{mov}%</div>
+        ? <div className="sv-gc f" title={`Работа по месту: ${mov}% времени в движении`}>{mov}</div>
         : <div className="sv-gc gc-onsite" title="Работа по месту">•</div>;
     }
     if (hasData && workType === 'unknown') {
@@ -3110,8 +3111,10 @@ function GlobalGanttTab({ orderMonth, orders, isAllTime, effectiveNorm, searchQu
             <tbody key={objName}>
               <tr className="sv-gg-obj-header" onClick={() => toggleObjectCollapse(objName)} style={{ cursor: 'pointer' }}>
                 <td colSpan={colSpanAll}>
-                  <span className="sv-gg-obj-collapse-icon">{collapsedObjects.has(objName) ? '+' : '−'}</span>
-                  {objName}
+                  <span className="sv-gg-obj-title">
+                    <span className="sv-gg-obj-collapse-icon">{collapsedObjects.has(objName) ? '+' : '−'}</span>
+                    {objName}
+                  </span>
                 </td>
               </tr>
               {!collapsedObjects.has(objName) && <>

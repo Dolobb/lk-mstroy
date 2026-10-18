@@ -964,7 +964,7 @@ tr.sv-gg-expanded-bottom td { border-bottom: 1.5px solid var(--sv-tree-line) !im
 
 /* =N multi-order cell */
 .sv-gc.f.multi { font-size: 10px; color: #F97316; }
-.sv-gg-wrap .sv-gc.f.multi { font-size: calc(var(--gg-cell-font, 10px) * 0.8); }
+.sv-gg-wrap .sv-gc.f.multi { font-size: var(--gg-cell-font, 10px); }
 
 /* Кружок «Без заявки» в ганте */
 .sv-gg-dot.unlinked {
@@ -1666,3 +1666,13 @@ table.sv-at thead {
   font-size: 13px; font-weight: 800; line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Шоукейс-полировка (2026-10-18) ── */
+/* Ячейки Ганта в заявке: паддинг td съедал ширину — цифры упирались в рамку */
+.sv-gantt td:not(:first-child) { padding-left: 1px; padding-right: 1px; }
+.sv-gc { font-variant-numeric: tabular-nums; letter-spacing: -0.2px; }
+/* Колонка ТС в мини-Ганте «Без заявки»: длинные модели не залезают на ячейки */
+.sv-gantt:not(.sv-gg-wrap) tbody tr > td:first-child { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.sv-gantt tbody tr:not(.sv-gg-obj-header) > td:first-child > * { overflow: hidden; text-overflow: ellipsis; }
+/* Заголовок объекта во вкладке «Ганта» остаётся у левого края при горизонтальном скролле */
+.sv-gg-obj-title { position: sticky; left: 12px; display: inline-block; }
