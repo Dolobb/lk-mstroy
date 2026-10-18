@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "roboto",
+        "createdAt": "2026-10-18T04:59:04.548Z",
+        "reason": "Claude: Roboto is the last fallback in the system font stack (system-ui first); frontend/DESIGN.md is a Linear reference, not this product's type system"
+      }
+    ]
+  }
+}

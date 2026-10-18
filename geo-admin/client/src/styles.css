@@ -304,3 +304,37 @@ body {
 .help-table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 13px; line-height: 1.45; }
 .help-table td { padding: 6px 8px; border-top: 1px solid #e5e7eb; vertical-align: top; color: #374151; }
 .help-table td:first-child { width: 150px; white-space: nowrap; }
+
+/* ── Встроенный режим (iframe в ЛК): шапка в тон сайдбару, без второй тёмной полосы ── */
+.embedded .header { background: #fff; color: #0f172a; padding: 8px 16px; border-bottom: 1px solid #e5e7eb; }
+.embedded .header h1 { font-size: 14px; }
+.embedded .header .subtitle { color: #6b7280; font-size: 11px; }
+.embedded .btn-help { background: #f3f4f6; color: #374151; border-color: #d1d5db; padding: 4px 10px; font-size: 12px; }
+.embedded .btn-help:hover { background: #e5e7eb; }
+
+/* ── Тёмная тема (передаётся оболочкой ЛК) ── */
+.dark body { background: #0b1120; color: #e2e8f0; }
+.dark .header, .dark.embedded .header { background: #0f172a; color: #f1f5f9; border-bottom-color: #1e293b; }
+.dark .header .subtitle { color: #94a3b8; }
+.dark .btn-help { background: rgba(255,255,255,0.06); color: #e2e8f0; border-color: #334155; }
+.dark .sidebar { background: #0f172a; border-right-color: #1e293b; }
+.dark .sidebar-header { background: #111827; border-bottom-color: #1e293b; }
+.dark .sidebar-header h2 { color: #cbd5e1; }
+.dark .filter-btn { background: #1e293b; color: #cbd5e1; border-color: #334155; }
+.dark .filter-btn:hover { background: #273449; }
+.dark .filter-btn.active { background: #f1f5f9; color: #0f172a; border-color: #f1f5f9; }
+.dark .btn-secondary { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+.dark .btn-secondary:hover { background: #273449; }
+.dark .btn-cancel { color: #cbd5e1; border-color: #334155; }
+.dark .object-item { border-bottom-color: #1e293b; }
+.dark .object-header:hover, .dark .zone-item:hover { background: #172036; }
+.dark .object-item.open .object-header { background: #1a2742; }
+.dark .zone-item { color: #cbd5e1; }
+.dark .empty-state, .dark .zone-item.empty, .dark .object-arrow { color: #64748b; }
+.dark .modal-box { background: #0f172a; color: #e2e8f0; }
+.dark .modal-box label, .dark .help p { color: #cbd5e1; }
+.dark .modal-box input, .dark .modal-box select { background: #111827; color: #e2e8f0; border-color: #334155; }
+.dark .modal-box fieldset, .dark .help-table td { border-color: #334155; }
+/* Пока тайлы грузятся — нейтральный фон вместо серой «дыры» */
+#map.leaflet-container { background: #e5e7eb; }
+.dark #map.leaflet-container { background: #1e293b; }

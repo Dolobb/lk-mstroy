@@ -31,11 +31,12 @@ const KipPage: React.FC = () => {
 };
 
 const GeoAdminPage: React.FC = () => {
+  const { resolvedTheme } = useTheme();
   const host = window.location.hostname;
   const isTunnel = host.includes('.devtunnels.ms') || host.includes('.loca.lt') || host.includes('.ngrok') || host.includes('.trycloudflare.com');
   const geoAdminUrl = isTunnel
-    ? `${window.location.origin.replace('5173', '3003')}/admin`
-    : `http://${host}:3003/admin`;
+    ? `${window.location.origin.replace('5173', '3003')}/admin?theme=${resolvedTheme}`
+    : `http://${host}:3003/admin?theme=${resolvedTheme}`;
   return (
     <div className="flex-1 min-h-0">
       <iframe
