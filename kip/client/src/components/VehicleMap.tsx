@@ -124,7 +124,7 @@ function FitBoundsOnFilter({ vehicles }: { vehicles: WeeklyVehicle[] }) {
   const map = useMap();
   useEffect(() => {
     const coords = vehicles
-      .filter(v => v.latitude != null && v.longitude != null)
+      .filter(v => hasPosition(v))
       .map(v => [v.latitude!, v.longitude!] as [number, number]);
     if (coords.length >= 2) {
       map.fitBounds(coords, { padding: [40, 40] });
@@ -163,6 +163,10 @@ function SelectionController({ selectedVehicleId, markers, groupRef }: {
   }, [map, selectedVehicleId, markers, groupRef]);
   return null;
 }
+
+/** Координаты есть и это не «нулевой остров» (0,0) — так TIS отдаёт отсутствие позиции. */
+const hasPosition = (v: { latitude?: number | null; longitude?: number | null }) =>
+  v.latitude != null && v.longitude != null && !(Math.abs(v.latitude) < 0.01 && Math.abs(v.longitude) < 0.01);
 
 /**
  * - зум < SPIDERFY_ZOOM_THRESHOLD → клик по кластеру = приближение
@@ -268,12 +272,12 @@ const VehicleMap: React.FC<Props> = ({ vehicles, selectedVehicleId, selectedDeta
   const clusterSuppress = useRef(false);
 
   const withCoords = useMemo(
-    () => vehicles.filter(v => !v.is_ghost && v.latitude != null && v.longitude != null),
+    () => vehicles.filter(v => !v.is_ghost && hasPosition(v)),
     [vehicles],
   );
 
   const ghostVehicles = useMemo(
-    () => vehicles.filter(v => v.is_ghost && v.latitude != null && v.longitude != null),
+    () => vehicles.filter(v => v.is_ghost && hasPosition(v)),
     [vehicles],
   );
 
