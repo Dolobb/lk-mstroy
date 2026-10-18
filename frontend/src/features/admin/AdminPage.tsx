@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, Database, Search, HelpCircle, Activity, Clock } from 'lucide-react';
+import { RotateCcw, Play, Square, ChevronDown, ChevronUp, XCircle, CheckCircle2, Database, Search, HelpCircle, Activity, Clock } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import type { ServiceStatus, DataCoverage, FetchStatus, RecalcStatus, SegmentFetchStatus, KipSegmentProgress, DbTablePreset, DbQueryResult, PipelineHealthCard, PipelineRun, CoverageDashboardResponse, DayCard } from './types';
 
@@ -247,7 +247,7 @@ const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ s
   const statusLabel = svc.portOpen ? 'Работает' : svc.running ? 'Запускается...' : 'Остановлен';
 
   return (
-    <div className="glass-card rounded-xl p-3 flex flex-col gap-2">
+    <div data-service-card className="glass-card rounded-xl p-3 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className={`size-2 rounded-full shrink-0 ${statusColor}`} />
@@ -259,7 +259,7 @@ const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ s
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <button
           onClick={() => act('start')}
           disabled={acting || svc.running}
@@ -315,7 +315,7 @@ const ServiceCard: React.FC<{ svc: ServiceStatus; onAction: () => void }> = ({ s
                   : ''
                 }
               >
-                {l}
+                {LOG_LABELS[l]}
               </div>
             ))
           )}
@@ -369,12 +369,28 @@ const CoverageRow: React.FC<{
 // ─── Pipeline Health Cards ────────────────────────────────────────────────────
 
 const PIPELINE_LABELS: Record<string, string> = {
-  kip_daily: 'КИП Daily',
-  dt_daily: 'Самосвалы',
-  kip_recalc: 'КИП Recalc',
-  dt_recalc: 'СМ Recalc',
-  dt_segments: 'Сегменты',
+  kip_daily: 'КИП — ежедневный расчёт',
+  dt_daily: 'Самосвалы — автовыгрузка',
+  analytics_daily: 'Аналитика — ежедневно',
+  kip_recalc: 'Пересчёт КИП',
+  dt_recalc: 'Пересчёт ЦМ',
+  dt_segments: 'Сегменты самосвалов',
+  kip_segments: 'Сегменты КИП',
+  'kip-daily-fetch': 'КИП — загрузка из TIS',
+  'dt-shift-fetch': 'Самосвалы — загрузка смен',
 };
+
+function pipelineLabel(name: string): string {
+  return PIPELINE_LABELS[name] ?? name;
+}
+
+function statusLabel(status: string): string {
+  return ({ completed: 'Завершено', done: 'Завершено', failed: 'Ошибка', partial: 'Частично', running: 'В работе', pending: 'В очереди', empty: 'Нет данных' } as Record<string, string>)[status] ?? 'Нет сведений';
+}
+
+function shiftLabel(shift: string): string {
+  return shift === 'shift1' ? 'Дневная' : shift === 'shift2' ? 'Ночная' : 'Смена';
+}
 
 function formatHoursAgo(hours: number | null): string {
   if (hours === null) return 'никогда';
@@ -389,30 +405,33 @@ const PipelineHealthCards: React.FC<{ cards: PipelineHealthCard[] }> = ({ cards 
     <div>
       <div className="flex items-center gap-2 mb-2">
         <Activity className="size-4" />
-        <h2 className="text-sm font-semibold">Pipeline Health</h2>
+        <h2 className="text-sm font-semibold">Состояние выгрузок</h2>
       </div>
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
         {cards.map(c => {
-          const bgColor = c.status === 'green' ? 'bg-green-500/10 border-green-500/30'
-            : c.status === 'yellow' ? 'bg-yellow-500/10 border-yellow-500/30'
+          const manual = c.pipeline_name === 'kip_recalc' || c.pipeline_name === 'dt_recalc';
+          const neutral = manual && c.failures_7d === 0;
+          const status = manual && c.failures_7d > 0 ? 'red' : c.status;
+          const bgColor = neutral ? 'bg-muted/40 border-border' : status === 'green' ? 'bg-green-500/10 border-green-500/30'
+            : status === 'yellow' ? 'bg-yellow-500/10 border-yellow-500/30'
             : 'bg-red-500/10 border-red-500/30';
-          const dotColor = c.status === 'green' ? 'bg-green-500'
-            : c.status === 'yellow' ? 'bg-yellow-400'
+          const dotColor = neutral ? 'bg-muted-foreground/50' : status === 'green' ? 'bg-green-500'
+            : status === 'yellow' ? 'bg-yellow-400'
             : 'bg-red-500';
           return (
             <div
               key={c.pipeline_name}
               className={`rounded-xl p-2.5 border ${bgColor}`}
-              title={`${c.runs_7d} запусков за 7д, ${c.failures_7d} ошибок\nПоследний: ${c.last_run ?? 'никогда'}\nУспешный: ${c.last_success ?? 'никогда'}`}
+              title={`${c.pipeline_name}\n${c.runs_7d} запусков за 7д, ${c.failures_7d} ошибок\nПоследний: ${c.last_run ?? 'никогда'}\nУспешный: ${c.last_success ?? 'никогда'}`}
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`size-2 rounded-full ${dotColor}`} />
-                <span className="text-xs font-medium truncate">{PIPELINE_LABELS[c.pipeline_name] ?? c.pipeline_name}</span>
+                <span className="text-xs font-medium" title={c.pipeline_name}>{pipelineLabel(c.pipeline_name)}</span>
               </div>
               <div className="text-xs text-muted-foreground" style={{ fontSize: '10px' }}>
-                {formatHoursAgo(c.hours_since_success)}
+                {neutral ? 'Запускается вручную' : formatHoursAgo(c.hours_since_success)}
                 {c.failures_7d > 0 && (
-                  <span className="text-red-400 ml-1.5">{c.failures_7d} err</span>
+                  <span className="text-red-400 ml-1.5">{c.failures_7d} {c.failures_7d % 10 === 1 && c.failures_7d % 100 !== 11 ? 'ошибка' : c.failures_7d % 10 >= 2 && c.failures_7d % 10 <= 4 && (c.failures_7d % 100 < 12 || c.failures_7d % 100 > 14) ? 'ошибки' : 'ошибок'}</span>
                 )}
               </div>
             </div>
@@ -440,10 +459,10 @@ const PipelineErrorsPanel: React.FC<{
     return (
       <div className="rounded-xl border border-border/50 p-2.5">
         <div className="flex items-center gap-2 mb-1">
-          <XCircle className="size-4 text-green-500" />
+          <CheckCircle2 className="size-4 text-green-500" />
           <h2 className="text-sm font-semibold">Реальные ошибки за 7д</h2>
         </div>
-        <div className="text-xs text-muted-foreground">Нет — пайплайны отработали без ошибок.</div>
+        <div className="text-xs text-muted-foreground">Нет — выгрузки завершены без ошибок.</div>
       </div>
     );
   }
@@ -469,11 +488,11 @@ const PipelineErrorsPanel: React.FC<{
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="font-mono text-muted-foreground">{e.target_date}</span>
-                  {e.shift_type && <span className="text-muted-foreground">{e.shift_type}</span>}
+                  {e.shift_type && <span className="text-muted-foreground">{shiftLabel(e.shift_type)}</span>}
                   <span className="text-muted-foreground">·</span>
-                  <span className="truncate">{PIPELINE_LABELS[e.pipeline_name] ?? e.pipeline_name}</span>
+                  <span className="truncate" title={e.pipeline_name}>{pipelineLabel(e.pipeline_name)}</span>
                   {e.occurrences > 1 && <span className="text-muted-foreground">×{e.occurrences}</span>}
-                  <span className={`ml-auto ${e.status === 'partial' ? 'text-yellow-500' : 'text-red-400'}`}>{e.status}</span>
+                  <span className={`ml-auto ${e.status === 'partial' ? 'text-yellow-500' : 'text-red-400'}`}>{statusLabel(e.status)}</span>
                 </div>
                 <div className="text-muted-foreground truncate" title={tooltip}>
                   {e.messages[0]}
@@ -560,9 +579,9 @@ const PipelineWarningsPanel: React.FC = () => {
             <span className="font-mono text-muted-foreground shrink-0">{fmtTs(ev.ts)}</span>
             <span className="text-muted-foreground shrink-0">·</span>
             <span className="shrink-0">
-              {PIPELINE_LABELS[ev.pipeline ?? ''] ?? ev.pipeline}
+              {ev.pipeline ? pipelineLabel(ev.pipeline) : 'Система'}
               {ev.date && <span className="text-muted-foreground"> {ev.date}</span>}
-              {ev.shift && <span className="text-muted-foreground"> {ev.shift}</span>}
+              {ev.shift && <span className="text-muted-foreground"> {shiftLabel(ev.shift)}</span>}
             </span>
             <span className="text-muted-foreground">·</span>
             <span className="truncate text-yellow-600 dark:text-yellow-400" title={ev.msg}>{ev.msg}</span>
@@ -580,6 +599,8 @@ const PipelineWarningsPanel: React.FC = () => {
 
 const LOG_CATEGORIES: LogEvent['category'][] = ['spawn', 'cron', 'handler', 'http', 'reconcile', 'pipeline', 'boss', 'admin'];
 const LOG_LEVELS: LogEvent['level'][] = ['info', 'warn', 'error'];
+
+const LOG_LABELS: Record<string, string> = { spawn: 'Процессы', cron: 'Расписание', handler: 'Обработчики', http: 'Запросы', reconcile: 'Сверка', pipeline: 'Выгрузки', boss: 'Очередь', admin: 'Администрирование', debug: 'Отладка', info: 'Информация', warn: 'Предупреждение', error: 'Ошибка' };
 
 const LogsPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -660,7 +681,7 @@ const LogsPanel: React.FC = () => {
                 onClick={() => toggleCategory(c)}
                 className={`px-2 py-0.5 rounded border ${activeCategories.has(c) ? 'border-foreground/40 bg-muted/40' : 'border-border/30 text-muted-foreground'}`}
               >
-                {c}
+                {LOG_LABELS[c]}
               </button>
             ))}
           </div>
@@ -672,7 +693,7 @@ const LogsPanel: React.FC = () => {
                 onClick={() => toggleLevel(l)}
                 className={`px-2 py-0.5 rounded border ${activeLevels.has(l) ? 'border-foreground/40 bg-muted/40' : 'border-border/30 text-muted-foreground'} ${levelColor(l)}`}
               >
-                {l}
+                {LOG_LABELS[l]}
               </button>
             ))}
             <span className="text-muted-foreground ml-2">Окно:</span>
@@ -689,7 +710,7 @@ const LogsPanel: React.FC = () => {
               <button
                 onClick={() => setFilterRunId(null)}
                 className="ml-2 px-2 py-0.5 rounded border border-foreground/40 bg-muted/40"
-                title="Сбросить фильтр по runId"
+                title="Сбросить фильтр по запуску"
               >
                 runId={filterRunId.slice(0, 8)} ✕
               </button>
@@ -706,8 +727,8 @@ const LogsPanel: React.FC = () => {
                 <div key={i} className="flex items-start gap-2 px-1.5 py-0.5 rounded hover:bg-muted/30">
                   <span className={`size-1.5 rounded-full mt-1.5 ${levelDot(ev.level)}`} />
                   <span className="text-muted-foreground shrink-0">{fmtTs(ev.ts)}</span>
-                  <span className={`shrink-0 ${levelColor(ev.level)} w-10`}>{ev.level}</span>
-                  <span className="text-muted-foreground shrink-0 w-20 truncate">[{ev.category}{ev.service ? '/' + ev.service : ''}]</span>
+                  <span className={`shrink-0 ${levelColor(ev.level)} w-24`}>{LOG_LABELS[ev.level]}</span>
+                  <span className="text-muted-foreground shrink-0 w-20 truncate">[{LOG_LABELS[ev.category]}]</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       {ev.runId && (
@@ -716,10 +737,10 @@ const LogsPanel: React.FC = () => {
                           className="text-blue-400 hover:underline shrink-0"
                           title="Все события этого запуска"
                         >
-                          run={ev.runId.slice(0, 8)}
+                          Запуск {ev.runId.slice(0, 8)}
                         </button>
                       )}
-                      {ev.pipeline && <span className="text-muted-foreground shrink-0">{ev.pipeline}</span>}
+                      {ev.pipeline && <span className="text-muted-foreground shrink-0" title={ev.pipeline}>{pipelineLabel(ev.pipeline)}</span>}
                       {ev.date && <span className="text-muted-foreground shrink-0">{ev.date}{ev.shift ? ' ' + ev.shift : ''}</span>}
                       <span className="truncate">{ev.msg}</span>
                       {hasFields && (
@@ -848,32 +869,32 @@ const CronStatusPanel: React.FC = () => {
     : null;
   const nextRemainingMs = next ? new Date(next.nextFireIso).getTime() - now : 0;
 
-  // Filter: only DT cron runs (panel label is "Авто-cron самосвалов")
+  // Filter: only DT cron runs (panel label is "Автовыгрузки самосвалов")
   const cronRuns = runs.filter(r => r.trigger_type === 'cron' && r.pipeline_name.startsWith('dt_'));
 
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-center gap-2 mb-2">
         <Clock className="size-4" />
-        <h2 className="text-sm font-semibold">Авто-cron самосвалов</h2>
+        <h2 className="text-sm font-semibold">Автовыгрузки самосвалов</h2>
         {error && <span className="text-xs text-red-400 ml-2">{error}</span>}
       </div>
 
       {next && (
         <div className="text-xs mb-3 flex items-center gap-2 flex-wrap">
           <span className="font-medium">Следующий:</span>
-          <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 font-mono">
+          <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-300 font-mono">
             {next.time} ({fmtCountdown(nextRemainingMs)})
           </span>
-          <span className="text-muted-foreground">
-            {next.description} → {next.tasks.map(t => `${t.shift} ${t.targetDate}`).join(', ')}
+          <span className="text-muted-foreground" title={next.description}>
+            {next.tasks.map(t => `${shiftLabel(t.shift)} ${t.targetDate}`).join(', ')}
           </span>
         </div>
       )}
 
       <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <div>
-          <div className="text-xs font-medium mb-1.5 text-muted-foreground">Расписание (Asia/Yekaterinburg)</div>
+          <div className="text-xs font-medium mb-1.5 text-muted-foreground">Расписание (Екатеринбург, UTC+5)</div>
           <div className="flex flex-col gap-0.5" style={{ fontSize: '11px' }}>
             {schedule.map(e => {
               const isNext = next?.time === e.time;
@@ -884,7 +905,7 @@ const CronStatusPanel: React.FC = () => {
                 >
                   <span className="font-mono w-12">{e.time}</span>
                   <span className="text-muted-foreground flex-1 truncate" title={e.description}>
-                    {e.tasks.map(t => `${t.shift}${t.dayOffset !== 0 ? `(${t.dayOffset > 0 ? '+' : ''}${t.dayOffset}д)` : ''}`).join(' + ')}
+                    {e.tasks.map(t => `${shiftLabel(t.shift)}${t.dayOffset !== 0 ? `(${t.dayOffset > 0 ? '+' : ''}${t.dayOffset}д)` : ''}`).join(' + ')}
                   </span>
                 </div>
               );
@@ -893,7 +914,7 @@ const CronStatusPanel: React.FC = () => {
         </div>
 
         <div>
-          <div className="text-xs font-medium mb-1.5 text-muted-foreground">Последние 24ч (cron)</div>
+          <div className="text-xs font-medium mb-1.5 text-muted-foreground">Последние 24ч (по расписанию)</div>
           {cronRuns.length === 0 ? (
             <div className="text-xs text-muted-foreground">Запусков ещё не было</div>
           ) : (
@@ -906,15 +927,15 @@ const CronStatusPanel: React.FC = () => {
                 const errors = Array.isArray(r.errors) ? r.errors : [];
                 const tooltip = errors.length > 0
                   ? errors.slice(0, 5).map((e: any) => e.note ?? e.message ?? JSON.stringify(e)).join('\n')
-                  : `${r.status} (${r.success_count}/${r.total_vehicles})`;
+                  : `${statusLabel(r.status)} (${r.success_count}/${r.total_vehicles})`;
                 return (
                   <div key={r.run_id} className="flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-muted/50" title={tooltip}>
                     <span className={`size-1.5 rounded-full ${dot}`} />
                     <span className="font-mono w-20">{fmtDateTimeShort(r.started_at)}</span>
-                    <span className="w-12 text-muted-foreground">{r.shift_type ?? '—'}</span>
+                    <span className="w-12 text-muted-foreground">{r.shift_type ? shiftLabel(r.shift_type) : '—'}</span>
                     <span className="w-16 text-muted-foreground">{r.target_date}</span>
                     <span className="flex-1 truncate">
-                      {r.status === 'completed' ? `✓ ${r.success_count} ТС` : r.status === 'partial' ? `~ ${r.success_count}/${r.total_vehicles}` : r.status === 'failed' ? '× failed' : r.status}
+                      {r.status === 'completed' ? `✓ ${r.success_count} ТС` : r.status === 'partial' ? `~ ${r.success_count}/${r.total_vehicles}` : r.status === 'failed' ? '× Ошибка' : statusLabel(r.status)}
                     </span>
                     <span className="text-muted-foreground">{fmtDuration(r.duration_ms)}</span>
                   </div>
@@ -979,10 +1000,10 @@ const PipelineRunHistory: React.FC<{ runs: PipelineRun[] }> = ({ runs }) => {
 
   const triggerLabel = (t: string) => {
     switch (t) {
-      case 'cron': return 'cron';
+      case 'cron': return 'по расписанию';
       case 'manual': return 'ручной';
       case 'cascade': return 'каскад';
-      default: return t;
+      default: return 'другой';
     }
   };
 
@@ -1000,9 +1021,9 @@ const PipelineRunHistory: React.FC<{ runs: PipelineRun[] }> = ({ runs }) => {
         <div className="glass-card rounded-xl p-3">
           <div className="overflow-auto rounded-lg border border-border/50" style={{ maxHeight: '300px' }}>
             <table className="w-full text-left border-collapse" style={{ fontSize: '10px' }}>
-              <thead className="sticky top-0 bg-muted z-10">
+              <thead className="sticky top-0 bg-popover z-10">
                 <tr>
-                  {['', 'Pipeline', 'Дата', 'Trigger', 'Статус', 'Длит.', 'Ошибки'].map(h => (
+                  {['', 'Выгрузка', 'Дата', 'Запуск', 'Статус', 'Длит.', 'Ошибки'].map(h => (
                     <th key={h} className="px-2 py-1.5 font-medium text-muted-foreground whitespace-nowrap border-b border-border/50">{h}</th>
                   ))}
                 </tr>
@@ -1011,10 +1032,10 @@ const PipelineRunHistory: React.FC<{ runs: PipelineRun[] }> = ({ runs }) => {
                 {runs.map(r => (
                   <tr key={r.run_id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-2 py-1 border-b border-border/30">{statusIcon(r.status)}</td>
-                    <td className="px-2 py-1 border-b border-border/30 font-mono">{PIPELINE_LABELS[r.pipeline_name] ?? r.pipeline_name}</td>
+                    <td className="px-2 py-1 border-b border-border/30" title={r.pipeline_name}>{pipelineLabel(r.pipeline_name)}</td>
                     <td className="px-2 py-1 border-b border-border/30 whitespace-nowrap">{fmtDate(r.target_date)}</td>
                     <td className="px-2 py-1 border-b border-border/30">{triggerLabel(r.trigger_type)}</td>
-                    <td className="px-2 py-1 border-b border-border/30">{r.status}</td>
+                    <td className="px-2 py-1 border-b border-border/30">{statusLabel(r.status)}</td>
                     <td className="px-2 py-1 border-b border-border/30 whitespace-nowrap">
                       {r.duration_ms != null ? (
                         r.duration_ms < 60000 ? `${Math.round(r.duration_ms / 1000)}с` : `${Math.round(r.duration_ms / 60000)}м`
@@ -1060,7 +1081,7 @@ const DayCardPopover: React.FC<{
   } else if (kipPct < 85) {
     kipActions.push({ label: 'Перевыгрузить КИП', action: 'refresh-kip' });
   } else if (card.kip.rawPct < 90) {
-    kipActions.push({ label: 'Перевыгрузить raw', action: 'force-kip' });
+    kipActions.push({ label: 'Перевыгрузить исходные данные', action: 'force-kip' });
   } else {
     kipActions.push({ label: 'Пересчитать КИП', action: 'recalc-kip' });
   }
@@ -1073,15 +1094,15 @@ const DayCardPopover: React.FC<{
     : card.dt.vehicleCount > 0;
 
   if (card.dt.vehicleCount === 0) {
-    dtActions.push({ label: 'Загрузить DT', action: 'fetch-dt' });
+    dtActions.push({ label: 'Загрузить самосвалы', action: 'fetch-dt' });
   } else if (!dtFullyCovered) {
-    dtActions.push({ label: 'Перевыгрузить DT', action: 'refresh-dt' });
-    dtActions.push({ label: 'Пересчитать DT', action: 'recalc-dt' });
+    dtActions.push({ label: 'Перевыгрузить самосвалы', action: 'refresh-dt' });
+    dtActions.push({ label: 'Пересчитать самосвалы', action: 'recalc-dt' });
   } else {
-    dtActions.push({ label: 'Пересчитать DT', action: 'recalc-dt' });
+    dtActions.push({ label: 'Пересчитать самосвалы', action: 'recalc-dt' });
   }
   if (!card.dt.hasSegments && card.dt.vehicleCount > 0) {
-    dtActions.push({ label: 'Загрузить сегменты DT', action: 'fetch-dt-segments' });
+    dtActions.push({ label: 'Загрузить сегменты самосвалов', action: 'fetch-dt-segments' });
   }
 
   if (card.lastRunStatus === 'failed') {
@@ -1111,7 +1132,7 @@ const DayCardPopover: React.FC<{
             {baseline.kipExpected > 0 && <span> / ~{baseline.kipExpected} ({kipPct}%)</span>}
           </div>
           <div>
-            Raw: <span className={`font-mono ${card.kip.rawPct >= 90 ? 'text-green-500' : card.kip.rawPct > 0 ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+            Исходные данные: <span className={`font-mono ${card.kip.rawPct >= 90 ? 'text-green-500' : card.kip.rawPct > 0 ? 'text-yellow-500' : 'text-muted-foreground'}`}>
               {card.kip.rawCount}
             </span>
             {card.kip.vehicleCount > 0 && <span> / {card.kip.vehicleCount} ({card.kip.rawPct}%)</span>}
@@ -1139,9 +1160,9 @@ const DayCardPopover: React.FC<{
       {/* Pipeline status */}
       {card.lastRunStatus && (
         <div>
-          <span className="text-muted-foreground">Pipeline: </span>
+          <span className="text-muted-foreground">Выгрузки: </span>
           <span className={card.lastRunStatus === 'completed' ? 'text-green-500' : card.lastRunStatus === 'failed' ? 'text-red-500' : 'text-yellow-500'}>
-            {card.lastRunStatus}
+            {statusLabel(card.lastRunStatus)}
           </span>
           {card.lastRunAt && <span className="text-muted-foreground ml-1">{new Date(card.lastRunAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>}
         </div>
@@ -1324,7 +1345,7 @@ const CoverageDashboard: React.FC<{
   }
   const failedDays = days.filter(d => d.lastRunStatus === 'failed');
   if (failedDays.length > 0) {
-    alerts.push(`Pipeline failed: ${failedDays.map(d => fmtDateLong(d.date)).slice(0, 3).join(', ')}`);
+    alerts.push(`Ошибки выгрузки: ${failedDays.map(d => fmtDateLong(d.date)).slice(0, 3).join(', ')}`);
   }
 
   return (
@@ -1332,13 +1353,13 @@ const CoverageDashboard: React.FC<{
       {/* Summary header */}
       <div className="flex items-center gap-3 flex-wrap" style={{ fontSize: '11px' }}>
         <span className="text-muted-foreground">
-          Baseline (7д): КИП ~<span className="text-foreground font-mono">{baseline.kipExpected}</span>
-          {' | '}DT ~<span className="text-foreground font-mono">{baseline.dtExpected}</span>
-          {' | '}Ghost: <span className="text-foreground font-mono">{summary.ghostCount}</span>
-          {' | '}Pipeline: <span className={`font-mono ${summary.pipelineFail > 0 ? 'text-red-500' : 'text-green-500'}`}>
+          Ожидаемо (7д): КИП ~<span className="text-foreground font-mono">{baseline.kipExpected}</span>
+          {' | '}Самосвалы ~<span className="text-foreground font-mono">{baseline.dtExpected}</span>
+          {' | '}Без данных: <span className="text-foreground font-mono">{summary.ghostCount}</span>
+          {' | '}Выгрузки: <span className={`font-mono ${summary.pipelineFail > 0 ? 'text-red-500' : 'text-green-500'}`}>
             {summary.pipelineOk}/{summary.pipelineOk + summary.pipelineFail}
           </span>
-          {summary.pipelineFail === 0 ? ' ✓' : ` (${summary.pipelineFail} fail)`}
+          {summary.pipelineFail === 0 ? ' ✓' : ` (${summary.pipelineFail} ошибок)`}
         </span>
         <button
           onClick={loadDashboard}
@@ -1461,7 +1482,8 @@ const CoverageDashboard: React.FC<{
       {/* Day cards grid */}
       <div className="flex flex-wrap gap-1.5 relative" onClick={() => setSelectedDate(null)}>
         {[...days].reverse().map(card => {
-          const healthBg =
+          const collecting = card.date === new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Yekaterinburg', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+          const healthBg = collecting ? 'bg-muted/40 border-border border-dashed' :
             card.health === 'green' ? 'bg-green-500/20 border-green-500/30'
             : card.health === 'yellow' ? 'bg-yellow-400/20 border-yellow-400/30'
             : card.health === 'red' ? 'bg-red-500/20 border-red-500/30'
@@ -1482,26 +1504,29 @@ const CoverageDashboard: React.FC<{
           return (
             <div
               key={card.date}
+              data-coverage-date={card.date}
               className={`relative rounded-lg border p-1.5 cursor-pointer hover:ring-1 hover:ring-primary/50 transition-all select-none ${healthBg}`}
               style={{ width: '110px', fontSize: '10px' }}
               onClick={e => { e.stopPropagation(); setSelectedDate(prev => prev === card.date ? null : card.date); }}
             >
               <div className="font-medium text-center mb-0.5" style={{ fontSize: '11px' }}>
                 {fmtDateLong(card.date)}
-                {card.lastRunStatus === 'failed' && <span className="text-red-500 ml-0.5">✗</span>}
-                {card.health === 'green' && <span className="text-green-500 ml-0.5">✓</span>}
-                {card.health === 'yellow' && <span className="text-yellow-500 ml-0.5">⚠</span>}
+                {!collecting && card.lastRunStatus === 'failed' && <span className="text-red-500 ml-0.5">✗</span>}
+                {!collecting && card.health === 'green' && <span className="text-green-500 ml-0.5">✓</span>}
+                {!collecting && card.health === 'yellow' && <span className="text-yellow-500 ml-0.5">⚠</span>}
               </div>
-              <div className={`font-mono ${kipCountColor}`}>
+              <div className={`font-mono ${collecting ? 'text-muted-foreground' : kipCountColor}`} >
                 КИП: {card.kip.vehicleCount}
               </div>
-              <div className={`font-mono ${dtCountColor}`}>
-                DT: {card.dt.vehicleCount}
+              <div className={`font-mono ${collecting ? 'text-muted-foreground' : dtCountColor}`} >
+                Сам.: {card.dt.vehicleCount}
                 {card.dt.tripCount > 0 && <span className="text-muted-foreground"> ({card.dt.tripCount}р)</span>}
               </div>
               <div className="text-muted-foreground">
-                Seg: {card.kip.hasSegments ? '✓' : '—'} {card.dt.hasSegments ? '✓' : '—'}
+                Сегм.: {card.kip.hasSegments ? '✓' : '—'} {card.dt.hasSegments ? '✓' : '—'}
               </div>
+
+              {collecting && <div className="text-muted-foreground text-center mt-0.5">Идёт сбор</div>}
 
               {/* Popover */}
               {selectedDate === card.date && (
@@ -1622,8 +1647,8 @@ const LedgerCoveragePanel: React.FC<{ from: string; to: string }> = ({ from, to 
     <div className="glass-card rounded-xl p-3 flex flex-col gap-3">
       <div className="flex items-center gap-3 flex-wrap" style={{ fontSize: '11px' }}>
         <span className="text-muted-foreground">
-          Точное покрытие из <span className="font-mono text-foreground">ingest.tasks</span> — без эвристик.
-          Зелёный ⟺ нет failed/pending/running.
+          Покрытие по <span title="ingest.tasks">реестру задач</span>.
+          Зелёный — все задачи завершены.
         </span>
         <button
           onClick={load}
@@ -1637,14 +1662,14 @@ const LedgerCoveragePanel: React.FC<{ from: string; to: string }> = ({ from, to 
 
       {sorted.length === 0 ? (
         <div className="text-xs text-muted-foreground" style={{ fontSize: '11px' }}>
-          {loading ? 'Загрузка...' : 'Нет задач в ingest.tasks за период (запустите backfill или пайплайн).'}
+          {loading ? 'Загрузка...' : 'За выбранный период в реестре нет задач.'}
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="border-collapse" style={{ fontSize: '10px' }}>
             <thead>
               <tr>
-                <th className="text-left pr-2 text-muted-foreground font-normal sticky left-0 bg-background">Пайплайн</th>
+                <th className="text-left pr-2 text-muted-foreground font-normal sticky left-0 bg-popover">Выгрузка</th>
                 {sorted.map(d => (
                   <th key={d.date} className="px-1 text-muted-foreground font-normal whitespace-nowrap">
                     {d.date.slice(5)}
@@ -1655,7 +1680,7 @@ const LedgerCoveragePanel: React.FC<{ from: string; to: string }> = ({ from, to 
             <tbody>
               {LEDGER_PIPELINES.map(p => (
                 <tr key={p}>
-                  <td className="pr-2 whitespace-nowrap text-foreground sticky left-0 bg-background">
+                  <td className="pr-2 whitespace-nowrap text-foreground sticky left-0 bg-popover">
                     {LEDGER_PIPELINE_LABELS[p]}
                   </td>
                   {sorted.map(d => {
@@ -1704,7 +1729,7 @@ const LedgerCoveragePanel: React.FC<{ from: string; to: string }> = ({ from, to 
             <div className="flex flex-col gap-0.5 max-h-64 overflow-y-auto" style={{ fontSize: '10px' }}>
               {(units ?? []).filter(u => u.status !== 'done').length === 0 && (
                 <div className="text-green-600 dark:text-green-400">
-                  Все {(units ?? []).length} ед. в статусе done — проблем нет.
+                  Все {(units ?? []).length} задач завершены — проблем нет.
                 </div>
               )}
               {(units ?? [])
@@ -1719,9 +1744,9 @@ const LedgerCoveragePanel: React.FC<{ from: string; to: string }> = ({ from, to 
                   <div key={`${u.vehicleRef}-${u.shift}-${i}`} className="flex items-center gap-1.5 whitespace-nowrap">
                     <span className={`inline-block size-2 rounded-full shrink-0 ${ledgerUnitDotClass(u.status, u.reasonCode)}`} />
                     <span className="font-mono text-foreground">{u.vehicleRef}</span>
-                    {u.shift && <span className="text-muted-foreground">{u.shift}</span>}
+                    {u.shift && <span className="text-muted-foreground">{shiftLabel(u.shift)}</span>}
                     <span className="text-muted-foreground" title={u.lastError ?? undefined}>
-                      {u.reasonLabel ?? u.status}
+                      {u.reasonLabel ?? statusLabel(u.status)}
                       {u.status === 'failed' && u.attempt > 0 ? ` ×${u.attempt}` : ''}
                     </span>
                   </div>
@@ -2094,7 +2119,7 @@ export const AdminPage: React.FC = () => {
             {adminError}
           </div>
         ) : (
-          <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+          <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))' }}>
             {services.map(svc => (
               <ServiceCard key={svc.id} svc={svc} onAction={loadServices} />
             ))}
@@ -2154,7 +2179,7 @@ export const AdminPage: React.FC = () => {
 
       {/* Ledger coverage v2 — точное покрытие из ingest.tasks + причины */}
       <div>
-        <h2 className="text-sm font-semibold mb-2">Покрытие из ledger (причины «пустых» машин)</h2>
+        <h2 className="text-sm font-semibold mb-2">Покрытие по реестру задач (причины отсутствия данных)</h2>
         <LedgerCoveragePanel from={coverageFrom} to={coverageTo} />
       </div>
 
@@ -2227,7 +2252,7 @@ export const AdminPage: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border-none cursor-pointer transition-colors font-medium bg-amber-500/15 text-amber-600 hover:bg-amber-500/25 disabled:opacity-50"
               style={{ fontSize: '11px' }}
             >
-              Перевыгрузить raw (КИП)
+              Перевыгрузить исходные данные (КИП)
             </button>
             <button
               onClick={handleBackfillObjects}
@@ -2389,7 +2414,7 @@ export const AdminPage: React.FC = () => {
               <span className="w-24 shrink-0" />
               <div className="flex flex-wrap gap-0.5">
                 {allDays.map((d, i) => (
-                  <div key={d} style={{ width: '14px', fontSize: '8px' }} className="text-muted-foreground text-center overflow-hidden">
+                  <div key={d} style={{ width: '14px', fontSize: '10px' }} className="text-muted-foreground text-center overflow-hidden">
                     {i % 7 === 0 ? fmtDate(d) : ''}
                   </div>
                 ))}
@@ -2812,7 +2837,7 @@ export const AdminPage: React.FC = () => {
             {dbResult && !dbResult.error && dbResult.rows.length > 0 && (
               <div className="overflow-auto rounded-lg border border-border/50" style={{ maxHeight: '400px' }}>
                 <table className="w-full text-left border-collapse" style={{ fontSize: '10px' }}>
-                  <thead className="sticky top-0 bg-muted z-10">
+                  <thead className="sticky top-0 bg-popover z-10">
                     <tr>
                       {dbResult.columns.map(col => (
                         <th key={col} className="px-2 py-1.5 font-medium text-muted-foreground whitespace-nowrap border-b border-border/50">

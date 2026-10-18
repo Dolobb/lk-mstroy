@@ -64,7 +64,7 @@ export const AdminSection: React.FC = () => {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="flex items-center gap-1 px-3 pt-3 shrink-0">
+      <div className="relative z-20 flex items-center gap-1 px-3 py-3 shrink-0 bg-popover border-b border-border">
         <TabButton active={tab === 'pipelines'} onClick={() => selectTab('pipelines')}>Сервисы и данные</TabButton>
         <TabButton active={tab === 'vehicles'} onClick={() => selectTab('vehicles')}>Техника</TabButton>
         <button
@@ -85,8 +85,9 @@ export const AdminSection: React.FC = () => {
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
   <button
     onClick={onClick}
+    aria-pressed={active}
     className={`px-3 py-1.5 rounded-lg text-xs font-medium border-none cursor-pointer transition-colors ${
-      active ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary hover:bg-primary/20'
+      active ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground'
     }`}
   >
     {children}

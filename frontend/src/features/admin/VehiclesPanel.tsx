@@ -447,7 +447,7 @@ const KipVehiclesTab: React.FC<{ monitoring: Monitoring | null; monitoringError:
                 <KipStatusCells m={monitoring?.kip[v.regNumber.toUpperCase()]} loaded={!!monitoring} />
                 <td className="px-3 py-1.5">
                   <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => setEdit({ mode: 'edit', original: v })} className="p-1 rounded border-none bg-transparent cursor-pointer text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Изменить" aria-label={`Изменить ${v.regNumber}`}>
+                    <button onClick={() => setEdit({ mode: 'edit', original: v })} className="p-1 rounded border-none bg-transparent cursor-pointer text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Редактировать" aria-label={`Редактировать ${v.regNumber}`}>
                       <Pencil className="size-3.5" />
                     </button>
                     <button onClick={() => setToDelete(v)} className="p-1 rounded border-none bg-transparent cursor-pointer text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Удалить" aria-label={`Удалить ${v.regNumber}`}>
@@ -595,7 +595,7 @@ const TisPickerDialog: React.FC<{
 
         <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-border/60">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-background">
+            <thead className="sticky top-0 bg-popover">
               <tr className="text-left text-muted-foreground border-b border-border/60">
                 <th className="px-3 py-2 font-medium">Госномер</th>
                 <th className="px-3 py-2 font-medium">Модель в TIS</th>
