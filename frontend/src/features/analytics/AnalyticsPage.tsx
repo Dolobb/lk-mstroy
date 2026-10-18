@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useDeferredValue } from 'react';
 import { useTheme } from 'next-themes';
-import { Table2, LayoutGrid, Map as MapIcon, ChevronRight } from 'lucide-react';
+import { Table2, LayoutGrid, Map as MapIcon, ChevronRight, SearchX, Inbox } from 'lucide-react';
 import { DateTimeRangePicker } from '@/components/DateTimeRangePicker';
 import { DataFreshnessBadge } from '@/components/DataFreshnessBadge';
 import { MiniBar } from '@/components/MiniBar';
@@ -110,7 +110,7 @@ interface FilterGroup {
 
 const FILTER_GROUPS: FilterGroup[] = [
   {
-    key: 'samosvaly', label: 'Самосв.', color: '#F97316', iconKind: 'samosvaly',
+    key: 'samosvaly', label: 'Самосвалы', color: '#F97316', iconKind: 'samosvaly',
     subKeys: ['dt_delivery', 'dt_onsite'],
     subLabels: { dt_delivery: 'Доставка', dt_onsite: 'По месту' },
   },
@@ -120,7 +120,7 @@ const FILTER_GROUPS: FilterGroup[] = [
     subLabels: { crane_auto: 'Автомобильные', crane_crawler: 'Гусеничные', crane_pneumo: 'Пневмоколёсные' },
   },
   {
-    key: 'ekskav', label: 'Экскав.', color: '#A78BFA', iconKind: 'ekskav',
+    key: 'ekskav', label: 'Экскаваторы', color: '#A78BFA', iconKind: 'ekskav',
     subKeys: ['exc_crawler', 'exc_wheeled', 'exc_loader'],
     subLabels: { exc_crawler: 'Гусеничный', exc_wheeled: 'Колесный', exc_loader: 'Экск.-погрузчик' },
   },
@@ -722,14 +722,23 @@ export function AnalyticsPage() {
     () => new Set((sidebarSummary?.objects ?? []).map(o => o.uid)),
     [sidebarSummary],
   );
+  const noObjectIds = React.useMemo(
+    () => new Set((sidebarSummary?.noObjectVehicles ?? []).map(v => v.vehicleId.toUpperCase())),
+    [sidebarSummary],
+  );
   const applyTierFilter = useCallback((src: GroupEntry[]): GroupEntry[] => {
+    if (activeTier === 'noObject') {
+      return src
+        .map(g => ({ ...g, vehicles: g.vehicles.filter(v => noObjectIds.has(v.regNumber.toUpperCase())) }))
+        .filter(g => g.vehicles.length > 0);
+    }
     // До загрузки сайд-бара набор ключевых неизвестен — ничего не скрываем.
     if (keyObjectUids.size === 0) return src;
     return src.filter(g => {
       const isKey = !!g.groupUid && keyObjectUids.has(g.groupUid);
       return (isKey ? 'key' : 'secondary') === activeTier;
     });
-  }, [keyObjectUids, activeTier]);
+  }, [keyObjectUids, noObjectIds, activeTier]);
 
   const tierGroups = React.useMemo(() => applyTierFilter(groups), [groups, applyTierFilter]);
 
@@ -1291,7 +1300,6 @@ export function AnalyticsPage() {
 
   const COLUMNS = [
     { id: 'requestNumber', label: '№ заявки', sortable: false, maxW: 110 },
-    { id: 'vehicleType', label: 'Тип', sortable: false },
     { id: 'organization', label: 'Организация', sortable: false },
     { id: 'shiftsCount', label: 'Смены', sortable: true },
     { id: 'tripsOrFuel', label: 'Рейсы / Расход', sortable: true },
@@ -1330,8 +1338,8 @@ export function AnalyticsPage() {
               const from = new Date(dateFrom);
               const to = new Date(dateTo);
               const durationMs = to.getTime() - from.getTime();
-              const newTo = new Date(from.getTime() - 60_000);
-              const newFrom = new Date(newTo.getTime() - durationMs);
+              const newFrom = new Date(from.getTime() - durationMs);
+              const newTo = new Date(to.getTime() - durationMs);
               setDateFrom(toYekatIso(newFrom));
               setDateTo(toYekatIso(newTo));
             }}
@@ -1344,8 +1352,8 @@ export function AnalyticsPage() {
               const from = new Date(dateFrom);
               const to = new Date(dateTo);
               const durationMs = to.getTime() - from.getTime();
-              const newFrom = new Date(to.getTime() + 60_000);
-              const newTo = new Date(newFrom.getTime() + durationMs);
+              const newFrom = new Date(from.getTime() + durationMs);
+              const newTo = new Date(to.getTime() + durationMs);
               setDateFrom(toYekatIso(newFrom));
               setDateTo(toYekatIso(newTo));
             }}
@@ -1360,7 +1368,7 @@ export function AnalyticsPage() {
             className={`sv-filter-sq all ${vehicleFilters.has('all') ? 'active' : ''}`}
             onClick={() => toggleFilter('all')}
           >
-            <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>ВСЕ</span>
+            <span className="sv-filter-sq-label">Все</span>
           </button>
 
           {FILTER_GROUPS.map(group => {
@@ -1412,7 +1420,7 @@ export function AnalyticsPage() {
             border: '1px solid var(--sv-card-border)',
             background: 'var(--sv-card)',
             color: 'var(--sv-text-1)',
-            width: 180,
+            width: 180, flex: '0 1 180px', minWidth: 100,
           }}
         />
 
@@ -1420,10 +1428,10 @@ export function AnalyticsPage() {
         <div style={{ display: 'flex', gap: 2, marginLeft: 'auto' }}>
           <button
             className={`sv-view-tab ${viewMode === 'table' ? 'active' : ''}`}
-            onClick={() => setViewMode('table')}
+            onClick={() => setViewMode('table')} title='Таблица'
             style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
-            <Table2 size={12} />Таблица
+            <Table2 size={12} /><span className="sv-view-label">Таблица</span>
           </button>
           <button
             className={`sv-view-tab ${viewMode === 'cards' ? 'active' : ''}`}
@@ -1435,23 +1443,23 @@ export function AnalyticsPage() {
           </button>
           <button
             className={`sv-view-tab ${viewMode === 'cardsV2' ? 'active' : ''}`}
-            onClick={() => setViewMode('cardsV2')}
+            onClick={() => setViewMode('cardsV2')} title='Карточки v2'
             style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
-            <LayoutGrid size={12} />Карточки v2
+            <LayoutGrid size={12} /><span className="sv-view-label">Карточки v2</span>
           </button>
           <button
             className={`sv-view-tab ${viewMode === 'map' ? 'active' : ''}`}
-            onClick={() => setViewMode('map')}
+            onClick={() => setViewMode('map')} title='Карта'
             style={{ fontSize: 11, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
-            <MapIcon size={12} />Карта
+            <MapIcon size={12} /><span className="sv-view-label">Карта</span>
           </button>
         </div>
       </div>
 
       {/* Main grid: content + sidebar */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: 10, minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) clamp(360px, 26vw, 400px)', gap: 10, minHeight: 0, overflow: 'hidden' }}>
 
         {/* Left: views */}
         <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1568,11 +1576,18 @@ export function AnalyticsPage() {
             </svg>
             <span className="sv-empty-text">Загрузка...</span>
           </div>
-        ) : sortedRows.length === 0 ? (
-          <div className="sv-empty">
-            <span className="sv-empty-icon">📭</span>
-            <span className="sv-empty-text">Нет данных за выбранный период</span>
-          </div>
+        ) : countGroupVehicles(filteredGroups) === 0 ? (
+          searchQuery.trim() ? (
+            <TableEmpty icon={<SearchX size={28} />} text={`Ничего не найдено по «${searchQuery.trim()}»`}
+              action={{ label: 'Сбросить поиск', onClick: () => setSearchQuery('') }} />
+          ) : focusedObjectUid ? (
+            <TableEmpty icon={<Inbox size={28} />} text="На выбранном объекте нет работавшей техники в этом периоде"
+              action={{ label: 'Показать все объекты', onClick: () => setFocusedObjectUid(null) }} />
+          ) : activeTier === 'noObject' && sortedRows.length > 0 ? (
+            <TableEmpty icon={<Inbox size={28} />} text="В этом периоде все работавшие машины привязаны к объектам" />
+          ) : (
+            <TableEmpty icon={<Inbox size={28} />} text="Нет данных за выбранный период" />
+          )
         ) : (
           <table className="sv-at">
             <thead>
@@ -1606,7 +1621,7 @@ export function AnalyticsPage() {
                     {/* Group header */}
                     <tr id={`obj-scroll-${g.groupName}`} className="sv-smu-row" onClick={() => toggleGroup(gKey)}>
                       <td colSpan={totalCols}>
-                        <div className="sv-smu-header">
+                        <div className="sv-smu-header" style={{ contain: 'inline-size', overflow: 'hidden' }}>
                           <span className={`sv-tree-expand ${isGroupOpen ? 'open' : ''}`}>▶</span>
                           <span className="sv-smu-name">{g.groupName}</span>
                           <span className="sv-smu-badge">{g.vehicles.length} ТС</span>
@@ -1626,12 +1641,12 @@ export function AnalyticsPage() {
                           {/* Subgroup header */}
                           <tr className="sv-subgroup-row" onClick={() => toggleSubgroup(subKey)}>
                             <td colSpan={totalCols}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 24px', fontSize: 12, fontWeight: 500, color: 'var(--sv-text-2)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 24px', fontSize: 12, fontWeight: 500, color: 'var(--sv-text-2)', contain: 'inline-size', overflow: 'hidden' }}>
                                 <span className={`sv-tree-expand ${isSubOpen ? 'open' : ''}`}>▶</span>
                                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: SUBGROUP_COLORS[cat], flexShrink: 0 }} />
                                 <span>{SUBGROUP_LABELS[cat]}</span>
                                 <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, background: `${SUBGROUP_COLORS[cat]}1A`, color: SUBGROUP_COLORS[cat], fontWeight: 600 }}>{catVehicles.length} ТС</span>
-                                <span style={{ fontSize: 10, color: 'var(--sv-text-3)' }}>{subtypeBreakdown(cat, catVehicles)}</span>
+                                <span style={{ fontSize: 10, color: 'var(--sv-text-3)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={subtypeBreakdown(cat, catVehicles)}>{subtypeBreakdown(cat, catVehicles)}</span>
                               </div>
                             </td>
                           </tr>
@@ -1681,7 +1696,7 @@ export function AnalyticsPage() {
                                             size={10}
                                           />
                                         )}
-                                        <span className="sv-veh-model">{v.nameMO}</span>
+                                        <span className="sv-veh-model" title={v.nameMO ?? undefined} style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.nameMO}</span>
                                         {sourceTag}
                                       </div>
                                     </div>
@@ -2128,4 +2143,16 @@ function DstGanttSection({ rec }: { rec: UnifiedRecord }) {
   );
 }
 
-
+function TableEmpty({ icon, text, action }: { icon: React.ReactNode; text: string; action?: { label: string; onClick: () => void } }) {
+  return (
+    <div className="sv-empty">
+      <span style={{ color: 'var(--sv-text-4)' }}>{icon}</span>
+      <span className="sv-empty-text" style={{ fontSize: 13, color: 'var(--sv-text-3)' }}>{text}</span>
+      {action && (
+        <button className="sv-view-tab" onClick={action.onClick} style={{ fontSize: 12, padding: '4px 12px' }}>
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}

@@ -51,6 +51,7 @@ export function RepairBadge({ period, size = 11 }: Props) {
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setOpen(o => !o); } }}
         style={{ display: 'inline-flex', cursor: 'pointer' }}
         aria-label={`в ремонте: ${label}`}
+        title={`В ремонте: ${label} — нажмите, чтобы увидеть период`}
       >
         <Wrench size={size} strokeWidth={2} style={{ color }} />
       </span>

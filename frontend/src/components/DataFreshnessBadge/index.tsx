@@ -74,15 +74,14 @@ export const DataFreshnessBadge: React.FC<DataFreshnessBadgeProps> = ({ classNam
     );
   }
 
-  if (lastFetchAt === null) return null;
-
+  // Бейдж держит место и до первой загрузки — иначе строка фильтров сдвигается.
   return (
     <div
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 ${className}`}
-      title={`Обновлено: ${new Date(lastFetchAt).toLocaleString('ru-RU')}`}
+      title={lastFetchAt ? `Данные обновлены ${new Date(lastFetchAt).toLocaleString('ru-RU')} — таймер показывает, сколько прошло` : 'Загрузка данных…'}
     >
       <RefreshCw className="size-3" />
-      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatAge(ageSeconds)}</span>
+      <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: '4.6ch' }}>{lastFetchAt ? formatAge(ageSeconds) : '--:--'}</span>
     </div>
   );
 };

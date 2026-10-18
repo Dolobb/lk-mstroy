@@ -39,12 +39,13 @@ function SidebarKipSparkline({ trend, color }: { trend: SidebarTrendPoint[]; col
   const height = 66;
   const chartTop = 6;
   const chartHeight = 36;
-  const step = width / Math.max(1, trend.length - 1);
+  const padX = 12; // крайние точки и подписи дней не обрезаются краем svg
+  const step = (width - padX * 2) / Math.max(1, trend.length - 1);
 
   const points = trend
     .map((p, i) => {
       if (p.kipPct == null) return null;
-      const x = i * step;
+      const x = padX + i * step;
       const y = chartTop + chartHeight - (Math.max(0, Math.min(100, p.kipPct)) / 100) * chartHeight;
       return { x, y };
     })
@@ -75,7 +76,7 @@ function SidebarKipSparkline({ trend, color }: { trend: SidebarTrendPoint[]; col
           />
         )}
         {trend.map((p, i) => {
-          const x = i * step;
+          const x = padX + i * step;
           const value = p.kipPct ?? 0;
           const y = chartTop + chartHeight - (Math.max(0, Math.min(100, value)) / 100) * chartHeight;
           const hasData = p.kipPct != null;
@@ -275,8 +276,8 @@ function TierTab({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
-        padding: '7px 8px',
+        gap: 4,
+        padding: '7px 6px',
         borderRadius: 8,
         background: active ? 'rgba(96,165,250,0.12)' : 'transparent',
         border: '1px solid',

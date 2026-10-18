@@ -446,7 +446,7 @@
 table.sv-at { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.sv-at thead { position: sticky; top: 0; z-index: 5; background: var(--sv-thead-bg, #0F1829); }
 table.sv-at th {
-  padding: 6px 7px; font-weight: 600; color: var(--sv-text-2);
+  padding: 6px 5px; font-weight: 600; color: var(--sv-text-2);
   text-align: center; font-size: 13px; text-transform: uppercase;
   letter-spacing: .3px; border-bottom: 1px solid var(--sv-card-inner-border);
   white-space: nowrap; cursor: pointer; transition: background .15s; user-select: none;
@@ -458,7 +458,7 @@ table.sv-at th:hover { background: rgba(59,130,246,0.1); }
 .sv-th-g4 { background: rgba(249,115,22,0.06); }
 .sv-th-sub { background: var(--sv-table-head2); font-size: 12.5px; border-left: 1px solid var(--sv-divider); }
 table.sv-at td {
-  padding: 4px 7px; text-align: center;
+  padding: 4px 5px; text-align: center;
   border-bottom: 1px solid var(--sv-divider);
   border-left: 1px solid var(--sv-divider);
   color: var(--sv-text-2); font-variant-numeric: tabular-nums;
@@ -1252,7 +1252,7 @@ td.sv-obj-return {
   padding: 6px 10px; font-weight: 700; font-size: 13px;
   color: var(--sv-text-1);
 }
-.sv-smu-name { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; }
+.sv-smu-name { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sv-smu-badge {
   font-size: 10px; padding: 2px 6px; border-radius: 6px;
   background: rgba(59,130,246,0.1); color: #60A5FA;
@@ -1543,13 +1543,15 @@ td.sv-obj-return {
 /* --- Analytics polish (session 5) --- */
 .sv-an-filterbar {
   position: relative; z-index: 2;
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;
   margin-bottom: 12px; padding: 8px 10px; border-radius: 12px;
   background: var(--sv-card);
   border: 1px solid var(--sv-card-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+/* На узких экранах переключатель вида — только иконки (подпись в title) */
+@media (max-width: 1400px) { .sv-view-label { display: none; } }
 table.sv-at thead {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1560,8 +1562,8 @@ table.sv-at thead {
 
 /* --- Filter squares (Phase 3) --- */
 .sv-filter-sq {
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; padding: 5px 8px; min-width: 48px;
+  display: inline-flex; flex-direction: row; align-items: center; justify-content: center;
+  gap: 5px; padding: 0 9px; height: 28px; min-width: 40px; white-space: nowrap;
   background: var(--sv-card-inner); border: 1px solid var(--sv-card-inner-border);
   border-radius: 8px; cursor: pointer; transition: border-color .12s, background .12s, color .12s;
   font-family: inherit; color: var(--sv-text-2);
@@ -1575,7 +1577,7 @@ table.sv-at thead {
 .sv-filter-sq.all.active {
   background: rgba(59,130,246,0.10); border-color: rgba(59,130,246,0.30); color: #60A5FA;
 }
-.sv-filter-sq-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; line-height: 1; }
+.sv-filter-sq-label { font-size: 11px; font-weight: 600; line-height: 1; }
 
 /* Группа — split-button: квадрат + стрелочка как одно целое, потом подгруппы */
 .sv-filter-group { display: inline-flex; flex-direction: row; align-items: center; gap: 4px; }
