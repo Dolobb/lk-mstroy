@@ -24,7 +24,7 @@ export function GanttLegend({ compact = false }: { compact?: boolean }) {
       <PopoverTrigger asChild>
         <button className="sv-gantt-nav-btn" title="Обозначения" onMouseDown={e => e.stopPropagation()}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <Info size={12} />{!compact && ' Обозначения'}
+          <Info size={12} />{!compact && <span className="sv-view-label">Обозначения</span>}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[360px] p-3 sv-legend" onMouseDown={e => e.stopPropagation()}>
