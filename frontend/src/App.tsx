@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import TopNavBar from './components/TopNavBar';
+import { isDemoMode } from './lib/demoMask';
 import { Dashboard } from './components/dashboard/dashboard';
 import { DumpTrucksPage } from './features/samosvaly';
 import { TyagachiPage } from './features/tyagachi';
@@ -16,9 +17,10 @@ const KipPage: React.FC = () => {
   const { theme } = useTheme();
   const host = window.location.hostname;
   const isTunnel = host.includes('.devtunnels.ms') || host.includes('.loca.lt') || host.includes('.ngrok') || host.includes('.trycloudflare.com');
+  const demo = isDemoMode() ? '&demo=1' : '';
   const kipUrl = isTunnel
-    ? `${window.location.origin.replace('5173', '3001')}?theme=${theme}`
-    : `http://${host}:3001?theme=${theme}`;
+    ? `${window.location.origin.replace('5173', '3001')}?theme=${theme}${demo}`
+    : `http://${host}:3001?theme=${theme}${demo}`;
   return (
     <div className="flex-1 min-h-0">
       <iframe

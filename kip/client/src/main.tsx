@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { ThemeProvider } from './components/theme-provider';
+import { installDemoMask, isDemoMode } from './lib/demoMask';
+
+if (isDemoMode()) installDemoMask();
 
 const queryTheme = new URLSearchParams(window.location.search).get('theme');
 const urlTheme = queryTheme === 'light' || queryTheme === 'dark' ? queryTheme : undefined;

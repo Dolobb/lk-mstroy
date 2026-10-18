@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 import App from './App';
 import { ThemeProvider } from './components/theme-provider';
+import { installDemoMask, isDemoMode } from './lib/demoMask';
+
+if (isDemoMode()) installDemoMask();
 
 const queryClient = new QueryClient({
   defaultOptions: {
