@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { Calendar, ExternalLink, RefreshCw, ChevronDown, MapPin, Navigation, Settings } from "lucide-react"
+import { ExternalLink, RefreshCw, ChevronDown, MapPin, Navigation, Settings } from "lucide-react"
 import { DumpTruckIcon } from "./VehicleIcons"
 import { cn } from "@/lib/utils"
 import { VehicleTypeSlider, TYPE_COLORS, type VehicleType } from "./vehicle-type-slider"
@@ -78,7 +78,7 @@ function AddressMultiSelect({
         <ChevronDown className={cn("w-3 h-3 shrink-0 text-text-muted transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="absolute top-full mt-1 left-0 right-0 z-50 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute top-full mt-1 left-0 right-0 z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden">
           {options.length === 0 ? (
             <div className="px-3 py-2 text-[11px] text-text-muted">Нет данных (запустите синхронизацию)</div>
           ) : (
@@ -292,11 +292,11 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
           className="w-[3px] rounded-full flex-shrink-0 transition-colors duration-300"
           style={{ background: TYPE_COLORS[vehicleType] }}
         />
-        <div className="flex-1 flex flex-col gap-3">
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
           {/* Period */}
           <div>
             <label className="text-[11px] uppercase tracking-wider text-text-muted font-medium mb-2 block">
-              Период
+              Период · ДД.ММ.ГГГГ
             </label>
             <div className="grid grid-cols-2 gap-3">
               <div className="relative">
@@ -305,9 +305,8 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
                   value={orderStart}
                   onChange={(e) => setOrderStart(e.target.value)}
                   placeholder="ДД.ММ.ГГГГ"
-                  className="w-full px-3 py-2 pr-9 rounded-xl bg-card-inner border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-secondary"
+                  className="w-full px-3 py-2 rounded-xl bg-card-inner border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-secondary"
                 />
-                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               </div>
               <div className="relative">
                 <input
@@ -315,9 +314,8 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
                   value={orderEnd}
                   onChange={(e) => setOrderEnd(e.target.value)}
                   placeholder="ДД.ММ.ГГГГ"
-                  className="w-full px-3 py-2 pr-9 rounded-xl bg-card-inner border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-secondary"
+                  className="w-full px-3 py-2 rounded-xl bg-card-inner border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-secondary"
                 />
-                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               </div>
             </div>
           </div>
@@ -429,10 +427,10 @@ export function ReportsColumn({ vehicleType, onTypeChange, onCreateReport, hideT
             Нет отчётов. Задайте период и нажмите «Создать отчёт».
           </div>
         ) : (
-          reports.map((report) => (
+          reports.slice(0, 10).map((report) => (
             <div
               key={report.id}
-              className="bg-card-inner rounded-xl border border-border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="bg-card-inner rounded-xl border border-border p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               <h4 className="text-sm font-bold text-text-primary mb-1">
                 {report.title ?? (report.from_pl && report.to_pl

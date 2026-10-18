@@ -7,13 +7,11 @@ import {
   startSync,
   getSyncStatus,
 } from './api';
-import { fmtIsoDateTime } from './utils';
 import { VehicleOverview } from '../../components/dashboard/vehicle-overview';
 
 // ===================== SyncPanel =====================
 
 interface SyncPanelProps {
-  summary: DashboardSummary | null;
   days: number;
   onDaysChange: (d: number) => void;
   onSyncDone: () => void;
@@ -28,7 +26,7 @@ const PERIOD_OPTIONS = [
   { label: '1м', days: daysFromMonthStart },
 ];
 
-const SyncPanel: React.FC<SyncPanelProps> = ({ summary, days, onDaysChange, onSyncDone }) => {
+const SyncPanel: React.FC<SyncPanelProps> = ({ days, onDaysChange, onSyncDone }) => {
   const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState('');
   const [monCurrent, setMonCurrent] = useState(0);
@@ -71,19 +69,18 @@ const SyncPanel: React.FC<SyncPanelProps> = ({ summary, days, onDaysChange, onSy
     return () => clearInterval(interval);
   }, [syncing, onSyncDone]);
 
-  const ls = summary?.last_sync;
   const monPct = monTotal > 0 ? Math.round((monCurrent / monTotal) * 100) : null;
   const isMonPhase = syncing && monTotal > 0;
 
   return (
-    <div className="glass-card px-4 py-3 flex flex-col gap-2 mb-3 shrink-0">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground font-medium">Период:</span>
+    <div className="flex flex-col gap-2 flex-1 min-w-[320px]">
+      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+        <span className="text-[10px] text-muted-foreground font-medium">Загрузка из TIS:</span>
         {PERIOD_OPTIONS.map((opt) => (
           <button
             key={opt.days}
             onClick={() => onDaysChange(opt.days)}
-            className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer border-none ${
+            className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors cursor-pointer border-none ${
               days === opt.days
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground hover:text-foreground'
@@ -95,20 +92,13 @@ const SyncPanel: React.FC<SyncPanelProps> = ({ summary, days, onDaysChange, onSy
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer border-none disabled:opacity-60"
+          className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer border-none disabled:opacity-60"
         >
           <RefreshCw className={`size-3.5 ${syncing ? 'animate-spin' : ''}`} />
           Синхронизировать
         </button>
-        {summary && (
-          <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
-            <span><span className="text-foreground font-semibold">{summary.vehicles_count}</span> машин</span>
-            <span><span className="text-foreground font-semibold">{summary.requests_total}</span> заявок</span>
-            <span className="text-green-500">{summary.requests_stable} финал</span>
-            <span className="text-yellow-500">{summary.requests_in_progress} в работе</span>
-          </div>
-        )}
       </div>
+
 
       {syncing && (
         <div className="flex flex-col gap-1.5">
@@ -139,19 +129,13 @@ const SyncPanel: React.FC<SyncPanelProps> = ({ summary, days, onDaysChange, onSy
           <span className="text-muted-foreground">обновлено: <span className="text-foreground font-semibold">{lastStats.requests_updated}</span></span>
           <span className="text-muted-foreground">
             всего: <span className="text-foreground font-semibold">{lastStats.requests_total}</span> заявок
-            · <span className="text-green-400">{lastStats.requests_stable} финал</span>
+            · <span className="text-green-400">{lastStats.requests_stable} завершено</span>
             · <span className="text-yellow-400">{lastStats.requests_in_progress} в работе</span>
           </span>
         </div>
       )}
 
-      {ls && !syncing && !lastStats && (
-        <div className="text-xs text-muted-foreground">
-          Последняя синхронизация: {fmtIsoDateTime(ls.synced_at)} — ПЛ {ls.period_from_pl}–{ls.period_to_pl},
-          заявки {ls.period_from_req}–{ls.period_to_req}
-          {ls.status === 'error' && <span className="text-red-500 ml-1">(ошибка)</span>}
-        </div>
-      )}
+
     </div>
   );
 };
@@ -211,13 +195,22 @@ export const TyagachiVehicleBlock: React.FC = () => {
 
   return (
     <>
-      <SyncPanel
-        summary={summary}
-        days={days}
-        onDaysChange={setDays}
-        onSyncDone={handleSyncDone}
-      />
       <VehicleOverview
+        headerControls={
+          <SyncPanel
+            days={days}
+            onDaysChange={setDays}
+            onSyncDone={handleSyncDone}
+          />
+        }
+        headerSummary={summary && (
+          <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span><span className="text-foreground font-semibold">{summary.vehicles_count}</span> машин</span>
+            <span><span className="text-foreground font-semibold">{summary.requests_total}</span> заявок</span>
+            <span className="text-green-500">{summary.requests_stable} завершено</span>
+            <span className="text-yellow-500">{summary.requests_in_progress} в работе</span>
+          </div>
+        )}
         vehicleType="tyagachi"
         onTypeChange={() => {}}
         realVehicles={realVehicles}

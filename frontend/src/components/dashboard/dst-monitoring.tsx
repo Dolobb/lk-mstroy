@@ -195,7 +195,7 @@ export function DstMonitoring() {
       {/* KIP Table */}
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-card z-10">
+          <thead className="sticky top-0 bg-popover z-10">
             <tr>
               <th
                 rowSpan={2}

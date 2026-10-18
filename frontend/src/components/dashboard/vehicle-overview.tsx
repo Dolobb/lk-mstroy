@@ -142,6 +142,8 @@ interface VehicleOverviewProps {
   loadingVehicles?: boolean
   fetchRequests?: (plate: string, days: number) => Promise<TyagachiRequest[]>
   hideTypeSlider?: boolean
+  headerSummary?: React.ReactNode
+  headerControls?: React.ReactNode
   lastSyncAt?: string | null
 }
 
@@ -153,6 +155,8 @@ export function VehicleOverview({
   fetchRequests,
   hideTypeSlider,
   lastSyncAt,
+  headerControls,
+  headerSummary,
 }: VehicleOverviewProps) {
   const isRealMode = !!realVehicles
 
@@ -290,14 +294,18 @@ export function VehicleOverview({
   )
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       {!hideTypeSlider && <VehicleTypeSlider value={vehicleType} onChange={onTypeChange} />}
 
       {/* Header + Period */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <h2 className="text-lg font-bold text-text-primary">Обзор машин</h2>
+      <div className="flex items-start justify-between flex-wrap gap-x-3 gap-y-2 mb-3 shrink-0">
+        <h2 className="text-lg font-bold text-text-primary shrink-0">Обзор машин</h2>
+        {headerControls}
+      </div>
+      {headerSummary && <div className="mb-3 shrink-0">{headerSummary}</div>}
+      <div className="flex items-center justify-end flex-wrap gap-x-3 gap-y-2 mb-3 shrink-0">
         <div className="flex items-center gap-1 text-xs">
-          <span className="text-text-secondary mr-1">Период:</span>
+          <span className="text-text-secondary mr-1">Окно графика:</span>
           {WEEK_PRESETS.map(p => (
             <button
               key={p.weeks}
@@ -373,7 +381,10 @@ export function VehicleOverview({
           ))
         ) : filteredVehicles.length === 0 ? (
           <div className="px-3 py-4 text-xs text-text-muted text-center">
-            {isRealMode ? "Нет данных. Запустите синхронизацию." : "Нет совпадений"}
+            {isRealMode && realVehicles!.length === 0 ? "Нет данных. Запустите синхронизацию." : <>
+              <div>Нет совпадений</div>
+              <button className="mt-2 text-secondary hover:underline" onClick={() => { setSearch(""); setActiveFilter("Все") }}>Сбросить фильтры</button>
+            </>}
           </div>
         ) : (
           filteredVehicles.map(v => {
@@ -493,7 +504,7 @@ export function VehicleOverview({
                     {STATIC_TIMELINE.map((o, i) => (
                       <div
                         key={i}
-                        className={cn("rounded-md flex items-center justify-center text-[8px] font-bold text-white", o.color)}
+                        className={cn("rounded-md flex items-center justify-center text-[10px] font-bold text-white", o.color)}
                         style={{ width: `${o.end - o.start}%`, position: "relative" }}
                         onMouseEnter={() => setHoveredSegment(`s${i}`)}
                         onMouseLeave={() => setHoveredSegment(null)}
@@ -501,7 +512,7 @@ export function VehicleOverview({
                         {o.id}
                         {hoveredSegment === `s${i}` && (
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 pointer-events-none"
-                            style={{ background: "var(--card)", border: "1px solid var(--border)", backdropFilter: "blur(16px)", borderRadius: 8, padding: "6px 10px", minWidth: 160, whiteSpace: "nowrap" }}>
+                            style={{ background: "var(--popover)", border: "1px solid var(--border)", backdropFilter: "blur(16px)", borderRadius: 8, padding: "6px 10px", minWidth: 160, whiteSpace: "nowrap" }}>
                             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)" }}>{o.id}</div>
                             <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{STATIC_ORDERS.find(ord => ord.id === o.id)?.route?.slice(0, 40) ?? ""}</div>
                           </div>
@@ -547,14 +558,20 @@ const PL_STATUS_MAP: Record<string, { Icon: LucideIcon; color: string; label: st
   GIVED:       { Icon: Send,         color: '#a78bfa', label: 'Выдан' },
 }
 
-function PLStatusBadge({ status }: { status: string | null }) {
+const requestPlural = new Intl.PluralRules('ru')
+function requestWord(count: number) {
+  const form = requestPlural.select(count)
+  return form === 'one' ? 'заявка' : form === 'few' ? 'заявки' : 'заявок'
+}
+
+function PLStatusBadge({ status, id, date }: { status: string | null; id: string; date: string | null }) {
   const cfg: { Icon: LucideIcon; color: string; label: string } =
-    (status && PL_STATUS_MAP[status]) || { Icon: Circle, color: '#94a3b8', label: status ?? '?' }
+    (status && PL_STATUS_MAP[status]) || { Icon: Circle, color: '#94a3b8', label: 'Статус не указан' }
   return (
-    <span className="inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full border"
+    <span title={`ПЛ ${id} · ${fmtRuDT(date)} · ${cfg.label}`} className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border"
       style={{ color: cfg.color, borderColor: `${cfg.color}40`, background: `${cfg.color}14` }}>
       <cfg.Icon size={8} />
-      {cfg.label}
+      ПЛ {id.split("_")[0]} · {cfg.label}
     </span>
   )
 }
@@ -638,7 +655,7 @@ function TimelineRuler({
           >
             <div className="h-2 w-px bg-border/70 mt-0.5" />
             {(i === 0 || i === 7 || i % 2 === 0) && (
-              <span className="text-[9px] text-muted-foreground mt-0.5 whitespace-nowrap">{t.label}</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">{t.label}</span>
             )}
           </div>
         ))}
@@ -692,6 +709,14 @@ function VehicleDetailRow({
   const [pinnedInfo, setPinnedInfo] = useState<{ seg: StackedTimelineSegment, x: number, y: number } | null>(null)
   const [pinnedFanState, setPinnedFanState] = useState<FanState | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
+  const [barWidth, setBarWidth] = useState(0)
+  useEffect(() => {
+    const bar = barRef.current
+    if (!bar) return
+    const observer = new ResizeObserver(([entry]) => setBarWidth(entry.contentRect.width))
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [expanded, isLoading])
   const pinnedFanRef = useRef<HTMLDivElement>(null)
   const pinnedInfoRef = useRef<HTMLDivElement>(null)
 
@@ -759,9 +784,9 @@ function VehicleDetailRow({
         className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-card transition-colors"
       >
         <div className="flex-1 min-w-0 text-left">
-          <div className="flex items-center gap-2">
+          <div className={cn("flex gap-2", expanded ? "flex-col items-start gap-0.5" : "items-center")}>
             <span className="text-sm font-bold text-text-primary shrink-0">{plate}</span>
-            <span className="text-xs text-text-secondary truncate">{model}</span>
+            <span title={model} className={cn("text-xs text-text-secondary", expanded ? "whitespace-normal break-words" : "truncate")}>{model}</span>
           </div>
           <div className="text-[10px] mt-0.5 flex gap-2 text-text-muted">
             {isLoading
@@ -772,7 +797,7 @@ function VehicleDetailRow({
                   return <>
                     <span className="text-[#22C55E]">{st} стаб.</span>
                     <span className="text-orange-400">{ip} в работе</span>
-                    {requests && <span>{requests.length} заявок</span>}
+                    {requests && <span>{requests.length} {requestWord(requests.length)}</span>}
                   </>
                 })()
             }
@@ -837,7 +862,7 @@ function VehicleDetailRow({
             {(stacked ?? []).map((seg, i) => (
               <div
                 key={i}
-                className="absolute top-0 h-full rounded-sm overflow-hidden flex items-center justify-center text-[7px] font-bold text-white"
+                className="absolute top-0 h-full rounded-sm overflow-hidden flex items-center justify-center text-[10px] font-bold text-white"
                 style={{
                   left: `${seg.startPct}%`,
                   width: `${seg.widthPct}%`,
@@ -846,7 +871,20 @@ function VehicleDetailRow({
                   zIndex: seg.zIndex,
                 }}
               >
-                {seg.widthPct > 6 && `#${seg.request.request_number}`}
+                {(() => {
+                  const center = seg.startPct + seg.widthPct / 2
+                  let left = seg.startPct, right = seg.startPct + seg.widthPct
+                  for (const other of stacked ?? []) {
+                    if (other === seg || other.zIndex < seg.zIndex || (other.zIndex === seg.zIndex && (stacked ?? []).indexOf(other) < i)) continue
+                    const end = other.startPct + other.widthPct
+                    if (other.startPct <= center && end >= center) return null
+                    if (end <= center) left = Math.max(left, end)
+                    if (other.startPct >= center) right = Math.min(right, other.startPct)
+                  }
+                  const label = `#${seg.request.request_number}`
+                  const available = Math.min(center - left, right - center) * 2 * barWidth / 100
+                  return available >= label.length * 7 + 8 ? label : null
+                })()}
               </div>
             ))}
           </div>
@@ -890,7 +928,7 @@ function VehicleDetailRow({
                   {req.pl_records && req.pl_records.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-0.5">
                       {req.pl_records.map((pl, i) => (
-                        <PLStatusBadge key={i} status={pl.pl_status} />
+                        <PLStatusBadge key={i} status={pl.pl_status} id={pl.pl_id} date={pl.pl_date_out} />
                       ))}
                     </div>
                   )}
@@ -912,8 +950,8 @@ function VehicleDetailRow({
           transform: "translate(-50%, -100%)",
           zIndex: 9999,
           pointerEvents: "none",
-          background: "rgba(12, 13, 20, 0.93)",
-          border: "1px solid rgba(255,255,255,0.12)",
+          background: "var(--popover)",
+          border: "1px solid color-mix(in srgb, var(--foreground) 12%, transparent)",
           backdropFilter: "blur(14px)",
           borderRadius: 9,
           padding: "8px 12px",
@@ -922,30 +960,30 @@ function VehicleDetailRow({
           boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", marginBottom: 4 }}>
           Заявка #{tooltipInfo.seg.request.request_number}
         </div>
         {(tooltipInfo.seg.request.route_start_address || tooltipInfo.seg.request.route_end_address) && (
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, marginBottom: 3 }}>
+          <div style={{ fontSize: 10, color: "color-mix(in srgb, var(--foreground) 70%, transparent)", lineHeight: 1.4, marginBottom: 3 }}>
             {tooltipInfo.seg.request.route_start_address && tooltipInfo.seg.request.route_end_address
               ? `${tooltipInfo.seg.request.route_start_address} → ${tooltipInfo.seg.request.route_end_address}`
               : tooltipInfo.seg.request.route_start_address ?? tooltipInfo.seg.request.route_end_address}
           </div>
         )}
         {(tooltipInfo.seg.plDateOut || tooltipInfo.seg.plDateIn) && (
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>
+          <div style={{ fontSize: 10, color: "color-mix(in srgb, var(--foreground) 40%, transparent)", marginBottom: 2 }}>
             ПЛ: {fmtRuDT(tooltipInfo.seg.plDateOut)} — {fmtRuDT(tooltipInfo.seg.plDateIn)}
           </div>
         )}
         {(() => {
-          const cfg = (tooltipInfo.seg.plStatus && PL_STATUS_MAP[tooltipInfo.seg.plStatus]) || { color: '#94a3b8', label: tooltipInfo.seg.plStatus ?? '—' }
+          const cfg = (tooltipInfo.seg.plStatus && PL_STATUS_MAP[tooltipInfo.seg.plStatus]) || { color: '#94a3b8', label: 'Статус не указан' }
           return (
             <div style={{ fontSize: 10, color: cfg.color, marginBottom: 4 }}>
               {tooltipInfo.seg.plId ?? '—'} · {cfg.label}
             </div>
           )
         })()}
-        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: 2 }}>нажмите для закрепления</div>
+        <div style={{ fontSize: 10, color: 'color-mix(in srgb, var(--foreground) 25%, transparent)', marginTop: 2 }}>нажмите для закрепления</div>
       </div>,
       document.body
     )}
@@ -960,8 +998,8 @@ function VehicleDetailRow({
           transform: 'translate(-50%, -100%)',
           zIndex: 10001,
           pointerEvents: 'none',
-          background: 'rgba(12,13,20,0.93)',
-          border: '1px solid rgba(255,255,255,0.12)',
+          background: 'var(--popover)',
+          border: '1px solid color-mix(in srgb, var(--foreground) 12%, transparent)',
           borderRadius: 8,
           padding: '7px 9px',
           backdropFilter: 'blur(14px)',
@@ -969,8 +1007,8 @@ function VehicleDetailRow({
           minWidth: 160,
         }}
       >
-        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 5 }}>
-          {fanState.segments.length} заявки · нажмите для подробностей
+        <div style={{ fontSize: 10, color: 'color-mix(in srgb, var(--foreground) 35%, transparent)', marginBottom: 5 }}>
+          {fanState.segments.length} ПЛ · нажмите для подробностей
         </div>
         {fanState.segments.map((seg, i) => (
           <div
@@ -983,11 +1021,11 @@ function VehicleDetailRow({
               opacity: 0.9,
             }}
           >
-            <span style={{ fontSize: 10, color: '#fff', fontWeight: 600 }}>
+            <span style={{ fontSize: 10, color: 'var(--foreground)', fontWeight: 600 }}>
               #{seg.request.request_number}
             </span>
             {seg.plId && (
-              <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', marginLeft: 6 }}>
+              <span style={{ fontSize: 10, color: 'color-mix(in srgb, var(--foreground) 60%, transparent)', marginLeft: 6 }}>
                 {seg.plId}
               </span>
             )}
@@ -1009,8 +1047,8 @@ function VehicleDetailRow({
           transform: 'translate(-50%, -100%)',
           zIndex: 10003,
           pointerEvents: 'auto',
-          background: 'rgba(12,13,20,0.97)',
-          border: '1px solid rgba(255,255,255,0.22)',
+          background: 'var(--popover)',
+          border: '1px solid color-mix(in srgb, var(--foreground) 22%, transparent)',
           borderRadius: 10,
           padding: '9px 13px',
           backdropFilter: 'blur(20px)',
@@ -1020,29 +1058,29 @@ function VehicleDetailRow({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--foreground)' }}>
             Заявка #{pinnedInfo.seg.request.request_number}
           </span>
           <button
             onClick={() => setPinnedInfo(null)}
-            style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none',
+            style={{ fontSize: 12, color: 'color-mix(in srgb, var(--foreground) 35%, transparent)', background: 'none', border: 'none',
                      cursor: 'pointer', padding: '0 0 0 8px', lineHeight: 1, flexShrink: 0 }}
           >✕</button>
         </div>
         {(pinnedInfo.seg.request.route_start_address || pinnedInfo.seg.request.route_end_address) && (
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.72)', lineHeight: 1.45, marginBottom: 5 }}>
+          <div style={{ fontSize: 11, color: 'color-mix(in srgb, var(--foreground) 72%, transparent)', lineHeight: 1.45, marginBottom: 5 }}>
             {pinnedInfo.seg.request.route_start_address && pinnedInfo.seg.request.route_end_address
               ? `${pinnedInfo.seg.request.route_start_address} → ${pinnedInfo.seg.request.route_end_address}`
               : pinnedInfo.seg.request.route_start_address ?? pinnedInfo.seg.request.route_end_address}
           </div>
         )}
         {(pinnedInfo.seg.plDateOut || pinnedInfo.seg.plDateIn) && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', marginBottom: 3 }}>
+          <div style={{ fontSize: 10, color: 'color-mix(in srgb, var(--foreground) 45%, transparent)', marginBottom: 3 }}>
             ПЛ: {fmtRuDT(pinnedInfo.seg.plDateOut)} — {fmtRuDT(pinnedInfo.seg.plDateIn)}
           </div>
         )}
         {(() => {
-          const cfg = (pinnedInfo.seg.plStatus && PL_STATUS_MAP[pinnedInfo.seg.plStatus]) || { color: '#94a3b8', label: pinnedInfo.seg.plStatus ?? '—' }
+          const cfg = (pinnedInfo.seg.plStatus && PL_STATUS_MAP[pinnedInfo.seg.plStatus]) || { color: '#94a3b8', label: 'Статус не указан' }
           return (
             <div style={{ fontSize: 10, color: cfg.color, marginBottom: 8 }}>
               {pinnedInfo.seg.plId ?? '—'} · {cfg.label}
@@ -1057,7 +1095,7 @@ function VehicleDetailRow({
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             padding: '4px 11px', borderRadius: 6,
-            background: plColor(pinnedInfo.seg.plStatus), color: '#fff',
+            background: plColor(pinnedInfo.seg.plStatus), color: 'var(--foreground)',
             fontSize: 10, fontWeight: 700, textDecoration: 'none', cursor: 'pointer',
           }}
         >
@@ -1080,8 +1118,8 @@ function VehicleDetailRow({
           transform: 'translate(-50%, -100%)',
           zIndex: 10002,
           pointerEvents: 'auto',
-          background: 'rgba(12,13,20,0.97)',
-          border: '1px solid rgba(255,255,255,0.22)',
+          background: 'var(--popover)',
+          border: '1px solid color-mix(in srgb, var(--foreground) 22%, transparent)',
           borderRadius: 10,
           padding: '8px 10px',
           backdropFilter: 'blur(20px)',
@@ -1090,12 +1128,12 @@ function VehicleDetailRow({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>
-            {pinnedFanState.segments.length} заявки в перекрытии
+          <span style={{ fontSize: 10, color: 'color-mix(in srgb, var(--foreground) 45%, transparent)' }}>
+            {pinnedFanState.segments.length} ПЛ в перекрытии
           </span>
           <button
             onClick={() => setPinnedFanState(null)}
-            style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none',
+            style={{ fontSize: 12, color: 'color-mix(in srgb, var(--foreground) 35%, transparent)', background: 'none', border: 'none',
                      cursor: 'pointer', padding: '0 0 0 8px', lineHeight: 1 }}
           >✕</button>
         </div>
@@ -1112,27 +1150,27 @@ function VehicleDetailRow({
             }}
             onMouseEnter={() => setPinnedFanState(p => p ? { ...p, hoveredIdx: i } : null)}
           >
-            <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: 'var(--foreground)', fontWeight: 600 }}>
               #{seg.request.request_number}
             </span>
             {seg.plId && (
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginLeft: 6 }}>{seg.plId}</span>
+              <span style={{ fontSize: 10, color: 'color-mix(in srgb, var(--foreground) 55%, transparent)', marginLeft: 6 }}>{seg.plId}</span>
             )}
           </div>
         ))}
         {pinnedFanState.hoveredIdx !== null && (() => {
           const seg = pinnedFanState.segments[pinnedFanState.hoveredIdx!]
           if (!seg) return null
-          const cfg = (seg.plStatus && PL_STATUS_MAP[seg.plStatus]) || { color: '#94a3b8', label: seg.plStatus ?? '—' }
+          const cfg = (seg.plStatus && PL_STATUS_MAP[seg.plStatus]) || { color: '#94a3b8', label: 'Статус не указан' }
           return (
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 7, marginTop: 4,
-                          fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>
+            <div style={{ borderTop: '1px solid color-mix(in srgb, var(--foreground) 10%, transparent)', paddingTop: 7, marginTop: 4,
+                          fontSize: 10, color: 'color-mix(in srgb, var(--foreground) 65%, transparent)' }}>
               {(seg.request.route_start_address || seg.request.route_end_address) && (
                 <div style={{ marginBottom: 3, lineHeight: 1.4 }}>
                   {seg.request.route_start_address} → {seg.request.route_end_address}
                 </div>
               )}
-              <div style={{ color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>
+              <div style={{ color: 'color-mix(in srgb, var(--foreground) 40%, transparent)', marginBottom: 3 }}>
                 ПЛ: {fmtRuDT(seg.plDateOut)} — {fmtRuDT(seg.plDateIn)}
               </div>
               <div style={{ color: cfg.color, marginBottom: 8 }}>
@@ -1146,7 +1184,7 @@ function VehicleDetailRow({
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
                   padding: '4px 11px', borderRadius: 6,
-                  background: plColor(seg.plStatus), color: '#fff',
+                  background: plColor(seg.plStatus), color: 'var(--foreground)',
                   fontSize: 10, fontWeight: 700, textDecoration: 'none', cursor: 'pointer',
                 }}
               >
