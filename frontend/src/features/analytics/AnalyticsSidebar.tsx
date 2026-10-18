@@ -207,7 +207,7 @@ function ObjectCard({
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {object.groups.map(group => {
+          {object.groups.filter(group => group.vehicleCount > 0).map(group => {
             const barPct = group.kipPct ?? 0;
             return (
               <div key={group.key} style={{ display: 'grid', gridTemplateColumns: '146px 1fr 42px', alignItems: 'center', gap: 8 }}>
@@ -267,14 +267,16 @@ function TierTab({
   return (
     <button
       type="button"
+      title={title}
       onClick={onClick}
       style={{
-        flex: 1,
+        flex: '1 1 auto',
+        minWidth: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 7,
-        padding: '8px 10px',
+        gap: 6,
+        padding: '7px 8px',
         borderRadius: 8,
         background: active ? 'rgba(96,165,250,0.12)' : 'transparent',
         border: '1px solid',
@@ -286,15 +288,17 @@ function TierTab({
     >
       <span style={{
         fontSize: 12,
-        fontWeight: 850,
+        fontWeight: 700,
         color: active ? 'var(--sv-text-1)' : 'var(--sv-text-3)',
-        textTransform: 'uppercase',
-        letterSpacing: 0.3,
         whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        minWidth: 0,
       }}>
         {title}
       </span>
       <span style={{
+        flexShrink: 0,
         minWidth: 18,
         padding: '1px 6px',
         borderRadius: 999,
@@ -426,7 +430,7 @@ export function AnalyticsSidebar({
             onClick={() => onTierChange('key')}
           />
           <TierTab
-            title="Второстепенные"
+            title="Прочие"
             count={secondaryObjects.length}
             active={activeTier === 'secondary'}
             onClick={() => onTierChange('secondary')}
@@ -459,7 +463,7 @@ export function AnalyticsSidebar({
           )
         ) : activeObjects.length === 0 ? (
           <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12, color: 'var(--sv-text-3)' }}>
-            {activeTier === 'key' ? 'Нет объектов' : 'Нет второстепенных зон за период'}
+            {activeTier === 'key' ? 'Нет объектов' : 'Нет прочих зон за период'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
