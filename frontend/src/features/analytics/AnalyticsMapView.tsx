@@ -182,6 +182,21 @@ function InitialFitBounds({ bounds }: { bounds: LatLngBoundsLiteral | null }) {
   return null;
 }
 
+function objectClusterIcon(cluster: { getChildCount: () => number }) {
+  const n = cluster.getChildCount();
+  const word = new Intl.PluralRules('ru').select(n) === 'one' ? 'объект' : ['few'].includes(new Intl.PluralRules('ru').select(n)) ? 'объекта' : 'объектов';
+  return L.divIcon({ className: '', html: `<div class="sv-map-obj-cluster">${n} ${word}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+}
+
+/** Помечает контейнер карты «далеко/близко» — на обзорном масштабе плашки объектов компактные (без названия), чтобы не слипаться. */
+function ZoomBand() {
+  const map = useMap();
+  const apply = () => { map.getContainer().dataset.zoomband = map.getZoom() < 7 ? 'far' : 'near'; };
+  useEffect(apply, [map]);
+  useMapEvents({ zoomend: apply });
+  return null;
+}
+
 function ZoneMapClickHandler({
   selectedData,
   onOutsideSelected,
@@ -1222,6 +1237,7 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
+          <ZoomBand />
           <InitialFitBounds bounds={selectedVehicleId || focusedObjectUid ? null : allBounds} />
           <ZoneMapClickHandler
             selectedData={selectedData}
@@ -1320,12 +1336,33 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                     },
                   }}
                 />
+              </React.Fragment>
+            );
+          })}
+
+          {/* Плашки объектов кластеризуются: на обзорном масштабе близкие объекты
+              сливаются в «N объектов» вместо стопки наложенных подписей. */}
+          <MarkerClusterGroup
+            maxClusterRadius={70}
+            showCoverageOnHover={false}
+            spiderfyOnMaxZoom={false}
+            iconCreateFunction={objectClusterIcon}
+          >
+            {boundaryList.map(bd => {
+              const ring = bd.boundary.geometry.coordinates[0];
+              if (!ring) return null;
+              const positions = geoJsonRingToLeaflet(ring);
+              const kip = avgKip(bd.vehicles);
+              const color = kip > 0 ? kipColor(kip) : '#60A5FA';
+              const isActive = focusedObjectUid === bd.objectUid;
+              const labelPosition = isActive ? computeBoundsTopLeft(positions) : computeCentroid(positions);
+              return (
                 <Marker
                   key={`label-${bd.objectUid}`}
                   position={labelPosition}
                   icon={L.divIcon({
                     className: '',
-                    html: `<div class="sv-map-obj-badge${isActive ? ' active' : ''}" style="--kip-color:${color}"><div class="sv-map-obj-badge-name">${bd.objectName}</div><div class="sv-map-obj-badge-sub"><span class="sv-map-obj-badge-vehicles">${bd.vehicles.length} ТС</span>${kip > 0 ? `<span class="sv-map-obj-badge-kip">${Math.round(kip)}%</span>` : ''}</div></div>`,
+                    html: `<div class="sv-map-obj-badge${isActive ? ' active' : ''}" style="--kip-color:${color}" title="${bd.objectName.replace(/"/g, '&quot;')}"><div class="sv-map-obj-badge-name">${bd.objectName}</div><div class="sv-map-obj-badge-sub"><span class="sv-map-obj-badge-vehicles">${bd.vehicles.length} ТС</span>${kip > 0 ? `<span class="sv-map-obj-badge-kip">${Math.round(kip)}%</span>` : ''}</div></div>`,
                     iconSize: [0, 0],
                     iconAnchor: [0, 0],
                   })}
@@ -1336,9 +1373,9 @@ export function AnalyticsMapView({ groups, dateFrom, dateTo, overlayTopLeft, pos
                     },
                   }}
                 />
-              </React.Fragment>
-            );
-          })}
+              );
+            })}
+          </MarkerClusterGroup>
 
           <MarkerClusterGroup chunkedLoading spiderfyDistanceMultiplier={2} showCoverageOnHover={false}>
             {displayedPositionPins.map(p => {

@@ -22,7 +22,7 @@
 .sv-v2-tl-shifts { display: flex; gap: 3px; }
 .sv-v2-tl-cell {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  width: 26px; height: 64px; padding: 3px 0; border-radius: 6px; cursor: pointer;
+  width: 26px; height: 70px; padding: 3px 0; border-radius: 6px; cursor: pointer;
   border: 1px solid transparent; background: var(--sv-hover-bg);
   transition: border-color .12s, background .12s;
 }

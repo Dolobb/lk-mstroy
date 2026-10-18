@@ -214,7 +214,7 @@ export function AnalyticsCardsViewV2({
   const hasMore = visibleVehicleCount < totalVehicleCount;
 
   return (
-    <div className="sv-cards-scroll sv-v2-scroll" style={{ flex: 1, overflowY: 'auto', padding: '4px 0', minHeight: 0 }}>
+    <div className="sv-cards-scroll sv-v2-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 0 4px', minHeight: 0 }}>
       <DayTimelineNav
         days={timelineDays}
         selectedDate={active.date}
@@ -222,7 +222,8 @@ export function AnalyticsCardsViewV2({
         onSelect={(date, shift) => onSelectedChange({ date, shift })}
       />
 
-      {statusSummary && (
+      {/* Служебная сводка ledger — только для диагностики (?debug=1), в обычном UI не показываем */}
+      {statusSummary && new URLSearchParams(window.location.search).has('debug') && (
         <div
           style={{
             display: 'flex',
@@ -256,7 +257,8 @@ export function AnalyticsCardsViewV2({
             <span className="sv-v2-grp-cnt">{g.vehicles.length} ТС</span>
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid var(--sv-divider)', margin: '0 0 8px 0' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, alignItems: 'start' }}>
+          {/* Таблица рейсов в карточке требует ~760px — две колонки только когда они помещаются */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 780px), 1fr))', gap: 8, alignItems: 'start' }}>
             {g.vehicles.map(v => {
               const pipeline = v.source === 'dump_truck' ? 'dt-shift' : 'kip-shift';
               const shift = v.source === 'dump_truck'

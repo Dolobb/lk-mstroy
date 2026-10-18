@@ -44,7 +44,7 @@ export function DayTimelineNav({ days, selectedDate, selectedShift, onSelect }: 
           <div className="sv-v2-tl-shifts">
             {d.cells.map(c => {
               const sel = selectedDate === d.date && selectedShift === c.shift;
-              const h = c.hasData ? Math.max(2, Math.round((c.kip / 100) * 30)) : 2;
+              const h = c.hasData ? Math.max(2, Math.round((c.kip / 100) * 30)) : 0;
               const shiftLbl = c.shift === 'shift1' ? 'C1' : 'C2';
               return (
                 <div

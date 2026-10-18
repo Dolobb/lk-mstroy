@@ -210,3 +210,17 @@
   from { opacity: 0; transform: scale(0.5); }
   to   { opacity: 1; transform: scale(1); }
 }
+
+/* Обзорный масштаб: компактные плашки (только ТС и %), название — при наведении и на близком зуме */
+[data-zoomband="far"] .sv-map-obj-badge:not(.active) { min-width: 0; padding: 4px 8px; }
+[data-zoomband="far"] .sv-map-obj-badge:not(.active):not(:hover) .sv-map-obj-badge-name { display: none; }
+.sv-map-obj-badge-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sv-map-obj-badge:hover .sv-map-obj-badge-name, .sv-map-obj-badge.active .sv-map-obj-badge-name { -webkit-line-clamp: unset; }
+.sv-map-obj-badge { width: max-content; }
+.sv-map-obj-cluster {
+  transform: translate(-50%, -50%); width: max-content;
+  background: rgba(10, 14, 26, 0.9); color: #fff; border: 1.5px solid rgba(255,255,255,0.18);
+  border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+}
+.sv-map-obj-cluster:hover { border-color: #60A5FA; }
