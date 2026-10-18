@@ -20,6 +20,7 @@ import {
 
 interface Props {
   details: VehicleDetailRow[];
+  period: { from: string; to: string; archived: boolean };
 }
 
 interface PivotRow {
@@ -46,10 +47,10 @@ function getLoadColor(value: number | null): string | undefined {
   return '#22c55e';
 }
 
-function formatDate(d: string): string {
+function formatDate(d: string, year = false): string {
   const clean = d.split('T')[0];
   const parts = clean.split('-');
-  return `${parts[2]}.${parts[1]}`;
+  return `${parts[2]}.${parts[1]}${year ? `.${parts[0]}` : ""}`;
 }
 
 function pct(v: number | null): string {
@@ -66,7 +67,7 @@ function hoursToHmm(h: number): string {
 
 const MIN_ROWS = 7;
 
-const VehicleDetailTable: React.FC<Props> = ({ details }) => {
+const VehicleDetailTable: React.FC<Props> = ({ details, period }) => {
   const { pivotRows, totals } = useMemo(() => {
     const byDate = new Map<string, { morning?: VehicleDetailRow; evening?: VehicleDetailRow }>();
 
@@ -132,18 +133,19 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
           <DialogTrigger asChild>
             <button
               className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none"
-              style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}
+              style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}
             >
               Все параметры
             </button>
           </DialogTrigger>
-          <DialogContent className="max-w-5xl glass-card border-border" style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-5xl kip-solid border-border" style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
             <DialogHeader>
               <DialogTitle style={{ fontSize: '13px' }}>Параметры расчёта по дням / сменам</DialogTitle>
             </DialogHeader>
-            <div style={{ overflowY: 'auto', flex: 1 }}>
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-background">
+            {period.archived && <p className="text-[11px] text-muted-foreground">Последние данные {formatDate(period.from, true)}–{formatDate(period.to, true)}, вне выбранного периода</p>}
+            <div className="kip-table-scroll min-h-0" style={{ flex: 1 }}>
+              <Table className="kip-params-table">
+                <TableHeader className="sticky top-0 z-10 bg-popover">
                   <TableRow className="border-border hover:bg-transparent">
                     {[
                       'Дата',
@@ -157,7 +159,7 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
                       'КИП, %',
                       'Нагрузка, %',
                     ].map(h => (
-                      <TableHead key={h} className="text-muted-foreground font-semibold whitespace-nowrap bg-muted" style={{ fontSize: '9px', padding: '4px 8px' }}>
+                      <TableHead key={h} className="text-muted-foreground font-semibold whitespace-nowrap bg-popover" style={{ fontSize: '10px', height: 24, padding: '4px 8px' }}>
                         {h}
                       </TableHead>
                     ))}
@@ -167,7 +169,7 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
                   {[...details].sort((a, b) => a.report_date.localeCompare(b.report_date) || (a.shift_type === 'morning' ? 0 : 1) - (b.shift_type === 'morning' ? 0 : 1)).map((row, i) => (
                     <TableRow key={i} className="border-border hover:bg-muted/30">
                       <TableCell className="font-medium text-foreground whitespace-nowrap" style={{ fontSize: '11px', padding: '5px 8px' }}>
-                        {formatDate(row.report_date)}
+                        {formatDate(row.report_date, period.archived)}
                       </TableCell>
                       <TableCell className="text-muted-foreground" style={{ fontSize: '11px', padding: '5px 8px' }}>
                         {row.shift_type === 'morning' ? '1' : '2'}
@@ -213,28 +215,31 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
         </Dialog>
       </div>
 
-      <div className="relative flex-1 overflow-y-auto min-h-0 px-3 pb-2">
+      {period.archived && <p className="px-3 pb-1 text-[10px] text-muted-foreground" data-kip-archive>
+        Последние данные {formatDate(period.from, true)}–{formatDate(period.to, true)}, вне выбранного периода
+      </p>}
+      <div className="kip-table-scroll relative flex-1 min-h-0 mx-3 pb-2">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+          <TableHeader className="sticky top-0 z-10 bg-popover">
             <TableRow className="border-border hover:bg-transparent">
               <TableHead
                 rowSpan={2}
-                className="text-muted-foreground font-semibold uppercase align-bottom bg-muted"
-                style={{ fontSize: '8px', padding: '3px 6px' }}
+                className="text-muted-foreground font-semibold uppercase align-bottom bg-popover"
+                style={{ fontSize: '10px', height: 24, padding: '3px 6px' }}
               >
                 Дата
               </TableHead>
               <TableHead
                 colSpan={2}
-                className="text-center text-muted-foreground font-semibold uppercase border-b-0 bg-muted"
-                style={{ fontSize: '8px', padding: '3px 6px' }}
+                className="text-center text-muted-foreground font-semibold uppercase border-b-0 bg-popover"
+                style={{ fontSize: '10px', height: 24, padding: '3px 6px' }}
               >
                 1 Смена
               </TableHead>
               <TableHead
                 colSpan={2}
-                className="text-center text-muted-foreground font-semibold uppercase border-b-0 bg-muted"
-                style={{ fontSize: '8px', padding: '3px 6px' }}
+                className="text-center text-muted-foreground font-semibold uppercase border-b-0 bg-popover"
+                style={{ fontSize: '10px', height: 24, padding: '3px 6px' }}
               >
                 2 Смена
               </TableHead>
@@ -243,8 +248,8 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
               {['КИП, %', 'Нагрузка, %', 'КИП, %', 'Нагрузка, %'].map((h, i) => (
                 <TableHead
                   key={i}
-                  className="text-center text-muted-foreground font-semibold uppercase bg-muted"
-                  style={{ fontSize: '8px', padding: '2px 6px' }}
+                  className="text-center text-muted-foreground font-semibold uppercase bg-popover"
+                  style={{ fontSize: '10px', height: 24, padding: '2px 6px' }}
                 >
                   {h}
                 </TableHead>
@@ -256,7 +261,7 @@ const VehicleDetailTable: React.FC<Props> = ({ details }) => {
             {displayRows.map((row, i) => (
               <TableRow key={i} className="border-border hover:bg-muted/30">
                 <TableCell className="font-medium text-foreground whitespace-nowrap" style={{ fontSize: '11px', padding: '4px 6px' }}>
-                  {row.date ? formatDate(row.date) : ''}
+                  {row.date ? formatDate(row.date, period.archived) : ''}
                 </TableCell>
                 <TableCell className="text-center font-semibold" style={{ fontSize: '11px', padding: '4px 6px', color: getKipColor(row.morningKip) }}>
                   {pct(row.morningKip)}

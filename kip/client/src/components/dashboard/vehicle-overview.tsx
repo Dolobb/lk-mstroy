@@ -302,7 +302,7 @@ export function VehicleOverview({ vehicleType, onTypeChange }: VehicleOverviewPr
                     <div
                       key={i}
                       className={cn(
-                        "rounded-md flex items-center justify-center text-[8px] font-bold text-white",
+                        "rounded-md flex items-center justify-center text-[10px] font-bold text-white",
                         o.color
                       )}
                       style={{

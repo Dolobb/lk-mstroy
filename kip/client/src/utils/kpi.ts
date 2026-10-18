@@ -15,3 +15,11 @@ export const KPI_COLORS: Record<KpiColor, string> = {
 export function capDisplay(value: number): number {
   return Math.min(value, 100);
 }
+
+export function vehicleKpiPresentation(value: number | null, isGhost = false) {
+  const missing = isGhost || value == null;
+  return {
+    color: missing ? '#94a3b8' : KPI_COLORS[getKpiColor(capDisplay(value))],
+    label: missing ? 'Н/Д' : `${capDisplay(value).toFixed(0)}%`,
+  };
+}

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap,
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { WeeklyVehicle, VehicleDetailRow } from '../types/vehicle';
-import { getKpiColor, capDisplay } from '../utils/kpi';
+import { getKpiColor, capDisplay, vehicleKpiPresentation } from '../utils/kpi';
 import GeozoneLayer from './GeozoneLayer';
 import './VehicleMap.css';
 import { LEAFLET_ATTRIBUTION_PREFIX } from '../lib/leaflet';
@@ -64,7 +64,7 @@ function createVehicleIcon(
   isSelected: boolean,
 ): L.DivIcon {
   const kipClass = getKipClass(getKpiColor(kip != null ? kip : 0));
-  const kipStr = kip != null ? `${capDisplay(kip).toFixed(0)}%` : 'Н/Д';
+  const kipStr = vehicleKpiPresentation(kip).label;
   const iconUrl = getVehicleIconUrl(vehicleType);
   const iconHtml = iconUrl ? `<img src="${iconUrl}" class="marker-icon-img" alt="" />` : '';
   const selectedClass = isSelected ? ' selected' : '';
@@ -136,6 +136,34 @@ function FitBoundsOnFilter({ vehicles }: { vehicles: WeeklyVehicle[] }) {
   return null;
 }
 
+function SelectionController({ selectedVehicleId, markers, groupRef }: {
+  selectedVehicleId: string | null;
+  markers: React.MutableRefObject<Map<string, L.Marker>>;
+  groupRef: React.RefObject<any>;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  useEffect(() => {
+    map.closePopup();
+    if (!selectedVehicleId) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      map.invalidateSize({ pan: false });
+      const marker = markers.current.get(selectedVehicleId);
+      if (!marker || !groupRef.current?.hasLayer(marker)) return;
+      groupRef.current.zoomToShowLayer(marker, () => {
+        if (active && markers.current.get(selectedVehicleId) === marker) marker.openPopup();
+      });
+    }, 100);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [map, selectedVehicleId, markers, groupRef]);
+  return null;
+}
+
 /**
  * - зум < SPIDERFY_ZOOM_THRESHOLD → клик по кластеру = приближение
  * - зум >= SPIDERFY_ZOOM_THRESHOLD → клик по кластеру = паучок
@@ -155,10 +183,38 @@ function ClusterSpiderfyController({
     const group = groupRef.current;
     if (!group) return;
 
+    const previousShape = group.options.spiderfyShapePositions;
+    // Reserve the entire expanded pill, stem and hover offset, including visible neighbours.
+    group.options.spiderfyShapePositions = (count: number, center: L.Point) => {
+      const occupied: L.Point[] = [];
+      for (const layer of group.getLayers()) {
+        if (layer._icon && group.getVisibleParent(layer) === layer) occupied.push(map.latLngToLayerPoint(layer.getLatLng()));
+      }
+      const size = map.getSize();
+      const slots: L.Point[] = [];
+      for (let y = 100; y < size.y - 20; y += 84) {
+        for (let x = 110; x < size.x - 100; x += 210) slots.push(map.containerPointToLayerPoint(L.point(x, y)));
+      }
+      slots.sort((a, b) => a.distanceTo(center) - b.distanceTo(center));
+      const points: L.Point[] = [];
+      for (const slot of slots) {
+        if (occupied.some(p => Math.abs(p.x - slot.x) < 205 && Math.abs(p.y - slot.y) < 80)) continue;
+        points.push(slot);
+        if (points.length === count) return points;
+      }
+      // Very large clusters keep readable spacing even when they exceed the map height.
+      while (points.length < count) {
+        const point = center.add(L.point(0, 84 * (points.length + 1)));
+        if (!points.some(p => Math.abs(p.x-point.x) < 205 && Math.abs(p.y-point.y) < 80)) points.push(point);
+        else points.push(point.add(L.point(210, 0)));
+      }
+      return points;
+    };
     // Заменяем обработчик клика по кластеру
     group.off('clusterclick', group._zoomOrSpiderfy, group);
     const clusterClickHandler = (e: any) => {
       if (map.getZoom() >= SPIDERFY_ZOOM_THRESHOLD) {
+        map.panTo(e.layer.getLatLng(), { animate: false });
         e.layer.spiderfy();
       } else {
         e.layer.zoomToBounds({ padding: [20, 20] });
@@ -183,6 +239,7 @@ function ClusterSpiderfyController({
     group.on('unspiderfied', onUnspiderfied);
 
     return () => {
+      group.options.spiderfyShapePositions = previousShape;
       group.off('clusterclick', clusterClickHandler);
       group.on('clusterclick', group._zoomOrSpiderfy, group);
       group.off('spiderfied', onSpiderfied);
@@ -195,6 +252,7 @@ function ClusterSpiderfyController({
 
 const VehicleMap: React.FC<Props> = ({ vehicles, selectedVehicleId, selectedDetails, onSelectVehicle }) => {
   const clusterRef = useRef<any>(null);
+  const markers = useRef(new Map<string, L.Marker>());
 
   // Флаг подавления unspiderfy на 500мс после клика по маркеру внутри паука
   const clusterSuppress = useRef(false);
@@ -236,6 +294,7 @@ const VehicleMap: React.FC<Props> = ({ vehicles, selectedVehicleId, selectedDeta
       <DeselectOnMapClick onDeselect={handleDeselect} />
       <FitBoundsOnFilter vehicles={vehicles} />
       <GeozoneLayer />
+      <SelectionController selectedVehicleId={selectedVehicleId} markers={markers} groupRef={clusterRef} />
 
       <MarkerClusterGroup ref={clusterRef} chunkedLoading spiderfyDistanceMultiplier={3}>
         {/* Обычные ТС */}
@@ -243,6 +302,7 @@ const VehicleMap: React.FC<Props> = ({ vehicles, selectedVehicleId, selectedDeta
           const isSelected = v.vehicle_id === selectedVehicleId;
           return (
             <Marker
+              ref={marker => { if (marker) markers.current.set(v.vehicle_id, marker); else markers.current.delete(v.vehicle_id); }}
               key={v.vehicle_id}
               position={[v.latitude!, v.longitude!]}
               icon={createVehicleIcon(v.vehicle_id, v.avg_utilization_ratio, v.vehicle_type, isSelected)}
@@ -275,6 +335,7 @@ const VehicleMap: React.FC<Props> = ({ vehicles, selectedVehicleId, selectedDeta
           const isSelected = v.vehicle_id === selectedVehicleId;
           return (
             <Marker
+              ref={marker => { if (marker) markers.current.set(v.vehicle_id, marker); else markers.current.delete(v.vehicle_id); }}
               key={`ghost-${v.vehicle_id}`}
               position={[v.latitude!, v.longitude!]}
               icon={createGhostVehicleIcon(v.vehicle_id, v.vehicle_type, isSelected)}

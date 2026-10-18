@@ -85,12 +85,18 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   const updatePosition = useCallback(() => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setPopupPos({ top: rect.bottom + 4, left: rect.left });
+      setPopupPos({ top: rect.bottom + 4, left: Math.max(12, Math.min(rect.left, window.innerWidth - Math.min(480, window.innerWidth - 24) - 12)) });
     }
   }, []);
 
   useEffect(() => {
-    if (open) updatePosition();
+    if (!open) return;
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('resize', updatePosition); window.removeEventListener('scroll', updatePosition, true); document.removeEventListener('keydown', onKey); };
   }, [open, updatePosition]);
 
   const filteredOptions = useMemo(() => {
@@ -141,7 +147,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   };
 
   let displayText = 'Все';
-  if (selected.length === 1) displayText = selected[0];
+  if (selected.length === 1) displayText = selected[0].replace('Краны автомобильные', 'Автокраны');
   else if (selected.length > 1) displayText = `выбрано: ${selected.length}`;
 
   const hasSelection = selected.length > 0;
@@ -149,23 +155,23 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   const popup = open ? ReactDOM.createPortal(
     <div
       ref={popupRef}
-      className="fixed flex flex-col overflow-hidden bg-white rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.25)] z-[99999]"
+      className="fixed flex flex-col overflow-hidden kip-solid rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.25)] z-[99999]"
       style={{
         top: popupPos.top,
         left: popupPos.left,
-        width: Math.max(width, 280),
-        maxHeight: 380,
+        width: Math.min(480, window.innerWidth - 24),
+        maxHeight: Math.max(160, Math.min(380, window.innerHeight - popupPos.top - 12)),
       }}
     >
       {/* Search */}
-      <div className="px-2.5 py-2 border-b border-gray-200">
+      <div className="px-2.5 py-2 border-b border-border">
         <input
           type="text"
           placeholder="Поиск..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           autoFocus
-          className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-[0.85rem] outline-none font-[inherit]"
+          className="kip-solid w-full px-2 py-1.5 border border-border rounded-md text-[0.85rem] outline-none font-[inherit]"
         />
       </div>
 
@@ -178,8 +184,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           return (
             <div key={group.name}>
               <div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer font-bold text-[0.85rem] text-gray-700 select-none ${
-                  someGroupSelected || allGroupSelected ? 'bg-indigo-50' : ''
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer font-bold text-[0.85rem] text-foreground select-none ${
+                  someGroupSelected || allGroupSelected ? 'bg-muted' : ''
                 }`}
                 onClick={() => toggleGroupExpand(group.name)}
               >
@@ -201,8 +207,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 return (
                   <label
                     key={fullValue}
-                    className={`flex items-center gap-1.5 py-1 px-2.5 pl-10 cursor-pointer text-[0.83rem] text-gray-600 ${
-                      localSelected.includes(fullValue) ? 'bg-indigo-50' : ''
+                    className={`flex items-center gap-1.5 py-1 px-2.5 pl-10 cursor-pointer text-[0.83rem] text-foreground ${
+                      localSelected.includes(fullValue) ? 'bg-muted' : ''
                     }`}
                   >
                     <input
@@ -222,8 +228,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         {flat.map(opt => (
           <label
             key={opt}
-            className={`flex items-center gap-1.5 py-1 px-2.5 cursor-pointer text-[0.85rem] text-gray-700 ${
-              localSelected.includes(opt) ? 'bg-indigo-50' : ''
+            className={`flex items-center gap-1.5 py-1 px-2.5 cursor-pointer text-[0.85rem] text-foreground ${
+              localSelected.includes(opt) ? 'bg-muted' : ''
             }`}
           >
             <input
@@ -232,30 +238,30 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
               onChange={() => toggleItem(opt)}
               className="w-4 h-4 cursor-pointer shrink-0 accent-[#2600FF]"
             />
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+            <span className="whitespace-normal break-words" title={opt}>
               {opt}
             </span>
           </label>
         ))}
 
         {filteredOptions.length === 0 && (
-          <div className="p-2.5 text-center text-gray-400 text-[0.85rem]">
+          <div className="p-2.5 text-center text-muted-foreground text-[0.85rem]">
             Ничего не найдено
           </div>
         )}
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-1.5 px-2.5 py-2 border-t border-gray-200">
+      <div className="flex gap-1.5 px-2.5 py-2 border-t border-border">
         <button
           onClick={selectAll}
-          className="flex-1 py-1 border border-gray-300 rounded-md bg-white cursor-pointer text-[0.8rem] font-[inherit] hover:bg-gray-50"
+          className="flex-1 py-1 border border-border rounded-md kip-solid cursor-pointer text-[0.8rem] font-[inherit] hover:bg-muted"
         >
           Все
         </button>
         <button
           onClick={clearAll}
-          className="flex-1 py-1 border border-gray-300 rounded-md bg-white cursor-pointer text-[0.8rem] font-[inherit] hover:bg-gray-50"
+          className="flex-1 py-1 border border-border rounded-md kip-solid cursor-pointer text-[0.8rem] font-[inherit] hover:bg-muted"
         >
           Сбросить
         </button>
@@ -274,6 +280,9 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     <div ref={triggerRef} className="relative shrink-0" style={{ width, minWidth: width, maxWidth: width }}>
       {/* Trigger */}
       <div
+        title={selected.length ? selected.join("; ") : `${label}: Все`}
+        role="button" tabIndex={0} aria-expanded={open}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
         onClick={() => { setOpen(!open); if (!open) setLocalSelected(selected); }}
         className="w-full h-7 flex items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-md cursor-pointer relative"
         style={{
@@ -295,7 +304,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       </div>
       {/* Floating label */}
       <span
-        className="absolute -top-2 left-2 text-[9px] px-1 leading-none pointer-events-none rounded-sm font-medium uppercase tracking-wider"
+        className="absolute -top-2 left-2 text-[10px] px-1 leading-none pointer-events-none rounded-sm font-medium uppercase tracking-wider"
         style={{
           background: hasSelection ? ACTIVE_BG : 'var(--background)',
           color: hasSelection ? 'rgba(255,255,255,0.9)' : 'var(--muted-foreground)',

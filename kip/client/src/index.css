@@ -11,7 +11,8 @@
   --card: rgba(255, 255, 255, 0.75);
   --card-foreground: #0f172a;
   --card-inner: rgba(226, 232, 240, 0.5);
-  --popover: rgba(255, 255, 255, 0.85);
+  --popover: #ffffff;
+  --surface-solid: #ffffff;
   --popover-foreground: #0f172a;
   --primary: #f97316;
   --primary-foreground: #ffffff;
@@ -53,7 +54,8 @@
   --card: rgba(15, 23, 42, 0.65);
   --card-foreground: #F1F5F9;
   --card-inner: rgba(30, 41, 59, 0.5);
-  --popover: rgba(15, 23, 42, 0.85);
+  --popover: #0f172a;
+  --surface-solid: #0f172a;
   --popover-foreground: #F1F5F9;
   --primary: #f97316;
   --primary-foreground: #ffffff;
@@ -204,3 +206,16 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
 }
+
+/* Independent solid surfaces; glass cards retain their translucent background. */
+.kip-solid { background: var(--surface-solid); color: var(--foreground); }
+.kip-table-scroll { overflow: auto; scrollbar-width: thin; scrollbar-color: #94a3b8 transparent; }
+.kip-table-scroll > [data-slot="table-container"] { overflow: visible; }
+.kip-table-scroll thead, .kip-table-scroll th { background: var(--surface-solid); }
+.kip-table-scroll th { height: 24px; line-height: 16px; }
+.kip-params-table { table-layout: fixed; min-width: 850px; }
+.kip-params-table th { white-space: normal; }
+.kip-params-table th:nth-child(-n+2), .kip-params-table td:nth-child(-n+2) { position: sticky; left: 0; background: var(--surface-solid); z-index: 1; }
+.kip-params-table th:nth-child(2), .kip-params-table td:nth-child(2) { left: 10%; }
+.kip-params-table thead { z-index: 3; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip, .leaflet-tooltip { background: var(--surface-solid); color: var(--foreground); }

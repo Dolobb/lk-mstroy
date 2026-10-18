@@ -39,6 +39,8 @@ const App: React.FC = () => {
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetailRow[]>([]);
   const [vehicleRequests, setVehicleRequests] = useState<VehicleRequest[]>([]);
 
+  const [detailPeriod, setDetailPeriod] = useState({ from: filters.from, to: filters.to, archived: false });
+
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
 
@@ -107,6 +109,9 @@ const App: React.FC = () => {
       detailTo = selectedV.last_seen_date;
     }
 
+    setDetailPeriod({ from: detailFrom, to: detailTo, archived: !!selectedV?.is_ghost });
+    setVehicleDetails([]);
+    setVehicleRequests([]);
     Promise.all([
       fetchVehicleDetails(selectedVehicleId, detailFrom, detailTo),
       fetchVehicleRequests(selectedVehicleId, detailFrom, detailTo),
@@ -182,7 +187,7 @@ const App: React.FC = () => {
           <div
             className="flex-1 grid gap-3 p-3 min-h-0"
             style={{
-              gridTemplateColumns: selectedVehicle ? '65fr 35fr' : '1fr',
+              gridTemplateColumns: selectedVehicle ? 'minmax(0, 65fr) minmax(0, 35fr)' : '1fr',
             }}
           >
             {/* Map area */}
@@ -206,7 +211,7 @@ const App: React.FC = () => {
                   />
                 </div>
                 <div className="min-h-0" style={{ flex: '40 1 0%' }}>
-                  <VehicleDetailTable details={vehicleDetails} />
+                  <VehicleDetailTable details={vehicleDetails} period={detailPeriod} />
                 </div>
               </div>
             )}

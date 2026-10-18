@@ -96,7 +96,7 @@
 .marker.kip-green .marker-kip { color: #16a34a; }
 .marker.kip-blue  .marker-kip { color: #2563eb; }
 .marker.kip-red   .marker-kip { color: #dc2626; }
-.marker-kip.no-data           { color: #dc2626 !important; }
+.marker-kip.no-data           { color: #64748b !important; }
 
 /* Tail dot */
 .marker-dot {
@@ -118,3 +118,7 @@
 .marker.kip-blue  .marker-stem { background:linear-gradient(180deg,rgba(59,130,246,0.4),transparent); }
 .marker.kip-red   .marker-stem { background:linear-gradient(180deg,rgba(239,68,68,0.4),transparent); }
 .marker.ghost     .marker-stem { background:linear-gradient(180deg,rgba(148,163,184,0.4),transparent); }
+
+/* Only the visible pill intercepts clicks, not the empty 140×60 marker rectangle. */
+.leaflet-marker-icon:has(> .marker) { pointer-events: none; }
+.marker-compact { pointer-events: auto; }

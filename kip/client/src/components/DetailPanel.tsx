@@ -24,8 +24,8 @@ function InfoRow({
       <div className="px-3 py-2 text-muted-foreground font-medium w-28 shrink-0" style={{ fontSize: '11px' }}>
         {label}
       </div>
-      <div className="px-3 py-2 text-foreground flex-1 leading-snug" style={{ fontSize: '12px' }}>
-        {children ?? (value || '—')}
+      <div className="px-3 py-2 text-foreground flex-1 min-w-0 leading-snug" style={{ fontSize: '12px' }}>
+        {children ?? <span title={value} className="line-clamp-2 break-words">{value || '—'}</span>}
       </div>
     </div>
   );

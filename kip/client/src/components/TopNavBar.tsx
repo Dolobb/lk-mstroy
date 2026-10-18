@@ -15,7 +15,7 @@ interface Props {
 }
 
 const TopNavBar: React.FC<Props> = ({ activeNav, onNavChange }) => {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme: theme, setTheme } = useTheme();
 
   return (
     <nav className="flex items-center justify-between px-3 h-10 glass-card shrink-0">
@@ -51,7 +51,7 @@ const TopNavBar: React.FC<Props> = ({ activeNav, onNavChange }) => {
           className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2 rounded-md transition-colors cursor-pointer bg-transparent border-none"
         >
           {theme === 'dark' ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-          <span style={{ fontSize: '11px' }}>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          <span style={{ fontSize: '11px' }}>{theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</span>
         </button>
         <div className="flex items-center gap-1.5">
           <span className="text-primary font-bold" style={{ fontSize: '12px' }}>НПС</span>

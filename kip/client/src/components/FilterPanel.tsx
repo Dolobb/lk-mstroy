@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import type { FilterState, FilterOptions, WeeklyVehicle } from '../types/vehicle';
 import MultiSelectDropdown from './MultiSelectDropdown';
-import { getKpiColor, KPI_COLORS, capDisplay } from '../utils/kpi';
+import { vehicleKpiPresentation } from '../utils/kpi';
 import ReactDOM from 'react-dom';
 
 interface Props {
@@ -30,7 +30,7 @@ const KPI_SCALE = [
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1 shrink-0">
-      <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider leading-none">
+      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider leading-none">
         {label}
       </span>
       {children}
@@ -52,8 +52,8 @@ function SearchDropdown({ query, results, onSelect, anchorRect }: SearchDropdown
 
   return (
     <div
-      className="glass-card border border-border shadow-xl"
-      style={{ marginTop: 4, width: 280, borderRadius: 12, overflow: 'hidden' }}
+      data-kip-search-results className="kip-solid border border-border shadow-xl"
+      style={{ marginTop: 4, width: Math.min(320, window.innerWidth - 24), borderRadius: 12, overflow: 'hidden' }}
     >
       {results.length === 0 ? (
         <div className="text-muted-foreground text-center py-4" style={{ fontSize: '12px' }}>
@@ -62,8 +62,8 @@ function SearchDropdown({ query, results, onSelect, anchorRect }: SearchDropdown
       ) : (
         <div style={{ maxHeight: 320, overflowY: 'auto' }}>
           {results.map(v => {
-            const kpiKey = getKpiColor(capDisplay(v.avg_utilization_ratio ?? 0));
-            const dotColor = KPI_COLORS[kpiKey];
+            const status = vehicleKpiPresentation(v.avg_utilization_ratio, v.is_ghost);
+            const dotColor = status.color;
             return (
               <button
                 key={v.vehicle_id}
@@ -89,8 +89,8 @@ function SearchDropdown({ query, results, onSelect, anchorRect }: SearchDropdown
                     {v.vehicle_type || v.vehicle_model}
                   </span>
                 </div>
-                <span className="ml-auto font-semibold shrink-0" style={{ fontSize: '11px', color: dotColor }}>
-                  {capDisplay(v.avg_utilization_ratio ?? 0).toFixed(0)}%
+                <span className="ml-auto font-semibold shrink-0" style={{ fontSize: '11px', color: 'var(--foreground)' }}>
+                  {status.label}
                 </span>
               </button>
             );
@@ -117,6 +117,21 @@ const FilterPanel: React.FC<Props> = ({
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [dateDraft, setDateDraft] = useState({ from: filters.from, to: filters.to });
+  useEffect(() => { setDateDraft({ from: filters.from, to: filters.to }); }, [filters.from, filters.to]);
+  const invalidDates = !dateDraft.from || !dateDraft.to || dateDraft.from > dateDraft.to;
+  const changeDate = (key: 'from' | 'to', value: string) => {
+    const next = { ...dateDraft, [key]: value };
+    setDateDraft(next);
+    if (next.from && next.to && next.from <= next.to) onChange(next);
+  };
+  useEffect(() => {
+    if (!searchOpen) return;
+    const update = () => setAnchorRect(searchBtnRef.current?.getBoundingClientRect() ?? null);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => { window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true); };
+  }, [searchOpen]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const openSearch = useCallback(() => {
@@ -139,7 +154,7 @@ const FilterPanel: React.FC<Props> = ({
     function handleClick(e: MouseEvent) {
       if (containerRef.current?.contains(e.target as Node)) return;
       // Check if click is inside the portal dropdown
-      const portals = document.querySelectorAll('.glass-card');
+      const portals = document.querySelectorAll('[data-kip-search]');
       for (const el of portals) {
         if (el.contains(e.target as Node)) return;
       }
@@ -213,22 +228,27 @@ const FilterPanel: React.FC<Props> = ({
           <span style={{ fontSize: '10px' }} className="text-muted-foreground">с</span>
           <input
             type="date"
-            value={filters.from}
-            onChange={e => onChange({ from: e.target.value })}
+            value={dateDraft.from}
+            aria-label="Начало периода" aria-invalid={invalidDates} aria-describedby={invalidDates ? "kip-date-error" : undefined}
+            onChange={e => changeDate('from', e.target.value)}
             className="bg-muted text-foreground border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
             style={{ fontSize: '11px', width: '116px' }}
           />
           <span style={{ fontSize: '10px' }} className="text-muted-foreground">по</span>
           <input
             type="date"
-            value={filters.to}
-            onChange={e => onChange({ to: e.target.value })}
+            value={dateDraft.to}
+            aria-label="Окончание периода" aria-invalid={invalidDates} aria-describedby={invalidDates ? "kip-date-error" : undefined}
+            onChange={e => changeDate('to', e.target.value)}
             className="bg-muted text-foreground border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
             style={{ fontSize: '11px', width: '116px' }}
           />
         </div>
       </FilterGroup>
 
+      {invalidDates && <p id="kip-date-error" role="alert" className="text-destructive text-[11px] w-full">
+        {dateDraft.from && dateDraft.to ? 'Начало периода не может быть позже окончания' : 'Укажите начало и окончание периода'}
+      </p>}
       {/* Смена */}
       <FilterGroup label="ДЕНЬ/ВЕЧЕР">
         <div className="flex gap-0.5">
@@ -312,16 +332,17 @@ const FilterPanel: React.FC<Props> = ({
       {/* Оверлей поиска — через портал, не сдвигает элементы */}
       {searchOpen && anchorRect && ReactDOM.createPortal(
         <div
+          data-kip-search
           style={{
             position: 'fixed',
-            top: anchorRect.top,
-            left: anchorRect.left,
+            top: anchorRect.bottom + 4,
+            left: Math.max(12, Math.min(anchorRect.left, window.innerWidth - Math.min(320, window.innerWidth - 24) - 12)),
             zIndex: 1500,
           }}
         >
           <div
-            className="flex items-center gap-1.5 bg-muted border border-ring rounded-lg px-2"
-            style={{ height: anchorRect.height, width: 200 }}
+            className="flex items-center gap-1.5 kip-solid border border-ring rounded-lg px-2"
+            style={{ height: anchorRect.height, width: Math.min(320, window.innerWidth - 24) }}
           >
             <Search className="w-3 h-3 text-muted-foreground shrink-0" />
             <input
@@ -347,7 +368,7 @@ const FilterPanel: React.FC<Props> = ({
       {/* Средний КИП + шкала */}
       <div className="glass-card flex items-center gap-3 px-4 py-1.5 shrink-0">
         <div className="flex flex-col justify-center">
-          <div className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium leading-none">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium leading-none">
             Средний КИП
           </div>
           <div
@@ -366,7 +387,7 @@ const FilterPanel: React.FC<Props> = ({
                 onClick={() => toggleKpiRange(item.value)}
                 className="inline-flex items-center justify-center rounded-md font-semibold leading-tight cursor-pointer select-none border-none transition-all"
                 style={{
-                  fontSize: '9px',
+                  fontSize: '10px',
                   padding: '1px 6px',
                   height: '18px',
                   backgroundColor: item.color,
