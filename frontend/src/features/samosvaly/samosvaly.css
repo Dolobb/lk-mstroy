@@ -1676,3 +1676,20 @@ table.sv-at thead {
 .sv-gantt tbody tr:not(.sv-gg-obj-header) > td:first-child > * { overflow: hidden; text-overflow: ellipsis; }
 /* Заголовок объекта во вкладке «Ганта» остаётся у левого края при горизонтальном скролле */
 .sv-gg-obj-title { position: sticky; left: 12px; display: inline-block; }
+/* Шапка раздела: одна строка, подписи не переносятся, вкладки — иконка слева */
+.sv-sub-header { flex-wrap: nowrap; }
+.sv-sub-header > * { flex-shrink: 0; }
+.sv-sub-header .sv-search-input { flex-shrink: 1; min-width: 80px; }
+.sv-sub-header button { white-space: nowrap; }
+.sv-view-tab { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 6px 14px; }
+.sv-fb-select { max-width: 280px; text-overflow: ellipsis; }
+/* Смена месяца: старый список остаётся приглушённым, сверху — полоса загрузки */
+.sv-orders-refreshing > *:not(.sv-top-progress) { opacity: .45; pointer-events: none; transition: opacity .2s; }
+.sv-top-progress { position: sticky; top: 0; height: 2px; z-index: 3; overflow: hidden; background: rgba(59,130,246,.15); }
+.sv-top-progress::after { content: ''; position: absolute; inset: 0; width: 30%; background: #3B82F6; animation: sv-progress 1.1s ease-in-out infinite; }
+@keyframes sv-progress { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.sv-popover-btn { display: inline-flex; align-items: center; justify-content: center; }
+/* Длинные названия объектов — максимум 2 строки, полное — в подсказке */
+.sv-smu-card { max-width: 240px; }
+.sv-smu-card-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
+.sv-obj-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-width: 0; }

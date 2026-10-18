@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from 'next-themes';
+import { ClipboardList, CalendarRange, BarChart3, Inbox, FileText, MessageSquare } from 'lucide-react';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import './samosvaly.css';
 import { MiniBar } from '@/components/MiniBar';
@@ -127,7 +128,7 @@ function isoDate(d: Date): string {
 // ─────────────────────────────────────────────
 
 const BLOCK_LABELS: Record<BlockId, string> = {
-  identity:   'Определители',
+  identity:   'Заявка и организация',
   work:       'Выполненная работа',
   kpi:        'KPI',
   aggregates: 'Агрегаты',
@@ -544,13 +545,22 @@ function toOrderCard(o: OrderSummary, today: string): OrderCard {
 // ─────────────────────────────────────────────
 //  Donut chart (SVG)
 // ─────────────────────────────────────────────
-function MiniDonut({ mov, size = 70 }: { mov: number; size?: number }) {
+function MiniDonut({ mov, size = 70, empty = false }: { mov: number; size?: number; empty?: boolean }) {
   const r = size * 0.34;
   const cx = size / 2;
   const cy = size / 2;
   const sw = size * 0.1;
   const c = 2 * Math.PI * r;
   const idle = 100 - mov;
+  if (empty) {
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--sv-donut-track)" strokeWidth={sw} />
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill="var(--sv-text-4)"
+          fontSize={Math.max(10, size * 0.11)} fontWeight="600">нет данных</text>
+      </svg>
+    );
+  }
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--sv-donut-track)" strokeWidth={sw} />
@@ -573,7 +583,7 @@ function MiniDonut({ mov, size = 70 }: { mov: number; size?: number }) {
 //  Popover icon (hover to show, click to pin)
 // ─────────────────────────────────────────────
 
-function PopoverIcon({ icon, label, text }: { icon: string; label: string; text: string }) {
+function PopoverIcon({ icon, label, text }: { icon: React.ReactNode; label: string; text: string }) {
   const { resolvedTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -1407,7 +1417,6 @@ function OrderCardView({ card, expanded, onToggle, ordersMap, theme, norm, onNor
           </div>
         </div>
         <div className="sv-order-data-area">
-          <div className="sv-order-progress-fill" style={{ width: `${card.pct}%` }} />
           <div className="sv-order-badges">
             <span className="sv-badge-sm sv-badge-pct">{card.pct}%</span>
             <span className={`sv-badge-sm ${card.isDone ? 'sv-badge-done' : 'sv-badge-active'}`}>
@@ -1432,8 +1441,8 @@ function OrderCardView({ card, expanded, onToggle, ordersMap, theme, norm, onNor
                 {card.objectExpend || card.objectNames[0] || '—'}
                 {(card.notes || card.comment) && (
                   <span className="sv-order-icons" onClick={e => e.stopPropagation()}>
-                    {card.notes && <PopoverIcon icon="&#x1F4CB;" label="Описание" text={card.notes} />}
-                    {card.comment && <PopoverIcon icon="&#x1F4AC;" label="Комментарий" text={card.comment} />}
+                    {card.notes && <PopoverIcon icon={<FileText size={12} />} label="Описание" text={card.notes} />}
+                    {card.comment && <PopoverIcon icon={<MessageSquare size={12} />} label="Комментарий" text={card.comment} />}
                   </span>
                 )}
               </div>
@@ -1538,7 +1547,7 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }
       <div className="sv-weekly-body">
         {objList.length === 0 && (
           <div className="sv-empty">
-            <span className="sv-empty-icon">📭</span>
+            <span className="sv-empty-icon"><Inbox size={28} /></span>
             <span className="sv-empty-text">Нет данных за эту неделю</span>
           </div>
         )}
@@ -1578,7 +1587,7 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }
             <div key={objName} className={`sv-obj-section ${collapsed ? 'collapsed' : ''}`}>
               <div className="sv-obj-header" onClick={() => toggleObj(objName)}>
                 <div className="sv-obj-dot" style={{ background: color }} />
-                <div className="sv-obj-name">{objName}</div>
+                <div className="sv-obj-name" title={objName}>{objName}</div>
                 <span className="sv-obj-toggle">▾</span>
               </div>
               <div className="sv-obj-body">
@@ -1629,11 +1638,11 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }
                   <div className="sv-donut-mini-row">
                     <div className="sv-donut-mini-wrap">
                       <div className="sv-donut-mini-label">1 смена</div>
-                      {mov1Avg > 0 ? <MiniDonut mov={mov1Avg} size={90} /> : <span style={{ fontSize: 10, color: 'var(--sv-text-4)' }}>—</span>}
+                      <MiniDonut mov={mov1Avg} size={90} empty={mov1Avg <= 0} />
                     </div>
                     <div className="sv-donut-mini-wrap">
                       <div className="sv-donut-mini-label">2 смена</div>
-                      {has2 && mov2Avg > 0 ? <MiniDonut mov={mov2Avg} size={90} /> : <span style={{ fontSize: 10, color: 'var(--sv-text-4)' }}>—</span>}
+                      <MiniDonut mov={mov2Avg} size={90} empty={!has2 || mov2Avg <= 0} />
                     </div>
                   </div>
                   <div className="sv-donut-mini-legend">
@@ -1692,7 +1701,7 @@ function WeeklySidebar({ shiftRecords, repairs, initialDateFrom, effectiveNorm }
                       : '#3B82F6';
                     return (
                       <div key={reg} className="sv-veh-bar-item">
-                        <span className="sv-veh-bar-name">{name}</span>
+                        <span className="sv-veh-bar-name" title={stripSamosvaly(name)}>{reg}</span>
                         <div className="sv-veh-bar-track">
                           <div className="sv-veh-bar-fill" style={{ width: `${pct}%`, background: barColor }} />
                         </div>
@@ -2464,7 +2473,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                     document.getElementById(`obj-scroll-${c.title}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                 >
-                  <div className="sv-smu-card-title">{c.title}</div>
+                  <div className="sv-smu-card-title" title={c.title}>{c.title}</div>
                   <div className="sv-smu-card-row"><span>ТС</span><span className="sv-smu-card-val">{c.vehicles}</span></div>
                   <div className="sv-smu-card-row"><span>Рейсов</span><span className="sv-smu-card-val">{c.trips}</span></div>
                   <div className="sv-smu-card-row"><span>Ср.КИП</span><span className={`sv-smu-card-val ${c.kip > 0 ? kipColor(c.kip) : ''}`}>{c.kip > 0 ? `${c.kip}%` : '—'}</span></div>
@@ -2625,7 +2634,7 @@ function AnalyticsTab({ objects, period, filters, onFiltersChange, records, load
                               return (
                                 <div key={ord.reqNum} className="sv-chip-group">
                                   <div className="sv-chip-group-label">
-                                    #{ord.reqNum} {cargoMap.get(Number(ord.reqNum)) ? `(${cargoMap.get(Number(ord.reqNum))})` : ''} · {ord.objName}
+                                    {ord.reqNum === '—' ? 'Без заявки' : `#${ord.reqNum}`} {cargoMap.get(Number(ord.reqNum)) ? `(${cargoMap.get(Number(ord.reqNum))})` : ''} · {ord.objName}
                                   </div>
                                   <div className="sv-chip-strip">
                                     {chips.map(c => {
@@ -3597,13 +3606,13 @@ export function DumpTrucksPage() {
       <div className="sv-sub-header">
         <div className="sv-view-tabs">
           <button className={`sv-view-tab ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
-            📋 Заявки
+            <ClipboardList size={14} /> Заявки
           </button>
           <button className={`sv-view-tab ${activeTab === 'gantt' ? 'active' : ''}`} onClick={() => setActiveTab('gantt')}>
-            📅 Ганта
+            <CalendarRange size={14} /> Ганта
           </button>
           <button className={`sv-view-tab ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
-            📊 Аналитика
+            <BarChart3 size={14} /> Аналитика
           </button>
         </div>
 
@@ -3628,9 +3637,9 @@ export function DumpTrucksPage() {
             <div className="sv-fg">
               <div className="sv-fg-label">Месяц</div>
               <div className="sv-fg-row" style={isAllTime && activeTab === 'gantt' ? { opacity: 0.4, pointerEvents: 'none' as const } : {}}>
-                <button className="sv-week-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }} onClick={() => shiftMonth(-1)}>‹</button>
+                <button className="sv-week-nav-btn" onClick={() => shiftMonth(-1)} title="Предыдущий месяц">‹</button>
                 <span style={{ fontSize: 12, fontWeight: 700, minWidth: 110, textAlign: 'center' }}>{fmtMonth(orderMonth)}</span>
-                <button className="sv-week-nav-btn" style={{ width: 22, height: 22, fontSize: 11 }} onClick={() => shiftMonth(1)}>›</button>
+                <button className="sv-week-nav-btn" onClick={() => shiftMonth(1)} title="Следующий месяц">›</button>
               </div>
             </div>
             {activeTab === 'gantt' && (
@@ -3719,7 +3728,7 @@ export function DumpTrucksPage() {
           {activeTab === 'orders' && (
             <div className="sv-tab-orders">
               <div className="sv-orders-scroll">
-                {loadingOrders ? (
+                {loadingOrders && orders.length === 0 ? (
                   <div className="sv-empty">
                     <svg className="sv-spinner" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
@@ -3728,11 +3737,12 @@ export function DumpTrucksPage() {
                   </div>
                 ) : (orders.length === 0 && unlinkedVehicles.size === 0) ? (
                   <div className="sv-empty">
-                    <span className="sv-empty-icon">📭</span>
+                    <span className="sv-empty-icon"><Inbox size={28} /></span>
                     <span className="sv-empty-text">Заявок не найдено</span>
                   </div>
                 ) : (
-                  <>
+                  <div className={loadingOrders ? 'sv-orders-refreshing' : undefined}>
+                  {loadingOrders && <div className="sv-top-progress" />}
                   {/* Toolbar: grouping + sorting */}
                   <div className="sv-order-toolbar">
                     <button
@@ -3838,7 +3848,7 @@ export function DumpTrucksPage() {
                       </div>
                     </div>
                   )}
-                  </>
+                  </div>
                 )}
               </div>
 
