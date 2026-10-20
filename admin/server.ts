@@ -9,6 +9,18 @@ import { Pool } from 'pg';
 import { PgBoss } from 'pg-boss';
 import { createPipelineRunRepo, type PipelineRun } from './src/repositories/pipelineRunRepo';
 import { log, LOG_PATHS } from './src/logger';
+import {
+  configureCatchup,
+  registerCatchupCron,
+  registerCatchupRoutes,
+  scheduleStartupCatchup,
+} from './src/catchup';
+import {
+  configureAlerts,
+  registerAlertRoutes,
+  registerAlertsCron,
+  startAlerts,
+} from './src/notify';
 
 dotenv.config();
 
@@ -527,15 +539,20 @@ const boss = new PgBoss({
 });
 
 boss.on('error', (err: Error) => console.error('[pg-boss] Error:', err));
+configureCatchup({ mainPool, kipPool, boss });
+configureAlerts({ mainPool, boss });
 
 // ─── Run migration ───────────────────────────────────────────────────────────
 
 async function runMigration(): Promise<void> {
-  const migrationPath = path.join(__dirname, 'migrations', '001_pipeline_runs.sql');
+  const migrationFiles = ['001_pipeline_runs.sql', '003_catchup_attempts.sql', '004_alerts.sql'];
   try {
-    const sql = fs.readFileSync(migrationPath, 'utf-8');
-    await mainPool.query(sql);
-    console.log('[admin] Migration 001_pipeline_runs applied successfully');
+    for (const file of migrationFiles) {
+      const migrationPath = path.join(__dirname, 'migrations', file);
+      const sql = fs.readFileSync(migrationPath, 'utf-8');
+      await mainPool.query(sql);
+      console.log(`[admin] Migration ${file} applied successfully`);
+    }
   } catch (err) {
     console.error('[admin] Migration error (non-fatal):', err);
   }
@@ -637,6 +654,8 @@ async function getKnownQueues(): Promise<Set<string>> {
   }
   for (const entry of DT_CRON_SCHEDULE) known.add(`dt-cron-${entry.time.replace(':', '')}`);
   known.add('analytics-cron');
+  known.add('catchup-cron');
+  known.add('alerts-digest-cron');
   return known;
 }
 
@@ -2147,6 +2166,8 @@ async function runDTSegmentQueue(dates: string[], force: boolean) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+registerCatchupRoutes(app);
+registerAlertRoutes(app);
 
 // GET all services with status
 app.get('/api/admin/services', async (_req, res) => {
@@ -3759,6 +3780,8 @@ app.listen(PORT, '0.0.0.0', async () => {
   // Run migrations
   await runMigration();
 
+  await startAlerts();
+
   // Reconcile pipeline state BEFORE starting boss. Closes stale 'running' rows
   // and drops pending jobs in renamed/removed queues so they don't replay.
   await reconcileOnStart();
@@ -3767,6 +3790,9 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     await boss.start();
     await registerWorkers();
+    await registerCatchupCron();
+    await registerAlertsCron();
+    scheduleStartupCatchup();
     console.log('[admin] pg-boss started successfully');
   } catch (err) {
     console.error('[admin] pg-boss failed to start (non-fatal):', err);
