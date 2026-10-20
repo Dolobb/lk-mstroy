@@ -20,7 +20,7 @@ export interface ReportMeta {
 }
 
 export interface ReportFilters {
-  objectUid?: string;
+  objectUids?: string[];
   departments?: string[];
   vehicles?: string[];
   shiftType?: string;

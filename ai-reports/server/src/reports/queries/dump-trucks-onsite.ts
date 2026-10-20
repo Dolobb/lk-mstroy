@@ -40,7 +40,7 @@ export interface OnsiteDateShiftGroup {
 }
 
 interface DtOnsiteFilters {
-  objectUid?: string;
+  objectUids?: string[];
   vehicles?: string[];
   /** 'all' | 'shift1' | 'shift2' — фильтр по смене (дефолт: обе). */
   shiftType?: string;
@@ -93,7 +93,7 @@ export async function queryDtOnsiteData(
   filters: DtOnsiteFilters = {},
 ): Promise<OnsiteDateShiftGroup[]> {
   const pool = getPg17();
-  const params: any[] = [dateFrom || null, dateTo || null, filters.objectUid || null];
+  const params: any[] = [dateFrom || null, dateTo || null, filters.objectUids?.length ? filters.objectUids : null];
   let vehiclesClause = '';
   if (filters.vehicles?.length) {
     params.push(filters.vehicles);
@@ -131,7 +131,7 @@ export async function queryDtOnsiteData(
     WHERE sr.work_type = 'onsite'
       AND ($1::date IS NULL OR sr.report_date >= $1)
       AND ($2::date IS NULL OR sr.report_date <= $2)
-      AND ($3::text IS NULL OR sr.object_uid = $3)
+      AND ($3::text[] IS NULL OR sr.object_uid = ANY($3::text[]))
       ${vehiclesClause}
       ${shiftClause}
     ORDER BY sr.report_date, sr.shift_type, sr.object_name, sr.reg_number

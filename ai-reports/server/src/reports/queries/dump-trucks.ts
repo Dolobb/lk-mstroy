@@ -74,7 +74,7 @@ interface ZoneEventRow {
 }
 
 interface DtFilters {
-  objectUid?: string;
+  objectUids?: string[];
   vehicles?: string[];
   /** 'all' | 'shift1' | 'shift2' — фильтр по смене (дефолт: обе). */
   shiftType?: string;
@@ -88,7 +88,7 @@ export async function queryDtTripsData(
   filters: DtFilters = {},
 ): Promise<DateShiftGroup[]> {
   const pool = getPg17();
-  const params: any[] = [dateFrom || null, dateTo || null, filters.objectUid || null];
+  const params: any[] = [dateFrom || null, dateTo || null, filters.objectUids?.length ? filters.objectUids : null];
   let vehiclesClause = '';
   if (filters.vehicles?.length) {
     params.push(filters.vehicles);
@@ -121,7 +121,7 @@ export async function queryDtTripsData(
     LEFT JOIN dump_trucks.trips t ON t.shift_record_id = sr.id
     WHERE ($1::date IS NULL OR sr.report_date >= $1)
       AND ($2::date IS NULL OR sr.report_date <= $2)
-      AND ($3::text IS NULL OR sr.object_uid = $3)
+      AND ($3::text[] IS NULL OR sr.object_uid = ANY($3::text[]))
       ${vehiclesClause}
       ${shiftClause}
     ORDER BY sr.report_date, sr.shift_type, sr.object_name, sr.reg_number, t.trip_number
@@ -146,7 +146,7 @@ export async function queryDtTripsData(
     WHERE ($1::date IS NULL OR ze.report_date >= $1)
       AND ($2::date IS NULL OR ze.report_date <= $2)
       AND ze.zone_tag IN ('dt_loading', 'dt_unloading')
-      AND ($3::text IS NULL OR sr.object_uid = $3)
+      AND ($3::text[] IS NULL OR sr.object_uid = ANY($3::text[]))
       ${vehiclesClause}
       ${shiftClause}
     ORDER BY sr.id, ze.entered_at

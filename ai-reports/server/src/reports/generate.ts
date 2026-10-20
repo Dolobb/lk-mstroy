@@ -12,7 +12,7 @@ interface GenerateBody {
   dateTo: string;
   columns: string[];
   filters: {
-    objectUid?: string;
+    objectUids?: string[];
     departments?: string[];
     vehicles?: string[];
     shiftType?: string;
@@ -55,7 +55,7 @@ export async function generateHandler(req: Request, res: Response) {
       });
     } else if (body.reportType === 'dump-truck-trips') {
       const data = await queryDtTripsData(body.dateFrom, body.dateTo, {
-        objectUid: body.filters.objectUid,
+        objectUids: body.filters.objectUids,
         vehicles: body.filters.vehicles,
         shiftType: shiftNeutral,
       });
@@ -67,7 +67,7 @@ export async function generateHandler(req: Request, res: Response) {
       workbook = await buildDtTripsXlsx(data, body.columns);
     } else if (body.reportType === 'dump-truck-onsite') {
       const data = await queryDtOnsiteData(body.dateFrom, body.dateTo, {
-        objectUid: body.filters.objectUid,
+        objectUids: body.filters.objectUids,
         vehicles: body.filters.vehicles,
         shiftType: shiftNeutral,
       });

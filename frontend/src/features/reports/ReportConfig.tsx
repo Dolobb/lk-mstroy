@@ -6,13 +6,14 @@ import type { ReportType, ReportMeta, ReportFilters } from './types';
 
 export type ReportShift = 'all' | 'shift1' | 'shift2';
 
-interface VehicleMultiSelectProps {
+interface MultiSelectProps {
+  allLabel: string;
   options: { id: string; label: string }[];
   selected: string[];
   onChange: (ids: string[]) => void;
 }
 
-const VehicleMultiSelect: React.FC<VehicleMultiSelectProps> = ({ options, selected, onChange }) => {
+const MultiSelect: React.FC<MultiSelectProps> = ({ allLabel, options, selected, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,7 +31,7 @@ const VehicleMultiSelect: React.FC<VehicleMultiSelectProps> = ({ options, select
 
   const label =
     selected.length === 0
-      ? 'Все ТС'
+      ? allLabel
       : selected.length === 1
       ? options.find(o => o.id === selected[0])?.label || `${selected.length} выбрано`
       : `${selected.length} выбрано`;
@@ -164,17 +165,15 @@ export const ReportConfig: React.FC<Props> = ({
       {(reportType === 'dump-truck-trips' || reportType === 'dump-truck-onsite') && meta?.filters?.objects && (
         <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
           <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Объект</label>
-          <select
-            aria-label="Объект" title={meta.filters.objects.find(o => o.uid === filters.objectUid)?.name || 'Все объекты'}
-            value={filters.objectUid || ''}
-            onChange={e => onFiltersChange({ ...filters, objectUid: e.target.value || undefined })}
-            className={selectClass}
-          >
-            <option value="">Все объекты</option>
-            {meta.filters.objects.map(o => (
-              <option key={o.uid} value={o.uid}>{o.name}</option>
-            ))}
-          </select>
+          <MultiSelect
+            allLabel="Все объекты"
+            options={meta.filters.objects.map(o => ({ id: o.uid, label: o.name }))}
+            selected={filters.objectUids || []}
+            onChange={ids => onFiltersChange({
+              ...filters,
+              objectUids: ids.length > 0 ? ids : undefined,
+            })}
+          />
         </div>
       )}
 
@@ -203,7 +202,8 @@ export const ReportConfig: React.FC<Props> = ({
       {meta?.filters?.vehicles && meta.filters.vehicles.length > 0 && (
         <div className="flex flex-col gap-1 min-w-0 max-w-[320px]">
           <label className="text-[10px] text-muted-foreground uppercase tracking-wider">ТС</label>
-          <VehicleMultiSelect
+          <MultiSelect
+            allLabel="Все ТС"
             options={meta.filters.vehicles}
             selected={filters.vehicles || []}
             onChange={ids => onFiltersChange({
