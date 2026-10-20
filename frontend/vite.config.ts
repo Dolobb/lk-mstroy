@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: true,
-      allowedHosts: 'all',
+      allowedHosts: true,
       proxy: {
         '/api/vs': quietProxy('http://localhost:3004'),
         '/api/dt': quietProxy('http://localhost:3002'),
