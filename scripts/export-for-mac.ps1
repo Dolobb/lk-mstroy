@@ -4,8 +4,8 @@
 
   Делает:
     0. Показывает git status / stash — чтобы ничего не осталось только на этой машине.
-    1. Свежие дампы обеих баз штатным backup.ps1 (он же шифрует и льёт в yadisk:lk-backups/).
-    2. Секреты + SQLite тягачей (tyagachi/Data) → tar → age → yadisk:lk-backups/mac-handoff/.
+    1. Свежие дампы обеих баз штатным backup.ps1 (он же шифрует и льёт в gdrive:lk-backups/).
+    2. Секреты + SQLite тягачей (tyagachi/Data) → tar → age → gdrive:lk-backups/mac-handoff/.
 
   Ключ secrets-age-key.txt сюда НЕ попадает — его переносить отдельно (менеджер паролей / флешка).
 
@@ -49,10 +49,10 @@ if ($LASTEXITCODE -ne 0) { throw 'tar failed' }
 if ($LASTEXITCODE -ne 0) { throw 'age encrypt failed' }
 Remove-Item $tar -Force   # незашифрованные секреты не оставляем
 
-# Яндекс — RU-инфра, прокси обходим (как в backup.ps1)
-$env:HTTP_PROXY=''; $env:HTTPS_PROXY=''; $env:NO_PROXY='*'
-& $Rclone copy $enc 'yadisk:lk-backups/mac-handoff/' --no-traverse
+# Google — через прокси Happ (как в backup.ps1)
+$env:HTTP_PROXY='http://127.0.0.1:10808'; $env:HTTPS_PROXY='http://127.0.0.1:10808'; $env:NO_PROXY='localhost,127.0.0.1'
+& $Rclone copy $enc 'gdrive:lk-backups/mac-handoff/' --no-traverse
 if ($LASTEXITCODE -ne 0) { throw 'rclone upload failed' }
 
-Write-Output "=== готово: $enc → yadisk:lk-backups/mac-handoff/ ==="
+Write-Output "=== готово: $enc → gdrive:lk-backups/mac-handoff/ ==="
 Write-Output 'Дальше на Маке: scripts/restore-mac.sh (нужен ключ C:\lk-migration\secrets-age-key.txt)'

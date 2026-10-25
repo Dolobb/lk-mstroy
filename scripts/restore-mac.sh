@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # restore-mac.sh — поднять на Маке копию прода (для съёмки кейса). Пара к scripts/export-for-mac.ps1.
 #
-#   scripts/restore-mac.sh [папка с .age]   без аргумента — свежие файлы из yadisk:lk-backups
+#   scripts/restore-mac.sh [папка с .age]   без аргумента — свежие файлы из gdrive:lk-backups
 #
 # Обе базы кладёт в PG17 :5433 (как на проде — один инстанс). Старые mstroy/kip_vehicles на :5433
 # не удаляются, а переименовываются в *_old_<stamp>; PG16 :5432 не трогается.
@@ -25,9 +25,9 @@ if [ -z "${1:-}" ]; then
   mkdir -p "$SRC"
   pull() { local f; f=$(rclone lsf "$1" --include "$2" | sort | tail -1)
            [ -n "$f" ] || { echo "в $1 нет $2"; exit 1; }; rclone copy "$1/$f" "$SRC"; }
-  pull yadisk:lk-backups 'mstroy-*.dump.age'
-  pull yadisk:lk-backups 'kip_vehicles-*.dump.age'
-  pull yadisk:lk-backups/mac-handoff 'secrets-*.tar.gz.age'
+  pull gdrive:lk-backups 'mstroy-*.dump.age'
+  pull gdrive:lk-backups 'kip_vehicles-*.dump.age'
+  pull gdrive:lk-backups/mac-handoff 'secrets-*.tar.gz.age'
 fi
 latest() { ls "$SRC"/$1 | sort | tail -1; }
 echo "файлы: $(basename "$(latest 'mstroy-*.age')") $(basename "$(latest 'kip_vehicles-*.age')") $(basename "$(latest 'secrets-*.age')")"
