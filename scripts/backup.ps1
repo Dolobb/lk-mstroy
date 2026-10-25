@@ -5,7 +5,7 @@
   Делает:
     1. pg_dump обеих баз (mstroy + kip_vehicles), custom-формат, с таймстампом → локально (C:\lk-backups\db).
     2. Шифрует копии для облака через age (recipient = публичный ключ из secrets-age-key.txt).
-    3. Заливает зашифрованные дампы в Яндекс.Диск (RU) — yadisk:lk-backups/ (прокси Hiddify обходится).
+    3. Заливает зашифрованные дампы в Google Drive — gdrive:lk-backups/ (через прокси Happ 10808).
     4. Ротация: локально храним $KeepDaysLocal дней, в облаке — $KeepDaysCloud.
     5. Лог + маркер-файл последнего успеха (для сигнала «бэкап устарел»).
 
@@ -26,7 +26,7 @@ $BackupRoot   = 'C:\lk-backups'                 # TODO: при установк�
 $DbDir        = Join-Path $BackupRoot 'db'
 $EncDir       = Join-Path $BackupRoot 'enc'
 $LogDir       = Join-Path $BackupRoot 'logs'
-$RemoteDir    = 'yadisk:lk-backups'
+$RemoteDir    = 'gdrive:lk-backups'
 $Databases    = @('mstroy','kip_vehicles')
 $KeepDaysLocal = 14
 $KeepDaysCloud = 30
@@ -39,8 +39,8 @@ $log = Join-Path $LogDir "backup-$ts.log"
 $marker = Join-Path $BackupRoot 'LAST_SUCCESS.txt'
 function Log($m){ $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $m"; $line | Tee-Object -FilePath $log -Append | Out-Null; Write-Output $line }
 
-# Яндекс — RU-инфра, прокси Hiddify надо обойти
-$env:HTTP_PROXY=''; $env:HTTPS_PROXY=''; $env:NO_PROXY='*'
+# Google — через прокси Happ (см. machine_happ_proxy_no_tun)
+$env:HTTP_PROXY='http://127.0.0.1:10808'; $env:HTTPS_PROXY='http://127.0.0.1:10808'; $env:NO_PROXY='localhost,127.0.0.1'
 
 # rclone пишет в stderr; при ErrorActionPreference=Stop PS 5.1 превращает это в исключение.
 function Invoke-Rclone {

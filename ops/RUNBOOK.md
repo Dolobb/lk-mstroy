@@ -8,7 +8,7 @@
 - PostgreSQL 17: служба `postgresql-x64-17` (автозапуск), порт **5432**, базы `mstroy` + `kip_vehicles`, юзер `postgres` / пароль `888`.
 - Node **24.18.0 LTS** (`C:\Program Files\nodejs`).
 - Python **3.14** (`C:\Users\monit\AppData\Local\Programs\Python\Python314`) — для tyagachi.
-- Бэкапы: `C:\lk-backups\` (+ облако `yadisk:lk-backups/`, зашифровано age).
+- Бэкапы: `C:\lk-backups\` (+ облако `gdrive:lk-backups/`, зашифровано age).
 
 > ⚠️ Любой `.ps1` с кириллицей сохранять в **UTF-8 с BOM**, иначе PowerShell 5.1 ломает парсинг.
 > ⚠️ `curl` к localhost — всегда с `--noproxy '*'` (прокси Hiddify перехватывает localhost).
